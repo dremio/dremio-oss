@@ -30,8 +30,6 @@
   <url>https://github.com/dremio/dremio</url>
 
   <properties>
-    <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
-    <lucene.version>5.5.2</lucene.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
