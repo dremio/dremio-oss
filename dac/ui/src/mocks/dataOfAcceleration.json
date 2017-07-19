@@ -1,0 +1,47 @@
+{
+  "scheduler": {
+    "type": "DAILY",
+    "dayOfWeek": "THURSDAY",
+    "week": 3,
+    "hour": 2,
+    "minutes": 35,
+    "period": 1
+  },
+  "infosList": [
+    {
+      "start": "12/10/15 12:00 pm",
+      "end": "12/10/15 12:18 pm",
+      "duration": "00:13:23",
+      "outputBytes": "142606336",
+      "outputRecords": "1092"
+    },
+    {
+      "start": "12/10/15 12:00 pm",
+      "end": "12/10/15 12:18 pm",
+      "duration": "00:13:23",
+      "outputBytes": "142606336",
+      "outputRecords": "1092"
+    },
+    {
+      "start": "12/10/15 12:00 pm",
+      "end": "12/10/15 12:18 pm",
+      "duration": "00:13:23",
+      "outputBytes": "142606336",
+      "outputRecords": "1092"
+    },
+    {
+      "start": "12/10/15 12:00 pm",
+      "end": "12/10/15 12:18 pm",
+      "duration": "00:13:23",
+      "outputBytes": "142606336",
+      "outputRecords": "1092"
+    },
+    {
+      "start": "12/10/15 12:00 pm",
+      "end": "12/10/15 12:18 pm",
+      "duration": "00:13:23",
+      "outputBytes": "142606336",
+      "outputRecords": "1092"
+    }
+  ]
+}

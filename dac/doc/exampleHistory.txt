@@ -1,0 +1,138 @@
+[doc] get existing ds Prod-Sample.ds1
+0: GET http://localhost:57203/apiv2/dataset/Prod-Sample.ds1?view=explore
+0: Status 200, Content-type: application/json, returned in 116ms
+0: response body:
+0: <= {
+...
+0: <= }
+
+[doc] update SQL
+1: POST http://localhost:57203/apiv2/dataset/Prod-Sample.ds1/version/72670f87-bceb-488e-ab3b-4a532bfd145a
+1: request body:
+1: => {
+1: =>   "type" : "updateSQL",
+1: =>   "sql" : "select * from `Sales-Sample`.ds3"
+1: => }
+
+1: Status 200, Content-type: application/json, returned in 176ms
+1: response body:
+1: <= {
+1: <=   "resourcePath": ...
+1: <=   "versionedResourcePath" : ...
+1: <=   "datasetName" : ...
+1: <=   "sql" : ...
+1: <=   "datasetConfig" : ...
+1: <=     "lastTransform" : {
+1: <=       "type" : "updateSQL",
+1: <=       "updateSQL" : {
+1: <=         "type" : "updateSQL",
+1: <=         "sql" : "select * from `Sales-Sample`.ds3"
+1: <=       }
+1: <=     },
+1: <=     "previousVersion" : {
+1: <=       "datasetPath" : "Prod-Sample.ds1",
+1: <=       "datasetVersion" : "72670f87-bceb-488e-ab3b-4a532bfd145a"
+1: <=     },
+1: <=     "sqlFieldsList" : ...
+1: <=   },
+1: <=   "lastHistoryItem" : {
+1: <=     "versionedResourcePath" : ...
+1: <=     "state" : "STARTED",
+1: <=     "transformDescription" : "SQL Edited",
+1: <=     "owner" : "dremio",
+1: <=     "createdAt" : 1456377965783,
+1: <=     "preview" : true
+1: <=   },
+1: <=   "queries" : 0
+1: <= }
+
+
+[doc] get history
+3: GET http://localhost:57203/apiv2/dataset/Prod-Sample.ds1/version/5adc24de-8ddc-4c54-b163-3059642f4098/history
+3: Status 200, Content-type: application/json, returned in 20ms
+3: response body:
+3: <= {
+3: <=   "items" : [
+3: <=     {
+3: <=       "versionedResourcePath" : [
+3: <=         "DatasetVersionResourcePath",
+3: <=         "/dataset/Prod-Sample.ds1/version/95e409e1-9299-49e0-a2fd-2912db52d64b"
+3: <=       ],
+3: <=       "state" : "DONE",
+3: <=       "transformDescription" : "SQL Edited",
+3: <=       "owner" : "jnadeau",
+3: <=       "createdAt" : 1456118766064,
+3: <=       "finishedAt" : 1456119366064,
+3: <=       "preview" : false,
+3: <=       "recordsReturned" : 30000,
+3: <=       "bytes" : 142606336
+3: <=     },
+3: <=     {
+3: <=       "versionedResourcePath" : [
+3: <=         "DatasetVersionResourcePath",
+3: <=         "/dataset/Prod-Sample.ds1/version/749c5978-84a1-4540-ad2d-e647c6601fbc"
+3: <=       ],
+3: <=       "state" : "CANCELED",
+3: <=       "transformDescription" : "sort by x",
+3: <=       "owner" : "dremio",
+3: <=       "createdAt" : 1456118766064,
+3: <=       "preview" : true
+3: <=     },
+3: <=     {
+3: <=       "versionedResourcePath" : [
+3: <=         "DatasetVersionResourcePath",
+3: <=         "/dataset/Prod-Sample.ds1/version/9c7e230b-7fe4-4386-bffd-acb7d7c31102"
+3: <=       ],
+3: <=       "state" : "DONE",
+3: <=       "transformDescription" : "sort by x",
+3: <=       "owner" : "dremio",
+3: <=       "createdAt" : 1456118766064,
+3: <=       "finishedAt" : 1456119366064,
+3: <=       "preview" : true,
+3: <=       "recordsReturned" : 30000,
+3: <=       "bytes" : 112197632
+3: <=     },
+3: <=     {
+3: <=       "versionedResourcePath" : [
+3: <=         "DatasetVersionResourcePath",
+3: <=         "/dataset/Prod-Sample.ds1/version/16fa133e-d539-445f-b682-ebf26bce7da6"
+3: <=       ],
+3: <=       "state" : "DONE",
+3: <=       "transformDescription" : "sort by x",
+3: <=       "owner" : "dremio",
+3: <=       "createdAt" : 1456118766064,
+3: <=       "finishedAt" : 1456119366064,
+3: <=       "preview" : true,
+3: <=       "recordsReturned" : 30000,
+3: <=       "bytes" : 112197632
+3: <=     },
+3: <=     {
+3: <=       "versionedResourcePath" : [
+3: <=         "DatasetVersionResourcePath",
+3: <=         "/dataset/Prod-Sample.ds1/version/5adc24de-8ddc-4c54-b163-3059642f4098"
+3: <=       ],
+3: <=       "state" : "STARTED",
+3: <=       "transformDescription" : "Rename A to B",
+3: <=       "owner" : "dremio",
+3: <=       "createdAt" : 1456377890064,
+3: <=       "finishedAt" : 1456377966064,
+3: <=       "preview" : false,
+3: <=       "recordsReturned" : 1200,
+3: <=       "bytes" : 12582912
+3: <=     },
+3: <=     {
+3: <=       "versionedResourcePath" : [
+3: <=         "DatasetVersionResourcePath",
+3: <=         "/dataset/Prod-Sample.ds1/version/5adc24de-8ddc-4c54-b163-3059642f4098"
+3: <=       ],
+3: <=       "state" : "STARTED",
+3: <=       "transformDescription" : "SQL Edited",
+3: <=       "owner" : "dremio",
+3: <=       "createdAt" : 1456377966064,
+3: <=       "preview" : false,
+3: <=       "recordsReturned" : 1200,
+3: <=       "bytes" : 12582912
+3: <=     }
+3: <=   ]
+3: <= }
+

@@ -1,0 +1,107 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.accelerator.proto;
+
+import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "acceleration-common.proto";
+import "acceleration-pipeline.proto";
+
+option java_package = "com.dremio.service.accelerator.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "AccelerationMaterializationProtobuf";
+
+// messages used by acceleration service
+
+// represent an individual, concrete acceleration
+message MaterializedLayout {
+  // unique layout id
+  required LayoutId layoutId = 1;
+  // version for occ
+  optional uint64 version = 2;
+  // list of available materializations
+  repeated Materialization materialization = 3;
+}
+
+message MaterializationId {
+  required string id = 1;
+}
+
+message Materialization {
+  // unique id
+  required MaterializationId  id = 1;
+  // unique id
+  required LayoutId layoutId = 2;
+  // path to materialized dataset
+  repeated string path = 3;
+  // job state
+  optional MaterializationState state = 4 [default = NEW];
+  // job details
+  optional JobDetails job = 5;
+  // partitions to which CTAS will write results
+  repeated DataPartition partition = 6;
+  // materialization metrics
+  optional MaterializationMetrics metrics = 7;
+  // updateId
+  optional int64 updateId = 8;
+  // updates (if incremental)
+  repeated MaterializationUpdate updates = 9;
+  // expiration time based on TTL of physical datasets and expiration time of parent materializations
+  optional int64 expiration = 10;
+  // failure details set if state is failed
+  optional MaterializatonFailure failure = 11;
+  //layout version
+  optional int32 layoutVersion = 12;
+}
+
+message MaterializationUpdate {
+  optional int64 timestamp = 1;
+  optional JobId jobId = 2;
+}
+
+
+// materialization job details
+message JobDetails {
+  optional string jobId = 1;
+  optional uint64 jobStart = 2;
+  optional uint64 jobEnd = 3;
+  optional uint64 inputBytes = 4;
+  optional uint64 inputRecords = 5;
+  optional uint64 outputBytes = 6;
+  optional uint64 outputRecords = 7;
+}
+
+// data partition host address
+message DataPartition {
+  required string address = 1;
+}
+
+// details about materialization
+message MaterializationMetrics {
+  // how many bytes does
+  required uint64 footprint = 1 [default = 0];
+  // original query cost of running view definition
+  required double originalCost = 2 [default = 1.0];
+}
+
+// failure details
+
+message MaterializatonFailure {
+  // failure message
+  optional string message = 1;
+  // stack trace
+  optional string stackTrace = 2;
+}

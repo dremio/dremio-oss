@@ -1,0 +1,177 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { Component, PropTypes } from 'react';
+import Immutable from 'immutable';
+import classNames from 'classnames';
+import Radium from 'radium';
+
+import { body } from 'uiTheme/radium/typography';
+import { CONTAINER_ENTITY_TYPES } from 'constants/Constants';
+
+import FontIcon from 'components/Icon/FontIcon';
+import DragSource from 'components/DragComponents/DragSource';
+import exploreUtils from 'utils/explore/exploreUtils';
+import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
+
+import Tree from './Tree';
+
+import './ResourceTree.less';
+
+@Radium
+export default class ResourceTree extends Component {
+  static propTypes = {
+    resourceTree: PropTypes.instanceOf(Immutable.List),
+    selectedNodeId: PropTypes.string,
+    isDatasetsDisabled: PropTypes.bool,
+    dragType: PropTypes.string,
+    formatIdFromNode: PropTypes.func,
+    isNodeExpanded: PropTypes.func,
+    handleSelectedNodeChange: PropTypes.func,
+    handleNodeClick: PropTypes.func,
+    style: PropTypes.object
+  };
+
+  static isNodeExpandable = (node) => CONTAINER_ENTITY_TYPES.has(node.get('type'))
+
+  handleSelectedNodeChange = (node) => {
+    if (ResourceTree.isNodeExpandable(node)) {
+      this.props.handleNodeClick(node);
+    }
+    this.props.handleSelectedNodeChange(this.props.formatIdFromNode(node), node);
+  }
+
+  renderNode = (node) => {
+    const nodeId = this.props.formatIdFromNode(node);
+    const isDisabled = this.props.isDatasetsDisabled && !CONTAINER_ENTITY_TYPES.has(node.get('type'));
+    const arrowIconType = this.props.isNodeExpanded(node) ? 'TriangleDown' : 'TriangleRight';
+
+    const iconForArrow = ResourceTree.isNodeExpandable(node)
+      ? (
+        <FontIcon
+          type={arrowIconType}
+          theme={styles.arrow}
+        />
+      )
+      : <div style={styles.emptyDiv}></div>;
+
+    const classes = classNames('node', {'active-node': this.props.selectedNodeId === nodeId});
+    const iconType = exploreUtils.getIconByEntityType(node.get('type'));
+
+    const nodeElement = ResourceTree.isNodeExpandable(node) ?
+      <div style={{ display: 'flex' }}>
+        <FontIcon type={iconType} theme={styles.icon}/>
+        <div className='node-text' style={styles.text}>{node.get('name')}</div>
+      </div>
+      :
+      <div style={{ display: 'flex' }}>
+        <DatasetItemLabel
+          name={node.get('name')}
+          fullPath={node.get('fullPath')}
+          dragType={this.props.dragType}
+          typeIcon={iconType}
+          placement='right'/>
+      </div>;
+    const nodeWrap = (
+      <div
+        data-qa={node.get('name')}
+        onClick={this.handleSelectedNodeChange.bind(this, node)}
+        onMouseUp={e => e.preventDefault()}
+        style={isDisabled ? styles.disabled : {}}
+      >
+        <div style={{...styles.node, ...body}} className={classes}>
+          {iconForArrow}
+          {nodeElement}
+        </div>
+      </div>
+    );
+    return this.props.dragType
+      ? (
+        <DragSource
+          dragType={this.props.dragType}
+          id={node.get('fullPath')}
+          key={nodeId}>
+          {nodeWrap}
+        </DragSource>
+      )
+      : nodeWrap;
+  }
+
+  render() {
+    return (
+      <div style={{ ...styles.base, ...this.props.style }}>
+        <Tree
+          resourceTree={this.props.resourceTree}
+          renderNode={this.renderNode}
+          selectedNodeId={this.props.selectedNodeId}
+          isNodeExpanded={this.props.isNodeExpanded}
+        />
+      </div>
+    );
+  }
+}
+
+const styles = {
+  base: {
+    height: '100%',
+    paddingTop: 2,
+    overflowY: 'auto',
+    maxHeight: 242,
+    minHeight: 240,
+    border: '1px solid #E0E0E0'
+  },
+  disabled: {
+    opacity: 0.7,
+    pointerEvents: 'none',
+    color: 'rgb(153, 153, 153)',
+    background: 'rgb(255, 255, 255)'
+  },
+  node: {
+    display: 'inline-flex',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    width: '100%',
+    height: 24,
+    cursor: 'pointer'
+  },
+  arrow: {
+    Container: {
+      width: 20
+    },
+    Icon: {
+      marginTop: 4
+    }
+  },
+  emptyDiv: {
+    height: 24,
+    width: 15,
+    marginLeft: 5
+  },
+  icon: {
+    Icon: {
+      width: 21,
+      height: 21
+    },
+    Container: {
+      width: 21,
+      height: 21
+    }
+  },
+  text: {
+    marginLeft: 5,
+    lineHeight: '21px'
+  }
+};

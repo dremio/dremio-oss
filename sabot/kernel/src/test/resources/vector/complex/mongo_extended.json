@@ -1,0 +1,11 @@
+{
+  "dremio_timestamp_millies" : {
+    "$date" : 1436241583488
+  },
+  "bin" : {
+      "$binary" : "ZHJlbWlv", "$type" : 1
+  },
+  "bin1" : {
+      "$type" : 1, "$binary" : "ZHJlbWlv"
+  }
+}

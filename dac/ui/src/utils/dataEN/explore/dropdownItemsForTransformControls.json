@@ -1,0 +1,32 @@
+[
+  {
+    "name": "b1",
+    "separate": true,
+    "values": [
+      {
+        "name": "Last"
+      },
+      {
+        "name": "First"
+      }
+    ]
+  },
+  {
+    "name": "b2",
+    "separate": true,
+    "values": [
+      {
+        "name": "All"
+      },
+      {
+        "name": "First"
+      },
+      {
+        "name": "Last"
+      },
+      {
+        "name": "Index"
+      }
+    ]
+  }
+]

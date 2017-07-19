@@ -1,0 +1,137 @@
+[doc] get spaces
+0: GET http://localhost:56302/apiv2/space/Sales-Sample
+0: Status 200 returned in 45ms
+0: response body:
+0: <= {
+0: <=   "datasets" : 0,
+0: <=   "resourcePath" : "/space/Sales-Sample",
+0: <=   "name" : "Sales-Sample"
+0: <= }
+
+1: GET http://localhost:56302/apiv2/spaces
+1: Status 200 returned in 4ms
+1: response body:
+1: <= {
+1: <=   "spaces" : [
+1: <=     {
+1: <=       "datasets" : 0,
+1: <=       "resourcePath" : "/space/Prod-Sample",
+1: <=       "name" : "Prod-Sample"
+1: <=     },
+1: <=     {
+1: <=       "datasets" : 0,
+1: <=       "resourcePath" : "/space/Sales-Sample",
+1: <=       "name" : "Sales-Sample"
+1: <=     },
+1: <=     {
+1: <=       "datasets" : 0,
+1: <=       "resourcePath" : "/space/Tpch-Sample",
+1: <=       "name" : "Tpch-Sample"
+1: <=     }
+1: <=   ]
+1: <= }
+
+[doc] get existing ds
+2: GET http://localhost:56302/apiv2/dataset/Sales-Sample.ds4?view=explore
+2: Status 200 returned in 10ms
+2: response body:
+2: <= {
+2: <=   "resourcePath" : "/dataset/Sales-Sample.ds4",
+2: <=   "versionedResourcePath" : "/dataset/Sales-Sample.ds4/version/14914514-c356-486f-8e91-98c50c75da4f",
+2: <=   "datasetName" : "ds4",
+2: <=   "sql" : "select * from dfs.tmp.`dac-sample2.json` where A >= 900",
+2: <=   "datasetConfig" : {
+2: <=     "name" : "ds4",
+2: <=     "sql" : "select * from dfs.tmp.`dac-sample2.json` where A >= 900",
+2: <=     "version" : "14914514-c356-486f-8e91-98c50c75da4f",
+2: <=     "state" : {
+2: <=       "parentDataset" : {
+2: <=         "datasetPath" : "dfs.tmp.`dac-sample2.json`",
+2: <=         "datasetVersion" : ""
+2: <=       }
+2: <=     }
+2: <=   }
+2: <= }
+
+[doc] sort dataset by B
+3: POST http://localhost:56302/apiv2/dataset/Sales-Sample.ds4/version/14914514-c356-486f-8e91-98c50c75da4f
+3: request body:
+3: => {
+3: =>   "type" : "sort",
+3: =>   "sortedColumnName" : "B",
+3: =>   "order" : "ASC"
+3: => }
+
+3: Status 200 returned in 11ms
+3: response body:
+3: <= {
+3: <=   "resourcePath" : "/dataset/Sales-Sample.ds4",
+3: <=   "versionedResourcePath" : "/dataset/Sales-Sample.ds4/version/0d30b705-4d84-4113-95ab-67096362efc0",
+3: <=   "datasetName" : "ds4",
+3: <=   "sql" : "SELECT * FROM dfs.tmp.`dac-sample2.json` ORDER BY B ASC",
+3: <=   "datasetConfig" : {
+3: <=     "name" : "ds4",
+3: <=     "sql" : "SELECT * FROM dfs.tmp.`dac-sample2.json` ORDER BY B ASC",
+3: <=     "version" : "14914514-c356-486f-8e91-98c50c75da4f",
+3: <=     "state" : {
+3: <=       "parentDataset" : {
+3: <=         "datasetPath" : "dfs.tmp.`dac-sample2.json`",
+3: <=         "datasetVersion" : ""
+3: <=       },
+3: <=       "ordersList" : [
+3: <=         {
+3: <=           "name" : "B",
+3: <=           "direction" : "ASC"
+3: <=         }
+3: <=       ]
+3: <=     }
+3: <=   }
+3: <= }
+
+[doc] sort multiple columns
+4: POST http://localhost:56302/apiv2/dataset/Sales-Sample.ds4/version/14914514-c356-486f-8e91-98c50c75da4f
+4: request body:
+4: => {
+4: =>   "type" : "sorts",
+4: =>   "columns" : [
+4: =>     {
+4: =>       "name" : "B",
+4: =>       "direction" : "ASC"
+4: =>     },
+4: =>     {
+4: =>       "name" : "C",
+4: =>       "direction" : "DESC"
+4: =>     }
+4: =>   ]
+4: => }
+
+4: Status 200 returned in 6ms
+4: response body:
+4: <= {
+4: <=   "resourcePath" : "/dataset/Sales-Sample.ds4",
+4: <=   "versionedResourcePath" : "/dataset/Sales-Sample.ds4/version/766db80d-7fdc-4d9a-b868-5f7cb6e7484f",
+4: <=   "datasetName" : "ds4",
+4: <=   "sql" : "SELECT * FROM dfs.tmp.`dac-sample2.json` ORDER BY B ASC, C DESC",
+4: <=   "datasetConfig" : {
+4: <=     "name" : "ds4",
+4: <=     "sql" : "SELECT * FROM dfs.tmp.`dac-sample2.json` ORDER BY B ASC, C DESC",
+4: <=     "version" : "14914514-c356-486f-8e91-98c50c75da4f",
+4: <=     "state" : {
+4: <=       "parentDataset" : {
+4: <=         "datasetPath" : "dfs.tmp.`dac-sample2.json`",
+4: <=         "datasetVersion" : ""
+4: <=       },
+4: <=       "ordersList" : [
+4: <=         {
+4: <=           "name" : "B",
+4: <=           "direction" : "ASC"
+4: <=         },
+4: <=         {
+4: <=           "name" : "C",
+4: <=           "direction" : "DESC"
+4: <=         }
+4: <=       ]
+4: <=     }
+4: <=   }
+4: <= }
+

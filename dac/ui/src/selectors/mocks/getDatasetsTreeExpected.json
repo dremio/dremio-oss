@@ -1,0 +1,50 @@
+[
+  {
+    "arrow": false,
+    "children": [],
+    "icon": "Home",
+    "isSource": false,
+    "name": "home",
+    "opened": false,
+    "selected": false
+  },
+  {
+    "arrow": false,
+    "children": [],
+    "disabled": true,
+    "icon": "Recent",
+    "name": "Recent",
+    "opened": false,
+    "selected": false
+  },
+  {
+    "children": [],
+    "icon": "Space",
+    "isSource": false,
+    "name": "22222"
+  },
+  {
+    "children": [],
+    "icon": "Space",
+    "isSource": false,
+    "name": "sdsds"
+  },
+  {
+    "children": [],
+    "icon": "Space",
+    "isSource": false,
+    "name": "xcxcx"
+  },
+  {
+    "children": [],
+    "icon": "Database",
+    "isSource": true,
+    "name": "123"
+  },
+  {
+    "children": [],
+    "icon": "Database",
+    "isSource": true,
+    "name": "LocalFS2"
+  }
+]

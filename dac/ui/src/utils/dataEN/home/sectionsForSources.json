@@ -1,0 +1,362 @@
+[
+  {
+    "id": "HDFS",
+    "name": "HDFS",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Host",
+            "id": "host",
+            "type": "string"
+          },
+          {
+            "name": "Port",
+            "id": "port",
+            "type": "number"
+          },
+          {
+            "name": "Property",
+            "id": "propertyList",
+            "type": "repeated",
+            "fields": [
+              {
+                "id": "name",
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "id": "value",
+                "name": "value",
+                "type": "string"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "MONGO",
+    "name": "MongoDb",
+    "sections": [
+      {
+        "name": "Connection",
+        "id": "connectionString",
+        "type": "connection",
+        "fields": [
+          {
+            "name": "Connection",
+            "id": "connectionString",
+            "type": "string"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "oracle",
+    "name": "Oracle",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Host",
+            "id": "host",
+            "type": "string"
+          },
+          {
+            "name": "Port",
+            "id": "port",
+            "type": "number"
+          },
+          {
+            "name": "Instance",
+            "id": "instance",
+            "type": "string"
+          },
+          {
+            "name": "Username",
+            "id": "username",
+            "type": "string"
+          },
+          {
+            "name": "Password",
+            "id": "password",
+            "type": "password"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "elastic",
+    "name": "Elastic",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Host",
+            "id": "seedHostList",
+            "type": "repeated",
+            "subtype": "list"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "hbase",
+    "name": "Hbase",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Quorum",
+            "id": "zkQuorum",
+            "type": "string"
+          },
+          {
+            "name": "Property",
+            "id": "propertyList",
+            "type": "repeated",
+            "fields": [
+              {
+                "id": "name",
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "id": "value",
+                "name": "value",
+                "type": "string"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "linuxcluster",
+    "name": "LinuxCluster"
+  },
+  {
+    "id": "GoogleAnalytics",
+    "name": "GoogleAnalytics"
+  },
+  {
+    "id": "Saleforce",
+    "name": "Saleforce"
+  },
+  {
+    "id": "maprfs",
+    "name": "MapRFS",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Cluster",
+            "id": "clusterName",
+            "type": "string"
+          },
+          {
+            "name": "CLDB",
+            "id": "cldblist",
+            "type": "repeated",
+            "subtype": "list"
+          },
+          {
+            "name": "Property",
+            "id": "propertyList",
+            "type": "repeated",
+            "fields": [
+              {
+                "id": "name",
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "id": "value",
+                "name": "value",
+                "type": "string"
+              }
+            ]
+          },
+          {
+            "name": "Secure",
+            "id": "secure",
+            "type": "bool"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "MySQL",
+    "name": "MySQL",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "type": "string",
+            "id": "host",
+            "name": "Host"
+          },
+          {
+            "type": "number",
+            "id": "port",
+            "name": "Port"
+          },
+          {
+            "name": "Username",
+            "id": "username",
+            "type": "string"
+          },
+          {
+            "name": "Password",
+            "id": "password",
+            "type": "password"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "NAS",
+    "name": "NAS",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Path",
+            "id": "path",
+            "type": "string"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "S3",
+    "name": "S3",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "key",
+            "id": "accessKey",
+            "type": "string"
+          },
+          {
+            "name": "Secret",
+            "id": "accessSecret",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "name": "Buckets",
+        "id": "externalBucketsList",
+        "type": "buckets",
+        "fields": [
+          {
+            "name": "Buckets",
+            "id": "externalBucketsList",
+            "type": "repeated",
+            "subtype": "list"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Postgres",
+    "name": "PostgreSQL",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Host",
+            "id": "host",
+            "type": "string"
+          },
+          {
+            "name": "Port",
+            "id": "port",
+            "type": "number"
+          },
+          {
+            "name": "Database",
+            "id": "databaseName",
+            "type": "string"
+          },
+          {
+            "name": "Username",
+            "id": "username",
+            "type": "string"
+          },
+          {
+            "name": "Password",
+            "id": "password",
+            "type": "password"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Redshift",
+    "name": "Redshift",
+    "sections": [
+      {
+        "name": "Connection",
+        "id": "connectionString",
+        "type": "connection",
+        "fields": [
+          {
+            "name": "Connection",
+            "id": "connectionString",
+            "type": "string"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Kudu",
+    "name": "Kudu",
+    "sections": [
+      {
+        "name": "Config",
+        "id": "config",
+        "fields": [
+          {
+            "name": "Master Address",
+            "id": "masterAddressList",
+            "type": "repeated",
+            "subtype": "list"
+          }
+        ]
+      }
+    ]
+  }
+]

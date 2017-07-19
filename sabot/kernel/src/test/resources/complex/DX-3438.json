@@ -1,0 +1,5 @@
+{
+  "complexCol" : [ "one", "two", "three" ],
+  "normalCol1" : 1,
+  "normalCol2" : "string"
+}

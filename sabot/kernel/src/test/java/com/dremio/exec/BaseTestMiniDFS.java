@@ -1,0 +1,158 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.exec;
+
+import static org.junit.Assert.assertEquals;
+
+import java.io.File;
+import java.util.Map;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
+
+import com.dremio.PlanTestBase;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.dotfile.DotFileType;
+import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.dfs.FileSystemConfig;
+import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.exec.store.dfs.WorkspaceConfig;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+
+public class BaseTestMiniDFS extends PlanTestBase {
+  protected static final String MINIDFS_STORAGE_PLUGIN_NAME = "miniDfsPlugin";
+  protected static final String processUser = System.getProperty("user.name");
+
+  protected static MiniDFSCluster dfsCluster;
+  protected static Configuration dfsConf;
+  protected static FileSystem fs;
+  protected static String miniDfsStoragePath;
+
+  /**
+   * Start a MiniDFS cluster backed SabotNode cluster with impersonation enabled.
+   * @param testClass
+   * @throws Exception
+   */
+  protected static void startMiniDfsCluster(String testClass) throws Exception {
+    startMiniDfsCluster(testClass, new Configuration());
+  }
+
+  /**
+   * Start a MiniDFS cluster backed SabotNode cluster
+   * @param testClass
+   * @param isImpersonationEnabled Enable impersonation in the cluster?
+   * @throws Exception
+   */
+  protected static void startMiniDfsCluster(final String testClass, Configuration configuration) throws Exception {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(testClass), "Expected a non-null and non-empty test class name");
+    dfsConf = Preconditions.checkNotNull(configuration);
+
+    // Set the MiniDfs base dir to be the temp directory of the test, so that all files created within the MiniDfs
+    // are properly cleanup when test exits.
+    miniDfsStoragePath = System.getProperty("java.io.tmpdir") + Path.SEPARATOR + testClass;
+    dfsConf.set("hdfs.minidfs.basedir", miniDfsStoragePath);
+    // HDFS-8880 and HDFS-8953 introduce metrics logging that requires log4j, but log4j is explicitly
+    // excluded in build. So disable logging to avoid NoClassDefFoundError for Log4JLogger.
+    dfsConf.set("dfs.namenode.metrics.logger.period.seconds", "0");
+    dfsConf.set("dfs.datanode.metrics.logger.period.seconds", "0");
+
+    // Start the MiniDfs cluster
+    dfsCluster = new MiniDFSCluster.Builder(dfsConf)
+        .numDataNodes(3)
+        .format(true)
+        .build();
+
+    fs = dfsCluster.getFileSystem();
+  }
+
+  protected static void addMiniDfsBasedStorage(final Map<String, WorkspaceConfig> workspaces,
+      boolean impersonationEnabled) throws Exception {
+    // Create a HDFS based storage plugin based on local storage plugin and add it to plugin registry (connection string
+    // for mini dfs is varies for each run).
+    final StoragePluginRegistry pluginRegistry = getSabotContext().getStorage();
+    final FileSystemConfig lfsPluginConfig = (FileSystemConfig) pluginRegistry.getPlugin("dfs_test").getConfig();
+
+    final Path dirPath = new Path("/");
+    FileSystem.mkdirs(fs, dirPath, new FsPermission((short)0777));
+    fs.setOwner(dirPath, processUser, processUser);
+
+    final FileSystemConfig miniDfsPluginConfig =
+        new FileSystemConfig(dfsConf.get(FileSystem.FS_DEFAULT_NAME_KEY), "/",
+            ImmutableMap.<String, String>of(), lfsPluginConfig.getFormats(), impersonationEnabled, SchemaMutability.ALL);
+
+    pluginRegistry.createOrUpdate(MINIDFS_STORAGE_PLUGIN_NAME, miniDfsPluginConfig, true);
+  }
+
+  protected static void createAndAddWorkspace(String name, String path, short permissions, String owner,
+      String group, final Map<String, WorkspaceConfig> workspaces) throws Exception {
+    final Path dirPath = new Path(path);
+    FileSystem.mkdirs(fs, dirPath, new FsPermission(permissions));
+    fs.setOwner(dirPath, owner, group);
+    final WorkspaceConfig ws = new WorkspaceConfig(path, true, "parquet");
+    workspaces.put(name, ws);
+  }
+
+  protected static void stopMiniDfsCluster() throws Exception {
+    if (dfsCluster != null) {
+      dfsCluster.shutdown();
+      dfsCluster = null;
+    }
+
+    if (miniDfsStoragePath != null) {
+      FileUtils.deleteQuietly(new File(miniDfsStoragePath));
+    }
+  }
+
+  // Return the user workspace for given user.
+  protected static String getWSSchema(String user) {
+    return getUserHome(user);
+  }
+
+  protected static String getUserHome(String user) {
+    return "/user/" + user;
+  }
+
+  protected static void createView(final String viewOwner, final String viewGroup, final short viewPerms,
+                                 final String newViewName, final String fromPath) throws Exception {
+    updateClient(viewOwner);
+    test(String.format("ALTER SESSION SET `%s`='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, viewPerms));
+    test(String.format("CREATE VIEW %s.`/user/%s/%s` AS SELECT * FROM %s.`%s`;",
+      MINIDFS_STORAGE_PLUGIN_NAME, viewOwner, newViewName, MINIDFS_STORAGE_PLUGIN_NAME, fromPath));
+
+    // Verify the view file created has the expected permissions and ownership
+    Path viewFilePath = new Path(getUserHome(viewOwner), newViewName + DotFileType.VIEW.getEnding());
+    FileStatus status = fs.getFileStatus(viewFilePath);
+    assertEquals(viewGroup, status.getGroup());
+    assertEquals(viewOwner, status.getOwner());
+    assertEquals(viewPerms, status.getPermission().toShort());
+  }
+
+  protected static void createView(final String viewOwner, final String viewGroup, final String viewName,
+                                 final String viewDef) throws Exception {
+    updateClient(viewOwner);
+    test(String.format("ALTER SESSION SET `%s`='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
+    test("CREATE VIEW %s.%s.%s AS %s", MINIDFS_STORAGE_PLUGIN_NAME, "tmp", viewName, viewDef);
+    final Path viewFilePath = new Path("/tmp/", viewName + DotFileType.VIEW.getEnding());
+    fs.setOwner(viewFilePath, viewOwner, viewGroup);
+  }
+}

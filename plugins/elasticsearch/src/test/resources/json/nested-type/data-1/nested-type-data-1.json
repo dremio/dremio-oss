@@ -1,0 +1,14 @@
+{
+    "id" : 1,
+    "username" : "andrew",
+    "address" : {
+        "city"   : "menlo park",
+        "state"  : "ca",
+        "zip"    : 94026,
+        "street" : "1 santa cruz",
+        "phones" : {
+            "mobile" : 4152568900,
+            "office" : 4156263434
+        }
+    }
+}

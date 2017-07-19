@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/Settings-Small</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Settings-Small" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-10" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Gear-Copy" transform="translate(6.000000, 6.000000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
+                    <path d="M8.31,5.9995 C8.31,7.2745 7.2765,8.307 6.002,8.307 C4.7265,8.307 3.6935,7.2745 3.6935,5.9995 C3.6935,4.725 4.7265,3.692 6.002,3.692 C7.2765,3.692 8.31,4.725 8.31,5.9995 M11.539,5.077 L10.9855,5.077 C10.7315,5.077 10.462,4.8785 10.3865,4.636 L10.0685,3.863 C9.949,3.6395 9.998,3.3095 10.1765,3.13 L10.5705,2.7375 C10.75,2.5575 10.75,2.2635 10.5705,2.084 L9.916,1.4315 C9.7375,1.252 9.4435,1.252 9.264,1.4315 L8.87,1.824 C8.6915,2.0035 8.3605,2.0525 8.1365,1.9325 L7.365,1.6145 C7.123,1.5395 6.9245,1.27 6.9245,1.016 L6.9245,0.462 C6.9245,0.2085 6.716,0 6.462,0 L5.539,0 C5.285,0 5.077,0.2085 5.077,0.462 L5.077,1.016 C5.077,1.27 4.879,1.5395 4.6365,1.6145 L3.864,1.9325 C3.6395,2.0525 3.3105,2.004 3.131,1.824 L2.7375,1.4315 C2.5575,1.252 2.2645,1.252 2.085,1.4315 L1.4325,2.084 C1.252,2.2635 1.252,2.5575 1.4325,2.737 L1.824,3.13 C2.004,3.3095 2.0535,3.6395 1.9325,3.863 L1.615,4.6365 C1.539,4.879 1.2705,5.0775 1.0165,5.0775 L0.462,5.077 C0.208,5.077 0,5.2845 0,5.5385 L0,6.4615 C0,6.7155 0.208,6.9235 0.462,6.9235 L1.0165,6.9235 C1.2705,6.924 1.539,7.1225 1.614,7.3645 L1.9325,8.1375 C2.053,8.3615 2.004,8.6925 1.824,8.871 L1.4315,9.2635 C1.252,9.4435 1.252,9.737 1.4315,9.917 L2.085,10.57 C2.2645,10.7495 2.5575,10.7495 2.7375,10.57 L3.131,10.177 C3.31,9.998 3.6395,9.949 3.8625,10.07 L4.6365,10.388 C4.879,10.4635 5.077,10.7325 5.077,10.9865 L5.077,11.539 C5.077,11.7925 5.285,12.0005 5.539,12.0005 L6.462,12.0005 C6.716,12.0005 6.9245,11.7925 6.9245,11.539 L6.9245,10.9865 C6.9245,10.7325 7.123,10.4635 7.365,10.388 L8.139,10.07 C8.3625,9.949 8.6925,9.998 8.8725,10.177 L9.264,10.57 C9.4435,10.7495 9.7375,10.7495 9.916,10.57 L10.5705,9.917 C10.75,9.737 10.75,9.4435 10.5705,9.2635 L10.1765,8.871 C9.998,8.6925 9.949,8.3615 10.0685,8.1375 L10.3865,7.3645 C10.462,7.1225 10.733,6.924 10.9855,6.924 L11.539,6.924 C11.793,6.924 12,6.7165 12,6.4625 L12,5.5385 C12,5.2845 11.793,5.077 11.539,5.077" id="Fill-1"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

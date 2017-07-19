@@ -1,0 +1,99 @@
+15: GET http://localhost:61195/apiv2/dataset/spacefoo.folderbar.folderbaz.convertCase?view=explore
+15: Status 200, Content-type: application/json, returned in 2ms
+15: response body:
+15: <= {
+15: <=   "resourcePath" : "/dataset/spacefoo.folderbar.folderbaz.convertCase",
+15: <=   "versionedResourcePath" : "/dataset/spacefoo.folderbar.folderbaz.convertCase/version/fcf46e3c-e7c8-4388-91b0-740f9146ec03",
+15: <=   "datasetName" : "convertCase",
+15: <=   "sql" : "select s.s_name from cp.`tpch/supplier.parquet` s limit 1",
+15: <=   "datasetConfig" : {
+15: <=     "sql" : "select s.s_name from cp.`tpch/supplier.parquet` s limit 1",
+15: <=     "version" : "fcf46e3c-e7c8-4388-91b0-740f9146ec03",
+15: <=     "state" : {
+15: <=       "parentDataset" : {
+15: <=         "datasetPath" : "foo.bar.baz",
+15: <=         "datasetVersion" : "3fa40801-444d-494b-a10b-a04b8d80a02e"
+15: <=       },
+15: <=       "columnsList" : [
+15: <=         {
+15: <=           "name" : "foo",
+15: <=           "type" : "string",
+15: <=           "value" : {
+15: <=             "type" : "ColumnReference",
+15: <=             "col" : {
+15: <=               "name" : "foo"
+15: <=             }
+15: <=           }
+15: <=         },
+15: <=         {
+15: <=           "name" : "bar",
+15: <=           "type" : "int",
+15: <=           "value" : {
+15: <=             "type" : "ColumnReference",
+15: <=             "col" : {
+15: <=               "name" : "bar"
+15: <=             }
+15: <=           }
+15: <=         }
+15: <=       ]
+15: <=     }
+15: <=   }
+15: <= }
+
+16: POST http://localhost:61195/apiv2/dataset/spacefoo.folderbar.folderbaz.convertCase/version/fcf46e3c-e7c8-4388-91b0-740f9146ec03
+16: request body:
+16: => {
+16: =>   "type" : "convertCase",
+16: =>   "columnName" : "foo",
+16: =>   "case" : "UPPER_CASE"
+16: => }
+
+16: Status 200, Content-type: application/json, returned in 4ms
+16: response body:
+16: <= {
+16: <=   "resourcePath" : "/dataset/spacefoo.folderbar.folderbaz.convertCase",
+16: <=   "versionedResourcePath" : "/dataset/spacefoo.folderbar.folderbaz.convertCase/version/13e46c9d-86b8-4902-9d0f-129587ad8760",
+16: <=   "datasetName" : "convertCase",
+16: <=   "sql" : "SELECT UPPER_CASE(foo) AS foo, bar AS bar FROM foo.bar.baz",
+16: <=   "datasetConfig" : {
+16: <=     "sql" : "SELECT UPPER_CASE(foo) AS foo, bar AS bar FROM foo.bar.baz",
+16: <=     "version" : "13e46c9d-86b8-4902-9d0f-129587ad8760",
+16: <=     "state" : {
+16: <=       "parentDataset" : {
+16: <=         "datasetPath" : "foo.bar.baz",
+16: <=         "datasetVersion" : "3fa40801-444d-494b-a10b-a04b8d80a02e"
+16: <=       },
+16: <=       "columnsList" : [
+16: <=         {
+16: <=           "name" : "foo",
+16: <=           "type" : "string",
+16: <=           "value" : {
+16: <=             "type" : "FunctionCall",
+16: <=             "function" : {
+16: <=               "functionName" : "UPPER_CASE",
+16: <=               "parametersList" : [
+16: <=                 {
+16: <=                   "type" : "ColumnReference",
+16: <=                   "col" : {
+16: <=                     "name" : "foo"
+16: <=                   }
+16: <=                 }
+16: <=               ]
+16: <=             }
+16: <=           }
+16: <=         },
+16: <=         {
+16: <=           "name" : "bar",
+16: <=           "type" : "int",
+16: <=           "value" : {
+16: <=             "type" : "ColumnReference",
+16: <=             "col" : {
+16: <=               "name" : "bar"
+16: <=             }
+16: <=           }
+16: <=         }
+16: <=       ]
+16: <=     }
+16: <=   }
+16: <= }
+

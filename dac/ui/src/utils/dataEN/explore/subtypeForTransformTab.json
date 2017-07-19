@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Values",
+    "id": "values",
+    "types": ["TEXT", "BOOLEAN"]
+  },
+  {
+    "name": "Exact",
+    "id": "exact",
+    "types": ["INTEGER", "GEO", "FLOAT", "DECIMAL", "DATETIME", "TIME", "DATE"]
+  },
+  {
+    "name": "Pattern",
+    "id": "pattern",
+    "types": ["TEXT"]
+  },
+  {
+    "name": "Range",
+    "id": "range",
+    "types": ["INTEGER", "GEO", "FLOAT", "DECIMAL", "DATETIME", "TIME", "DATE"]
+  },
+  {
+    "name": "Custom Condition",
+    "id": "custom",
+    "types": ["TEXT", "INTEGER", "GEO", "FLOAT", "DECIMAL", "DATETIME", "TIME", "DATE"]
+  }
+]

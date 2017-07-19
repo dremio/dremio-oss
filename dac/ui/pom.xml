@@ -1,0 +1,195 @@
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.dremio</groupId>
+    <artifactId>dremio-dac-parent</artifactId>
+    <version>1.0.8-201707190805180330-27f36e1</version>
+  </parent>
+
+  <artifactId>dremio-dac-ui</artifactId>
+  <packaging>jar</packaging>
+  <name>Analyst Center - UI</name>
+
+  <dependencies>
+  </dependencies>
+
+  <properties>
+    <npm.buildscript>buildprod</npm.buildscript>
+    <dremio.beta>false</dremio.beta>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>3.0</version>
+        <configuration>
+          <includes combine.children="append">
+            <include>**</include>
+          </includes>
+          <excludes combine.children="append">
+            <exclude>target/**</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>generate-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}</directory>
+                  <excludes>
+                    <exclude>build/**</exclude>
+                    <exclude>node_modules/**</exclude>
+                    <exclude>src/main/resources/**</exclude>
+                    <exclude>target/**</exclude>
+                  </excludes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>jar-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
+              <skipIfEmpty>true</skipIfEmpty>
+              <classifier>resources</classifier>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+
+        <configuration>
+          <workingDirectory>${project.basedir}</workingDirectory>
+          <environmentVariables>
+            <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
+            <DREMIO_BETA>${dremio.beta}</DREMIO_BETA>
+          </environmentVariables>
+        </configuration>
+
+        <executions>
+          <execution>
+            <id>npm install</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <!-- Optional configuration which provides for running any npm
+              command -->
+            <configuration>
+              <arguments>install</arguments>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>run js linter and unit tests</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>run test:only -- --reporter mocha-junit-reporter --reporter-options mochaFile=${project.build.directory}/mocha-reports/test-results.xml</arguments>
+              <skip>${skipTests}</skip>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>build minimized webpack bundle</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>run ${npm.buildscript} -- --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>verify installed npm modules</id>
+            <phase>test</phase>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>run check-shrinkwrap</arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>node</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-clean-plugin</artifactId>
+            <configuration>
+              <filesets>
+                <fileset>
+                  <directory>${project.basedir}/node_modules</directory>
+                  <followSymlinks>false</followSymlinks>
+                </fileset>
+              </filesets>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>precommit</id>
+      <properties>
+        <npm.buildscript>build</npm.buildscript>
+      </properties>
+    </profile>
+    <profile>
+       <id>beta</id>
+       <properties>
+           <dremio.beta>true</dremio.beta>
+       </properties>
+    </profile>
+  </profiles>
+</project>

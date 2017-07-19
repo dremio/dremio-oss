@@ -1,0 +1,16 @@
+{
+    "<TABLE_NAME>": {
+        "properties" : {
+            "place": {
+                "properties": {
+                    "my_nested_type": {
+                        "type": "nested"
+                    },
+                    "my_string_type": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

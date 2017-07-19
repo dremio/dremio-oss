@@ -1,0 +1,18 @@
+{
+  version: '1.0',
+   schemas: [
+     {
+       name: 'DONUTS',
+       tables: [
+         {
+           name: 'DONUTS',
+           type: 'custom',
+           factory: 'com.dremio.jdbc.DremioTable$Factory'
+,           operand: {
+             path: '/donuts.json'
+           }
+         }
+       ]
+     }
+   ]
+}

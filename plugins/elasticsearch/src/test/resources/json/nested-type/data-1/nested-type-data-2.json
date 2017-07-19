@@ -1,0 +1,26 @@
+{
+    "id" : 2,
+    "username" : "alexa",
+    "address" : [
+        {
+            "city"   : "palo alto",
+            "state"  : "ca",
+            "zip"    : 94301,
+            "street" : "1 hamilton st.",
+            "phones" : {
+                "mobile": 6504501234,
+                "office": 6504809876
+            }
+        },
+        {
+            "city"   : "mountain view",
+            "state"  : "ca",
+            "zip"    : 94040,
+            "street" : "1 california ave.",
+            "phones" : {
+                "mobile": 6504443212,
+                "office": 4083456789
+            }
+        }
+    ]
+}

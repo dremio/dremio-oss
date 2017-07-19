@@ -1,0 +1,33 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.dac.proto.model.tokens;
+
+option java_package = "com.dremio.dac.proto.model.tokens";
+option optimize_for = SPEED;
+
+// defines messages related to token management
+
+// state stored in the token store
+message SessionState {
+  // name of the user
+  optional string username = 1;
+  // address of the client node
+  optional string clientAddress = 2;
+  // time when the token was issued
+  optional int64 issuedAt = 3;
+  // time when the token will expire
+  optional int64 expiresAt = 4;
+}

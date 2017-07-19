@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<configuration>
+  <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator"/>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%date{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- The following appenders are only available if dremio.log.path is defined -->
+  <if condition='isDefined("dremio.log.path")'>
+    <then>
+      <appender name="text" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${dremio.log.path}/server.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>${dremio.log.path}/archive/server.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+          <maxHistory>30</maxHistory>
+        </rollingPolicy>
+
+        <encoder>
+          <pattern>%date{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+      </appender>
+
+      <appender name="json" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${dremio.log.path}/json/server.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>${dremio.log.path}/json/archive/server.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+          <maxHistory>30</maxHistory>
+        </rollingPolicy>
+
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+          <providers>
+            <pattern><pattern>{"timestamp": "%date{ISO8601}", "host":"${HOSTNAME}" }</pattern></pattern>
+            <threadName><fieldName>thread</fieldName></threadName>
+            <logLevel><fieldName>levelName</fieldName></logLevel>
+            <logLevelValue><fieldName>levelValue</fieldName></logLevelValue>
+            <loggerName><fieldName>logger</fieldName></loggerName>
+            <message><fieldName>message</fieldName></message>
+            <arguments />
+            <stackTrace />
+           </providers>
+        </encoder>
+      </appender>
+
+      <appender name="query" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${dremio.log.path}/queries.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>${dremio.log.path}/archive/queries.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+          <maxHistory>30</maxHistory>
+        </rollingPolicy>
+
+        <encoder>
+          <pattern>%msg%n</pattern>
+        </encoder>
+      </appender>
+    </then>
+  </if>
+
+  <logger name="com.dremio">
+    <level value="${dremio.log.level:-info}"/>
+  </logger>
+
+  <logger name="query.logger">
+    <level value="${dremio.log.level:-info}"/>
+    <if condition='isDefined("dremio.log.path")'>
+      <then>
+        <appender-ref ref="query"/>
+      </then>
+    </if>
+  </logger>
+
+
+  <root>
+    <level value="${dremio.log.root.level:-error}"/>
+    <if condition='isDefined("dremio.log.path")'>
+      <then>
+        <appender-ref ref="text"/>
+        <appender-ref ref="json"/>
+      </then>
+      <else>
+        <appender-ref ref="console"/>
+      </else>
+    </if>
+  </root>
+
+</configuration>

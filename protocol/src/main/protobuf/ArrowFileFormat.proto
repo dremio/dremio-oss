@@ -1,0 +1,48 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// Contains Arrow file format specific structures.
+package arrow.fileformat;
+
+option java_package = "com.dremio.exec.store.easy.arrow";
+option java_outer_classname = "ArrowFileFormat";
+option optimize_for = SPEED;
+
+import "UserBitShared.proto";
+
+/**
+ * Arrow record batch summary for footer of Arrow format file. See ArrowFormatPlugin for more details.
+ */
+message ArrowRecordBatchSummary {
+    optional int32 record_count = 1; // Number of records in batch
+    optional int64 offset = 2; // starting offset in file
+}
+
+/**
+ * Footer for Arrow format file. See ArrowFormatPlugin for more details.
+ */
+message ArrowFileFooter {
+    repeated exec.shared.SerializedField field = 1;
+    repeated ArrowRecordBatchSummary batch = 2;
+}
+
+/**
+ * Arrow file metadata. Contains the file path and footer.
+ */
+message ArrowFileMetadata {
+  optional string path = 1;
+  optional int64 record_count = 2;
+  optional ArrowFileFooter footer = 3;
+}

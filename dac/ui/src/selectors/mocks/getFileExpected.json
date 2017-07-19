@@ -1,0 +1,13 @@
+[
+  {
+    "fileType": "folder",
+    "fullPath": "\"Prod-Sample\".file",
+    "links": {
+      "jobs": "/jobs/\"Prod-Sample\".file",
+      "self": "/space/\"Prod-Sample\".file"
+    },
+    "name": "file",
+    "owner": "test_user",
+    "resourcePath": "/folder/\"Prod-Sample\".file"
+  }
+]

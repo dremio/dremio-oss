@@ -1,0 +1,52 @@
+{ "integer" : 2010,
+  "float"   : 17.4,
+  "x": {
+    "y": "kevin",
+    "z": "paul"
+  },
+  "z": [
+    {"orange" : "yellow" , "pink": "red", "white" : "polar"},
+    {"pink" : "purple" }
+  ],
+  "l": [4,2],
+  "test" : {
+    "testname" : "a",
+    "testcolor" : [ "a1", "a2", "a3" ]
+  }
+}
+{ "integer" : -2002,
+  "float"   : -1.2,
+  "test" : {
+    "testname" : "b",
+    "testcolor" : [ "b1", "b2" ]
+  }
+}
+{ "integer" : 2001,
+  "float"   : 1.2,
+  "x": {
+    "y": "bill",
+    "z": "peter"
+  },
+  "z": [
+    {"pink" : "lilac" }
+  ],
+  "l": [4,2],
+  "test" : {
+    "testname" : "c"
+  }
+}
+{ "integer" : 6005,
+  "float"   : 1.2,
+  "x": {
+    "y": "mike",
+    "z": "mary"
+  },
+  "z": [
+    {"orange" : "stucco" }
+  ],
+  "l": [4,2],
+  "test" : {
+    "testname" : "d",
+    "testcolor" : [ "d1"]
+  }
+}

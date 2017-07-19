@@ -1,0 +1,278 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.dac.proto.model.acceleration;
+
+import "../../../../../services/accelerator/src/main/protobuf/acceleration-common.proto";
+import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+
+
+option java_package = "com.dremio.dac.proto.model.acceleration";
+option optimize_for = SPEED;
+
+option java_outer_classname = "AccelerationApiProtobuf";
+
+// defines payloads exchanged across acceleration service and its client
+
+// Acceleration Resource API messages
+
+message PaginatedAccelerationApiResponse {
+  repeated AccelerationApiDescriptor acceleration = 1;
+  optional string next = 2;
+  optional string previous = 3;
+}
+
+// NOTE: pivot names must match index keys defined
+enum SortColumn {
+  hits = 1;
+  footprint = 2;
+  dataset = 3;
+  requests = 4;
+}
+
+// minimal depiction of an accelration for client consumption
+message AccelerationApiDescriptor {
+  required AccelerationId id = 1;
+  required AccelerationType type = 2;
+  required AccelerationStateApiDescriptor state = 3 [default = NEW];
+  required AccelerationContextApiDescriptor context = 4;
+  // acceleration mode
+  required AccelerationMode mode = 5 [default = AUTO];
+  // aggregation layouts
+  required LayoutContainerApiDescriptor aggregationLayouts = 6;
+  // raw layouts
+  required LayoutContainerApiDescriptor rawLayouts = 7;
+  // descriptor version for OCC
+  optional uint64 version = 8;
+  // number of bytes used for the last materialization(0 if none exists)
+  optional int32 footprint = 9;
+  // total number of accelerated jobs i.e. jobs that hit to this acceleration
+  optional int32 hits = 10;
+  // number of user requests
+  optional int32 totalRequests = 11;
+  // additional error details if state is error
+  repeated ApiErrorDetails error = 12;
+}
+
+message ApiErrorDetails {
+  // error code
+  required ApiErrorCode code = 1;
+  // error message if any
+  optional string message = 2;
+  // additional context
+  optional string stackTrace = 3;
+  // additional error details for materialization failure; set if `code` is MATERIALIZATION_FAILURE
+  optional MaterializationFailureDetails materializationFailure = 4;
+}
+
+enum ApiErrorCode {
+  PIPELINE_FAILURE = 10;
+  MATERIALIZATION_FAILURE = 20;
+  OTHER = 50;
+}
+
+message MaterializationFailureDetails {
+  // failed materialization
+  required string materializationId = 1;
+  // failed job
+  required string jobId = 2;
+}
+
+enum AccelerationStateApiDescriptor {
+  // new acceleration. pipeline is still working on it.
+  NEW = 1;
+  // pipeline is done. acceleration is requested.
+  REQUESTED = 2;
+  // pipeline is done. acceleration is enabled.
+  ENABLED = 3;
+  // pipeline is done. acceleration is disabled.
+  DISABLED = 4;
+  // acceleration processing failed.
+  ERROR = 5;
+  // acceleration is system enabled.
+  ENABLED_SYSTEM = 6;
+  // acceleration is out of date due to changes in dataset.
+  OUT_OF_DATE = 7;
+}
+
+message AccelerationContextApiDescriptor {
+  // schema of accelerated dataset
+  required RowTypeApiDescriptor datasetSchema = 1;
+  // accelerated dataset details
+  required DatasetConfigApiDescriptor dataset = 2;
+  // associated job id if this acceleration is based upon a job i.e. anonymous
+  optional com.dremio.service.job.proto.JobId jobId = 3;
+  // logical aggregation fields fed to suggestor
+  required LogicalAggregationApiDescriptor logicalAggregation = 4;
+}
+
+message RowTypeApiDescriptor {
+  repeated Field field = 1;
+
+  message Field {
+    // field name
+    required string name = 1;
+    // ui type name
+    required FieldType type = 2;
+    // type family
+    required string typeFamily = 3;
+  }
+
+  enum FieldType {
+    TEXT = 1;
+    BINARY = 2;
+    BOOLEAN = 3;
+    FLOAT = 4;
+    INTEGER = 5;
+    BIGINT = 6;
+    MIXED = 7;
+    DATE = 8;
+    TIME = 9;
+    DATETIME = 10;
+    LIST = 11;
+    MAP = 12;
+    GEO = 13;
+    OTHER = 14;
+    ANY = 15;
+  }
+}
+
+message DatasetConfigApiDescriptor {
+  // dataset path
+  repeated string path = 1;
+  required com.dremio.service.namespace.dataset.proto.DatasetType type = 2;
+  optional uint64 version = 3;
+  optional uint64 createdAt = 4;
+  optional VirtualDatasetApiDescriptor virtualDataset = 5;
+}
+
+// represents a logical aggregation suggested by user
+message LogicalAggregationApiDescriptor {
+  // logical dimensions
+  repeated LayoutFieldApiDescriptor dimension = 1;
+  // logical measures
+  repeated LayoutFieldApiDescriptor measure = 2;
+}
+
+message VirtualDatasetApiDescriptor {
+  // current sql generated from the state
+  required string sql = 1;
+  // list of parent dataset paths
+  repeated ParentDatasetApiDescriptor parent = 2;
+}
+
+message ParentDatasetApiDescriptor {
+  repeated string path = 1;
+  required DatasetType type = 2;
+}
+
+message LayoutContainerApiDescriptor {
+  // layout type
+  required LayoutType type = 1;
+  // list of layouts
+  repeated LayoutApiDescriptor layout = 2;
+  // enabled
+  required bool enabled = 3 [default = false];
+}
+
+message LayoutApiDescriptor {
+  // layout details
+  required LayoutDetailsApiDescriptor details = 1;
+  // unique layout id
+  optional LayoutId id = 2;
+  // name
+  optional string name = 3;
+  // current reflection size (byte size of most recent non-error non-expired materialization)
+  optional uint64 currentByteSize = 4;
+  // total reflection size
+  optional uint64 totalByteSize = 5;
+  // indicates whether there is a valid materialization
+  optional bool hasValidMaterialization = 6;
+  //effective materialization state
+  required MaterializationState latestMaterializationState = 7 [default = NEW];
+  // additional error details if state is error
+  optional ApiErrorDetails error = 8;
+}
+
+message LayoutDetailsApiDescriptor {
+  // partition fields
+  repeated LayoutFieldApiDescriptor partitionField = 1;
+  // order sensitive list of sort fields
+  repeated LayoutFieldApiDescriptor sortField = 2;
+  // dimension fields
+  repeated LayoutDimensionFieldApiDescriptor dimensionField = 3;
+  // measure fields
+  repeated LayoutFieldApiDescriptor measureField = 4;
+  // distribution fields
+  repeated LayoutFieldApiDescriptor displayField = 5;
+  // distribution fields
+  repeated LayoutFieldApiDescriptor distributionField = 6;
+}
+
+message LayoutFieldApiDescriptor {
+  // field name
+  required string name = 1;
+}
+
+message LayoutDimensionFieldApiDescriptor {
+  // field name
+  required string name = 1;
+  // granularity
+  optional DimensionGranularity granularity = 2;
+}
+
+message AccelerationInfoApiDescriptor {
+  // acceleration id
+  required AccelerationId id = 1;
+  // acceleration state
+  required AccelerationStateApiDescriptor state = 2;
+  // whether API user made a request to accelerate this entry
+  required bool selfRequested = 3;
+  // is aggretation acceleration enabled?
+  required bool aggregationEnabled = 4;
+  // is raw acceleration enabled?
+  required bool rawAccelerationEnabled = 5;
+  // total number of requests
+  required int32 totalRequests = 6;
+}
+
+message SystemSettingsApiDescriptor {
+  // number of top accelerations to auto approve
+  required int32 limit = 1;
+  // whether system should auto approve aggregations layouts
+  required bool accelerateAggregation = 2;
+  // whether system should auto approve raw layouts
+  required bool accelerateRaw = 3;
+}
+
+// represents an individual acceleration vote
+message AccelerationRequestApiDescriptor {
+  // user requesting acceleration
+  required string username = 1;
+  // epoch time of the request
+  optional uint64 createdAt = 2;
+  // type of acceleration request
+  optional AccelerationType type = 3;
+  // context for acceleration.
+  optional AccelerationRequestContext context = 4;
+
+  message AccelerationRequestContext {
+    // dataset path to accelerate
+    repeated string datasetPath = 1;
+    // job to accelerate
+    optional JobId jobId = 2;
+  }
+}

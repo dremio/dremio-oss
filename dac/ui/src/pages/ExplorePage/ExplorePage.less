@@ -1,0 +1,274 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "../../uiTheme/less/typography.less";
+
+@gray: #aaa;
+#grid-page {
+  background-color: #f4f4f4;
+
+  .fixed-data-table .public_fixedDataTable_header, .fixed-data-table .public_fixedDataTable_hasBottomBorder {
+    border-color: #E8E8E8;
+  }
+
+  .fixedDataTableCellLayout_columnResizerContainer {
+    border-color: #E8E8E8;
+  }
+
+  .button {
+    background-color: #F5F5F5;
+    width: 140px;
+    height: 33px;
+    outline: none;
+    box-shadow: none;
+    border: 1px solid #ccc;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    display: flex;
+    border-radius: 3px;
+    justify-content: center;
+    position: relative;
+    margin-left: 15px;
+
+    &.cancel {
+      font-weight: 700;
+    }
+
+    &.preview {
+      color: #C2C2C2;
+
+      &:hover {
+        background-color: #F5F5F5;
+      }
+    }
+
+    &:hover {
+      background-color: darken(#F5F5F5, 10%);
+    }
+
+    &.next {
+      background-color: #0096FF;
+      color: #fff;
+      border: 1px solid #0096FF;
+
+      &:hover {
+        background-color: darken(#0096FF, 10%);
+      }
+    }
+  }
+
+  .add-data-step-1 {
+    position: relative;
+    height: 290px;
+    margin-bottom: 70px;
+
+    .fa-spinner {
+      font-size: 22px;
+    }
+
+    .column-name {
+      color: #000;
+      margin-left: 5px;
+    }
+
+    .right-part-add-data {
+      p {
+        font-weight: 700;
+      }
+    }
+
+    .show-more {
+      color: #0096FF;
+      cursor: pointer;
+    }
+
+    .column-type {
+      width: 16px;
+      display: inline-block;
+    }
+
+    .add-columns {
+      margin-left: 30px;
+      max-height: 150px;
+      width: 140px;
+      overflow-y: auto;
+    }
+
+    .title {
+      line-height: 16px;
+      font-size: 10px;
+      text-align: left;
+      color: gray;
+    }
+
+    .name {
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 700;
+      text-align: left;
+      position: relative;
+      float: left;
+    }
+
+    .query {
+      font-size: 11px;
+      line-height: 16px;
+      text-align: right;
+      color: #0096FF;
+      cursor: pointer;
+    }
+
+    .fields {
+      margin-top: 6px;
+    }
+
+    .field {
+      color: gray;
+      font-size: 11px;
+      line-height: 16px;
+      text-align: left;
+      margin-top: 2px;
+      min-width: 120px;
+    }
+
+    .names {
+      position: relative;
+      float: left;
+    }
+
+    .values {
+      position: relative;
+      float: left;
+      margin-left: 12px;
+
+      .field {
+        color: #000;
+      }
+
+      .queries, .columns {
+        color: #0096FF;
+        cursor: pointer;
+      }
+    }
+
+    .add-data-footer {
+      display: flex;
+      height: 50px;
+      align-items: center;
+    }
+
+    .existing-form {
+      width: 100%;
+      margin-right: 0;
+      margin-top: 0;
+      height: 258px;
+
+      .header-existing {
+        justify-content: flex-start;
+        margin-right: 0;
+      }
+
+      .autocomplete {
+        width: 360px;
+      }
+
+      .divider-header {
+        width: ~"calc(100% + 2px)";
+        border-right: none;
+        border-bottom: none;
+      }
+
+      .name {
+        display: none;
+      }
+
+      .resource-tree {
+        background-color: #fff;
+        border-top: 1px solid #ccc;
+        width: 47%;
+        float: left;
+      }
+    }
+  }
+
+  .move-right {
+    width: 100%;
+  }
+
+  .tab-active {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .hide-tab {
+    height: 30px;
+  }
+
+  .settings-block {
+    width: 253px;
+    background-color: lightgray;
+    z-index: 99;
+  }
+
+
+  .wrap{
+    display: flex;
+  }
+
+  .closed {
+    transform: translateX(300px);
+    transition: all .15s ease-out;
+    width: 0;
+  }
+
+  .opened {
+    transform: translateX(0);
+    transition:all .15s ease-out;
+    display: block;
+  }
+
+  .dropdown-for-actions {
+    z-index: 99;
+  }
+
+  .grid-wrap {
+    display: flex;
+    flex-grow: 1;
+  }
+  .selected-text{
+    background: #F2F2F2;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 99;
+    line-height: 22px;
+    text-align: center;
+    padding: 0 20px 0 1px;
+    box-sizing: content-box;
+    .fixedWidthSmall();
+    .fa {
+      padding-top: 3px;
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 18px;
+      font-size: 15px;
+      line-height: 15px;
+      color: @gray;
+    }
+  }
+}

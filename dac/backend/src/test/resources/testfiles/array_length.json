@@ -1,0 +1,12 @@
+{
+    "intList" : [ 1, 2, 4],
+    "bitList" : [ true ],
+    "mapList" : [ { "a" : 1 }, { "a" : 2 }],
+    "listList" : [ [1, 2], [3, 4, 5] ]
+}
+{
+    "intList" : null,
+    "bitList" : null,
+    "mapList" : null,
+    "listList" : null
+}

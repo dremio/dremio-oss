@@ -1,0 +1,145 @@
+{
+  "cards": [
+    {
+      "rule": {
+        "type": "position",
+        "position": {
+          "startIndex": {
+            "value": 0,
+            "direction": "FROM_THE_START"
+          },
+          "endIndex": {
+            "value": 4,
+            "direction": "FROM_THE_START"
+          }
+        }
+      },
+      "examplesList": [
+        {
+          "text": "address0",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address1",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address2",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "matchedCount": 100,
+      "unmatchedCount": 0,
+      "description": "Elements: 0 - 4"
+    },
+    {
+      "rule": {
+        "type": "position",
+        "position": {
+          "startIndex": {
+            "value": 0,
+            "direction": "FROM_THE_START"
+          },
+          "endIndex": {
+            "value": 3,
+            "direction": "FROM_THE_END"
+          }
+        }
+      },
+      "examplesList": [
+        {
+          "text": "address0",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address1",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address2",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "matchedCount": 100,
+      "unmatchedCount": 0,
+      "description": "Elements: 0 - 3 (from the end)"
+    },
+    {
+      "rule": {
+        "type": "position",
+        "position": {
+          "startIndex": {
+            "value": 7,
+            "direction": "FROM_THE_END"
+          },
+          "endIndex": {
+            "value": 3,
+            "direction": "FROM_THE_END"
+          }
+        }
+      },
+      "examplesList": [
+        {
+          "text": "address0",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address1",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address2",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "matchedCount": 100,
+      "unmatchedCount": 0,
+      "description": "Elements: 7 - 3 (both from the end)"
+    }
+  ]
+}

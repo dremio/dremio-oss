@@ -1,0 +1,136 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.datastore;
+
+option java_package = "com.dremio.datastore";
+option optimize_for = SPEED;
+
+option java_outer_classname = "RemoteDataStoreProtobuf";
+
+import "search_types.proto";
+
+// KVStore requests
+message GetRequest { // KVStore.get(K key) and KVStore.get(List<K> keys)
+  required string storeId = 1;
+  repeated bytes keys = 2;
+}
+
+message GetResponse {
+  repeated bytes values = 1;
+}
+
+message ContainsRequest {
+  required string storeId = 1;
+  required bytes key = 2;
+}
+
+message ContainsResponse {
+  required bool contains = 1;
+}
+
+message FindRequest { // KVStore.find(FindByRange<K> find) and KVStore.find()
+  required string storeId = 1;
+  optional bytes start = 2;
+  optional bytes end = 3;
+  optional bool includeStart = 4 [default = false];
+  optional bool includeEnd = 5 [default = false];
+}
+
+message FindResponse {
+  repeated bytes keys = 1;
+  repeated bytes values = 2;
+}
+
+message PutRequest {
+  required string storeId = 1;
+  required bytes key = 2;
+  required bytes value = 3; // value can not be null
+}
+
+message PutResponse {
+  optional int64 version = 1; // for occ store
+  optional string concurrentModificationError = 2; //occ update operation
+}
+
+message DeleteRequest {
+  required string storeId = 1;
+  required bytes key = 2;
+  optional int64 previousVersion = 3;
+}
+
+message DeleteResponse {
+  optional string concurrentModificationError = 1; //occ update operation
+}
+
+message CheckAndPutRequest {
+  required string storeId = 1;
+  required bytes key = 2;
+  required bytes newValue = 3;
+  optional bytes oldValue = 4; // old value can be null
+}
+
+message CheckAndPutResponse {
+  required bool inserted = 1;
+  optional int64 version = 2; // for occ store
+}
+
+message CheckAndDeleteRequest {
+  required string storeId = 1;
+  required bytes key = 2;
+  required bytes value = 3;
+}
+
+message CheckAndDeleteResponse {
+  required bool deleted = 1;
+}
+
+// IndexedStore requests
+message SearchRequest { // IndexedStore.find(FindByCondition find);
+  required string storeId = 1;
+  required SearchQuery query = 2; // query
+  required int32 pageSize = 3;
+  required int32 offset = 4;
+  required int32 limit = 5;
+  repeated SearchFieldSorting sort = 6;
+}
+
+message SearchResponse {
+  repeated bytes key = 1;
+  repeated bytes value = 2;
+}
+
+message GetCountsRequest { // IndexedStore.getCounts(Query... conditions);
+  required string storeId = 1;
+  repeated SearchQuery queries = 2;
+}
+
+message GetCountsResponse {
+  repeated int32 counts = 1;
+}
+
+// KVStoreProvider request
+message GetStoreRequest {
+  required string name = 1;
+  required string keySerializerClass = 2;
+  required string valueSerializerClass = 3;
+  optional string documentConverterClass = 4;
+  optional string versionExtractorClass = 5;
+}
+
+message GetStoreResponse {
+  required string storeId = 1;
+}
+

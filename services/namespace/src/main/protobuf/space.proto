@@ -1,0 +1,63 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.namespace.space.proto;
+
+import "common.proto";
+
+option java_package = "com.dremio.service.namespace.space.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "SpaceProtobuf";
+
+message SpaceConfig {
+  optional EntityId id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional bool pinned = 4;
+  optional bool readonly = 5;
+  optional int64 ctime = 6;
+  optional ExtendedConfig extendedConfig = 7;
+  optional int64 version = 8;
+}
+
+message FolderConfig {
+  optional EntityId id = 1;
+  repeated string fullPath = 2;
+  optional string name = 3;
+  optional bool isPhysicalDataset = 4; // DEPRECATED not used.
+  optional ExtendedConfig extendedConfig = 5;
+  optional int64 version = 6;
+}
+
+message Spaces {
+  repeated SpaceConfig spaces = 1;
+  repeated HomeConfig homeSpaces = 2;
+}
+
+message HomeConfig {
+  optional EntityId id = 1;
+  optional string owner = 2;
+  optional int64 ctime = 3;
+  optional ExtendedConfig extendedConfig = 4;
+  optional int64 version = 5;
+}
+
+// These fields are not stored on disk but used to send it over rpc.
+message ExtendedConfig {
+  optional int64 jobCount = 1;
+  optional int64 datasetCount = 2;
+  optional int64 descendants = 3; // set only for physical datasets created from filesystem folder
+}

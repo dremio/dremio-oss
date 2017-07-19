@@ -1,0 +1,382 @@
+Dremio
+Copyright 2015-2017 Dremio Corporation
+
+This product includes software developed at 
+The Apache Software Foundation (http://www.apache.org/).
+
+This product incorporates and/or depends on software that falls under the following 
+notices and/or trademarks:
+
+# List of contributors  Red Hat Inc. Akira Kawauchi Davide D'Alto Dhanji R. Prasanna Emmanuel Bernard Gavin King Gerhard Petracek Guillaume Smet Gunnar Morling Hardy Ferentschik Hendrik Ebbers Kevin Pollet Sebastian Thomschke
+
+* Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos
+
+AWS SDK for Java Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
+
+Adam Stawicki Alaa Nassef Andrey Derevyanko Andrey Rodionov Benson Margulies Brent Douglas Carlos Vara Dag Hovland Davide Marchignoli Carlo de Wolf Chris Beckey Christian Ivan Denis Tiago Doug Lea Emmanuel Bernard Efthymis Sarbanis Federico Federico Mancini Gavin King George Gastaldi Gerhard Petracek Guillaume Husta Guillaume Smet Gunnar Morling Hardy Ferentschik Henno Vermeulen Jan-Willem Willebrands Jason T. Greene Julien May Julien Furgerot Juraci Krohling Justin Nauman Kathryn Killebrew Kevin Pollet Khalid Alqinyah Lee KyoungIl Leonardo Loch Zanivan Lucas Pouzac Lukas Niemeier Mark Hobson Marko Bekhta Mert Çalişkan Paolo Perrotta Pete Muir Sanne Grinovero Sebastian Bayerl Shane Bryzak Shelly McGowan Steve Ebersole Strong Liu Victor Rezende dos Santos Willi Schönborn Yoann Rodière
+
+Aggregate Designer  Copyright 2006 - 2013 Pentaho Corporation.  All rights reserved. Copyright 2000-2005, 2014-2016 Julian Hyde
+
+Apache Arrow Copyright 2016 The Apache Software Foundation
+
+Apache Avro Copyright 2010-2015 The Apache Software Foundation
+
+Apache Calcite -- Avatica Copyright 2012-2017 The Apache Software Foundation
+
+Apache Calcite Copyright 2012-2017 The Apache Software Foundation
+
+Apache Commons Compress Copyright 2002-2017 The Apache Software Foundation
+
+Apache Commons Lang Copyright 2001-2017 The Apache Software Foundation
+
+Apache Commons Math Copyright 2001-2016 The Apache Software Foundation
+
+Apache Commons Pool Copyright 2001-2016 The Apache Software Foundation
+
+Apache Curator Copyright 2013-2014 The Apache Software Foundation
+
+Apache Derby Copyright 2004-2015 The Apache Software Foundation  This product includes software developed by The Apache Software Foundation (http://www.apache.org/).   =========================================================================  Portions of Derby were originally developed by International Business Machines Corporation and are licensed to the Apache Software Foundation under the Software Grant and Corporate Contribution License Agreement, informally known as the Derby CLA. The following copyright notice(s) were affixed to portions of the code with which this file is now or was at one time distributed and are placed here unaltered.  (C) Copyright 1997,2004 International Business Machines Corporation.  All rights reserved.  (C) Copyright IBM Corp. 2003.    =========================================================================   The portion of the functionTests under 'nist' was originally  developed by the National Institute of Standards and Technology (NIST),  an agency of the United States Department of Commerce, and adapted by International Business Machines Corporation in accordance with the NIST Software Acknowledgment and Redistribution document at http://www.itl.nist.gov/div897/ctg/sql_form.htm
+
+Apache Directory Studio Copyright 2007-2016 The Apache Software Foundation
+
+Apache Directory Studio Copyright 2007-2016 The Apache Software Foundation  This product includes software developed at The Apache Software Foundation (http://www.apache.org/).
+
+Apache Drill Copyright 2013-2014 The Apache Software Foundation
+
+Apache Groovy Copyright 2003-2017 The Apache Software Foundation
+
+Apache HBase Copyright 2007-2017 The Apache Software Foundation
+
+Apache HTrace Copyright 2017 The Apache Software Foundation
+
+Apache Hive Copyright 2008-2016 The Apache Software Foundation
+
+Apache HttpComponents Client Copyright 1999-2017 The Apache Software Foundation
+
+Apache HttpComponents Core Copyright 2005-2017 The Apache Software Foundation
+
+Apache Kafka Copyright 2017 The Apache Software Foundation.
+
+Apache Lucene Copyright 2001-2017 The Apache Software Foundation
+
+Apache PDFBox Copyright 2014 The Apache Software Foundation
+
+Apache POI Copyright 2003-2017 The Apache Software Foundation
+
+Apache Parquet MR (Incubating) Copyright 2014 The Apache Software Foundation
+
+Apache Thrift Copyright 2006-2010 The Apache Software Foundation.
+
+Apache Tika Copyright 2015 The Apache Software Foundation
+
+Apache Twill Copyright 2013-2017 The Apache Software Foundation
+
+Apache Velocity Copyright (C) 2000-2007 The Apache Software Foundation
+
+Apache ZooKeeper Copyright 2009-2014 The Apache Software Foundation
+
+ApacheDS Copyright 2003-2017 The Apache Software Foundation
+
+Copyright	Neil Mitchell 2006-2017
+
+Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
+
+Copyright (C) 2017 by Marijn Haverbeke <marijnh@gmail.com> and others
+
+Copyright (c) 1997, PostgreSQL Global Development Group
+
+Copyright (c) 2000 - 2017 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Copyright (c) 2000-2011 INRIA, France Telecom
+
+Copyright (c) 2000-2015 www.hamcrest.org
+
+Copyright (c) 2001-2016, Arno Unkrig Copyright (c) 2015-2016  TIBCO Software Inc.
+
+Copyright (c) 2002-2015 Atsuhiko Yamanaka, JCraft,Inc. All rights reserved.
+
+Copyright (c) 2002-2017 EPFL Copyright (c) 2011-2017 Lightbend, Inc.
+
+Copyright (c) 2003-2013, Objenesis Team and all contributors
+
+Copyright (c) 2004-2016 Paul R. Holser, Jr.
+
+Copyright (c) 2004-2017 QOS.ch
+
+Copyright (c) 2005, Graph Builder All rights reserved.
+
+Copyright (c) 2006 Paul Hammant & ThoughtWorks Inc  All rights reserved.
+
+Copyright (c) 2007 Mockito contributors
+
+Copyright (c) 2008, Nathan Sweet All rights reserved.
+
+Copyright (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative  Reporters & Editors
+
+Copyright (c) 2010 - 2014 jsPlumb, http://jsplumbtoolkit.com/
+
+Copyright (c) 2010-2012 Robert Kieffer  MIT License - http://opensource.org/licenses/mit-license.php
+
+Copyright (c) 2010-2016, Michael Bostock  All rights reserved.
+
+Copyright (c) 2011 Alexander Shtuchkin
+
+Copyright (c) 2011 Einar Otto Stangvik &lt;einaros@gmail.com&gt;
+
+Copyright (c) 2011 FuseSource Corp. All rights reserved.
+
+Copyright (c) 2011 Oracle and/or its affiliates. All rights reserved.
+
+Copyright (c) 2011-2013 Phillip Clark
+
+Copyright (c) 2011-2013 Terence Parr
+
+Copyright (c) 2011-present, Facebook, Inc.
+
+Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, and Domenic Denicola
+
+Copyright (c) 2012 Einar Otto Stangvik &lt;einaros@gmail.com&gt;
+
+Copyright (c) 2012-2013 James Coglan
+
+Copyright (c) 2012-2014 Andris Reinman
+
+Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
+
+Copyright (c) 2013 Julian Gruber &lt;julian@juliangruber.com&gt;
+
+Copyright (c) 2013 Masayuki Tanaka
+
+Copyright (c) 2013 Meryn Stol
+
+Copyright (c) 2013 Mikola Lysenko
+
+Copyright (c) 2013-2015 Oracle and/or its affiliates. All rights reserved.
+
+Copyright (c) 2013-2015, Facebook, Inc.  All rights reserved.
+
+Copyright (c) 2013-2017 James Coglan
+
+Copyright (c) 2013-present, Facebook, Inc.  All rights reserved.
+
+Copyright (c) 2014
+
+Copyright (c) 2014 Call-Em-All
+
+Copyright (c) 2014 Dan Abramov
+
+Copyright (c) 2014 Forbes Lindesay
+
+Copyright (c) 2014 Griffin Smith and other contributors
+
+Copyright (c) 2014 Matt Robenolt and other contributors  All rights reserved.
+
+Copyright (c) 2014 Param Aggarwal
+
+Copyright (c) 2014 Ryan Florence
+
+Copyright (c) 2014 Tim Oxley
+
+Copyright (c) 2014, 2015, 2016, 2017 Simon Lydell
+
+Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+
+Copyright (c) 2014-2015 Sebastian McKenzie <sebmck@gmail.com>
+
+Copyright (c) 2014-2015 Zilverline B.V.
+
+Copyright (c) 2014-2015, Facebook, Inc. All rights reserved.
+
+Copyright (c) 2014-2016 Denis Pushkarev
+
+Copyright (c) 2014-2016 GitHub, Inc.
+
+Copyright (c) 2014-2017 Sebastian McKenzie <sebmck@gmail.com>
+
+Copyright (c) 2014-present Stephen J. Collings, Matthew Honnibal, Pieter Vanderwerff
+
+Copyright (c) 2015 Alberto Garcia-Raboso
+
+Copyright (c) 2015 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
+
+Copyright (c) 2015 Alexander Karlsson
+
+Copyright (c) 2015 Alexander Kuznetsov
+
+Copyright (c) 2015 Alexei Boronine
+
+Copyright (c) 2015 Andres Suarez <zertosh@gmail.com>
+
+Copyright (c) 2015 Andrey Okonetchnikov
+
+Copyright (c) 2015 Brian Vaughn
+
+Copyright (c) 2015 Dan Abramov
+
+Copyright (c) 2015 David Pfahler
+
+Copyright (c) 2015 Denis Pushkarev
+
+Copyright (c) 2015 Erik Rasmussen
+
+Copyright (c) 2015 Formidable Labs
+
+Copyright (c) 2015 Félix Girault
+
+Copyright (c) 2015 Igor Prado
+
+Copyright (c) 2015 James Burnett
+
+Copyright (c) 2015 Jason Quense
+
+Copyright (c) 2015 KNOWLEDGECODE
+
+Copyright (c) 2015 Matt Andrews
+
+Copyright (c) 2015 Nick Williams  Copyright (c) 2011 Heather Arthur <fayearthur@gmail.com>
+
+Copyright (c) 2015 React Motion authors
+
+Copyright (c) 2015 Robin Frischmann
+
+Copyright (c) 2015 Shusaku Uesugi
+
+Copyright (c) 2015 Unshift.io, Arnout Kazemier, the Contributors.
+
+Copyright (c) 2015 Yassine Elouafi
+
+Copyright (c) 2015 react-bootstrap
+
+Copyright (c) 2015 yjcxy12
+
+Copyright (c) 2015, Espen Hovlandsdal  All rights reserved.
+
+Copyright (c) 2015, Yahoo! Inc. All rights reserved.
+
+Copyright (c) 2015-2016 Andrew Clark
+
+Copyright (c) 2015-2016 Michael Jackson
+
+Copyright (c) 2015-2016 Reselect Contributors
+
+Copyright (c) 2015-present Dan Abramov
+
+Copyright (c) 2015-present James Long
+
+Copyright (c) 2015-present React-Bootstrap
+
+Copyright (c) 2015-present, Ryan Florence, Michael Jackson
+
+Copyright (c) 2016 Alexander Kuznetsov
+
+Copyright (c) 2016 Dan Abramov
+
+Copyright (c) 2016 David Frank
+
+Copyright (c) 2016 Eugene Rodionov
+
+Copyright (c) 2016 Jed Watson
+
+Copyright (c) 2016 Matthew Russell
+
+Copyright (c) 2016 Nik Butenko
+
+Copyright (c) 2016, Andres Suarez  All rights reserved.
+
+Copyright (c) 2016, Schrodinger, Inc. All rights reserved.
+
+Copyright (c) JS Foundation and other contributors
+
+Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.  Microsoft Open Technologies would like to thank its contributors, a list  of whom are at http://rx.codeplex.com/wikipage?title=Contributors.
+
+Copyright 2003-2005, Ernst de Haan <wfe.dehaan@gmail.com> All rights reserved.
+
+Copyright 2003-2006 Greg Luck
+
+Copyright 2006 SUN MICROSYSTEMS, INC
+
+Copyright 2008 Google Inc.
+
+Copyright 2009 Stefan Groschupf
+
+Copyright 2009-2010 Ning, Inc.
+
+Copyright 2009–2014 Contributors. All rights reserved.
+
+Copyright 2010 Cedric Beust cedric@beust.com
+
+Copyright 2010-2013 Coda Hale and Yammer, Inc.
+
+Copyright 2010-2013, Carrot Search s.c., Boznicza 11/56, Poznan, Poland
+
+Copyright 2011 Clearspring Technologies Copyright 2016 AddThis
+
+Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>  Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas,  DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
+
+Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/>  Based on Underscore.js, copyright 2009-2016 Jeremy Ashkenas,  DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
+
+Copyright 2013 Thorsten Lorenz.  All rights reserved.
+
+Copyright 2014 Google Inc.
+
+Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/>  Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
+
+Copyright 2015, Dustin Diaz (the Original Author)  All rights reserved.
+
+Copyright JS Foundation and other contributors <https://js.foundation/>
+
+Copyright jQuery Foundation and other contributors <https://jquery.org/>
+
+Copyright jQuery Foundation and other contributors, https://jquery.org/
+
+Copyright © 2001-2009 The Apache Software Foundation.
+
+Copyright © 2008-2017 MongoDB, Inc.
+
+Copyright © 2011–2016. All rights reserved
+
+Copyright © 2012-2016 Faisal Salman <fyzlman@gmail.com>
+
+Copyright © 2016 [Eli Grey][1].
+
+Copyright © 2017 The Netty project
+
+Copyright ©2009-2011 FasterXML, LLC. All rights reserved unless otherwise indicated.
+
+Elasticsearch Copyright 2009-2017 Elasticsearch
+
+FreeMarker is Free software, licensed under the Apache License, Version 2.0.
+
+HdrHistogram was originally authored by Gil Tene (@giltene) (Java) and placed in the public domain, as explained at http://creativecommons.org/publicdomain/zero/1.0/, with ports by Mike Barker (@mikeb01) (C), Matt Warren (@mattwarren) (C#), Darach Ennis (@darach) (Erlang), Alec Hothan (@ahothan) (Python), Coda Hale (@codahale) (Go), Jon Gjengset (@jonhoo) (Rust), and Alexandre Victoor (@alexvictoor) (JavaScript)
+
+Jetty Web Container  Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
+
+Jetty Web Container Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
+
+Logback: the reliable, generic, fast and flexible logging framework. Copyright (C) 1999-2017, QOS.ch. All rights reserved.
+
+NOTICE file corresponding to section 4d of the Apache License Version 2.0 = ============================================================================= This product includes software developed by Joda.org (http://www.joda.org/).
+
+Notices and attributions required by libraries that the project depends on   ==    ===================================================================================   The JUnit depends on Java Hamcrest (http://hamcrest.org/JavaHamcrest/).
+
+The MIT License (MIT)  Copyright (c) 2015-2016 Adphorus
+
+The Xerces-J 2.11.0 release is available in source code and precompiled binary (JAR files) form. Both Xerces-J packages are made available under the Apache Software License.
+
+The code for the t-digest was originally authored by Ted Dunning  A number of small but very helpful changes have been contributed by Adrien Grand (https://github.com/jpountz)
+
+The code released under the CDDL shall be governed by the laws of the State of California (excluding conflict-of-law provisions). Any litigation relating to this License shall be subject to the jurisdiction of the Federal Courts of the Northern District of California and the state courts of the State of California, with venue lying in Santa Clara County, California.
+
+This product includes software developed by    The Apache Software Foundation (http://www.apache.org/).
+
+This product includes software developed by Google  Snappy: http://code.google.com/p/snappy/ (New BSD License)  This product includes software developed by Apache  PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/  (Apache 2.0 license)  This library containd statically linked libstdc++. This inclusion is allowed by  GCC RUntime Library Exception  http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html  == Contributors ==   * Tatu Saloranta       * Providing benchmark suite   * Alec Wysoker     * Performance and memory usage improvement
+
+This product includes software developed by The Apache Software Foundation (http://www.apache.org/).
+
+foodmart-data-json Foodmart data set in JSON format Copyright (C) 2013-2013 Pentaho Copyright (C) 2015-2015 Julian Hyde All Rights Reserved.  Based upon the Pentaho mondrian-data-foodmart-json artifact developed as part of the Pentaho Mondrian OLAP engine (http://mondrian.pentaho.com).
+
+protostuff  Copyright 2009 David Yu dyuproject@gmail.com
+
+© 2014 Kohsuke Kawaguchi and other contributors
+
+

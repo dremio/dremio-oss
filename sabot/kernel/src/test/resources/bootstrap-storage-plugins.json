@@ -1,0 +1,263 @@
+{
+  "storage":{
+    dfs: {
+      type: "file_default",
+      connection: "file:///",
+      formats: {
+        "psv" : {
+          type: "text",
+          extensions: [ "tbl" ],
+          delimiter: "|"
+        },
+        "csv" : {
+          type: "text",
+          extensions: [ "csv" ],
+          delimiter: ","
+        },
+        "tsv" : {
+          type: "text",
+          extensions: [ "tsv" ],
+          delimiter: "\t"
+        },
+        "parquet" : {
+          type: "parquet"
+        },
+        "json" : {
+          type: "json",
+          extensions: [ "json" ]
+        },
+        "avro" : {
+          type: "avro"
+        },
+        "sequencefile": {
+          type : "sequencefile",
+          extensions: [ "seq" ]
+        },
+        "csvh" : {
+          type: "text",
+          extensions: [ "csvh" ],
+          delimiter: ",",
+          extractHeader: true
+        }
+      }
+    },
+    cp: {
+      type: "file_default",
+      connection: "classpath:///",
+      formats: {
+        "psva" : {
+          type: "text",
+          extensions: [ "tbl", "psva"],
+          delimiter: "|",
+          autoGenerateColumnNames: true
+        },
+        "psv" : {
+          type: "text",
+          extensions: [ "psv" ],
+          delimiter: "|"
+        },
+        "csv" : {
+          type: "text",
+          extensions: [ "csv" ],
+          delimiter: ","
+        },
+        "tsv" : {
+          type: "text",
+          extensions: [ "tsv" ],
+          delimiter: "\t"
+        },
+        "json" : {
+          type: "json",
+          extensions: [ "json" ]
+        },
+        "parquet" : {
+          type: "parquet"
+        },
+        "avro" : {
+          type: "avro"
+        },
+        "csvh" : {
+          type: "text",
+          extensions: [ "csvh" ],
+          delimiter: ",",
+          extractHeader: true
+        },
+        "sequencefile": {
+          type: "sequencefile",
+          extensions: [ "seq" ]
+        }
+      }
+    },
+    dfs_test: {
+      type: "file_default",
+      connection: "file:///",
+      formats: {
+        "psv" : {
+          type: "text",
+          extensions: [ "tbl" ],
+          delimiter: "|"
+        },
+        "csv" : {
+          type: "text",
+          extensions: [ "csv", "bcp" ],
+          delimiter: ","
+        },
+        "tsv" : {
+          type: "text",
+          extensions: [ "tsv" ],
+          delimiter: "\t"
+        },
+        "ssv" : {
+          type: "text",
+          extensions: [ "ssv" ],
+          delimiter: " "
+        },
+        "parquet" : {
+          type: "parquet"
+        },
+        "json" : {
+          type: "json"
+        },
+        "txt" : {
+          type : "text",
+          extensions: [ "txt" ],
+          delimiter: "\u0000"
+        },
+        "avro" : {
+          type: "avro"
+        },
+        "sequencefile": {
+          type: "sequencefile",
+          extensions: [ "seq" ]
+        },
+        "csvh" : {
+          type: "text",
+          extensions: [ "csvh" ],
+          delimiter: ",",
+          extractHeader: true
+        },
+        "csvh-test" : {
+          type: "text",
+          extensions: [ "csvh-test" ],
+          delimiter: ",",
+          extractHeader: true,
+          skipFirstLine: true
+        }
+      }
+    },
+    dfs_root: {
+      type: "file_default",
+      connection: "file:///",
+      formats: {
+        "psv" : {
+          type: "text",
+          extensions: [ "tbl" ],
+          delimiter: "|"
+        },
+        "csv" : {
+          type: "text",
+          extensions: [ "csv", "bcp" ],
+          delimiter: ","
+        },
+        "tsv" : {
+          type: "text",
+          extensions: [ "tsv" ],
+          delimiter: "\t"
+        },
+        "ssv" : {
+          type: "text",
+          extensions: [ "ssv" ],
+          delimiter: " "
+        },
+        "parquet" : {
+          type: "parquet"
+        },
+        "json" : {
+          type: "json"
+        },
+        "txt" : {
+          type : "text",
+          extensions: [ "txt" ],
+          delimiter: "\u0000"
+        },
+        "avro" : {
+          type: "avro"
+        },
+        "sequencefile": {
+          type: "sequencefile",
+          extensions: [ "seq" ]
+        },
+        "csvh" : {
+          type: "text",
+          extensions: [ "csvh" ],
+          delimiter: ",",
+          extractHeader: true
+        },
+        "csvh-test" : {
+          type: "text",
+          extensions: [ "csvh-test" ],
+          delimiter: ",",
+          extractHeader: true,
+          skipFirstLine: true
+        }
+      }
+    },
+    dacfs: {
+      type: "file_default",
+      connection: "file:///",
+      formats: {
+        "psv" : {
+          type: "text",
+          extensions: [ "tbl" ],
+          delimiter: "|"
+        },
+        "csv" : {
+          type: "text",
+          extensions: [ "csv", "bcp" ],
+          delimiter: ","
+        },
+        "tsv" : {
+          type: "text",
+          extensions: [ "tsv" ],
+          delimiter: "\t"
+        },
+        "ssv" : {
+          type: "text",
+          extensions: [ "ssv" ],
+          delimiter: " "
+        },
+        "parquet" : {
+          type: "parquet"
+        },
+        "json" : {
+          type: "json"
+        },
+        "txt" : {
+          type : "text",
+          extensions: [ "txt" ],
+          delimiter: "\u0000"
+        },
+        "avro" : {
+          type: "avro"
+        },
+        "sequencefile": {
+          type: "sequencefile",
+          extensions: [ "seq" ]
+        },
+        "csvh" : {
+          type: "text",
+          extensions: [ "csvh" ],
+          delimiter: ",",
+          extractHeader: true
+        },
+        "csvh-test" : {
+          type: "text",
+          extensions: [ "csvh-test" ],
+          delimiter: ",",
+          extractHeader: true,
+          skipFirstLine: true
+        }
+      }
+    }
+  }
+}

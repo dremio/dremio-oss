@@ -1,0 +1,36 @@
+[
+  {
+    "datasetConfig": "00b4a06bb72075b8",
+    "datasetName": "ds1",
+    "descendants": 0,
+    "fileType": "dataset",
+    "jobCount": 0,
+    "links": {
+      "edit": "/space/\"Prod-Sample\"/ds1?mode=edit",
+      "jobs": "/jobs/\"Prod-Sample\".ds1",
+      "self": "/space/\"Prod-Sample\"/ds1"
+    },
+    "name": "ds1",
+    "parentPath": "Prod-Sample",
+    "resourcePath": "/dataset/\"Prod-Sample\".ds1",
+    "sql": "SELECT *\nFROM dfs.tmp.\"dac-sample1.json\"",
+    "versionedResourcePath": "/dataset/\"Prod-Sample\".ds1/version/00b4a06bb72075b8"
+  },
+  {
+    "datasetConfig": "00b4a06bb884c7d5",
+    "datasetName": "ds2",
+    "descendants": 0,
+    "fileType": "dataset",
+    "jobCount": 0,
+    "links": {
+      "edit": "/space/\"Prod-Sample\"/ds2?mode=edit",
+      "jobs": "/jobs/\"Prod-Sample\".ds2",
+      "self": "/space/\"Prod-Sample\"/ds2"
+    },
+    "name": "ds2",
+    "parentPath": "Prod-Sample",
+    "resourcePath": "/dataset/\"Prod-Sample\".ds2",
+    "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20",
+    "versionedResourcePath": "/dataset/\"Prod-Sample\".ds2/version/00b4a06bb884c7d5"
+  }
+]

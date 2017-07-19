@@ -1,0 +1,55 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package exec.bit.data;
+
+option java_package = "com.dremio.exec.proto";
+option java_outer_classname = "ExecRPC";
+option optimize_for = SPEED;
+
+import "ExecutionProtos.proto";
+import "Coordination.proto";
+import "UserBitShared.proto";
+
+enum RpcType {
+  ACK = 1;
+  
+  // all return ack.
+  REQ_STREAM_COMPLETE = 2;
+  REQ_RECORD_BATCH = 3;
+  REQ_RECEIVER_FINISHED = 4;
+}
+
+message FragmentRecordBatch {
+  optional exec.shared.QueryId query_id = 1;
+  optional int32 receiving_major_fragment_id = 2;
+  repeated int32 receiving_minor_fragment_id = 3; 
+  optional int32 sending_major_fragment_id = 4;
+  optional int32 sending_minor_fragment_id = 5;
+  optional bytes arrow_record_batch = 6;
+}
+
+message FragmentStreamComplete {
+  optional exec.shared.QueryId query_id = 1;
+  optional int32 receiving_major_fragment_id = 2;
+  repeated int32 receiving_minor_fragment_id = 3; 
+  optional int32 sending_major_fragment_id = 4;
+  optional int32 sending_minor_fragment_id = 5;
+}
+
+message FinishedReceiver {
+  optional FragmentHandle receiver = 1;
+  optional FragmentHandle sender = 2;
+}

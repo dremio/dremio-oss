@@ -1,0 +1,114 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package exec.store.dfs;
+
+option java_package = "com.dremio.exec.dfs.proto";
+option optimize_for = SPEED;
+
+message FileStatus {
+  optional string path = 1;
+  required int64  length = 2;
+  required bool   is_directory = 3;
+  required int32  block_replication = 4;
+  required int64  block_size = 5;
+  required int64  modification_time = 6;
+  required int64  access_time = 7;
+  optional int32  permission = 8;
+  optional string owner = 9;
+  optional string group = 10;
+  optional string symlink = 11;
+} 
+
+enum RpcType {
+  GET_FILE_STATUS_REQUEST = 1; 
+  GET_FILE_STATUS_RESPONSE = 2; 
+  LIST_STATUS_REQUEST = 3; 
+  LIST_STATUS_RESPONSE = 4; 
+  GET_FILE_DATA_REQUEST = 5; 
+  GET_FILE_DATA_RESPONSE = 6; 
+  MKDIRS_REQUEST = 7; 
+  MKDIRS_RESPONSE = 8; 
+  DELETE_REQUEST = 9;
+  DELETE_RESPONSE = 10;
+  RENAME_REQUEST = 11;
+  RENAME_RESPONSE = 12;
+
+  WRITE_DATA_REQUEST = 13;
+  WRITE_DATA_RESPONSE = 14;
+}
+
+message WriteDataRequest {
+  required string path = 1;
+  required int64 lastUpdate = 2;
+  required int64 lastOffset = 3;
+}
+
+message WriteDataResponse {
+  required int64 updateTime = 1;
+}
+
+message GetFileStatusRequest {
+  required string path = 1;
+}
+
+message GetFileStatusResponse {
+  optional FileStatus status =  1;
+}
+
+message ListStatusRequest {
+  required string path = 1;
+}
+
+message ListStatusResponse {
+  repeated FileStatus statuses = 1;
+}
+
+message GetFileDataRequest {
+  required string path = 1;
+  optional int64 start = 2;
+  optional int32 length = 3;
+}
+
+message GetFileDataResponse {
+  optional int32 read = 1;
+}
+
+message MkdirsRequest {
+  required string path = 1;
+  optional int32  permission = 2;
+}
+
+message MkdirsResponse {
+  optional bool value = 1;
+}
+
+message DeleteRequest {
+  required string path = 1;
+  optional bool recursive = 2;
+}
+
+message DeleteResponse {
+  optional bool value = 1;
+}
+
+message RenameRequest {
+  required string oldpath = 1;
+  required string newpath = 2;
+}
+
+message RenameResponse {
+  optional bool value = 1;
+}

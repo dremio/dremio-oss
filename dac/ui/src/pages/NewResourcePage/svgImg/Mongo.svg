@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Source/Mongo</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <circle id="path-1" cx="24" cy="24" r="24"></circle>
+        <mask id="mask-2" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="48" height="48" fill="white">
+            <use xlink:href="#path-1"></use>
+        </mask>
+    </defs>
+    <g id="Elements" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Source/Mongo">
+            <g>
+                <use id="Oval" stroke="#E5E5E5" mask="url(#mask-2)" stroke-width="2" xlink:href="#path-1"></use>
+                <g id="Logo/Mongo" transform="translate(14.000000, 2.000000)">
+                    <g id="Source/Mongo">
+                        <path d="M10.0978683,32.87174 C9.86728795,35.76298 9.53603795,37.87322 9.2103683,38.60934 C9.2103683,38.60934 9.16438616,38.57832 9.08157366,38.5187 C9.89965402,40.3964 9.8181808,43.60928 9.8181808,43.60928 L11.0141629,44 C11.0141629,44 10.7713058,40.88282 11.1099219,39.3756 C11.2123772,38.91976 11.4483147,38.5209 11.7268862,38.18584 C11.6822433,38.21642 11.6585826,38.23182 11.6585826,38.23182 C10.4889397,37.70074 10.1494308,35.20198 10.0978683,32.87174" id="Fill-1" fill="#C2BFBF"></path>
+                        <path d="M19.6168415,17.4501778 C17.2730915,7.2588978 11.7373772,3.9089578 11.1418415,2.6296578 C10.4869308,1.7245778 9.8275558,0.1209978 9.8275558,0.1209978 L9.8275558,0.1429978 C10.3822433,2.2549978 10.2882701,19.2964178 10.3503237,21.3375778 C10.480904,25.6055778 10.3503237,29.7068178 10.0971987,32.8717378 C10.1483147,35.2019778 10.4880469,37.7007378 11.6596987,38.2320378 C11.6596987,38.2320378 11.6833594,38.2166378 11.7280022,38.1860578 C11.9123772,38.0593378 12.4583594,37.6681778 13.1867076,37.0103778 L13.2382701,36.9639578 C16.0445201,34.4112978 21.4440737,27.9798178 19.6168415,17.4501778" id="Fill-3" fill="#599636"></path>
+                        <path d="M10.0978683,32.87174 C10.3503237,29.70682 10.4815737,25.60602 10.3503237,21.33758 C10.2882701,19.29642 10.3822433,2.255 9.82777902,0.143 C9.81597098,0.094094 9.79998884,0.046244 9.78001116,0 C9.71304687,0.89958 9.67710937,1.25114 8.81014509,2.16304 C7.46929687,3.19704 0.584252232,8.88888 0.0233147321,20.46704 C-0.499676339,31.26398 7.93804687,37.697 9.08157366,38.5187 C9.16460937,38.57832 9.2103683,38.60934 9.2103683,38.60934 C9.53603795,37.873 9.86751116,35.76298 10.0978683,32.87174" id="Fill-5" fill="#69B240"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,135 @@
+/**
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+html, body {
+  font-family: Roboto, "Helvetica Neue", Arial;
+}
+
+h3 {
+  font-size: 18px;
+}
+
+.nav.nav-tabs {
+  border-bottom: none;
+}
+
+.nav.nav-tabs > li > a {
+  padding: 7px 7px 5px 7px;
+}
+
+.nav.nav-tabs > li > a,
+.nav.nav-tabs > li:hover {
+  border-radius: 0;
+  background: none;
+  border: none;
+  color: #333;
+  font-size: 12px;
+}
+
+.nav.nav-tabs .active a,
+.nav.nav-tabs .active a:hover,
+.nav.nav-tabs .active a:focus {
+  background: #f2f2f2;
+  border-radius: 2px;
+  border: none;
+}
+
+.info-list {
+  margin-top: 20px;
+}
+
+.info-list > dt {
+  font-weight: normal;
+  text-align: left;
+  color: #999;
+  width: 120px;
+}
+
+.info-list > dd {
+  margin-left: 60px;
+}
+
+.panel.panel-default {
+  border-width: 0;
+  border-radius: 0;
+}
+
+.panel-heading .panel-title {
+  font-size: 14px;
+  color: #333;
+  font-weight: bold;
+}
+.panel-heading .panel-title a:hover,
+.panel-heading .panel-title a:focus {
+  text-decoration: none;
+}
+
+.panel-heading .panel-title a {
+  background: #e4f2f7;
+  display: block;
+  width: 100%;
+  position: relative;
+  padding: 10px 10px 10px 25px;
+}
+
+.panel-heading .panel-title a.collapsed {
+  background: #f3f3f3;
+}
+
+.panel-heading .panel-title a::before {
+  content: "";
+  width: 24px;
+  height: 24px;
+  background-image: url(../img/arrow-down-small.svg);
+  position: absolute;
+  top: 4px;
+  left: 2px;
+  font-weight: normal;
+}
+.panel-heading .panel-title a.collapsed::before {
+  transform: rotate(180deg);
+}
+
+.panel.panel-default .panel-body {
+  border: 1px solid #e5e5e5;
+  overflow: auto;
+}
+
+.panel-default>.panel-heading {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+pre {
+  background-color: #fff;
+  border-radius: 2px;
+}
+
+table.table>thead>tr>th {
+  text-align: right;
+}
+
+.table>tbody>tr>td {
+  white-space: nowrap;
+}
+
+.btn.btn-default {
+  border-radius: 2px;
+  padding: 0 9px;
+  line-height: 28px;
+  height: 28px;
+  font-size: 11px;
+}

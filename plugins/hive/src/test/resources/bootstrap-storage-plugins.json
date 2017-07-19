@@ -1,0 +1,14 @@
+{
+  "storage":{
+    hive : {
+      type:"hive",
+      config : {
+        "hive.metastore.uris" : "",
+        "javax.jdo.option.ConnectionURL" : "jdbc:derby:;databaseName=../sample-data/dremio_hive_db;create=true",
+        "hive.metastore.warehouse.dir" : "/tmp/dremio_hive_wh",
+        "fs.default.name" : "file:///",
+        "hive.metastore.sasl.enabled" : "false"
+      }
+    }
+  }
+}

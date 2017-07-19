@@ -1,0 +1,194 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.dac.resource;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.model.sources.SourcePath;
+import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.proto.model.source.NASConfig;
+import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.service.source.SourceService;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
+import com.dremio.service.namespace.proto.TimePeriod;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+
+/**
+ * Tests {@link com.dremio.dac.explore.DatasetResource} API
+ */
+public class TestDatasetResource extends BaseTestServer {
+  private static final String SOURCE_NAME = "mysrc";
+  private static final TimePeriod DEFAULT_TTL = new TimePeriod().setDuration(12L).setUnit(TimePeriod.TimeUnit.HOURS);
+  private static final DatasetPath DATASET_PATH = new DatasetPath(ImmutableList.of(SOURCE_NAME, "ds1"));
+
+  @Rule
+  public final TemporaryFolder folder = new TemporaryFolder();
+
+  protected NamespaceService getNamespaceService() {
+    final NamespaceService service = newNamespaceService();
+    return Preconditions.checkNotNull(service, "ns service is required");
+  }
+
+  protected SourceService getSourceService() {
+    final SourceService service = newSourceService();
+    return Preconditions.checkNotNull(service, "source service is required");
+  }
+
+  public void addPhysicalDataset(final DatasetPath path, final DatasetType type) throws Exception {
+    NamespaceKey datasetPath = path.toNamespaceKey();
+    final DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setName(datasetPath.getName());
+    datasetConfig.setType(type);
+    datasetConfig.setPhysicalDataset(new PhysicalDataset());
+    getNamespaceService().tryCreatePhysicalDataset(datasetPath, datasetConfig);
+  }
+
+  @Before
+  public void setup() throws Exception {
+    final NASConfig nas = new NASConfig();
+    nas.setPath(folder.getRoot().getPath());
+    SourceUI source = new SourceUI();
+    source.setName(SOURCE_NAME);
+    source.setCtime(System.currentTimeMillis());
+    source.setAccelerationTTL(DEFAULT_TTL);
+    source.setConfig(nas);
+    getSourceService().registerSourceWithRuntime(source);
+    addPhysicalDataset(DATASET_PATH, DatasetType.PHYSICAL_DATASET);
+  }
+
+  @After
+  public void clear() throws Exception {
+    getNamespaceService().deleteSource(new SourcePath(SOURCE_NAME).toNamespaceKey(), 0);
+  }
+
+  @Test
+  public void testAccelerationSettings() throws Exception {
+    final String endpoint = String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
+    {
+      final AccelerationSettingsDescriptor descriptor = expectSuccess(
+          getBuilder(getAPIv2().path(endpoint)).buildGet(),
+          AccelerationSettingsDescriptor.class
+      );
+
+      assertNotNull(descriptor.getAccelerationTTL());
+      assertEquals(DEFAULT_TTL, descriptor.getAccelerationTTL());
+    }
+  }
+
+  @Test
+  public void testUpdateSettingsInFullMode() throws Exception {
+    {
+      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
+          .setAccelerationTTL(DEFAULT_TTL)
+          .setMethod(RefreshMethod.FULL);
+
+      expectSuccess(
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+              .buildPut(Entity.entity(descriptor, JSON)));
+
+      final AccelerationSettingsDescriptor newDescriptor = expectSuccess(
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString()))).buildGet(),
+          AccelerationSettingsDescriptor.class
+      );
+
+      assertNotNull(newDescriptor);
+      assertEquals(descriptor.getAccelerationTTL(), newDescriptor.getAccelerationTTL());
+      assertEquals(descriptor.getMethod(), newDescriptor.getMethod());
+      assertEquals(descriptor.getRefreshField(), newDescriptor.getRefreshField());
+    }
+  }
+
+  @Test
+  public void testUpdateSettingsInIncrementalMode() throws Exception {
+    {
+      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
+          .setAccelerationTTL(DEFAULT_TTL)
+          .setMethod(RefreshMethod.INCREMENTAL)
+          .setRefreshField("test-field");
+
+      expectSuccess(
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+              .buildPut(Entity.entity(descriptor, JSON)));
+
+      final AccelerationSettingsDescriptor newDescriptor = expectSuccess(
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString()))).buildGet(),
+          AccelerationSettingsDescriptor.class
+      );
+
+      assertNotNull(newDescriptor);
+      assertEquals(descriptor.getAccelerationTTL(), newDescriptor.getAccelerationTTL());
+      assertEquals(descriptor.getMethod(), newDescriptor.getMethod());
+      assertEquals(descriptor.getRefreshField(), newDescriptor.getRefreshField());
+    }
+  }
+
+  @Test
+  public void testValidation() throws Exception {
+    {
+      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
+          .setAccelerationTTL(DEFAULT_TTL)
+          .setMethod(RefreshMethod.INCREMENTAL);
+
+      expectStatus(Response.Status.BAD_REQUEST,
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+              .buildPut(Entity.entity(descriptor, JSON)));
+    }
+
+    {
+      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
+          .setAccelerationTTL(DEFAULT_TTL)
+          .setMethod(RefreshMethod.FULL)
+          .setRefreshField("some-field");
+
+      expectStatus(Response.Status.BAD_REQUEST,
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+              .buildPut(Entity.entity(descriptor, JSON)));
+    }
+
+    {
+      final DatasetPath path2 = new DatasetPath(ImmutableList.of(SOURCE_NAME, "ds2"));
+      addPhysicalDataset(path2, DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
+
+      final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
+          .setAccelerationTTL(DEFAULT_TTL)
+          .setMethod(RefreshMethod.INCREMENTAL)
+          .setRefreshField("some-field");
+
+      expectStatus(Response.Status.BAD_REQUEST,
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", path2.toPathString())))
+              .buildPut(Entity.entity(descriptor, JSON)));
+    }
+
+  }
+}

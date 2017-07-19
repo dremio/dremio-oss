@@ -1,0 +1,230 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.datastore.indexed;
+
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.FieldValueFilter;
+import org.apache.lucene.search.FieldValueQuery;
+import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.NumericRangeQuery;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.search.WildcardQuery;
+
+import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.SearchTypes.SearchQuery.MatchAll;
+import com.dremio.datastore.SearchTypes.SearchQuery.Not;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeDouble;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeFloat;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeInt;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeLong;
+import com.dremio.datastore.SearchTypes.SearchQuery.RangeTerm;
+
+/**
+ * Helper class to convert from a KVStore {@code com.dremio.datastore.SearchQuery}
+ * to a Lucene {@code org.apache.lucene.search.Query}
+ */
+public class LuceneQueryConverter {
+  public static final LuceneQueryConverter INSTANCE = new LuceneQueryConverter();
+
+  public LuceneQueryConverter() {
+  }
+
+  Query toLuceneQuery(SearchQuery query) {
+    switch(query.getType()) {
+    case BOOLEAN:
+      return toBooleanQuery(query.getBoolean());
+
+    case MATCH_ALL:
+      return toMatchAllQuery(query.getMatchAll());
+
+    case NOT:
+      return toNotQuery(query.getNot());
+
+    case RANGE_DOUBLE:
+      return toRangeQuery(query.getRangeDouble());
+
+    case RANGE_FLOAT:
+      return toRangeQuery(query.getRangeFloat());
+
+    case RANGE_INT:
+      return toRangeQuery(query.getRangeInt());
+
+    case RANGE_LONG:
+      return toRangeQuery(query.getRangeLong());
+
+    case RANGE_TERM:
+      return toRangeQuery(query.getRangeTerm());
+
+    case TERM:
+      return toTermQuery(query.getTerm());
+
+    case WILDCARD:
+      return toWildcardQuery(query.getWildcard());
+
+    case TERM_INT:
+      return toTermIntQuery(query.getTermInt());
+
+    case TERM_LONG:
+      return toTermLongQuery(query.getTermLong());
+
+    case TERM_FLOAT:
+      return toTermFloatQuery(query.getTermFloat());
+
+    case TERM_DOUBLE:
+      return toTermDoubleQuery(query.getTermDouble());
+
+    case EXISTS:
+      return toExistsquery(query.getExists());
+
+    case DOES_NOT_EXIST:
+      return toDoesNotExistQuery(query.getExists());
+
+    default:
+      throw new AssertionError("Unknown query type: " + query);
+    }
+  }
+
+  private Query toBooleanQuery(SearchQuery.Boolean booleanQuery) {
+    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    final BooleanClause.Occur occur;
+    switch(booleanQuery.getOp()) {
+    case AND:
+      occur = BooleanClause.Occur.MUST;
+      break;
+    case OR:
+      occur = BooleanClause.Occur.SHOULD;
+        break;
+    default:
+      throw new AssertionError("Unknown boolean operator: " + booleanQuery.getOp());
+    }
+
+    for(SearchQuery clause: booleanQuery.getClausesList()) {
+      builder.add(toLuceneQuery(clause), occur);
+    }
+    return builder.build();
+  }
+
+  private Query toMatchAllQuery(MatchAll matchAll) {
+    return new MatchAllDocsQuery();
+  }
+
+  private Query toNotQuery(Not not) {
+    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    builder.add(toLuceneQuery(not.getClause()), BooleanClause.Occur.MUST_NOT);
+    return builder.build();
+  }
+
+  private Query toRangeQuery(RangeDouble range) {
+    return NumericRangeQuery.newDoubleRange(
+        range.getField(),
+        range.hasMin() ? range.getMin() : null,
+        range.hasMax() ? range.getMax() : null,
+        range.getMinInclusive(),
+        range.getMaxInclusive());
+  }
+
+  private Query toRangeQuery(RangeFloat range) {
+    return NumericRangeQuery.newFloatRange(
+        range.getField(),
+        range.hasMin() ? range.getMin() : null,
+        range.hasMax() ? range.getMax() : null,
+        range.getMinInclusive(),
+        range.getMaxInclusive());
+  }
+
+  private Query toRangeQuery(RangeInt range) {
+    return NumericRangeQuery.newIntRange(
+        range.getField(),
+        range.hasMin() ? range.getMin() : null,
+        range.hasMax() ? range.getMax() : null,
+        range.getMinInclusive(),
+        range.getMaxInclusive());
+  }
+
+  private Query toRangeQuery(RangeLong range) {
+    return NumericRangeQuery.newLongRange(
+        range.getField(),
+        range.hasMin() ? range.getMin() : null,
+        range.hasMax() ? range.getMax() : null,
+        range.getMinInclusive(),
+        range.getMaxInclusive());
+  }
+
+  private Query toRangeQuery(RangeTerm range) {
+    return TermRangeQuery.newStringRange(
+        range.getField(),
+        range.hasMin() ? range.getMin() : null,
+        range.hasMax() ? range.getMax() : null,
+        range.getMinInclusive(),
+        range.getMaxInclusive());
+  }
+
+  private Query toTermQuery(SearchQuery.Term term) {
+    return new TermQuery(new Term(term.getField(), term.getValue()));
+  }
+
+  private Query toWildcardQuery(SearchQuery.Wildcard wildcard) {
+    return new WildcardQuery(new Term(wildcard.getField(), wildcard.getValue()));
+  }
+
+  private Query toTermIntQuery(SearchQuery.TermInt term) {
+    return NumericRangeQuery.newIntRange(
+      term.getField(),
+      term.getValue(),
+      term.getValue(),
+      true,
+      true);
+  }
+
+  private Query toTermLongQuery(SearchQuery.TermLong term) {
+    return NumericRangeQuery.newLongRange(
+      term.getField(),
+      term.getValue(),
+      term.getValue(),
+      true,
+      true);
+  }
+
+  private Query toTermFloatQuery(SearchQuery.TermFloat term) {
+    return NumericRangeQuery.newFloatRange(
+      term.getField(),
+      term.getValue(),
+      term.getValue(),
+      true,
+      true);
+  }
+
+  private Query toTermDoubleQuery(SearchQuery.TermDouble term) {
+    return NumericRangeQuery.newDoubleRange(
+      term.getField(),
+      term.getValue(),
+      term.getValue(),
+      true,
+      true);
+  }
+
+  private Query toExistsquery(SearchQuery.Exists exists) {
+    return new FieldValueQuery(exists.getField());
+  }
+
+  private Query toDoesNotExistQuery(SearchQuery.Exists exists) {
+    return new FieldValueFilter(exists.getField(), true);
+  }
+}

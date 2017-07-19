@@ -1,0 +1,16 @@
+[
+  {
+    "name": "dotItem",
+    "activeDotItem": "activeDotItem",
+    "determ": "activeDotItem",
+    "width": 200,
+    "values": [
+      {
+        "name": "Publish to Data Source"
+      },
+      {
+        "name": "Publish to Tableau Server"
+      }
+    ]
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "head" : {
+    "version" : 1,
+    "generator" : {
+      "type" : "com.dremio.exec.planner.logical.LogicalPlanImplementor",
+      "info" : ""
+    },
+    "type" : "PHYSICAL",
+    "resultMode" : "EXEC"
+  },
+  graph:[
+  {
+      @id:1,
+      pop:"fs-scan",
+      format: {type: "json"},
+      storage:{type: "file_default", connection: "classpath:///"},
+      files:["#{TEST_FILE}"]
+  },{
+        "pop" : "project",
+        "@id" : 2,
+        "exprs" : [ {
+          "ref" : "DEC",
+          "expr" : " (cast(B as decimal(38, 12)))"
+        }
+        ],
+        "child" : 1
+      },
+     {
+                @id:3,
+                child: 2,
+                pop:"external-sort",
+                orderings: [
+                  {expr: "DEC"}
+                ]
+            },
+            {
+                @id:4,
+                child: 3,
+                pop:"selection-vector-remover"
+            },
+     {
+        "pop" : "project",
+        "@id" : 5,
+        "exprs" : [ {
+          "ref" : "DESTR",
+          "expr" : " (cast(DEC as varchar(100)))"
+        }
+        ],
+        "child" : 4
+      },
+    {
+        "pop" : "screen",
+        "@id" : 6,
+        "child" : 5
+      } ]
+    }

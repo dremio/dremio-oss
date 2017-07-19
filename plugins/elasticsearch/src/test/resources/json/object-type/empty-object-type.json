@@ -1,0 +1,16 @@
+{
+    "<TABLE_NAME>": {
+        "properties" : {
+            "place": {
+                "properties": {
+                    "my_object_type": {
+                        "type": "object"
+                    },
+                    "my_string_type": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

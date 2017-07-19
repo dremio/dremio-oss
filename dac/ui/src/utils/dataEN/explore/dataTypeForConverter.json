@@ -1,0 +1,189 @@
+
+[
+  {
+    "type": "TEXT",
+    "values": [
+      {
+        "option": "BINARY",
+        "label": "Binary"
+      },
+      {
+        "option": "INTEGER",
+        "label": "Integer"
+      },
+      {
+        "option": "FLOAT",
+        "label": "Float"
+      },
+      {
+        "option": "DATE",
+        "label": "Date"
+      },
+      {
+        "option": "TIME",
+        "label": "Time"
+      },
+      {
+        "option": "DATETIME",
+        "label": "Date & Time"
+      }
+    ]
+  },
+  {
+    "type": "INTEGER",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      },
+      {
+        "option": "FLOAT",
+        "label": "Float"
+      },
+      {
+        "option": "DATE",
+        "label": "Date"
+      },
+      {
+        "option": "TIME",
+        "label": "Time"
+      },
+      {
+        "option": "DATETIME",
+        "label": "Date & Time"
+      }
+    ]
+  },
+  {
+    "type": "FLOAT",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      },
+      {
+        "option": "INTEGER",
+        "label": "Integer"
+      },
+      {
+        "option": "DATE",
+        "label": "Date"
+      },
+      {
+        "option": "TIME",
+        "label": "Time"
+      },
+      {
+        "option": "DATETIME",
+        "label": "Date & Time"
+      }
+    ]
+  },
+  {
+    "type": "DECIMAL",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      },
+      {
+        "option": "INTEGER",
+        "label": "Integer"
+      },
+      {
+        "option": "DATE",
+        "label": "Date"
+      },
+      {
+        "option": "TIME",
+        "label": "Time"
+      },
+      {
+        "option": "DATETIME",
+        "label": "Date & Time"
+      }
+    ]
+  },
+  {
+    "type": "LIST",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      }
+    ]
+  },
+  {
+    "type": "DATE",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      },
+      {
+        "option": "INTEGER",
+        "label": "Integer"
+      },
+      {
+        "option": "FLOAT",
+        "label": "Float"
+      },
+      {
+        "option": "DATETIME",
+        "label": "Date & Time"
+      }
+    ]
+  },
+  {
+    "type": "DATETIME",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      },
+      {
+        "option": "INTEGER",
+        "label": "Integer"
+      },
+      {
+        "option": "FLOAT",
+        "label": "Float"
+      },
+      {
+        "option": "DATE",
+        "label": "Date"
+      },
+      {
+        "option": "TIME",
+        "label": "Time"
+      }
+    ]
+  },
+  {
+    "type": "TIME",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      },
+      {
+        "option": "INTEGER",
+        "label": "Integer"
+      },
+      {
+        "option": "FLOAT",
+        "label": "Float"
+      }
+    ]
+  },
+  {
+    "type": "BINARY",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text",
+        "disabled": true
+      }
+    ]
+  }
+]

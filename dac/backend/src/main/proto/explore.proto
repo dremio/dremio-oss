@@ -1,0 +1,933 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto2";
+package com.dremio.dac.proto.model.dataset;
+
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+
+option java_package = "com.dremio.dac.proto.model.dataset";
+option optimize_for = SPEED;
+
+option java_outer_classname = "DatasetProtobuf";
+
+// root of the Dataset information presetned to rest apis. TODO (DX-7284): To be deprecated
+message VirtualDatasetUI {
+
+  // the name of the dataset
+  optional string name = 1;
+  optional string parentPath = 2 [deprecated=true];
+  optional bool accelerated = 3 [deprecated=true];
+  
+  // current sql generated from the state
+  optional string sql = 4;
+  
+  // current version of the dataset. Not all versions are saved
+  optional string version = 5 [value_type=com.dremio.service.namespace.dataset.DatasetVersion];
+  
+  // current state of the dataset
+  optional VirtualDatasetState state = 6;
+  
+  // The fields of the dataset from a View perspective. This is generated from the sql field
+  // This is based on BatchSchema (if available) and rowType (if BatchSchema is not available / incomplete)
+  repeated com.dremio.service.namespace.dataset.proto.ViewFieldType sql_fields = 7;
+  
+  // transformation applied to previousVersion that produced this version
+  // null if first version // TODO: just make a creation transform
+  optional Transform lastTransform = 8;
+  
+  // previous version of the dataset. null if first version
+  optional NameDatasetRef previousVersion = 9;
+  
+  // creation timestamp of this version
+  optional int64 createdAt = 10;
+  
+  // list of datasets that this dataset refers to (first level only)
+  repeated com.dremio.service.namespace.dataset.proto.ParentDataset parents = 11;
+  
+  // full path to reference this dataset.
+  repeated string fullPath = 12;
+  
+  // version actually saved of a dataset
+  optional int64 savedVersion = 13;
+
+  // the origin of each column.
+  repeated com.dremio.service.namespace.dataset.proto.FieldOrigin fieldOrigins = 15;
+  
+  // is this dataset named? Once a dataset has been saved once, it and all transformations on top of it are named.
+  optional bool isNamed = 16 [DEFAULT = true];
+  
+  optional Derivation derivation = 17 [DEFAULT = UNKNOWN];
+
+  repeated com.dremio.service.namespace.dataset.proto.ParentDataset grandParents = 18;
+
+  optional string owner = 19;
+
+  // Id of the dataset
+  optional string id = 20;
+
+  // The fields of the dataset from a View perspective.  This is used for calcite row type information.
+  // This is needed to make sure we maintain the exact row type of the view according to plan generated during validation.
+  // BatchSchema currently does not support CHAR(length), nullability, etc. so we need to keep this separately.
+  repeated com.dremio.service.namespace.dataset.proto.ViewFieldType calcite_fields = 21;
+
+  // batch schema
+  // This field is not serialized 
+  optional bytes record_schema = 22; 
+
+}
+
+enum Derivation {
+
+  // Comes from a hand input SQL query.
+  SQL = 1;
+  
+  // Comes from a table derivation but parent type is unknown. Only used ephemerally until we can calculate derivation type.
+  DERIVED_UNKNOWN = 2;
+  
+  // Comes from a new_untitled of a physical dataset.
+  DERIVED_PHYSICAL = 3;
+  
+  // Comes from a new_untitled of a virtual dataset.
+  DERIVED_VIRTUAL = 4;
+  
+  // Unkown derivation type.
+  UNKNOWN = 5; 
+}
+
+message VirtualDatasetVersion {
+  // current state of the dataset
+  optional VirtualDatasetState state = 1;
+  // transformation applied to previousVersion that produced this version
+  // null if first version // TODO: just make a creation transform
+  optional Transform lastTransform = 2;
+  optional NameDatasetRef previousVersion = 3;
+
+  // dataset info stored in namespace if this version is the tip.
+  optional com.dremio.service.namespace.dataset.proto.DatasetConfig dataset = 4;
+  
+  optional Derivation derivation = 5 [DEFAULT = UNKNOWN];
+  
+  optional bool named = 6 [DEFAULT = true];
+
+}
+
+message NameDatasetRef {
+  required string datasetPath = 1; // TODO: make it DatasetPath
+  optional string datasetVersion = 2;
+}
+
+//  state
+// This describes the state of the dataset that we produce sql from
+
+// for expression tree in fields of a dataset
+message ExpColumnReference {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  optional string table = 1; // This is the alias of the table in the current query
+  required string name = 2;
+}
+// Deprecated => subcase of ExpFieldTransformation
+message ExpTrim {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required Expression operand = 1;
+  required TrimType trimType = 2;
+}
+// Deprecated => subcase of ExpFieldTransformation
+message ExpConvertCase {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required ConvertCase convertCase = 1;
+  required Expression operand = 2;
+}
+// Deprecated => subcase of ExpFieldTransformation
+message ExpExtract {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required ExtractRule rule = 1;
+  required Expression operand = 2;
+}
+message ExpCalculatedField {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required string exp = 1;
+}
+message ExpFieldTransformation {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required FieldTransformation transformation = 1;
+  required Expression operand = 2;
+}
+message ExpConvertType {
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required DataType desiredType = 1;
+  required bool castWhenPossible = 2;
+  required ActionForNonMatchingValue actionForNonMatchingValue = 3;
+  optional string defaultValue = 4;
+  required Expression operand = 5;
+}
+message ExpMeasure { // Agg functions
+  option (extends_class) = "com.dremio.dac.explore.model.ExpressionBase";
+  required MeasureType measureType = 1;
+  optional Expression operand = 2; //required if measureType != COUNT_STAR, null otherwise
+}
+
+// one type per subclass of ExpressionBase above
+enum ExpressionType {
+  ColumnReference = 1;
+  Trim = 2;
+  ConvertCase = 3;
+  Extract = 4;
+  CalculatedField = 5;
+  FieldTransformation = 6;
+  ConvertType = 7;
+  Measure = 8;
+}
+message Expression {
+// protostuff does not support oneof
+// exactly one of the optional fields is populated
+// the type field defines which one
+  required ExpressionType type = 1;
+ 
+  optional ExpColumnReference col = 2;
+  optional ExpTrim trim = 3;
+  optional ExpConvertCase convertCase = 4;
+  optional ExpExtract extract = 5;
+  optional ExpCalculatedField calculatedField = 6;
+  optional ExpFieldTransformation fieldTransformation = 7;
+  optional ExpConvertType convertType = 8;
+  optional ExpMeasure measure = 9;
+}
+
+// Filters
+
+message Filter {
+  required Expression operand = 1;
+  required FilterDefinition filterDef = 2;
+  optional bool keepNull = 3;
+  optional bool exclude = 4;
+}
+
+message FilterCleanData {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  required DataType desiredType = 1;
+  required bool castWhenPossible = 2;
+}
+
+message FilterByType {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  required DataType type = 1;
+}
+
+message FilterRange {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  optional string lowerBound = 1; // absent means -infinity
+  optional string upperBound = 2; // absent means +infinity
+  required DataType dataType = 3;
+  optional bool lowerBoundInclusive = 4;
+  optional bool upperBoundInclusive = 5;
+}
+
+message FilterCustom {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  required string expression = 1;
+}
+
+message FilterValue {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  repeated string values = 1;
+  required DataType dataType = 2;
+}
+
+message FilterPattern {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  required ReplacePatternRule rule = 1;
+}
+
+message FilterConvertibleData {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  required DataType desiredType = 1;
+}
+
+message FilterConvertibleDataWithPattern {
+  option (extends_class) = "com.dremio.dac.explore.model.FilterBase";
+  required DataType desiredType = 1;
+  required string pattern = 2;
+}
+
+enum FilterType {
+  CleanData = 1;
+  ByType = 2;
+  Range = 3;
+  Custom = 4;
+  Value = 5;
+  Pattern = 6;
+  ConvertibleData = 7;
+  ConvertibleDataWithPattern = 8;
+}
+message FilterDefinition {
+// protostuff does not support oneof
+// only one of the optional fields is populated
+  required FilterType type = 1;
+
+  optional FilterCleanData clean = 2;
+  optional FilterByType byType = 3;
+  optional FilterRange range = 4;
+  optional FilterCustom custom = 5;
+  optional FilterValue value = 6;
+  optional FilterPattern pattern = 7;
+  optional FilterConvertibleData convertible = 8;
+  optional FilterConvertibleDataWithPattern convertibleWithPattern = 9;
+}
+
+// a field in the dataset
+message Column {
+  required string name = 1;
+  required Expression value = 2;
+}
+
+enum OrderDirection {
+  ASC = 1;
+  DESC = 2;
+}
+
+message Order { 
+  required string name = 1; 
+  required OrderDirection direction = 2;
+}
+
+message Join {
+  required JoinType joinType = 1;
+  required string rightTable = 2;
+  required string joinAlias = 3;
+  repeated JoinCondition joinConditions = 4;
+}
+
+enum FromType {
+  Table = 1;
+  SQL = 2;
+  SubQuery = 3;
+}
+
+message From {
+  required FromType type = 1;
+
+  optional FromTable table = 2;
+  optional FromSQL sql = 3;
+  optional FromSubQuery subQuery = 4;
+}
+
+message FromTable {
+  option (extends_class) = "com.dremio.dac.explore.model.FromBase";
+  required string datasetPath = 1; // TODO: make it DatasetPath
+  optional string alias = 2;
+}
+
+message FromSQL {
+  option (extends_class) = "com.dremio.dac.explore.model.FromBase";
+  required string sql = 1;
+  optional string alias = 2;
+}
+
+message FromSubQuery {
+  option (extends_class) = "com.dremio.dac.explore.model.FromBase";
+  required string alias = 1;
+  required VirtualDatasetState suqQuery = 2;
+}
+
+////////////////
+
+message VirtualDatasetState {
+  repeated Column columns = 1;
+  required From from = 2;
+  repeated Order orders = 3;
+  repeated Join joins = 4;
+  repeated Filter filters = 5;
+  repeated Column groupBys = 6;
+  repeated string context = 7;
+  repeated string referredTables = 8;
+}
+
+// Transform
+
+message TransformLookup {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string lookedUpColumnName = 1;
+  required string lookedUpTableName = 2;
+  required string lookedUpTableKeyColumnName = 3;
+  repeated string lookedUpSelectedColumnNames = 4;
+}
+message TransformJoin {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required JoinType joinType = 1;
+  repeated string rightTableFullPath = 2;
+  repeated JoinCondition joinConditions = 3;
+}
+message JoinCondition {
+// todo: repeated
+  required string leftColumn = 1;
+  required string rightColumn = 2;
+}
+enum JoinType {
+  Inner = 1;
+  LeftOuter = 2;
+  RightOuter = 3;
+  FullOuter = 4;
+}
+
+message TransformSort {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sortedColumnName = 1;
+  // if null, asc by default
+  required OrderDirection order = 2;
+}
+message TransformSorts {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  repeated Order columns = 1;
+}
+message TransformDrop {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string droppedColumnName = 1;
+}
+message TransformRename {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string oldColumnName = 1;
+  required string newColumnName = 2;
+}
+enum ConvertCase {
+  LOWER_CASE = 1;
+  UPPER_CASE = 2;
+  TITLE_CASE = 3;
+}
+// deprecated => TransformField sub case
+message TransformConvertCase {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string columnName = 1;
+  required ConvertCase convertCase = 2;
+  required string newColumnName = 3;
+  required bool dropSourceColumn = 4;
+}
+enum TrimType {
+  LEFT = 1;
+  RIGHT = 2;
+  BOTH = 3;
+}
+// deprecated => TransformField sub case
+message TransformTrim {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string columnName = 1;
+  required TrimType trimType = 2;
+  required string newColumnName = 3;
+  required bool dropSourceColumn = 4;
+}
+// deprecated => TransformField sub case
+message TransformExtract {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sourceColumnName = 1;
+  required string newColumnName = 2;
+  required ExtractRule rule = 3;
+  required bool dropSourceColumn = 4;
+}
+message TransformAddCalculatedField {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string newColumnName = 1;
+  required string sourceColumnName = 2;
+  required string expression = 3;
+  required bool dropSourceColumn = 4;
+}
+message TransformUpdateSQL {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sql = 1;
+  repeated string sqlContext = 2;
+}
+message TransformField {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sourceColumnName = 1;
+  required string newColumnName = 2;
+  required bool dropSourceColumn = 3;
+  required FieldTransformation fieldTransformation = 4;
+}
+enum ActionForNonMatchingValue {
+   DELETE_RECORDS = 1;
+   REPLACE_WITH_NULL = 2;
+   REPLACE_WITH_DEFAULT = 3;
+}
+enum DataType {
+  // extends is not supported for Enum, do we still need it?
+  // option (extends_class) = "com.dremio.dac.explore.model.DataTypeBase";
+  TEXT = 1;
+  BINARY = 2;
+  BOOLEAN = 3;
+  FLOAT = 4;
+  INTEGER = 5;
+  DECIMAL = 6;
+  MIXED = 7;
+  DATE = 8;
+  TIME = 9;
+  DATETIME = 10;
+  LIST = 11;
+  MAP = 12;
+  GEO = 13;
+  OTHER = 14;
+}
+message TransformConvertToSingleType {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sourceColumnName = 1;
+  required string newColumnName = 2;
+  required bool dropSourceColumn = 3;
+  required DataType desiredType = 4;
+  required bool castWhenPossible = 5;
+  required ActionForNonMatchingValue actionForNonMatchingValue = 6;
+  optional string defaultValue = 7;
+}
+message TransformSplitByDataType {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sourceColumnName = 1;
+  required string newColumnNamePrefix = 2;
+  required bool dropSourceColumn = 3;
+  repeated DataType selectedTypes = 4;
+}
+
+message TransformFilter {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required string sourceColumnName = 1;
+  required FilterDefinition filter = 2;
+  optional bool keepNull = 3;
+  optional bool exclude = 4;
+}
+
+message Dimension {
+  required string column = 1;
+}
+enum MeasureType {
+  Sum = 1;
+  Average = 2;
+  Count = 3;
+  Count_Distinct = 4;
+  Minimum = 5;
+  Maximum = 6;
+  Standard_Deviation = 7;
+  Standard_Deviation_Population = 8;
+  Count_Star = 9;
+}
+message Measure {
+  optional string column = 1; //required if measureType != COUNT_STAR, null otherwise
+  required MeasureType type = 2;
+}
+message TransformGroupBy {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  repeated Dimension columnsDimensions = 1;
+  repeated Measure columnsMeasures = 2;
+}
+
+message TransformCreateFromParent {
+  option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
+  required From createFrom = 1;
+}
+
+// all the possible transformations that can be applied to a version of a dataset
+enum TransformType {
+  lookup = 1;
+  join = 2;
+  sort = 3;
+  sorts = 4;
+  drop = 5;
+  rename = 6;
+  convertCase = 7;
+  trim = 8;
+  extract = 9;
+  addCalculatedField = 10;
+  updateSQL = 11;
+  field = 12;
+  convertToSingleType = 13;
+  splitByDataType = 14;
+  groupBy = 15;
+  filter = 16;
+  createFromParent = 17;
+}
+
+message Transform {
+  required TransformType type = 1;
+
+  optional TransformLookup lookup = 2;
+  optional TransformJoin join = 3;
+  optional TransformSort sort = 4;
+  optional TransformSorts sorts = 5;
+  optional TransformDrop drop = 6;
+  optional TransformRename rename = 7;
+  optional TransformConvertCase convertCase = 8;
+  optional TransformTrim trim = 9;
+  optional TransformExtract extract = 10;
+  optional TransformAddCalculatedField addCalculatedField = 11;
+  optional TransformUpdateSQL updateSQL = 12;
+  optional TransformField field = 13;
+  optional TransformConvertToSingleType convertToSingleType = 14;
+  optional TransformSplitByDataType splitByDataType = 15;
+  optional TransformGroupBy groupBy = 16;
+  optional TransformFilter transformFilter = 17;
+  optional TransformCreateFromParent transformCreateFromParent = 18;
+}
+
+// FieldTransformation
+
+message FieldConvertCase {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required ConvertCase convertCase = 1;
+}
+message FieldTrim {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required TrimType trimType = 1;
+}
+message FieldExtract {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required ExtractRule rule = 1;
+}
+enum IntegerConversionType {
+  FLOOR = 1;
+  CEILING = 2;
+  ROUND = 3;
+}
+enum NumberToDateFormat {
+  EPOCH = 1;
+  EXCEL = 2;
+  JULIAN = 3;
+}
+message FieldConvertFloatToInteger {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required IntegerConversionType rounding = 1;
+}
+message FieldConvertFloatToDecimal {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required int32 roundingDecimalPlaces = 1;
+}
+message FieldConvertDateToText {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required string format = 1;
+  optional DataType convertType = 2;
+}
+message FieldConvertTextToDate {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required string format = 1;
+  optional DataType desiredType = 2; // one of DATE, TIME, DATETIME. Default DATETIME
+  optional ActionForNonMatchingValue actionForNonMatchingValue = 3;
+}
+message FieldConvertNumberToDate {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required NumberToDateFormat format = 1;
+  optional DataType desiredType = 2;
+  optional DataType convertType = 3;
+}
+message FieldConvertDateToNumber {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required NumberToDateFormat format = 1;
+  required DataType convertType = 2;
+  required DataType desiredType = 3;
+}
+message FieldConvertListToText {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required string delimiter = 1;
+}
+message FieldConvertToJSON {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+}
+message FieldUnnestList {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+}
+message FieldReplacePattern { // for TEXT
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required ReplacePatternRule rule = 1;
+  required ReplaceType replaceType = 2;
+  optional string replacementValue = 3; // Only with replaceType == VALUE or SELECTION
+}
+message FieldReplaceCustom {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required string booleanExpression = 1;
+  optional ReplaceType replaceType = 2; // ReplaceType = SELECTION is the same as VALUE for Custom
+  optional string replacementValue = 3; // Only with replaceType == VALUE or SELECTION
+  optional DataType replacementType = 4; // default = TEXT
+}
+message FieldReplaceValue {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  repeated string replacedValues = 1; // values to be replaced
+  required bool replaceNull = 2;
+  optional ReplaceType replaceType = 3; // ReplaceType = SELECTION is the same as VALUE for Replace Values. default is VALUE
+  optional string replacementValue = 4; // Only with replaceType == VALUE or SELECTION
+  optional DataType replacementType = 5; // type of replacementValue field. default = TEXT
+}
+message FieldReplaceRange {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  optional string lowerBound = 1; // absent means -infinity
+  optional string upperBound = 2; // absent means +infinity
+  required bool keepNull = 3;
+  optional ReplaceType replaceType = 4; // ReplaceType = SELECTION is the same as VALUE for Replace Values
+  optional string replacementValue = 5; // Only with replaceType == VALUE or SELECTION; timestamp: "yyyy-mm-dd hh:mm:ss.mmm"
+  optional DataType replacementType = 6; // type of replacementValue field. Number or timestamp.
+  optional bool lowerBoundInclusive = 7;
+  optional bool upperBoundInclusive = 8;
+}
+message FieldExtractMap {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required ExtractMapRule rule = 1;
+}
+message FieldExtractList {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required ExtractListRule rule = 1;
+}
+message FieldConvertFromJSON {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+}
+
+enum SplitPositionType {
+  ALL = 1;
+  FIRST = 2;
+  LAST = 3;
+  INDEX = 4;
+}
+
+message FieldSplit {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required SplitRule rule = 1;
+  required SplitPositionType position = 2;
+  optional int32 max_fields = 3; // if position == ALL
+  optional int32 index = 4; // if position == INDEX
+}
+
+message FieldSimpleConvertToType {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required DataType dataType = 1;
+}
+
+message FieldConvertToTypeIfPossible {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required DataType desiredType = 1;
+  required ActionForNonMatchingValue actionForNonMatchingValue = 2;
+  optional string defaultValue = 3;
+}
+
+message FieldConvertToTypeWithPatternIfPossible {
+  option (extends_class) = "com.dremio.dac.explore.model.FieldTransformationBase";
+  required DataType desiredType = 1;
+  required string pattern = 2;
+  required ActionForNonMatchingValue actionForNonMatchingValue = 3;
+}
+
+enum FieldTransformationType {
+  ConvertCase = 1;
+  Trim = 2;
+  Extract = 3;
+  ConvertFloatToInteger = 4;
+  ConvertFloatToDecimal = 5;
+  ConvertDateToText = 6;
+  ConvertListToText = 7;
+  ConvertToJSON = 8;
+  UnnestList = 9;
+  ReplacePattern = 10;
+  ReplaceValue = 11;
+  ReplaceCustom = 12;
+  ReplaceRange = 13;
+  ExtractMap = 14;
+  ExtractList = 15;
+  Split = 16;
+  ConvertTextToDate = 17;
+  SimpleConvertToType = 18;
+  ConvertToTypeIfPossible = 19;
+  ConvertNumberToDate = 20;
+  ConvertDateToNumber = 21;
+  ConvertFromJSON = 22;
+  ConvertToTypeWithPatternIfPossible = 23;
+}
+
+message FieldTransformation {
+  required FieldTransformationType type = 1;
+
+  optional FieldConvertCase convertCase = 2;
+  optional FieldTrim trim = 3;
+  optional FieldExtract extract = 4;
+  optional FieldConvertFloatToInteger floatToInteger = 5;
+  optional FieldConvertFloatToDecimal floatToDecimal = 6;
+  optional FieldConvertDateToText dateToText = 7;
+  optional FieldConvertListToText listToText = 8;
+  optional FieldConvertToJSON toJSON = 9;
+  optional FieldUnnestList unnestList = 10;
+  optional FieldReplacePattern replace = 11;
+  optional FieldReplaceValue replaceValue = 12;
+  optional FieldReplaceCustom replaceCustom = 13;
+  optional FieldReplaceRange replaceRange = 14;
+  optional FieldExtractMap extractMap = 15;
+  optional FieldExtractList extractList = 16;
+  optional FieldSplit split = 17;
+  optional FieldConvertTextToDate textToDate = 18;
+  optional FieldSimpleConvertToType toType = 19;
+  optional FieldConvertToTypeIfPossible toTypeIfPossible = 20;
+  optional FieldConvertNumberToDate numberToDate = 21;
+  optional FieldConvertDateToNumber dateToNumber = 22;
+  optional FieldConvertFromJSON fromJSON = 23;
+  optional FieldConvertToTypeWithPatternIfPossible toTypeWithPatternIfPossible = 24;
+}
+
+
+
+// extract
+
+message ExtractCard {
+  required ExtractRule rule = 1;
+  repeated CardExample examples = 2;
+  required int32 matchedCount = 3;
+  required int32 unmatchedCount = 4;
+  required string description = 5;
+}
+
+message ExtractMapRule {
+  required string path = 1;
+}
+
+message ExtractListCard {
+  required ExtractListRule rule = 1;
+  repeated CardExample examples = 2;
+  required int32 matchedCount = 3;
+  required int32 unmatchedCount = 4;
+  required string description = 5;
+}
+
+enum ExtractListRuleType {
+  single = 1;
+  multiple = 2;
+}
+
+message ExtractListRule {
+  required ExtractListRuleType type = 1;
+  optional ExtractRuleSingle single = 2;
+  optional ExtractRuleMultiple multiple = 3;
+}
+
+message ExtractRuleSingle {
+  option (extends_class) = "com.dremio.dac.explore.model.ExtractListRuleBase";
+  required int32 index = 1;
+}
+
+message ExtractRuleMultiple {
+  option (extends_class) = "com.dremio.dac.explore.model.ExtractListRuleBase";
+  required ListSelection selection =  1;
+}
+
+message ListSelection { // for single indices start == end
+  required Offset start = 1;
+  required Offset end = 2; 
+}
+
+enum MatchType { 
+  regex = 1;
+  exact = 2;
+}
+
+message SplitRule {
+  required string pattern = 1;
+  required MatchType matchType = 2;
+  required bool ignoreCase = 3;
+}
+
+// type of extract rules that can be applied to a column
+enum ExtractRuleType {
+  position = 1;
+  pattern = 2;
+}
+
+message ExtractRule {
+  required ExtractRuleType type = 1;
+  optional ExtractRulePosition position = 2;
+  optional ExtractRulePattern pattern = 3;
+}
+
+message ExtractRulePosition  {
+  required Offset startIndex = 1;
+  required Offset endIndex = 2;
+}
+
+message ExtractRulePattern {
+  required string pattern = 1;
+  required int32 index = 2;
+  required IndexType indexType = 3;
+  optional bool ignoreCase = 4;
+}
+
+message CardExamplePosition {
+  required int32 offset = 1;
+  required int32 length = 2;
+}
+
+message CardExample {
+  required string text = 1;
+  repeated CardExamplePosition position = 2;
+}
+
+message Offset {
+  required int32 value = 1;
+  required Direction direction = 2;
+}
+
+enum Direction {
+  FROM_THE_START = 1;
+  FROM_THE_END = 2;
+}
+
+enum IndexType {
+  INDEX = 1;
+  INDEX_BACKWARDS = 2;
+  CAPTURE_GROUP = 3;
+}
+
+// replace
+
+enum ReplaceType {
+  SELECTION = 1; // Text Selection
+  VALUE = 2; // Entire Value
+  NULL = 3; // Replace Entire Value with null
+}
+
+enum ReplaceSelectionType {
+  CONTAINS = 1;
+  STARTS_WITH = 2;
+  ENDS_WITH = 3;
+  EXACT = 4;
+  MATCHES = 5;
+  IS_NULL = 6;
+}
+
+message ReplacePatternRule {
+  required ReplaceSelectionType selectionType = 1;
+  optional string selectionPattern = 2; // not present if selectionType == IS_NULL
+  optional bool ignoreCase = 3; // not present if selectionType == IS_NULL | MATCHES
+}
+
+message ReplacePatternCard {
+  required ReplacePatternRule rule = 1;
+  repeated CardExample examples = 2;
+  required int32 matchedCount = 3;
+  required int32 unmatchedCount = 4;
+  required string description = 5;
+}
+
+
+message AccelerationData {
+
+  message Info {
+    optional string start = 1;
+    optional string end = 2;
+    optional string duration = 3;
+    optional uint64 output_bytes = 4;
+    optional uint64 output_records = 5;
+    optional uint64 input_bytes = 6;
+    optional uint64 input_records = 7;
+    optional string job_id = 8;
+  }
+
+  required bool enabled = 1;
+  repeated Info info = 2;
+}

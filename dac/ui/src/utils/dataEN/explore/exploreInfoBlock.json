@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Sharing",
+    "id": "sharing",
+    "values": ["22 people", "12 groups"],
+    "style": {
+      "fontWeight": "bold"
+    }
+  },
+  {
+    "id": "acceleration",
+    "name": "Acceleration",
+    "values": ["Enabled"],
+    "style": {
+      "fontWeight": "bold"
+    }
+  },
+  {
+    "id": "exported",
+    "name": "Last Exported",
+    "values": ["2 hours ago"],
+    "style": {
+      "fontWeight": "bold"
+    }
+  }
+]

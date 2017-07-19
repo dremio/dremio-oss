@@ -1,0 +1,89 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+.dataset-warning {
+  background-color: #FEE799;
+  font-size: 12px;
+  width: 100%;
+  position: relative;
+  padding: 10px 10px 10px 40px;
+
+  &::before {
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    font-size: 32px;
+    color: #FC8007;
+  }
+
+  .dependent-datasets {
+    margin-top: 10px;
+
+    .and-more {
+      color: #1180FF;
+      cursor: pointer;
+    }
+  }
+}
+
+.update-dataset {
+  min-width: 670px;
+  min-height: 200px;
+  height: 100%;
+  background-color: #fff;
+
+  .update-dataset-content {
+    margin: 15px 15px 0 15px;
+
+    .property {
+
+      label {
+        display: block;
+        margin-bottom: 0;
+      }
+
+      input, .treeview {
+        border: 1px solid #A3E2FF;
+        border-radius: 3px;
+        display: block;
+        box-shadow: none;
+        outline: none;
+        width: 600px;
+      }
+
+      input {
+        height: 30px;
+        padding: 5px;
+      }
+
+      .treeview {
+        height: 200px;
+      }
+    }
+
+    .name {
+      margin-bottom: 15px;
+    }
+
+    .location {
+      margin-bottom: 5px;
+    }
+
+    .selected-location {
+      color: #808080;
+    }
+  }
+
+}

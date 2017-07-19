@@ -1,0 +1,18 @@
+{
+  "errorCode": "0",
+  "errorMessage": "",
+  "tagList": [
+    {
+      "tagId": "123",
+      "errorCode": "0",
+      "errorMessage": "",
+      "data": [
+        {
+          "ts": "2017-05-06T00:30:00.000Z",
+          "v": "2",
+          "q": "3"
+        }
+      ]
+    }
+  ]
+}

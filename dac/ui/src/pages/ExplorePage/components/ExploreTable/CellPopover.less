@@ -1,0 +1,193 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+.large_overlay_tree {
+  font-family: Menlo, monospace;
+  font-weight: bold;
+  font-size: 11px;
+  margin-left: 1px;
+
+  &.overlay-array > ul {
+    &::before {
+      content: "[";
+    }
+    &::after {
+      content: "]";
+    }
+  }
+
+  &.overlay-object > ul {
+    .Object-node.expanded, .Array-node.expanded {
+      padding-right: 5px !important;
+      & > label::after {
+        padding-left: 5px;
+      }
+    }
+    & > li > ul > li > span {
+      padding-left: 5px;
+      & > span {
+        padding-left: -5px;
+      }
+    }
+    &::before {
+      content: "{";
+    }
+    &::after {
+      content: "}";
+    }
+  }
+
+  & > ul > li > ul {
+    display: inline-block;
+    margin-left: 0.7em !important;
+    & > li {
+      cursor: pointer;
+      padding-bottom: 0.25em;
+      &:not(.expanded) > span::after {
+        content: ",";
+        color: rgb(51, 51, 51);
+      }
+      &:last-of-type > span::after {
+        content: "";
+      }
+    }
+  }
+
+
+  label {
+    margin-right: 0px !important;
+  }
+
+  .Object-node, .Array-node {
+    font-family: Menlo, monospace;
+    font-weight: 700;
+    font-size: 11px;
+    padding-top: 3px;
+    padding-bottom: 0.25em;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    & > div {
+      position: absolute;
+      left: -10px;
+    }
+  }
+
+  .Object-node:not(.expanded):not(.expandable) {
+    padding-right: 0 !important;
+    padding-left: 0.125em !important;
+    margin-left: 4px !important;
+    .label_node::after {
+      content: "{}";
+    }
+  }
+
+  .Array-node:not(.expanded):not(.expandable) {
+    padding-right: 0 !important;
+    padding-left: 0.125em !important;
+    margin-left: 4px !important;
+    .label_node::after {
+      content: "[]";
+    }
+  }
+
+  .Object-node.expanded, .Array-node.expanded {
+    padding-right: 5px !important;
+    & > ul {
+      & > li:not(.expanded) {
+        margin-left: 0.7em !important;
+        padding-left: 5px !important;
+        padding-bottom: 0.25em !important;
+        padding-right: 4px !important;
+
+        & > span {
+          &::after {
+            content: ",";
+            color: rgb(51, 51, 51);
+          }
+        }
+      }
+      & > li:last-of-type {
+        & > span {
+          &::after {
+            content: "";
+          }
+        }
+      }
+    }
+  }
+
+  .Object-node.expandable {
+    padding-right: 0 !important;
+    > label + span::after {
+      content: "{...},";
+    }
+    &:last-child > label + span::after {
+      content: "{...}";
+    }
+  }
+
+  .Object-node.expanded {
+    & > ul > li:not(.expanded) > span {
+      padding-left: 5px;
+    }
+    > label::after {
+      content: "{";
+    }
+    &::after {
+      float: left;
+      clear: both;
+      content: "},";
+    }
+    &:last-child::after {
+      float: left;
+      clear: both;
+      content: "}";
+    }
+  }
+
+  .Array-node.expandable {
+    > label + span::after {
+      content: "[...],";
+    }
+    &:last-child > label + span::after {
+      content: "[...]";
+    }
+  }
+
+  .Array-node.expanded {
+    > label::after {
+      content: "[";
+    }
+    &::after {
+      float: left;
+      clear: both;
+      content: "],";
+    }
+    &:last-child::after {
+      float: left;
+      clear: both;
+      content: "]";
+    }
+  }
+
+  .arrow {
+    &::after {
+      content: "+";
+    }
+    &.expanded::after {
+      content: "-";
+    }
+  }
+}

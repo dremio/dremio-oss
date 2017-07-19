@@ -1,0 +1,28 @@
+[
+  {
+    "title": "Who can access this datastore?",
+    "items": [
+      {
+        "type": "radio",
+        "text": "Everyone - this datastore will appear in losts"
+      },
+      {
+        "type": "radio",
+        "text": "Only shared users - this datastore will be invisible to outsiders"
+      }
+    ]
+  },
+  {
+    "title": "Impersonation",
+    "items": [
+      {
+        "type": "radio",
+        "text": "All users access the datastore with these credentials"
+      },
+      {
+        "type": "radio",
+        "text": "Users must provide their own credentials"
+      }
+    ]
+  }
+]

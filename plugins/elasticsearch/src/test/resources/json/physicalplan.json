@@ -1,0 +1,97 @@
+{
+  "head": {
+    "version": 1,
+    "generator": {
+      "type": "ExplainHandler",
+      "info": ""
+    },
+    "type": "PHYSICAL",
+    "options": [
+      {
+        "kind": "LONG",
+        "type": "SESSION",
+        "name": "planner.width.max_per_node",
+        "num_val": 2
+      },
+      {
+        "kind": "BOOLEAN",
+        "type": "SESSION",
+        "name": "exec.errors.verbose",
+        "bool_val": true
+      }
+    ],
+    "queue": 0,
+    "resultMode": "EXEC"
+  },
+  "graph": [
+    {
+      "pop": "elasticsearch-scan",
+      "@id": 3,
+      "userName": "minji",
+      "spec": {
+        "indexes": [
+          {
+            "index": "test_schema_1",
+            "type": "test_table_1",
+            "filters": []
+          }
+        ],
+        "type": "test_table_1",
+        "query": null,
+        "pushdown": false,
+        "fetch": 0,
+        "offset": 0
+      },
+      "storage": {
+        "type": "elasticsearch",
+        "cluster": "dremio-test-cluster",
+        "hosts": "",
+        "batch_size": 1000,
+        "scroll_timeout": 60000,
+        "node_local": true,
+        "enabled": true
+      },
+      "columns": [
+        "`review_count`"
+      ],
+      "cost": 2.0
+    },
+    {
+      "pop": "streaming-aggregate",
+      "@id": 2,
+      "child": 3,
+      "keys": [],
+      "exprs": [
+        {
+          "ref": "`EXPR$0`",
+          "expr": "sum(`review_count`) "
+        }
+      ],
+      "initialAllocation": 1000000,
+      "maxAllocation": 10000000000,
+      "cost": 1.0
+    },
+    {
+      "pop": "project",
+      "@id": 1,
+      "exprs": [
+        {
+          "ref": "`EXPR$0`",
+          "expr": "`EXPR$0`"
+        }
+      ],
+      "child": 2,
+      "initialAllocation": 1000000,
+      "maxAllocation": 10000000000,
+      "cost": 1.0
+    },
+    {
+      "pop": "screen",
+      "@id": 0,
+      "child": 1,
+      "initialAllocation": 1000000,
+      "maxAllocation": 10000000000,
+      "cost": 1.0
+    }
+  ]
+}

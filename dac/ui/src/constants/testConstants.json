@@ -1,0 +1,5 @@
+{
+  "url": "http://localhost:9047",
+  "DEFAULT_WAIT_TIMEOUT": 1000,
+  "DEFAULT_PAUSE_DELAY": 500
+}

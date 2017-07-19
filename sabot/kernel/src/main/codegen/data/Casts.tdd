@@ -1,0 +1,100 @@
+#
+# Copyright (C) 2017 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+{
+  types: [
+    {from: "Int", to: "BigInt", major: "Fixed"},
+    {from: "Float4", to: "Float8", major: "Fixed" }, 
+    {from: "Int", to: "Float4", major: "Fixed" },
+    {from: "BigInt", to: "Float4", major: "Fixed" },
+    {from: "Int", to: "Float8", major: "Fixed" },
+    {from: "BigInt", to: "Float8", major: "Fixed" },
+    {to: "Int", from: "BigInt", explicit: "int", major: "Fixed"},
+    {to: "Float4", from: "Float8" , explicit: "float", major: "Fixed"}, 
+    {to: "Int", from: "Float4" , explicit: "int", native: "float", major: "Fixed"},
+    {to: "BigInt", from: "Float4" , explicit: "long", native: "float", major: "Fixed"},
+    {to: "Int", from: "Float8" , explicit: "int", native: "double", major: "Fixed"},
+    {to: "BigInt", from: "Float8" , explicit: "long", native: "double", major: "Fixed"},
+    
+    {from: "VarChar", to: "BigInt", major: "SrcVarlen", javaType: "Long", primeType: "long"},
+    {from: "VarChar", to: "Int", major: "SrcVarlen", javaType:"Integer", primeType:"int"},
+    {from: "VarBinary", to: "BigInt", major: "SrcVarlen", javaType: "Long", primeType : "long"},
+    {from: "VarBinary", to: "Int", major: "SrcVarlen", javaType:"Integer", primeType : "int"},   
+    {from: "VarChar", to: "Float4", major: "SrcVarlen", javaType:"Float", parse:"Float"},
+    {from: "VarChar", to: "Float8", major: "SrcVarlen", javaType:"Double", parse:"Double"},
+    {from: "VarBinary", to: "Float4", major: "SrcVarlen", javaType:"Float", parse:"Float"},
+    {from: "VarBinary", to: "Float8", major: "SrcVarlen", javaType:"Double", parse:"Double"}, 
+
+    {from: "BigInt", to: "VarChar", major: "TargetVarlen", javaType: "Long", bufferLength:"20"},
+    {from: "Int", to: "VarChar", major: "TargetVarlen", javaType: "Integer", bufferLength:"11"},
+    {from: "Float4", to: "VarChar", major: "TargetVarlen", javaType: "Float", bufferLength:"100"},
+    {from: "Float8", to: "VarChar", major: "TargetVarlen", javaType: "Double", bufferLength:"100"},
+    {from: "BigInt", to: "VarBinary", major: "TargetVarlen", javaType: "Long", bufferLength:"20"},
+    {from: "Int", to: "VarBinary", major: "TargetVarlen", javaType: "Integer", bufferLength:"11"},
+    {from: "Float4", to: "VarBinary", major: "TargetVarlen", javaType: "Float", bufferLength:"100"},
+    {from: "Float8", to: "VarBinary", major: "TargetVarlen", javaType: "Double", bufferLength:"100"},     
+    
+    {from: "VarBinary", to: "VarChar", major: "SrcVarlenTargetVarlen"},
+    {from: "VarChar", to: "VarChar", major: "SrcVarlenTargetVarlen"},
+    {from: "VarChar", to: "VarBinary", major: "SrcVarlenTargetVarlen"},
+    {from: "VarBinary", to: "VarBinary", major: "SrcVarlenTargetVarlen"},
+
+    {from: "DateMilli", to: "TimeStampMilli", major: "Date"},
+    {from: "TimeStampMilli", to: "DateMilli", major: "Date", alias: "to_date"},
+
+    {from: "VarChar", to: "DateMilli", major: "VarCharDate", alias: "datetype"},
+    {from: "VarChar", to: "TimeStampMilli", major: "VarCharDate", alias: "timestamptype"},
+    {from: "VarChar", to: "TimeMilli", major: "VarCharDate", alias: "timetype"},
+
+    {from: "VarBinary", to: "DateMilli", major: "VarBinaryDate", alias: "datetype"},
+    {from: "VarBinary", to: "TimeStampMilli", major: "VarBinaryDate", alias: "timestamptype"},
+    {from: "VarBinary", to: "TimeMilli", major: "VarBinaryDate", alias: "timetype"},
+
+    {from: "DateMilli", to: "VarChar", major: "DateVarChar", bufferLength: "10"}
+    {from: "TimeStampMilli", to: "VarChar", major: "DateVarChar", bufferLength: "23"},
+    {from: "TimeMilli", to: "VarChar", major: "DateVarChar", bufferLength: "12"},
+
+    {from: "VarChar", to: "IntervalDay", major: "VarCharInterval"},
+    {from: "VarChar", to: "IntervalYear", major: "VarCharInterval"},
+
+    {from: "IntervalYear", to: "VarChar", major: "IntervalYearVarChar", bufferLength: "35"},
+    {from: "IntervalDay", to: "VarChar", major: "IntervalDayVarChar", bufferLength: "43"},
+
+    {from: "IntervalYear", to: "Int", major: "IntervalYearExactNumeric"},
+    {from: "IntervalYear", to: "BigInt", major: "IntervalYearExactNumeric"},
+    {from: "NullableIntervalYear", to: "NullableInt", major: "IntervalYearExactNumeric"},
+    {from: "NullableIntervalYear", to: "NullableBigInt", major: "IntervalYearExactNumeric"},
+    {from: "IntervalDay", to: "Int", major: "IntervalDayExactNumeric"},
+    {from: "IntervalDay", to: "BigInt", major: "IntervalDayExactNumeric"},
+    {from: "NullableIntervalDay", to: "NullableInt", major: "IntervalDayExactNumeric"},
+    {from: "NullableIntervalDay", to: "NullableBigInt", major: "IntervalDayExactNumeric"},
+
+    {from: "VarChar", to: "NullableInt", major: "EmptyString", javaType:"Integer", primeType:"int"},
+    {from: "VarChar", to: "NullableBigInt", major: "EmptyString", javaType: "Long", primeType: "long"},
+    {from: "VarChar", to: "NullableFloat4", major: "EmptyString", javaType:"Float", parse:"Float"},
+    {from: "VarChar", to: "NullableFloat8", major: "EmptyString", javaType:"Double", parse:"Double"},
+
+    {from: "NullableVarChar", to: "NullableInt", major: "EmptyString", javaType:"Integer", primeType:"int"},
+    {from: "NullableVarChar", to: "NullableBigInt", major: "EmptyString", javaType: "Long", primeType: "long"},
+    {from: "NullableVarChar", to: "NullableFloat4", major: "EmptyString", javaType:"Float", parse:"Float"},
+    {from: "NullableVarChar", to: "NullableFloat8", major: "EmptyString", javaType:"Double", parse:"Double"},
+
+    {from: "NullableVarBinary", to: "NullableInt", major: "EmptyString", javaType:"Integer", primeType:"int"},
+    {from: "NullableVarBinary", to: "NullableBigInt", major: "EmptyString", javaType: "Long", primeType: "long"},
+    {from: "NullableVarBinary", to: "NullableFloat4", major: "EmptyString", javaType:"Float", parse:"Float"},
+    {from: "NullableVarBinary", to: "NullableFloat8", major: "EmptyString", javaType:"Double", parse:"Double"},
+  ]
+} 

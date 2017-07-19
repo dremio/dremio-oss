@@ -1,0 +1,24 @@
+{
+  "presets": ["es2015", "react", "stage-0"],
+  "plugins": [
+    ["transform-runtime", {
+      "helpers": true,
+      "polyfill": false,
+      "regenerator": true
+    }],
+    "transform-decorators-legacy",
+    "transform-es2015-modules-commonjs",
+    "react-require"
+  ],
+  "env": {
+    "production": {
+      "plugins": [
+        "transform-react-constant-elements",
+        "transform-react-inline-elements"
+      ]
+    },
+    "development": {
+      "presets": ["react-hmre"]
+    }
+  }
+}

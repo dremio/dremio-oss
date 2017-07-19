@@ -1,0 +1,82 @@
+{
+  "cards": [
+    {
+      "rule": {
+        "pattern": "addre",
+        "matchType": "exact",
+        "ignoreCase": false
+      },
+      "examplesList": [
+        {
+          "text": "address0",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address1",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address2",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "matchedCount": 100,
+      "unmatchedCount": 0,
+      "description": "Exactly matches \"addre\""
+    },
+    {
+      "rule": {
+        "pattern": "addre",
+        "matchType": "exact",
+        "ignoreCase": true
+      },
+      "examplesList": [
+        {
+          "text": "address0",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address1",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        },
+        {
+          "text": "address2",
+          "positionList": [
+            {
+              "offset": 0,
+              "length": 5
+            }
+          ]
+        }
+      ],
+      "matchedCount": 100,
+      "unmatchedCount": 0,
+      "description": "Exactly matches \"addre\" ignore case"
+    }
+  ]
+}

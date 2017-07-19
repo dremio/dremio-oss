@@ -1,0 +1,119 @@
+#
+# Copyright (C) 2017 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+{
+  map: [
+    {
+      hiveType: "BOOLEAN",
+      hiveOI: "BooleanObjectInspector",
+      javaType: "boolean",
+      type: "Bit",
+      needOIForType: true
+    },
+    {
+      hiveType: "BYTE",
+      hiveOI: "ByteObjectInspector",
+      javaType: "byte",
+      type: "TinyInt",
+      needOIForType: true
+    },
+    {
+      hiveType: "SHORT",
+      hiveOI: "ShortObjectInspector",
+      javaType: "short",
+      type: "SmallInt",
+      needOIForType: true
+    },
+    {
+      hiveType: "INT",
+      hiveOI: "IntObjectInspector",
+      javaType: "int",
+      type: "Int",
+      needOIForType: true
+    },
+    {
+      hiveType: "LONG",
+      hiveOI: "LongObjectInspector",
+      javaType: "long",
+      type: "BigInt",
+      needOIForType: true
+    },
+    {
+      hiveType: "FLOAT",
+      hiveOI: "FloatObjectInspector",
+      javaType: "float",
+      type: "Float4",
+      needOIForType: true
+    },
+    {
+      hiveType: "DOUBLE",
+      hiveOI: "DoubleObjectInspector",
+      javaType: "double",
+      type: "Float8",
+      needOIForType: true
+    },
+    {
+      hiveType: "VARCHAR",
+      hiveOI: "HiveVarcharObjectInspector",
+      javaType: "",
+      type: "VarChar",
+      needOIForType: true
+    },
+    {
+      hiveType: "CHAR",
+      hiveOI: "HiveCharObjectInspector",
+      javaType: "",
+      type: "VarChar",
+      needOIForType: false
+    },
+    {
+      hiveType: "STRING",
+      hiveOI: "StringObjectInspector",
+      javaType: "",
+      type: "VarChar",
+      needOIForType: true
+    },
+    {
+      hiveType: "BINARY",
+      hiveOI: "BinaryObjectInspector",
+      javaType: "",
+      type: "VarBinary",
+      needOIForType: true
+    },
+    {
+      hiveType: "TIMESTAMP",
+      hiveOI: "TimestampObjectInspector",
+      javaType: "java.sql.Timestamp",
+      type: "TimeStampMilli",
+      needOIForType: true,
+      minorType: "TIMESTAMP"
+    },
+    {
+      hiveType: "DECIMAL",
+      hiveOI: "HiveDecimalObjectInspector",
+      javaType: "org.apache.hadoop.hive.common.type.HiveDecimal",
+      type: "Decimal",
+      needOIForType: true
+    },
+    {
+      hiveType: "DATE",
+      hiveOI: "DateObjectInspector",
+      javaType: "java.sql.Date",
+      type: "Date",
+      needOIForType: true
+    }
+  ]
+}

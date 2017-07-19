@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;">
+    <g id="Source.2f.MSSQL">
+        <circle id="Oval" cx="24" cy="24" r="23.5" style="fill:#fff;stroke:#e5e5e5;stroke-width:1.02px;"/>
+        <g>
+            <path id="Shape" d="M27.047,21.443l-2.084,0l0,5.483c0,0.409 0.225,0.62 0.703,0.62l1.607,0c1.66,-0.066 2.43,-0.791 2.43,-2.505l0,-1.028c0.013,-1.713 -0.863,-2.57 -2.656,-2.57Zm1.554,3.598c0,1.239 -0.412,1.846 -1.514,1.846l-0.996,0l0,-4.759l0.97,0c1.128,0 1.54,0.659 1.54,1.898l0,1.015Z" style="fill:#f29400;"/>
+            <path id="Shape1" d="M41.057,21.364c-0.266,0 -0.505,0.092 -0.558,0.224l-2.258,5.958l0.412,0c0.452,0 0.651,-0.04 0.797,-0.409l0.504,-1.397l1.355,0l-0.199,-0.672l-0.943,0l0.836,-2.36l1.514,4.416c0.133,0.369 0.345,0.409 0.837,0.409l0.531,0l-2.284,-5.958c-0.04,-0.119 -0.292,-0.211 -0.544,-0.211Z" style="fill:#f29400;"/>
+            <path id="Shape2" d="M7.222,27.928c0,0.409 0.253,0.62 0.717,0.62l0.412,0l0,-8.331l2.536,0l0.239,-0.765l-6.772,0l-0.239,0.765l3.107,0l0,7.711Z" style="fill:#f29400;"/>
+            <path id="Shape3" d="M13.437,22.128l0.212,-0.672l-4.01,0l0,4.218c0,1.424 0.332,1.872 2.284,1.872l3.612,-0.013l0,-5.405l0.797,0c0.863,0 1.301,0.303 1.301,0.883l0,0.528c0,0.593 -0.545,0.777 -1.209,0.777l-0.504,0l1.686,2.874c0.186,0.329 0.279,0.356 0.731,0.356l0.982,0c0.452,0 0.651,-0.04 0.797,-0.409l0.505,-1.397l1.354,0l-0.199,-0.672l-0.943,0l0.837,-2.36l1.513,4.416c0.133,0.369 0.346,0.409 0.837,0.409l0.531,0l-2.297,-5.958c-0.053,-0.132 -0.306,-0.224 -0.558,-0.224c-0.279,0 -0.504,0.092 -0.558,0.224l-2.151,5.747l-1.62,-2.439c0.85,-0.145 1.341,-0.593 1.341,-1.358l0,-0.54c0,-1.094 -1.022,-1.555 -2.39,-1.555l-1.899,0l0,5.43l-2.469,0c-0.97,0 -1.196,-0.211 -1.196,-1.212l0,-1.055l1.833,0l0.199,-0.672l-2.018,0l0,-1.793l2.669,0Z" style="fill:#f29400;"/>
+            <path id="Shape4" d="M37.007,27.559l0.411,0l0,-5.431l1.886,0l0.199,-0.672l-5.099,0l-0.213,0.672l2.098,0l0,4.811c0,0.409 0.253,0.62 0.718,0.62Z" style="fill:#f29400;"/>
+            <path id="Shape5" d="M32.518,21.364c-0.279,0 -0.504,0.092 -0.557,0.224l-2.258,5.958l0.425,0c0.452,0 0.651,-0.04 0.797,-0.409l0.504,-1.397l1.355,0l-0.199,-0.672l-0.943,0l0.836,-2.36l1.514,4.429c0.133,0.369 0.345,0.409 0.837,0.409l0.531,0l-2.297,-5.958c-0.053,-0.132 -0.292,-0.224 -0.545,-0.224Z" style="fill:#f29400;"/>
+        </g>
+    </g>
+</svg>

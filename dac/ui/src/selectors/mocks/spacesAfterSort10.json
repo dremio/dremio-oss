@@ -1,0 +1,118 @@
+{
+  "xcxcx": {
+    "ctime": 1465323228827,
+    "datasets": 0,
+    "description": "",
+    "href": "/space/xcxcx",
+    "iconClass": "Space",
+    "id": "7e064dc6-5d56-4f98-b7d1-6cd74aed3918",
+    "isActivePin": true,
+    "isFile": false,
+    "links": {
+      "self": "/space/xcxcx"
+    },
+    "name": "xcxcx",
+    "owner": "test_user",
+    "readonly": false,
+    "resourcePath": "/space/xcxcx"
+  },
+  "22222": {
+    "ctime": 1465322960230,
+    "datasets": [],
+    "description": "",
+    "files": [],
+    "folders": [],
+    "href": "/space/22222",
+    "iconClass": "Space",
+    "id": "3356eee3-9be2-4723-9342-261f7af0f4d7",
+    "isActivePin": false,
+    "isFile": false,
+    "links": {
+      "self": "/space/22222"
+    },
+    "name": "22222",
+    "owner": "test_user",
+    "physicalDatasets": [],
+    "readonly": false,
+    "resourcePath": "/space/22222"
+  },
+  "sdsds": {
+    "ctime": 1465322837175,
+    "datasets": [],
+    "description": "",
+    "files": [],
+    "folders": [],
+    "href": "/space/sdsds",
+    "iconClass": "Space",
+    "id": "bcd1cc8b-aaa2-4534-af8b-a3576c0acf0b",
+    "isActivePin": false,
+    "isFile": false,
+    "links": {
+      "self": "/space/sdsds"
+    },
+    "name": "sdsds",
+    "owner": "test_user",
+    "physicalDatasets": [],
+    "readonly": false,
+    "resourcePath": "/space/sdsds"
+  },
+  "spaces": [
+    {
+      "ctime": 1465322960230,
+      "datasets": [],
+      "description": "",
+      "files": [],
+      "folders": [],
+      "href": "/space/22222",
+      "iconClass": "Space",
+      "id": "3356eee3-9be2-4723-9342-261f7af0f4d7",
+      "isActivePin": false,
+      "isFile": false,
+      "links": {
+        "self": "/space/22222"
+      },
+      "name": "22222",
+      "owner": "test_user",
+      "physicalDatasets": [],
+      "readonly": false,
+      "resourcePath": "/space/22222"
+    },
+    {
+      "ctime": 1465322837175,
+      "datasets": [],
+      "description": "",
+      "files": [],
+      "folders": [],
+      "href": "/space/sdsds",
+      "iconClass": "Space",
+      "id": "bcd1cc8b-aaa2-4534-af8b-a3576c0acf0b",
+      "isActivePin": false,
+      "isFile": false,
+      "links": {
+        "self": "/space/sdsds"
+      },
+      "name": "sdsds",
+      "owner": "test_user",
+      "physicalDatasets": [],
+      "readonly": false,
+      "resourcePath": "/space/sdsds"
+    },
+    {
+      "ctime": 1465323228827,
+      "datasets": 0,
+      "description": "",
+      "href": "/space/xcxcx",
+      "iconClass": "Space",
+      "id": "7e064dc6-5d56-4f98-b7d1-6cd74aed3918",
+      "isActivePin": false,
+      "isFile": false,
+      "links": {
+        "self": "/space/xcxcx"
+      },
+      "name": "xcxcx",
+      "owner": "test_user",
+      "readonly": false,
+      "resourcePath": "/space/xcxcx"
+    }
+  ]
+}

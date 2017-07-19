@@ -1,0 +1,10 @@
+{
+  "NOT_SUBMITTED": "Ellipsis",
+  "STARTING": "Ellipsis",
+  "RUNNING": "Loader fa-spin",
+  "COMPLETED": "OKSolid",
+  "CANCELED": "Canceled",
+  "FAILED": "ErrorSolid",
+  "CANCELLATION_REQUESTED": "CanceledGray",
+  "ENQUEUED": "Ellipsis"
+}

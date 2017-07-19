@@ -1,0 +1,15 @@
+{
+  "<TABLE_NAME>" : {
+    "properties" : {
+      "id" : { "type" : "integer" },
+      "a" : { "type" : "integer" },
+      "b" : { "type" : "integer" },
+      "c" : { "type" : "integer" },
+      "d" : { "type" : "integer" },
+      "e" : { "type" : "integer" },
+      "f" : { "type" : "integer" },
+      "g" : { "type" : "integer" },
+      "h" : { "type" : "integer" }
+    }
+  }
+}

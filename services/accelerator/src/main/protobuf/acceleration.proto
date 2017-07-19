@@ -1,0 +1,188 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.accelerator.proto;
+
+import "../../../../../services/jobs/src/main/protobuf/job.proto";
+
+import "acceleration-common.proto";
+import "acceleration-pipeline.proto";
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+
+option java_package = "com.dremio.service.accelerator.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "AccelerationProtobuf";
+
+// messages used by acceleration service
+
+// top level entry representing a logical acceleration
+// a logical acceleration combines many layouts
+message Acceleration {
+  // request version for OCC
+  optional uint64 version = 1;
+  // unique acceleration id
+  required AccelerationId id = 2;
+  // acceleration type
+  required AccelerationType type = 3;
+  // acceleration state
+  required AccelerationState state = 4;
+  // acceleration context upon which layouts should be generated
+  optional AccelerationContext context = 5;
+  // acceleration mode for this layout MANUAL OR AUTO
+  required AccelerationMode mode = 6 [default = AUTO];
+  // aggregation layouts
+  required LayoutContainer aggregationLayouts = 7;
+  // raw layouts
+  required LayoutContainer rawLayouts = 8;
+  // acceleration metrics
+  required AccelerationMetrics metrics = 9;
+  // acceleration pipeline
+  required AccelerationPipeline pipeline = 10;
+}
+
+// context for acceleration
+message AccelerationContext {
+  // schema of target dataset used for suggestor
+  optional RowType datasetSchema = 1;
+  // target dataset to accelerate.
+  required com.dremio.service.namespace.dataset.proto.DatasetConfig dataset = 2;
+  // job id. set only if owning acceleration is a job acceleration
+  optional com.dremio.service.job.proto.JobId jobId = 3;
+  // logical aggregation fields fed to suggestor
+  required LogicalAggregation logicalAggregation = 4;
+  // query analysis for the given dataset. optional as it is populated asynchronously
+  optional DatasetAnalysis analysis = 5;
+  // dataset logical plan
+  optional bytes datasetPlan = 6;
+}
+
+// represents a logical aggregation suggested by user
+message LogicalAggregation {
+  // logical dimensions
+  repeated LayoutField dimension = 1;
+  // logical measures
+  repeated LayoutField measure = 2;
+}
+
+message LayoutContainer {
+  // layout type
+  required LayoutType type = 1;
+  // list of layouts
+  repeated Layout layout = 2;
+  // enabled
+  required bool enabled = 3 [default = false];
+}
+
+message AccelerationMetrics {
+  // how many queries accelerated?
+  required uint64 hits = 1 [default = 0];
+}
+
+// represent an individual, concrete acceleration
+message Layout {
+  // unique layout id
+  required LayoutId id = 1;
+  // logical plan for materialization
+  optional bytes logicalPlan = 2;
+  // layout details
+  required LayoutDetails details = 3;
+  // schema of this layout
+  optional RowType layoutSchema = 5;
+  // schema of this layout
+  required LayoutType layoutType = 6;
+  // incremental
+  required bool incremental = 7 [default = false];
+  // refresh
+  optional string refreshField = 8;
+  // name
+  optional string name = 9;
+  //version
+  optional uint32 version = 10 [version = 0];
+}
+
+// describes layout fields. interpretation of fields depends on layout type
+// for instance sort is ignored when layout type is ROLLUP etc
+message LayoutDetails {
+  // partition fields
+  repeated LayoutField partitionField = 1;
+  // order sensitive list of sort fields
+  repeated LayoutField sortField = 2;
+  // dimension fields
+  repeated LayoutDimensionField dimensionField = 3;
+  // measure fields
+  repeated LayoutField measureField = 4;
+  // display fields
+  repeated LayoutField displayField = 5;
+  // distribution fields
+  repeated LayoutField distributionField = 6;
+}
+
+message LayoutField {
+  // field name
+  required string name = 1;
+  // field type family
+  required string typeFamily = 2;
+}
+
+message LayoutSortField {
+  // sort field
+  required LayoutField field = 1;
+  // sort order
+  required FieldSortOrder ordering = 2;
+}
+
+message LayoutDimensionField {
+  // field name
+  required string name = 1;
+  // field type family
+  required string typeFamily = 2;
+  // granularity
+  optional DimensionGranularity granularity = 3 [default = DATE];
+}
+
+message DatasetAnalysis {
+  // list of column statistics
+  repeated ColumnStats column = 1;
+}
+
+message ColumnStats {
+  required LayoutField field = 1;
+  // column cardinality
+  required uint64 cardinality = 2 [default = -1];
+  // number of not null fields
+  required uint64 count = 3 [default = -1];
+  // average length
+  optional double averageLength = 4 [default = -1];
+  // min length
+  optional uint64 minLength = 5 [default = -1];
+  // max length
+  optional uint64 maxLength = 6 [default = -1];
+  // average numeric value
+  optional double averageValue = 7 [default = -1];
+  // min numeric value
+  optional double minValue = 8 [default = -1];
+  // max numeric value
+  optional double maxValue = 9 [default = -1];
+}
+
+message SystemSettings {
+  // number of top accelerations to auto enable
+  required int32 limit = 1;
+  // whether system should auto approve aggregations layouts
+  required bool accelerateAggregation = 2;
+  // whether system should auto approve raw layouts
+  required bool accelerateRaw = 3;
+}

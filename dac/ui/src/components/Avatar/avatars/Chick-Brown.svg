@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="110px" height="110px" viewBox="0 0 110 110" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.2 (25235) - http://www.bohemiancoding.com/sketch -->
+    <title>Avatar/Chick-Brown</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <path id="path-1" d="M0,1.1904 L54.395,1.1904 L54.395,78 L0,78"></path>
+        <path id="path-3" d="M0,1.1904 L54.395,1.1904 L54.395,78 L0,78"></path>
+    </defs>
+    <g id="Avatars" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Avatar/Chick-Brown" sketch:type="MSArtboardGroup">
+            <g id="Background-Circle" sketch:type="MSLayerGroup" fill="#C0E9F5">
+                <circle id="Light-Blue" sketch:type="MSShapeGroup" cx="55" cy="55" r="55"></circle>
+            </g>
+            <g id="Page-1" sketch:type="MSLayerGroup" transform="translate(27.000000, 17.000000)">
+                <g id="Group-3">
+                    <mask id="mask-2" sketch:name="Clip 2" fill="white">
+                        <use xlink:href="#path-1"></use>
+                    </mask>
+                    <g id="Clip-2"></g>
+                    <path d="M27.1976196,78 L27.1976196,78 C42.2197935,78 54.3951196,66.8856 54.3951196,53.1744 C54.3951196,49.9368 53.7147935,46.8432 52.4796848,44.0064 C53.7147935,41.1708 54.3951196,38.0772 54.3951196,34.8384 C54.3951196,21.1284 42.2197935,10.0128 27.1976196,10.0128 C12.1754457,10.0128 0.000119565217,21.1284 0.000119565217,34.8384 C0.000119565217,38.0772 0.678054348,41.1708 1.9143587,44.0064 C0.678054348,46.8432 0.000119565217,49.9368 0.000119565217,53.1744 C0.000119565217,66.8856 12.1754457,78 27.1976196,78" id="Fill-1" fill="#96634B" sketch:type="MSShapeGroup" mask="url(#mask-2)"></path>
+                </g>
+                <path d="M27.1976196,78 L27.1976196,78 C12.1754457,78 0.000119565217,66.8856 0.000119565217,53.1744 C0.000119565217,49.9368 0.678054348,46.8432 1.9143587,44.0064 C0.678054348,41.1708 0.000119565217,38.0772 0.000119565217,34.8384 C0.000119565217,21.1284 12.1754457,10.0128 27.1976196,10.0128 L27.1976196,78 Z" id="Fill-4" fill="#AB8170" sketch:type="MSShapeGroup"></path>
+                <path d="M20.3763043,42.30996 L27.1975,42.30996 L34.0163043,42.30996 L34.0163043,52.92276 L27.1975,52.92276 L20.3763043,52.92276 L20.3763043,42.30996 Z" id="Fill-6" fill="#DF3E52" sketch:type="MSShapeGroup"></path>
+                <path d="M18.8082065,19.90308 C24.02125,19.90308 28.2514674,24.14868 28.2514674,29.38428 C28.2514674,34.61988 24.02125,38.86548 18.8082065,38.86548 C13.5879891,38.86548 9.35896739,34.61988 9.35896739,29.38428 C9.35896739,24.14868 13.5879891,19.90308 18.8082065,19.90308" id="Fill-8" fill="#FFFFFF" sketch:type="MSShapeGroup"></path>
+                <path d="M35.5882283,19.90308 C40.8048587,19.90308 45.0350761,24.14868 45.0350761,29.38428 C45.0350761,34.61988 40.8048587,38.86548 35.5882283,38.86548 C30.3715978,38.86548 26.1413804,34.61988 26.1413804,29.38428 C26.1413804,24.14868 30.3715978,19.90308 35.5882283,19.90308" id="Fill-10" fill="#FFFFFF" sketch:type="MSShapeGroup"></path>
+                <path d="M35.5882283,25.94532 C37.47975,25.94532 39.0137717,27.48492 39.0137717,29.38452 C39.0137717,31.28412 37.47975,32.82252 35.5882283,32.82252 C33.6955109,32.82252 32.1614891,31.28412 32.1614891,29.38452 L35.5882283,29.38452 L35.5882283,25.94532 Z" id="Fill-12" fill="#2E2E2F" sketch:type="MSShapeGroup"></path>
+                <path d="M18.8082065,25.94532 C20.6985326,25.94532 22.230163,27.48492 22.230163,29.38452 C22.230163,31.28412 20.6985326,32.82252 18.8082065,32.82252 C16.9154891,32.82252 15.3790761,31.28412 15.3790761,29.38452 L18.8082065,29.38452 L18.8082065,25.94532 Z" id="Fill-14" fill="#2E2E2F" sketch:type="MSShapeGroup"></path>
+                <path d="M22.9158696,6.56892 C22.9158696,6.56892 20.1563043,6.24732 19.9542391,6.65532 C19.7497826,7.06452 25.9552174,13.60332 27.1975,12.92292 C27.1975,12.92292 29.0029348,9.76332 26.6044565,5.99412 C27.1448913,4.28892 27.2070652,2.01852 27.6901087,2.29692 C28.6442391,2.84172 28.8451087,5.36172 29.456087,4.06692 C30.0682609,2.77332 30.9482609,3.38652 31.1515217,6.86052 C31.3559783,10.33452 28.4373913,12.24252 27.1975,12.92292 C25.3227174,10.69332 23.9273913,8.46972 22.9158696,6.56892" id="Fill-16" fill="#DB1F26" sketch:type="MSShapeGroup"></path>
+                <g id="Group-20">
+                    <mask id="mask-4" sketch:name="Clip 19" fill="white">
+                        <use xlink:href="#path-3"></use>
+                    </mask>
+                    <g id="Clip-19"></g>
+                    <path d="M27.1976196,12.9228 C27.1976196,12.9228 29.2122935,9.3972 26.1597935,5.352 C23.1084891,1.3056 20.6310978,1.1904 20.6310978,1.1904 C20.6310978,1.1904 22.2452283,7.0272 27.1976196,12.9228" id="Fill-18" fill="#DF3E52" sketch:type="MSShapeGroup" mask="url(#mask-4)"></path>
+                </g>
+                <path d="M27.1976196,36.82908 C30.7391413,36.82908 35.5743587,40.30908 33.6099022,43.26588 L27.1976196,52.92228 L20.7829457,43.26588 C18.8184891,40.30908 23.6549022,36.82908 27.1976196,36.82908" id="Fill-21" fill="#F6B726" sketch:type="MSShapeGroup"></path>
+            </g>
+        </g>
+    </g>
+</svg>

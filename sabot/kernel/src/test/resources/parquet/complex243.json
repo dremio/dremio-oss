@@ -1,0 +1,26 @@
+{"id":1,
+ "gbyi":1,
+ "gbyt":"ooof",
+ "fl":1.6789,
+ "nul":"not null",
+ "bool":false,
+ "str":"This is row 1",
+ "sia":[1, 11, 101, 1001],
+ "sfa":[0.0, 1.01, 10.222, 10.0006789],
+ "soa":[{"in":1},{"in":1,"fl":1.12345}, {"in":1, "fl":10.12345, "nul":null}, {"in":1, "fl":10.6789, "nul":null, "bool":true, "str":"here is a string at row 1"}],
+ "ooa":[{"in":1}, {"fl":{"f1":1.6789, "f2":54331.0}, "in":1}, {"a":{"aa":{"aaa":"aaa 1"}}, "b":{"bb":{}}, "c":{"cc":{"ccc":"ccc 1"}}}],
+ "aaa":[[["aa0 1"], ["ab0 1"]], [["ba0 1"], ["bb0 1"]],[["ca0 1", "ca1 1"],["cb0 1", "cb1 1", "cb2 1"]]]
+}
+{"id":3,
+ "gbyi":3,
+ "gbyt":"gbyi",
+ "fl":3.6789,
+ "nul":"not null",
+ "bool":true,
+ "str":"This is row 3",
+ "sia":[3, 13, 103, 1003],
+ "sfa":[0.0, 3.01, 30.222, 30.0006789],
+ "soa":[{"in":3},{"in":3,"fl":3.12345}, {"in":3, "fl":30.12345, "nul":"not null"}, {"in":3, "fl":30.6789, "nul":null, "bool":true, "str":"here is a string at row 3"}],
+ "ooa":[{"in":3}, {"fl":{"f1":3.6789, "f2":54351.0}, "in":3}, {"a":{"aa":{"aaa":"aaa 3"}}, "b":{"bb":{"bbb":"bbb 3"}}, "c":{"cc":{"ccc":"ccc 3"}}}],
+ "aaa":[[], [["ba0 3"], ["bb0 3"]],[["ca0 3", "ca1 3"],["cb0 3", "cb1 3", "cb2 3"]]]
+}

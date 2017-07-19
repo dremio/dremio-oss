@@ -1,0 +1,41 @@
+{
+  "stringCol": "stringValue1",
+  "longStringValue": "very very very very very very very very very very long long string value 1",
+  "mapCol" : {
+    "innerCol1" : 200,
+    "innerCol2" : 234.432,
+    "innerCol3" : "inner string col",
+    "innerCol4" : "2016-04-06",
+    "innerCol5" : "another string"
+  },
+  "listCol" : [ "item 1", "item 2", "item 3", "item 4", "item 1", "item 2", "item 3", "item 4", "item 1"],
+  "unionCol": "text"
+}
+
+{
+  "stringCol": "stringValue2",
+  "longStringValue": "very very very very very very very very very very long long string value 2",
+  "mapCol" : {
+    "innerCol1" : 400,
+    "innerCol2" : 434.432,
+    "innerCol3" : "inner string col",
+    "innerCol4" : "2016-04-06",
+    "innerCol5" : "another string"
+  },
+  "listCol" : [ "item 5", "item 6", "item 7", "item 8", "item 1", "item 2", "item 3", "item 4", "item 1"],
+  "unionCol": 12
+}
+
+{
+  "stringCol": "stringValue3",
+  "longStringValue": "very very very very very very very very very very long long string value 3",
+  "mapCol" : {
+    "innerCol1" : 600,
+    "innerCol2" : 634.432,
+    "innerCol3" : "inner string col",
+    "innerCol4" : "2016-04-06",
+    "innerCol5" : "another string"
+  },
+  "listCol" : [ "item 9", "item 10", "item 11", "item 12", "item 1", "item 2", "item 3", "item 4", "item 1"],
+  "unionCol": "long long long long long long long long long string value"
+}

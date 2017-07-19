@@ -1,0 +1,6 @@
+{ "id":0, "mymap": { "mylist":[{ "field":1 }, { "field":2 }, { "field":3 }] } }
+{ "id":1, "mymap": { "mylist":[{ "field":1 }, { "field":null }, { }] } }
+{ "id":2, "mymap": { "mylist":[] } }
+{ "id":3, "mymap": { "mylist":null } }
+{ "id":4, "mymap": {} }
+{ "id":5, "mymap": null }

@@ -1,0 +1,28 @@
+{
+    "<TABLE_NAME>": {
+        "properties": {
+            "person": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "object",
+                        "properties": {
+                            "first_name": {
+                                "type": "string"
+                            },
+                            "last_name": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "sid": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "message": {
+                "type": "string"
+            }
+        }
+    }
+}

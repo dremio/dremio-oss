@@ -1,0 +1,84 @@
+/*
+ * Copyright 2016 Dremio Corporation
+ */
+package com.dremio.exec.store.easy.arrow;
+
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.hadoop.fs.Path;
+
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.store.StoragePluginConfig;
+import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
+import com.dremio.exec.store.dfs.easy.EasyWriter;
+import com.dremio.exec.store.dfs.easy.FileWork;
+import com.dremio.sabot.exec.context.OperatorContext;
+
+/**
+ * {@link FormatPlugin} implementation for reading and writing Arrow format files in queries. Arrow buffers are
+ * dumped to/read from file as it is from/to in-memory format. There is no endian-ness conversion,
+ * so if the sharing files across different endian-ness machines is not supported.
+ */
+public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig> {
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ArrowFormatPlugin.class);
+
+  public static final String ARROW_DEFAULT_NAME = "arrow";
+
+  /**
+   * Bytes of magic word for Arrow format files.
+   */
+  public static final String MAGIC_STRING = "DREMARROW1";
+  public static final int MAGIC_STRING_LENGTH = MAGIC_STRING.getBytes().length;
+
+  public static final int FOOTER_OFFSET_SIZE = Long.SIZE/Byte.SIZE; // Size of long in bytes
+
+  /**
+   * Standard signature constructor which is used when {@link FormatPlugin}s are constructored through reflection.
+   * @param name
+   * @param context
+   * @param storageConfig
+   * @param formatConfig
+   * @param fsPlugin
+   */
+  public ArrowFormatPlugin(final String name, final SabotContext context, final StoragePluginConfig storageConfig,
+      final ArrowFormatPluginConfig formatConfig, final FileSystemPlugin fsPlugin) {
+    super(name, context, storageConfig, formatConfig, true, false, /* splittable = */ false, /* compressible = */ false,
+        formatConfig.getDefaultExtensions(), ARROW_DEFAULT_NAME, fsPlugin);
+  }
+
+  @Override
+  public boolean supportsPushDown() {
+    return true;
+  }
+
+  @Override
+  public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs,
+      final FileWork fileWork, final List<SchemaPath> columns) throws ExecutionSetupException {
+    final Path path = dfs.makeQualified(new Path(fileWork.getPath()));
+    return new ArrowRecordReader(context, dfs, path, columns);
+  }
+
+  @Override
+  public int getReaderOperatorType() {
+    return CoreOperatorType.ARROW_SUB_SCAN_VALUE;
+  }
+
+  @Override
+  public RecordWriter getRecordWriter(final OperatorContext context, final EasyWriter writer) throws IOException {
+    return new ArrowRecordWriter(context, writer, (ArrowFormatPluginConfig) writer.getFormatConfig());
+  }
+
+  @Override
+  public int getWriterOperatorType() {
+    return CoreOperatorType.ARROW_WRITER_VALUE;
+  }
+}

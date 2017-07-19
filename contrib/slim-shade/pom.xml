@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.dremio.contrib</groupId>
+    <artifactId>dremio-contrib-parent</artifactId>
+    <version>1.0.8-201707190805180330-27f36e1</version>
+  </parent>
+
+  <artifactId>dremio-slim-shade</artifactId>
+  <packaging>jar</packaging>
+  <name>Contrib - Slim Shaded Dependency JAR</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.koloboke</groupId>
+      <artifactId>koloboke-impl-jdk6-7</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.clearspring.analytics</groupId>
+      <artifactId>stream</artifactId>
+      <version>2.7.0</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <include>com.koloboke:*</include>
+                  <include>com.clearspring.analytics:stream</include>
+                  <include>org.elasticsearch:elasticsearch</include>
+                </includes>
+              </artifactSet>
+              
+              <filters>
+                              
+                <filter>
+                  <artifact>com.clearspring.analytics:stream</artifact>
+                  <excludes>
+                    <!-- requires fastutil which brings an extra 17mbs :) -->
+                    <exclude>com.clearspring.analytics.stream.quantile.QDigest**</exclude>
+                    <exclude>META-INF/**</exclude>
+                  </excludes>
+                </filter>
+                              
+                <filter>
+                  <artifact>com.koloboke:*</artifact>
+                  <includes>
+                    <include>com/koloboke/collect/impl/Scaler**</include>
+                    <include>com/koloboke/collect/impl/Maths**</include>
+                    <include>com/koloboke/collect/hash/AutoValue_HashConfig.class</include>
+                    <include>com/koloboke/collect/hash/HashConfig.class</include>
+                    <include>com/koloboke/collect/impl/hash/HashConfigWrapper.class</include>
+                    <include>com/koloboke/collect/impl/hash/Capacities.class</include>
+                    <include>com/koloboke/collect/impl/hash/LHashCapacities.class</include>
+                    <include>com/koloboke/collect/impl/hash/QHashCapacities.class</include>
+                    <include>com/koloboke/collect/impl/hash/HashConfigWrapper.class</include>
+                    <include>com/koloboke/collect/impl/hash/LHash.class</include>
+                    <include>com/koloboke/collect/impl/hash/LHash$**class</include>
+                    <include>com/koloboke/collect/impl/hash/LHashCapacities.class</include>
+                  </includes>
+                </filter>
+              </filters>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

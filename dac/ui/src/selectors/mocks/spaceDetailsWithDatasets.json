@@ -1,0 +1,126 @@
+{
+    "spaces": {
+        "Prod-Sample": {
+            "folders": ["/folder/\"Prod-Sample\".folder"],
+            "datasets": ["/dataset/\"Prod-Sample\".ds1", "/dataset/\"Prod-Sample\".ds2"],
+            "datasetConfigs": ["00b4a06bb72075b8", "00b4a06bb884c7d5"],
+            "files": ["/file/\"Prod-Sample\".file"],
+            "physicalDatasets": [],
+            "name": "Prod-Sample"
+        }
+    },
+    "datasets": {
+        "/dataset/\"Prod-Sample\".ds1": {
+            "datasetName": "ds1",
+            "versionedResourcePath": "/dataset/\"Prod-Sample\".ds1/version/00b4a06bb72075b8",
+            "name": "ds1",
+            "sql": "SELECT *\nFROM dfs.tmp.\"dac-sample1.json\"",
+            "parentPath": "Prod-Sample",
+            "jobCount": 0,
+            "resourcePath": "/dataset/\"Prod-Sample\".ds1",
+            "fileType": "dataset",
+            "descendants": 0,
+            "links": {
+                "self": "/space/\"Prod-Sample\"/ds1",
+                "edit": "/space/\"Prod-Sample\"/ds1?mode=edit",
+                "jobs": "/jobs/\"Prod-Sample\".ds1"
+            },
+            "datasetConfig": "00b4a06bb72075b8"
+        },
+        "/dataset/\"Prod-Sample\".ds2": {
+            "datasetName": "ds2",
+            "versionedResourcePath": "/dataset/\"Prod-Sample\".ds2/version/00b4a06bb884c7d5",
+            "name": "ds2",
+            "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20",
+            "parentPath": "Prod-Sample",
+            "jobCount": 0,
+            "resourcePath": "/dataset/\"Prod-Sample\".ds2",
+            "fileType": "dataset",
+            "descendants": 0,
+            "links": {
+                "self": "/space/\"Prod-Sample\"/ds2",
+                "edit": "/space/\"Prod-Sample\"/ds2?mode=edit",
+                "jobs": "/jobs/\"Prod-Sample\".ds2"
+            },
+            "datasetConfig": "00b4a06bb884c7d5"
+        }
+    },
+    "physicalDatasets": {},
+    "datasetConfigs": {
+        "00b4a06bb72075b8": {
+            "name": "ds1",
+            "sql": "SELECT *\nFROM dfs.tmp.\"dac-sample1.json\"",
+            "version": "00b4a06bb72075b8",
+            "state": {
+                "from": {
+                    "type": "Table",
+                    "datasetPath": "dfs.tmp.\"dac-sample1.json\""
+                }
+            },
+            "sqlFieldsList": [{
+                "name": "*",
+                "type": "ANY",
+                "isNullable": true
+            }],
+            "parentsList": [{
+                "datasetPathList": ["dfs", "tmp", "dac-sample1.json"]
+            }]
+        },
+        "00b4a06bb884c7d5": {
+            "name": "ds2",
+            "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20",
+            "version": "00b4a06bb884c7d5",
+            "state": {
+                "from": {
+                    "type": "SQL",
+                    "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20"
+                }
+            },
+            "sqlFieldsList": [{
+                "name": "*",
+                "type": "ANY",
+                "isNullable": true
+            }],
+            "parentsList": [{
+                "datasetPathList": ["dfs", "tmp", "dac-sample1.json"]
+            }]
+        }
+    },
+    "folderConfigs": {
+        "\"Prod-Sample\".folder": {
+            "name": "folder",
+            "fullPath": "\"Prod-Sample\".folder",
+            "owner": "test_user",
+            "links": {
+                "self": "/space/\"Prod-Sample\".folder",
+                "jobs": "/jobs/\"Prod-Sample\".folder"
+            },
+            "fileType": "folder",
+            "resourcePath": "/folder/\"Prod-Sample\".folder"
+        }
+    },
+    "files": {
+      "/file/\"Prod-Sample\".file": {
+        "resourcePath": "/file/\"Prod-Sample\".file",
+        "fileConfig": "\"Prod-Sample\".file"
+    }},
+    "fileConfigs": {
+      "\"Prod-Sample\".file": {
+          "name": "file",
+          "fullPath": "\"Prod-Sample\".file",
+          "owner": "test_user",
+          "links": {
+              "self": "/space/\"Prod-Sample\".file",
+              "jobs": "/jobs/\"Prod-Sample\".file"
+          },
+          "fileType": "folder",
+          "resourcePath": "/folder/\"Prod-Sample\".file"
+      }
+    },
+    "folders": {
+        "/folder/\"Prod-Sample\".folder": {
+            "resourcePath": "/folder/\"Prod-Sample\".folder",
+            "folderConfig": "\"Prod-Sample\".folder"
+        }
+    }
+}

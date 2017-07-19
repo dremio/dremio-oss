@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration>
+  <appender name="SOCKET"
+    class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">
+    <Compressing>true</Compressing>
+    <ReconnectionDelay>10000</ReconnectionDelay>
+    <IncludeCallerData>true</IncludeCallerData>
+    <RemoteHosts>${LILITH_HOSTNAME:-localhost}</RemoteHosts>
+  </appender>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+      </pattern>
+    </encoder>
+  </appender>
+
+  <logger name="com.dremio" additivity="false">
+    <level value="debug" />
+    <appender-ref ref="SOCKET" />
+  </logger>
+
+  <logger name="query.logger" additivity="false">
+    <level value="info" />
+    <appender-ref ref="SOCKET" />
+  </logger>
+
+  <logger name="org.apache.calcite.plan" additivity="false">
+    <level value="warn" />
+    <appender-ref ref="STDOUT" />
+  </logger>
+
+  <logger name="com.dremio.exec.planner.acceleration" additivity="false">
+    <level value="warn" />
+    <appender-ref ref="STDOUT" />
+  </logger>
+
+<!--   <logger name="io.netty" additivity="false"> -->
+<!--     <level value="debug" /> -->
+<!--     <appender-ref ref="SOCKET" /> -->
+<!--   </logger> -->
+
+  <root>
+    <level value="error" />
+    <appender-ref ref="STDOUT" />
+  </root>
+
+</configuration>

@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import '../../components/PullOutRightTree';
+
+#home-page {
+  .home-container {
+    margin: 5px 0;
+  }
+  .h-item{
+    &.active{
+      background: #fff5dc;
+    }
+  }
+  .main-info {
+    display: flex;
+    min-width: 500px;
+    overflow: hidden;
+    height: 100%;
+    flex: 1;
+    .table{
+      flex-shrink: 0;
+      flex-grow: 0;
+    }
+    .home-table-viewer{
+      transition: width .25s linear;
+      &.home-table-viewer-full{
+        width:~"calc(100% + @{pull-out-right-tree-width})";
+      }
+      &.home-table-viewer-short{
+        width: 100%;
+      }
+    }
+  }
+  .move-info-wrap {
+    height: 100%;
+    flex-grow: 1;
+    overflow: auto;
+
+    .table-wrap {
+      width: 100%;
+      padding: 0 10px;
+
+    }
+  }
+}

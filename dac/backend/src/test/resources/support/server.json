@@ -1,0 +1,1 @@
+{"timestamp":"2017-01-30 08:04:47,176","host":"magic","thread":"main","levelName":"INFO","levelValue":20000,"logger":"com.dremio.dac.daemon.DACDaemon","message":"This node is the master node, localhost. This node acts as a coordinator."}

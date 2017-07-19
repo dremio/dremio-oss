@@ -1,0 +1,593 @@
+{
+    "dataset": {},
+    "datasetConfig": {},
+    "file": {
+        "/source/LocalFS2/file/LocalFS2.\".DS_Store\"": {
+            "fileConfig": "/source/LocalFS2/file/LocalFS2.\".DS_Store\"",
+            "fileType": "file",
+            "id": "8de475ac-9580-4928-bc17-51782571b3d1",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".DS_Store\"",
+                "self": "/source/LocalFS2/.DS_Store"
+            },
+            "resourcePath": "/source/LocalFS2/file/LocalFS2.\".DS_Store\""
+        },
+        "/source/LocalFS2/file/LocalFS2.\".file\"": {
+            "fileConfig": "/source/LocalFS2/file/LocalFS2.\".file\"",
+            "fileType": "file",
+            "id": "a547b1e6-452f-425a-b5fe-d3c6b350fca9",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".file\"",
+                "self": "/source/LocalFS2/.file"
+            },
+            "resourcePath": "/source/LocalFS2/file/LocalFS2.\".file\""
+        },
+        "/source/LocalFS2/file/LocalFS2.\"installer.failurerequests\"": {
+            "fileConfig": "/source/LocalFS2/file/LocalFS2.\"installer.failurerequests\"",
+            "fileType": "file",
+            "id": "ef0bcf82-eba8-4f99-88a5-5ec18ed01dbf",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\"installer.failurerequests\"",
+                "self": "/source/LocalFS2/installer.failurerequests"
+            },
+            "resourcePath": "/source/LocalFS2/file/LocalFS2.\"installer.failurerequests\""
+        }
+    },
+    "fileConfig": {
+        "/source/LocalFS2/file/LocalFS2.\".DS_Store\"": {
+            "ctime": 1465328377247,
+            "fullPath": "/source/LocalFS2/file/LocalFS2.\".DS_Store\"",
+            "name": ".DS_Store",
+            "owner": "test_user",
+            "type": "TEXT"
+        },
+        "/source/LocalFS2/file/LocalFS2.\".file\"": {
+            "ctime": 1465328377247,
+            "fullPath": "/source/LocalFS2/file/LocalFS2.\".file\"",
+            "name": ".file",
+            "owner": "test_user",
+            "type": "TEXT"
+        },
+        "/source/LocalFS2/file/LocalFS2.\"installer.failurerequests\"": {
+            "ctime": 1465328377248,
+            "fullPath": "/source/LocalFS2/file/LocalFS2.\"installer.failurerequests\"",
+            "name": "installer.failurerequests",
+            "owner": "test_user",
+            "type": "TEXT"
+        }
+    },
+    "folder": {
+        "/source/LocalFS2/folder/LocalFS2.Applications": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.Applications",
+            "id": "db34a0ca-a04b-418e-9015-8b3f69b683a9",
+            "links": {
+                "jobs": "/jobs/LocalFS2.Applications",
+                "self": "/source/LocalFS2.Applications"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.Applications"
+        },
+        "/source/LocalFS2/folder/LocalFS2.Library": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.Library",
+            "id": "da092635-4d46-4445-96cb-2dc3a24137ca",
+            "links": {
+                "jobs": "/jobs/LocalFS2.Library",
+                "self": "/source/LocalFS2.Library"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.Library"
+        },
+        "/source/LocalFS2/folder/LocalFS2.Network": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.Network",
+            "id": "6aed0148-6965-4caa-a27e-3557f76e036b",
+            "links": {
+                "jobs": "/jobs/LocalFS2.Network",
+                "self": "/source/LocalFS2.Network"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.Network"
+        },
+        "/source/LocalFS2/folder/LocalFS2.System": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.System",
+            "id": "d6f8bae2-0755-4a76-8c47-bfb2ed94308b",
+            "links": {
+                "jobs": "/jobs/LocalFS2.System",
+                "self": "/source/LocalFS2.System"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.System"
+        },
+        "/source/LocalFS2/folder/LocalFS2.Users": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.Users",
+            "id": "0efe7277-3694-4c3f-851e-442314bdcaaf",
+            "links": {
+                "jobs": "/jobs/LocalFS2.Users",
+                "self": "/source/LocalFS2.Users"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.Users"
+        },
+        "/source/LocalFS2/folder/LocalFS2.Volumes": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.Volumes",
+            "id": "b08c1cbf-4581-4e41-adb7-8120ecf8a004",
+            "links": {
+                "jobs": "/jobs/LocalFS2.Volumes",
+                "self": "/source/LocalFS2.Volumes"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.Volumes"
+        },
+        "/source/LocalFS2/folder/LocalFS2.\".DocumentRevisions-V100\"": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.\".DocumentRevisions-V100\"",
+            "id": "1d12f2b1-b71a-4282-bfac-754f52b7169c",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".DocumentRevisions-V100\"",
+                "self": "/source/LocalFS2.\".DocumentRevisions-V100\""
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.\".DocumentRevisions-V100\""
+        },
+        "/source/LocalFS2/folder/LocalFS2.\".PKInstallSandboxManager\"": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.\".PKInstallSandboxManager\"",
+            "id": "dfa2bb08-6922-4b9a-87a2-f30d5388bfc2",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".PKInstallSandboxManager\"",
+                "self": "/source/LocalFS2.\".PKInstallSandboxManager\""
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.\".PKInstallSandboxManager\""
+        },
+        "/source/LocalFS2/folder/LocalFS2.\".Spotlight-V100\"": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.\".Spotlight-V100\"",
+            "id": "b8442ba1-b31d-4ffa-b1b1-2e4128177f5a",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".Spotlight-V100\"",
+                "self": "/source/LocalFS2.\".Spotlight-V100\""
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.\".Spotlight-V100\""
+        },
+        "/source/LocalFS2/folder/LocalFS2.\".Trashes\"": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.\".Trashes\"",
+            "id": "0cc6b463-774d-4f83-993a-00334f5be72c",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".Trashes\"",
+                "self": "/source/LocalFS2.\".Trashes\""
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.\".Trashes\""
+        },
+        "/source/LocalFS2/folder/LocalFS2.\".fseventsd\"": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.\".fseventsd\"",
+            "id": "d5fa3e9e-46df-4d72-82ba-4965fa3bcef9",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".fseventsd\"",
+                "self": "/source/LocalFS2.\".fseventsd\""
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.\".fseventsd\""
+        },
+        "/source/LocalFS2/folder/LocalFS2.\".vol\"": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.\".vol\"",
+            "id": "5ed71bc8-6ff1-4cc0-b099-1594397f434b",
+            "links": {
+                "jobs": "/jobs/LocalFS2.\".vol\"",
+                "self": "/source/LocalFS2.\".vol\""
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.\".vol\""
+        },
+        "/source/LocalFS2/folder/LocalFS2.bin": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.bin",
+            "id": "c77a9366-311b-4dd6-a48e-52551a6f1ca7",
+            "links": {
+                "jobs": "/jobs/LocalFS2.bin",
+                "self": "/source/LocalFS2.bin"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.bin"
+        },
+        "/source/LocalFS2/folder/LocalFS2.cores": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.cores",
+            "id": "921b488e-9e68-49b2-bac4-4e8b84762813",
+            "links": {
+                "jobs": "/jobs/LocalFS2.cores",
+                "self": "/source/LocalFS2.cores"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.cores"
+        },
+        "/source/LocalFS2/folder/LocalFS2.data": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.data",
+            "id": "4ef488bd-4650-4605-bbc4-0c1ce2335801",
+            "links": {
+                "jobs": "/jobs/LocalFS2.data",
+                "self": "/source/LocalFS2.data"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.data"
+        },
+        "/source/LocalFS2/folder/LocalFS2.dev": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.dev",
+            "id": "1db33dad-2cc7-486f-bcca-bef9dc17d75d",
+            "links": {
+                "jobs": "/jobs/LocalFS2.dev",
+                "self": "/source/LocalFS2.dev"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.dev"
+        },
+        "/source/LocalFS2/folder/LocalFS2.etc": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.etc",
+            "id": "2e8e9585-24ea-4d3d-8315-d127fb14de57",
+            "links": {
+                "jobs": "/jobs/LocalFS2.etc",
+                "self": "/source/LocalFS2.etc"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.etc"
+        },
+        "/source/LocalFS2/folder/LocalFS2.home": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.home",
+            "id": "aa9ec04a-793a-4af7-905a-1e5d5cef0a4c",
+            "links": {
+                "jobs": "/jobs/LocalFS2.home",
+                "self": "/source/LocalFS2.home"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.home"
+        },
+        "/source/LocalFS2/folder/LocalFS2.net": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.net",
+            "id": "60b3c323-982a-42aa-8b21-bfe6f82c23dd",
+            "links": {
+                "jobs": "/jobs/LocalFS2.net",
+                "self": "/source/LocalFS2.net"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.net"
+        },
+        "/source/LocalFS2/folder/LocalFS2.opt": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.opt",
+            "id": "f764f3be-c6cc-43d9-b29f-8746c9376e46",
+            "links": {
+                "jobs": "/jobs/LocalFS2.opt",
+                "self": "/source/LocalFS2.opt"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.opt"
+        },
+        "/source/LocalFS2/folder/LocalFS2.private": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.private",
+            "id": "43302379-9cee-4b30-9465-ca78af367c13",
+            "links": {
+                "jobs": "/jobs/LocalFS2.private",
+                "self": "/source/LocalFS2.private"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.private"
+        },
+        "/source/LocalFS2/folder/LocalFS2.sbin": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.sbin",
+            "id": "b8c8d273-f42d-45d1-a2f3-100d4a5505c3",
+            "links": {
+                "jobs": "/jobs/LocalFS2.sbin",
+                "self": "/source/LocalFS2.sbin"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.sbin"
+        },
+        "/source/LocalFS2/folder/LocalFS2.tmp": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.tmp",
+            "id": "120c27f5-5950-472c-a42b-7ac73c2c3d5a",
+            "links": {
+                "jobs": "/jobs/LocalFS2.tmp",
+                "self": "/source/LocalFS2.tmp"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.tmp"
+        },
+        "/source/LocalFS2/folder/LocalFS2.usr": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.usr",
+            "id": "35de4dd6-33cb-4c43-a238-526bc990ded0",
+            "links": {
+                "jobs": "/jobs/LocalFS2.usr",
+                "self": "/source/LocalFS2.usr"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.usr"
+        },
+        "/source/LocalFS2/folder/LocalFS2.var": {
+            "fileType": "folder",
+            "folderConfig": "LocalFS2.var",
+            "id": "afb4d9fe-6c52-49d6-a2d8-7b3b7e3e2b42",
+            "links": {
+                "jobs": "/jobs/LocalFS2.var",
+                "self": "/source/LocalFS2.var"
+            },
+            "resourcePath": "/source/LocalFS2/folder/LocalFS2.var"
+        }
+    },
+    "folderConfig": {
+        "LocalFS2.Applications": {
+            "fullPath": "LocalFS2.Applications",
+            "isPhysicalDataset": false,
+            "name": "Applications",
+            "owner": "test_user"
+        },
+        "LocalFS2.Library": {
+            "fullPath": "LocalFS2.Library",
+            "isPhysicalDataset": false,
+            "name": "Library",
+            "owner": "test_user"
+        },
+        "LocalFS2.Network": {
+            "fullPath": "LocalFS2.Network",
+            "isPhysicalDataset": false,
+            "name": "Network",
+            "owner": "test_user"
+        },
+        "LocalFS2.System": {
+            "fullPath": "LocalFS2.System",
+            "isPhysicalDataset": false,
+            "name": "System",
+            "owner": "test_user"
+        },
+        "LocalFS2.Users": {
+            "fullPath": "LocalFS2.Users",
+            "isPhysicalDataset": false,
+            "name": "Users",
+            "owner": "test_user"
+        },
+        "LocalFS2.Volumes": {
+            "fullPath": "LocalFS2.Volumes",
+            "isPhysicalDataset": false,
+            "name": "Volumes",
+            "owner": "test_user"
+        },
+        "LocalFS2.\".DocumentRevisions-V100\"": {
+            "fullPath": "LocalFS2.\".DocumentRevisions-V100\"",
+            "isPhysicalDataset": false,
+            "name": ".DocumentRevisions-V100",
+            "owner": "test_user"
+        },
+        "LocalFS2.\".PKInstallSandboxManager\"": {
+            "fullPath": "LocalFS2.\".PKInstallSandboxManager\"",
+            "isPhysicalDataset": false,
+            "name": ".PKInstallSandboxManager",
+            "owner": "test_user"
+        },
+        "LocalFS2.\".Spotlight-V100\"": {
+            "fullPath": "LocalFS2.\".Spotlight-V100\"",
+            "isPhysicalDataset": false,
+            "name": ".Spotlight-V100",
+            "owner": "test_user"
+        },
+        "LocalFS2.\".Trashes\"": {
+            "fullPath": "LocalFS2.\".Trashes\"",
+            "isPhysicalDataset": false,
+            "name": ".Trashes",
+            "owner": "test_user"
+        },
+        "LocalFS2.\".fseventsd\"": {
+            "fullPath": "LocalFS2.\".fseventsd\"",
+            "isPhysicalDataset": false,
+            "name": ".fseventsd",
+            "owner": "test_user"
+        },
+        "LocalFS2.\".vol\"": {
+            "fullPath": "LocalFS2.\".vol\"",
+            "isPhysicalDataset": false,
+            "name": ".vol",
+            "owner": "test_user"
+        },
+        "LocalFS2.bin": {
+            "fullPath": "LocalFS2.bin",
+            "isPhysicalDataset": false,
+            "name": "bin",
+            "owner": "test_user"
+        },
+        "LocalFS2.cores": {
+            "fullPath": "LocalFS2.cores",
+            "isPhysicalDataset": false,
+            "name": "cores",
+            "owner": "test_user"
+        },
+        "LocalFS2.data": {
+            "fullPath": "LocalFS2.data",
+            "isPhysicalDataset": false,
+            "name": "data",
+            "owner": "test_user"
+        },
+        "LocalFS2.dev": {
+            "fullPath": "LocalFS2.dev",
+            "isPhysicalDataset": false,
+            "name": "dev",
+            "owner": "test_user"
+        },
+        "LocalFS2.etc": {
+            "fullPath": "LocalFS2.etc",
+            "isPhysicalDataset": false,
+            "name": "etc",
+            "owner": "test_user"
+        },
+        "LocalFS2.home": {
+            "fullPath": "LocalFS2.home",
+            "isPhysicalDataset": false,
+            "name": "home",
+            "owner": "test_user"
+        },
+        "LocalFS2.net": {
+            "fullPath": "LocalFS2.net",
+            "isPhysicalDataset": false,
+            "name": "net",
+            "owner": "test_user"
+        },
+        "LocalFS2.opt": {
+            "fullPath": "LocalFS2.opt",
+            "isPhysicalDataset": false,
+            "name": "opt",
+            "owner": "test_user"
+        },
+        "LocalFS2.private": {
+            "fullPath": "LocalFS2.private",
+            "isPhysicalDataset": false,
+            "name": "private",
+            "owner": "test_user"
+        },
+        "LocalFS2.sbin": {
+            "fullPath": "LocalFS2.sbin",
+            "isPhysicalDataset": false,
+            "name": "sbin",
+            "owner": "test_user"
+        },
+        "LocalFS2.tmp": {
+            "fullPath": "LocalFS2.tmp",
+            "isPhysicalDataset": false,
+            "name": "tmp",
+            "owner": "test_user"
+        },
+        "LocalFS2.usr": {
+            "fullPath": "LocalFS2.usr",
+            "isPhysicalDataset": false,
+            "name": "usr",
+            "owner": "test_user"
+        },
+        "LocalFS2.var": {
+            "fullPath": "LocalFS2.var",
+            "isPhysicalDataset": false,
+            "name": "var",
+            "owner": "test_user"
+        }
+    },
+    "physicalDataset": {},
+    "source": {
+        "123": {
+            "ctime": 0,
+            "href": "/source/123",
+            "iconClass": "Database",
+            "id": "232f0b09-5269-46c5-be21-b5fd398dc0b6",
+            "isActivePin": false,
+            "isFile": false,
+            "links": {
+                "self": "/source/123"
+            },
+            "name": "123",
+            "numberOfDatasets": 0,
+            "owner": "test_user",
+            "path": "/",
+            "resourcePath": "/source/123",
+            "status": "good",
+            "type": "NAS"
+        },
+        "LocalFS2": {
+            "ctime": 1465328370332,
+            "datasets": [],
+            "description": "222",
+            "files": [
+                "/source/LocalFS2/file/LocalFS2.\".DS_Store\"",
+                "/source/LocalFS2/file/LocalFS2.\".file\"",
+                "/source/LocalFS2/file/LocalFS2.\"installer.failurerequests\""
+            ],
+            "folders": [
+                "/source/LocalFS2/folder/LocalFS2.\".DocumentRevisions-V100\"",
+                "/source/LocalFS2/folder/LocalFS2.\".fseventsd\"",
+                "/source/LocalFS2/folder/LocalFS2.\".PKInstallSandboxManager\"",
+                "/source/LocalFS2/folder/LocalFS2.\".Spotlight-V100\"",
+                "/source/LocalFS2/folder/LocalFS2.\".Trashes\"",
+                "/source/LocalFS2/folder/LocalFS2.\".vol\"",
+                "/source/LocalFS2/folder/LocalFS2.Applications",
+                "/source/LocalFS2/folder/LocalFS2.bin",
+                "/source/LocalFS2/folder/LocalFS2.cores",
+                "/source/LocalFS2/folder/LocalFS2.data",
+                "/source/LocalFS2/folder/LocalFS2.dev",
+                "/source/LocalFS2/folder/LocalFS2.etc",
+                "/source/LocalFS2/folder/LocalFS2.home",
+                "/source/LocalFS2/folder/LocalFS2.Library",
+                "/source/LocalFS2/folder/LocalFS2.net",
+                "/source/LocalFS2/folder/LocalFS2.Network",
+                "/source/LocalFS2/folder/LocalFS2.opt",
+                "/source/LocalFS2/folder/LocalFS2.private",
+                "/source/LocalFS2/folder/LocalFS2.sbin",
+                "/source/LocalFS2/folder/LocalFS2.System",
+                "/source/LocalFS2/folder/LocalFS2.tmp",
+                "/source/LocalFS2/folder/LocalFS2.Users",
+                "/source/LocalFS2/folder/LocalFS2.usr",
+                "/source/LocalFS2/folder/LocalFS2.var",
+                "/source/LocalFS2/folder/LocalFS2.Volumes"
+            ],
+            "href": "/source/LocalFS2",
+            "iconClass": "Database",
+            "id": "85fa9f81-df93-4e15-9a5d-7cabade7e31b",
+            "isActivePin": false,
+            "isFile": false,
+            "links": {
+                "self": "/source/LocalFS2"
+            },
+            "name": "LocalFS2",
+            "numberOfDatasets": 0,
+            "owner": "test_user",
+            "path": "/",
+            "physicalDatasets": [],
+            "resourcePath": "/source/LocalFS2",
+            "status": "good",
+            "type": "NAS"
+        }
+    },
+    "space": {
+        "22222": {
+            "ctime": 1465322960230,
+            "datasets": [],
+            "description": "",
+            "files": [],
+            "folders": [],
+            "href": "/space/22222",
+            "iconClass": "Space",
+            "id": "3356eee3-9be2-4723-9342-261f7af0f4d7",
+            "isFile": false,
+            "links": {
+                "self": "/space/22222"
+            },
+            "name": "22222",
+            "owner": "test_user",
+            "physicalDatasets": [],
+            "readonly": false,
+            "resourcePath": "/space/22222"
+        },
+        "sdsds": {
+            "ctime": 1465322837175,
+            "datasets": [],
+            "description": "",
+            "files": [],
+            "folders": [],
+            "href": "/space/sdsds",
+            "iconClass": "Space",
+            "id": "bcd1cc8b-aaa2-4534-af8b-a3576c0acf0b",
+            "isFile": false,
+            "links": {
+                "self": "/space/sdsds"
+            },
+            "name": "sdsds",
+            "owner": "test_user",
+            "physicalDatasets": [],
+            "readonly": false,
+            "resourcePath": "/space/sdsds"
+        },
+        "xcxcx": {
+            "ctime": 1465323228827,
+            "datasets": 0,
+            "description": "",
+            "href": "/space/xcxcx",
+            "iconClass": "Space",
+            "id": "7e064dc6-5d56-4f98-b7d1-6cd74aed3918",
+            "isFile": false,
+            "links": {
+                "self": "/space/xcxcx"
+            },
+            "name": "xcxcx",
+            "owner": "test_user",
+            "readonly": false,
+            "resourcePath": "/space/xcxcx"
+        }
+    }
+}

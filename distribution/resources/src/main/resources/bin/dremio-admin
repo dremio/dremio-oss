@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Copyright (C) 2017 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+bin=`dirname "${BASH_SOURCE-$0}"`
+bin=`cd "$bin">/dev/null; pwd`
+
+export DREMIO_ENV_SCRIPT="dremio-env"
+. "$bin"/dremio-config
+
+function exit_with_usage {
+  RC=$1
+  echo "Usage: dremio (backup|restore|set-password|upgrade) [args...]" >&2
+  exit $RC
+}
+
+if [ $# = 0 ]; then
+    echo "Missing action argument" >&2
+    exit_with_usage 1
+fi
+
+if [ -n "$CLIENT_GC_OPTS" ]; then
+  CLIENT_GC_OPTS=${CLIENT_GC_OPTS/"-Xloggc:<FILE-PATH>"/"-Xloggc:${loggc}"}
+  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${CLIENT_GC_OPTS}"
+fi
+
+DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
+if echo "$JAVA_VERSION_STRING" | grep '1.7' > /dev/null ; then
+  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxPermSize=${DREMIO_MAX_PERMGEN_MEMORY_SIZE_MB:-512}m"
+fi
+DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
+
+export DREMIO_MAINCLASS=
+
+action="$1"
+shift
+
+case "$action" in
+    backup)
+        DREMIO_MAINCLASS=com.dremio.dac.cmd.Backup
+        ;;
+
+    restore)
+        DREMIO_MAINCLASS=com.dremio.dac.cmd.Restore
+        ;;
+
+    set-password)
+        DREMIO_MAINCLASS=com.dremio.dac.cmd.SetPassword
+        ;;
+
+    upgrade)
+        DREMIO_MAINCLASS=com.dremio.dac.cmd.upgrade.Upgrade
+        ;;
+
+    *)
+        echo "Unknown action $action." >&2
+        ;;
+esac
+
+
+exec "$JAVA" $DREMIO_JAVA_OPTS -cp $DREMIO_CLASSPATH ${DREMIO_MAINCLASS} $@

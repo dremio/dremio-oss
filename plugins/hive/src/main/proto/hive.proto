@@ -1,0 +1,86 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.hive.proto;
+
+option java_package = "com.dremio.hive.proto";
+option java_outer_classname = "HiveReaderProto";
+option optimize_for = SPEED;
+
+
+enum ReaderType {
+  UNKNOWN = 0;
+  BASIC = 1;
+  NATIVE_PARQUET = 2;
+}
+
+message HiveTableXattr {
+  repeated Prop table_property = 1;
+  optional string input_format = 2;
+  optional string storage_handler = 3;
+  optional string serialization_lib = 4;
+  optional ReaderType reader_type = 5;
+  repeated PartitionProp partition_properties = 6; // cached properties for all partitions of this table to avoid duplication
+  optional int32 table_hash = 7; // used to check if table definition has changed
+  optional int32 partition_hash = 8; // used to check if paritions have changed (added/deleted/modified)
+}
+
+message HiveSplitXattr {
+  repeated Prop partition_property = 1 [deprecated=true];
+  optional string input_format = 2 [deprecated=true];
+  optional string storage_handler = 3 [deprecated=true];
+  optional SerializedInputSplit input_split = 4;
+  optional string serialization_lib = 5 [deprecated=true];
+  optional int32 partition_id = 6; // partition id this split belongs to
+}
+
+message SerializedInputSplit {
+  optional string input_split_class = 1;
+  optional bytes input_split = 2;
+}
+
+message PartitionProp {   // Per partition properies which are common for all splits in a partition
+  repeated Prop partition_property = 1;
+  optional string input_format = 2;
+  optional string storage_handler = 3;
+  optional string serialization_lib = 4;
+}
+
+message Prop {
+  optional string key = 1;
+  optional string value = 2;
+}
+
+enum HiveReadSignatureType {
+  FILESYSTEM = 1;
+}
+
+message FileSystemCachedEntity {
+  optional string path = 1; // relative path of the entitiy
+  optional int64 lastModificationTime = 2;
+  optional bool isDir = 3; // is this a directory or a file
+}
+
+message FileSystemPartitionUpdateKey {
+  repeated Prop partition_property = 1 [deprecated=true];
+  repeated FileSystemCachedEntity cached_entities = 2;
+  optional string partition_root_dir = 3; // root directory of partition
+  optional int32 partition_id = 4; // partition index
+}
+
+message HiveReadSignature {
+  optional HiveReadSignatureType type = 1;
+  repeated FileSystemPartitionUpdateKey fs_partition_updateKeys = 2;
+}

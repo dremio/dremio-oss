@@ -1,0 +1,23 @@
+[
+
+  {
+    "name": "dotItem",
+    "activeDotItem": "activeDotItem",
+    "determ": "activeDotItem",
+    "width": 200,
+    "values": [
+      {
+        "name": "Move..."
+      },
+      {
+        "name": "Copy..."
+      },
+      {
+        "name": "Publish to Data Source"
+      },
+      {
+        "name": "Publish to Tableau Server"
+      }
+    ]
+  }
+]

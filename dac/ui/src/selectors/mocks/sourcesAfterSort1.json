@@ -1,0 +1,40 @@
+{
+    "sources": [{
+        "path": "/",
+        "isActivePin": false,
+        "isFile": false,
+        "name": "LocalFS1",
+        "href": "/source/LocalFS1",
+        "ctime": 0,
+        "status": "good",
+        "resourcePath": "/source/LocalFS1",
+        "owner": "test_user",
+        "links": {
+            "self": "/source/LocalFS1"
+        },
+        "type": "NAS",
+        "id": "cb33deb8-e809-4a82-b8aa-0ab30435bc26",
+        "numberOfDatasets": 0,
+        "iconClass": "Database"
+    }, {
+        "path": "/",
+        "isActivePin": false,
+        "isFile": false,
+        "name": "LocalFS2",
+        "href": "/source/LocalFS2",
+        "ctime": 0,
+        "status": "good",
+        "resourcePath": "/source/LocalFS2",
+        "owner": "test_user",
+        "links": {
+            "self": "/source/LocalFS2"
+        },
+        "type": "NAS",
+        "id": "eb336f53-6f47-4dfd-973e-2b558430357e",
+        "numberOfDatasets": 0,
+        "iconClass": "Database"
+    }],
+    "isInProgress": false,
+    "isFailed": false,
+    "isInvalid": false
+}

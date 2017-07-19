@@ -1,0 +1,50 @@
+{
+  "id"
+:
+  0, "datasets"
+:
+  null, "dataset"
+:
+  null, "persons"
+:
+  null, "folders"
+:
+  null, "sources"
+:
+  null, "funcs"
+:
+  [{
+    "id": "5970c03e-2821-4806-a39a-8410ea594bc7",
+    "name": "abs",
+    "description": "Returns the absolute value of a number",
+    "example": "value: abs(value1)"
+  }, {
+    "id": "7a0006ae-b7ca-483f-909a-eda740deb00e",
+    "name": "add",
+    "description": "Returns the absolute value of a number",
+    "example": "value: add(value1, value2)"
+  }, {
+    "id": "21cffc1a-c800-4737-87b3-9dd18409d569",
+    "name": "avg",
+    "description": "DECIMAL for any integer-type argument, DOUBLE for a floating-point argument, otherwise the same as the argument data type",
+    "example": "value: avg(value1)"
+  }, {
+    "id": "43f42b11-00ee-4e38-8a31-bdadb66b06d2",
+    "name": "ceil",
+    "description": "Returns the smallest integer not less than x.",
+    "example": "value: CEIL(x)"
+  }, {
+    "id": "57f22b11-00ee-4e38-8a31-bdadb66b06d2",
+    "name": "negative",
+    "description": "Returns x as a negative number.",
+    "example": "NEGATIVE(x)"
+  }], "buckets"
+:
+  null, "users"
+:
+  null, "helpSimilar"
+:
+  null, "recent"
+:
+  null
+}

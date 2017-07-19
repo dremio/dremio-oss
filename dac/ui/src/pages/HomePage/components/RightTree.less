@@ -1,0 +1,137 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@home-background: #f3f3f3;
+@home-activity-avatar-size: 34px;
+
+.home-right-nav {
+  flex-shrink: 0;
+  width: 253px;
+  height: ~"calc(100vh - 75px)";
+  word-wrap: break-word;
+  overflow: auto;
+  .show-more-btn{
+    cursor: pointer;
+    margin: 0 0 0 10px;
+  }
+}
+
+.home-about {
+  padding: 10px 10px 10px 15px;
+  background: @home-background;
+
+  .home-about-visible-toggle {
+    cursor: pointer;
+
+    .home-about-visible-btn {
+      border: 1px solid #ccc;
+      border-radius: 2px;
+      padding: 0 5px;
+      line-height: 16px;
+    }
+
+    .fa {
+      color: #ccc;
+      font-size: 18px;
+    }
+  }
+
+  .home-about-header {
+    font-weight: bold;
+    font-size: 15px;
+  }
+
+  .home-about-summary {
+    font-size: 12px;
+    margin: 10px 0;
+  }
+
+  .home-about-permissions {
+    .home-about-permissions-action {
+      cursor: pointer;
+      color: #1191ff;
+    }
+
+    .home-about-permissions-list {
+      margin-bottom: 10px;
+
+      .home-about-permissions-more {
+        cursor: pointer;
+      }
+
+      ul {
+        li {
+          margin-left: 10px;
+        }
+      }
+
+      .home-about-permissions-list-item {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .home-about-activity-list {
+    .home-about-activity-list-title {
+      margin-bottom: 10px;
+    }
+
+    .home-about-activity-list-item {
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #ddd;
+
+      .home-about-activity-author {
+
+        .home-about-activity-author-avatar {
+          width: @home-activity-avatar-size;
+          height: @home-activity-avatar-size;
+
+          img {
+            border-radius: 100%;
+            width: @home-activity-avatar-size;
+            height: @home-activity-avatar-size;
+          }
+
+          .activity-default-avatar {
+            width: @home-activity-avatar-size;
+            height: @home-activity-avatar-size;
+            background: #c1c1c1;
+            border-radius: 100%;
+            text-align: center;
+            line-height: @home-activity-avatar-size;
+
+            .fa {
+              font-size: 20px;
+            }
+          }
+        }
+
+        .home-about-activity-summary {
+          margin-left: 5px;
+
+          .home-about-activity-author-name {
+            font-weight: bold;
+            font-size: 12px;
+          }
+
+          .home-about-activity-timestamp {
+            font-size: 11px;
+          }
+        }
+      }
+    }
+  }
+}

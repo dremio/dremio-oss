@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import '../../uiTheme/less/typography.less';
+
+#admin-page {
+  .left-menu {
+    .left-item {
+      &:hover{
+        outline: 1px solid rgba(0,0,0,.05);
+      }
+      &.selected {
+        background-color: rgba(0,0,0,.05);
+        cursor: default;
+        outline: 0;
+      }
+    }
+  }
+
+  .separator {
+    border-bottom: 1px solid #D6D6D6;
+    clear: both;
+    margin: 5px 0;
+  }
+
+  .table{
+    thead{
+      .formLabel();
+      th{
+        padding-left: 0;
+      }
+    }
+    tr {
+      height: 30px;
+      cursor: default;
+
+      .actions-wrap {
+        a, button {
+          cursor: pointer;
+          margin-left: 15px;
+        }
+      }
+
+      &:hover{
+        background: #E9E9E9;
+        .actions-wrap {
+          opacity: 1;
+        }
+      }
+      td{
+        padding: 0;
+        .actions-wrap{
+          opacity: 0;
+        }
+      }
+    }
+  }
+}

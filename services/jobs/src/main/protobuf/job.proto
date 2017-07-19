@@ -1,0 +1,248 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.job.proto;
+
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "../../../../../sabot/kernel/src/main/protobuf/attempts.proto";
+import "../../../../../protocol/src/main/protobuf/ArrowFileFormat.proto";
+import "../../../../../protocol/src/main/protobuf/Coordination.proto";
+import "../../../../../protocol/src/main/protobuf/UserBitShared.proto";
+import "../../../../../protocol/src/main/protobuf/ExecutionProtos.proto";
+
+
+option java_package = "com.dremio.service.job.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "JobProtobuf";
+
+enum JobState {
+  NOT_SUBMITTED = 0; // job still with DAC not yet submitted.
+  // JobResult.QueryState
+  STARTING = 1;
+  RUNNING = 2;
+  COMPLETED = 3;
+  CANCELED = 4;
+  FAILED = 5;
+  CANCELLATION_REQUESTED = 6;
+  ENQUEUED = 7;
+}
+
+message JobId {
+  required string id =  1;
+  optional string name = 2; // TODO: used at all ?
+}
+
+enum JobType {
+  // copied from QueryType
+  //TODO we should get rid of this class
+  SQL = 1;
+  LOGICAL = 2;
+  PHYSICAL = 3;
+  EXECUTION = 4;
+  PREPARED_STATEMENT = 5;
+}
+
+message ParentDatasetInfo {
+  repeated string datasetPath = 1;
+  optional com.dremio.service.namespace.dataset.proto.DatasetType type = 2;
+}
+
+message DownloadInfo {
+  optional string downloadId = 1;
+  optional string fileName = 2;
+}
+
+message MaterializationSummary {
+  optional string accelerationId = 1;
+  optional string layoutId = 2;
+  optional int32 layoutVersion = 3;
+  optional string materializationId = 4;
+}
+
+message JobInfo {
+  required JobId jobId = 1;
+  required string sql = 2;
+  optional exec.bit.RequestType requestType = 3;
+  optional string client = 4; // client from which job was submitted
+  optional string user = 5;
+  optional int64 startTime = 6;
+  optional int64 finishTime = 7;
+  repeated string datasetPath = 8;
+  required string datasetVersion = 9;
+  optional string space = 10;
+  repeated ParentDatasetInfo parents = 11;
+  required QueryType queryType = 12 [DEFAULT = UNKNOWN];
+  optional string appId = 13;
+  optional string failureInfo = 14;
+  repeated com.dremio.service.namespace.dataset.proto.FieldOrigin fieldOrigins = 15;
+  repeated JoinInfo joins = 16;
+  repeated arrow.fileformat.ArrowFileMetadata resultMetadata = 17;
+  optional Acceleration acceleration = 18;
+  // list of all parents of parents.
+  repeated com.dremio.service.namespace.dataset.proto.ParentDataset grandParents = 19;
+  optional DownloadInfo downloadInfo = 20; // link to download data for UI_EXPORT jobs
+  optional string description = 21;
+  optional MaterializationSummary materializationFor = 22;
+}
+
+// an equality condition: tableA.columnA == tableB.columnB
+message JoinConditionInfo {
+  // named A and B instead of left and right as they are in the order of the expression
+  // not in the order of the join tables
+  repeated string tableA = 1;
+  required string columnA = 2;
+  repeated string tableB = 3;
+  required string columnB = 4;
+}
+
+enum JoinType {
+  Inner = 1;
+  LeftOuter = 2;
+  RightOuter = 3;
+  FullOuter = 4;
+}
+
+// Select ... from leftTable {joinType} JOIN rightTable ON {condition[0]} AND {condition[1]} ...
+message JoinInfo {
+  repeated string leftTablePath = 1;
+  required JoinType joinType = 2;
+  repeated string rightTablePath = 3;
+  // an AND on the listed conditions
+  repeated JoinConditionInfo conditions = 4;
+  required int32 degreesOfSeparation = 5;
+}
+
+enum QueryType {
+  UI_RUN = 1; // actual run on the data
+  UI_PREVIEW = 2; // run in preview mode
+  UI_INTERNAL_PREVIEW = 3; // a preview query internal to the operation of the dac such as format settings preview
+  UI_INTERNAL_RUN = 4; // a run query internal to operation of the dac such as histograms, transformation previews, card generation, etc.
+  UI_EXPORT = 5;  // A UI download query (typically as json or csv)
+  ODBC = 6; // for queries submitted outside of dac using an odbc client
+  JDBC = 7; // for queries submitted outside of dac using an jdbc client
+  REST = 8; // queries using public rest interfaces
+  ACCELERATOR_CREATE = 9; // accelerated dataset creation
+  ACCELERATOR_DROP = 10; // accelerated dataset drop
+  UNKNOWN = 11;
+  PREPARE_INTERNAL = 12;
+  ACCELERATOR_EXPLAIN = 13; // dependency graph construction
+  UI_INITIAL_PREVIEW = 14;
+}
+
+message JobStats {
+  optional int64 inputBytes = 1;
+  optional int64 outputBytes = 2;
+  optional int64 inputRecords = 3;
+  optional int64 outputRecords = 4;
+}
+
+message JobResult {
+  repeated JobAttempt attempts = 1;
+}
+
+message JobAttempt {
+  optional JobState state = 1;
+  optional JobInfo info = 2;
+  optional JobStats stats = 3;
+  optional JobDetails details = 4;
+  optional AttemptReason reason = 5;
+  optional string attemptId = 6;
+  optional exec.NodeEndpoint endpoint = 7;
+}
+
+message DatasetPathUI {
+  repeated string datasetPath = 1;
+}
+
+message CommonDatasetProfile {
+  repeated DatasetPathUI datasetPaths = 1;
+  optional int64 bytesRead = 2;
+  optional int64 recordsRead = 3;
+  optional int32 parallelism = 4;
+  optional double locality = 5;
+  optional int64 waitOnSource = 6;
+}
+
+message TableDatasetProfile {
+  required CommonDatasetProfile datasetProfile = 1;
+  optional string pushdownQuery = 2;
+}
+
+message FileSystemDatasetProfile {
+  required CommonDatasetProfile datasetProfile = 1;
+  optional int64 dataVolumeInBytes = 2;
+  optional int32 percentageDataPruned = 3;
+  repeated string prunedPaths = 4;
+}
+
+enum OperationType {
+  Client = 1;
+  Join = 2;
+  Aggregate = 3;
+  Filter = 4;
+  Project = 5;
+  Data_exchange = 6;
+  Reading = 7;
+  Writing = 8;
+  Sort = 9;
+  Union = 10;
+  Window = 11;
+  Limit = 12;
+  Complext_to_JSON = 13;
+  Producer_consumer = 14;
+  Flatten = 15;
+  Misc = 16;
+}
+
+message TopOperation {
+  required OperationType type = 1;
+  required float timeConsumed = 2;
+}
+
+message JobDetails {
+  optional int32 plansConsidered = 1;
+  optional int64 timeSpentInPlanning = 2;
+  optional int64 waitInClient = 3;
+  optional int64 dataVolume = 4;
+  optional int64 outputRecords = 5;
+  optional int64 peakMemory = 6;
+  repeated TableDatasetProfile tableDatasetProfiles = 7;
+  repeated FileSystemDatasetProfile fsDatasetProfiles = 8;
+  repeated TopOperation topOperations = 9;
+}
+
+message JobUpdate {
+  required int64 records_processed = 1;
+  required bool is_complete = 2;
+  optional JobState state = 3;
+}
+
+message Acceleration {
+  message Substitution {
+    message Identifier {
+      required string accelerationId = 1;
+      required string layoutId = 2;
+    }
+
+    required Identifier id = 1;
+    repeated string tablePath = 2;
+    required double originalCost = 3;
+    required double speedup = 4;
+  }
+
+  required double acceleratedCost = 1;
+  repeated Substitution substitutions = 2;
+}

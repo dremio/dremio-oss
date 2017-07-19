@@ -1,0 +1,67 @@
+{
+  "spaces": {
+    "DG": {
+      "isActivePin": false,
+      "isFile": false,
+      "name": "DG",
+      "href": "/space/DG",
+      "resourcePath": "/space/DG",
+      "owner": "test_user",
+      "links": {
+        "self": "/space/DG"
+      },
+      "id": "d26c0a70-c33d-48ba-9a4b-8eb2607cd91b",
+      "datasets": 0,
+      "description": "dataset graph",
+      "iconClass": "Space"
+    },
+    "Prod-Sample": {
+      "isActivePin": false,
+      "isFile": false,
+      "name": "Prod-Sample",
+      "href": "/space/Prod-Sample",
+      "resourcePath": "/space/Prod-Sample",
+      "owner": "test_user",
+      "links": {
+        "self": "/space/Prod-Sample"
+      },
+      "id": "d19b8fac-3c74-4002-a954-c77d138aa297",
+      "datasets": 0,
+      "description": "production",
+      "iconClass": "Space"
+    },
+    "Sales-Sample": {
+      "isActivePin": false,
+      "isFile": false,
+      "name": "Sales-Sample",
+      "href": "/space/Sales-Sample",
+      "resourcePath": "/space/Sales-Sample",
+      "owner": "test_user",
+      "links": {
+        "self": "/space/Sales-Sample"
+      },
+      "id": "8dfbcfe4-c8b0-4677-8a85-1f9a14ac54a0",
+      "datasets": 0,
+      "description": "sales",
+      "iconClass": "Space"
+    },
+    "Tpch-Sample": {
+      "isActivePin": false,
+      "isFile": false,
+      "name": "Tpch-Sample",
+      "href": "/space/Tpch-Sample",
+      "resourcePath": "/space/Tpch-Sample",
+      "owner": "test_user",
+      "links": {
+        "self": "/space/Tpch-Sample"
+      },
+      "id": "fb04444b-93ed-4395-b058-2f7602cb71be",
+      "datasets": 0,
+      "description": "tpch queries",
+      "iconClass": "Space"
+    }
+  },
+  "isInProgress": false,
+  "isFailed": false,
+  "isInvalid": false
+}

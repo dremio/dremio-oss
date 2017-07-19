@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+#
+# Copyright (C) 2017 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# Environment Variables
+#
+#   DREMIO_CONF_DIR   Alternate Dremio conf dir. Default is ${DREMIO_HOME}/conf.
+#   DREMIO_LOG_DIR    Where log files are stored.  PWD by default.
+#   DREMIO_PID_DIR    The pid files are stored. /tmp by default.
+#   DREMIO_NICENESS The scheduling priority for daemons. Defaults to 0.
+#   DREMIO_STOP_TIMEOUT  Time, in seconds, after which we kill -9 the server if it has not stopped.
+#                        Default 120 seconds.
+#
+
+usage="Usage: dremio [--config <conf-dir>]\
+ (start|stop|status|restart|autorestart)"
+
+# if no args specified, show usage
+if [ $# -lt 1 ]; then
+  echo $usage
+  exit 1
+fi
+
+bin=`dirname "${BASH_SOURCE-$0}"`
+bin=`cd "$bin">/dev/null; pwd`
+
+export DREMIO_ENV_SCRIPT="dremio-env"
+. "$bin"/dremio-config
+
+export MAPR_IMPALA_RA_THROTTLE="true"
+export MAPR_MAX_RA_STREAMS="800"
+
+# get arguments
+startStopStatus=$1
+shift
+
+command=dremio
+shift
+
+waitForProcessEnd() {
+  pidKilled=$1
+  commandName=$2
+  processedAt=`date +%s`
+  while kill -0 $pidKilled > /dev/null 2>&1;
+   do
+     echo -n "."
+     sleep 1;
+     # if process persists more than $DREMIO_STOP_TIMEOUT (default 120 sec) no mercy
+     if [ $(( `date +%s` - $processedAt )) -gt ${DREMIO_STOP_TIMEOUT:-120} ]; then
+       break;
+     fi
+   done
+  # process still there : kill -9
+  if kill -0 $pidKilled > /dev/null 2>&1; then
+    echo -n force stopping $commandName with kill -9 $pidKilled
+    $JAVA_HOME/bin/jstack -l $pidKilled > "$logout" 2>&1
+    kill -9 $pidKilled > /dev/null 2>&1
+  fi
+  # Add a CR after we're done w/ dots.
+  echo
+}
+
+dremio_rotate_log ()
+{
+    log=$1;
+    num=5;
+    if [ -n "$2" ]; then
+    num=$2
+    fi
+    if [ -f "$log" ]; then # rotate logs
+    while [ $num -gt 1 ]; do
+        prev=`expr $num - 1`
+        [ -f "$log.$prev" ] && mv -f "$log.$prev" "$log.$num"
+        num=$prev
+    done
+    mv -f "$log" "$log.$num";
+    fi
+}
+
+check_before_start(){
+    mkdir -p "$DREMIO_PID_DIR"
+    #ckeck if the process is not running
+    if [ -f "$pid" ]; then
+      if kill -0 `cat "$pid"` > /dev/null 2>&1; then
+        echo $command running as process `cat "$pid"`.  Stop it first.
+        exit 1
+      fi
+    fi
+}
+
+wait_until_done ()
+{
+    p=$1
+    cnt=${DREMIO_TIMEOUT:-300}
+    origcnt=$cnt
+    while kill -0 $p > /dev/null 2>&1; do
+      if [ $cnt -gt 1 ]; then
+        cnt=`expr $cnt - 1`
+        sleep 1
+      else
+        echo "Process did not complete after $origcnt seconds, killing."
+        kill -9 $p
+        exit 1
+      fi
+    done
+    return 0
+}
+
+DREMIO_PID_DIR="${DREMIO_PID_DIR:-${DREMIO_HOME}/run}"
+
+# Some variables
+# Work out java location so can print version into log.
+if [ "$JAVA_HOME" != "" ]; then
+  #echo "run java in $JAVA_HOME"
+  JAVA_HOME=$JAVA_HOME
+fi
+if [ "$JAVA_HOME" = "" ]; then
+  echo "Error: JAVA_HOME is not set."
+  exit 1
+fi
+
+# The directory where logback should store logs
+logpath="${DREMIO_LOG_DIR}"
+# The JVM GC logs
+loggc="${DREMIO_LOG_DIR}/server.gc"
+# stdout messages
+logout="${DREMIO_LOG_DIR}/server.out"
+pid="$DREMIO_PID_DIR/dremio.pid"
+
+DREMIO_GC_LOGS_ENABLED=${DREMIO_GC_LOGS_ENABLED:-"yes"}
+if [ "$DREMIO_GC_LOGS_ENABLED" != "no" ]; then
+  SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${loggc}"
+fi
+
+# Set default scheduling priority
+DREMIO_NICENESS="${DREMIO_NICENESS:-0}"
+
+thiscmd=$0
+args=$@
+
+case $startStopStatus in
+
+(start)
+    check_before_start
+    echo starting $command, logging to $logout
+    nohup $thiscmd internal_start $command $args < /dev/null >> ${logout} 2>&1  &
+    sleep 1;
+  ;;
+
+(internal_start)
+    dremio_rotate_log $loggc
+
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}m"
+    if echo "$JAVA_VERSION_STRING" | grep '1.7' > /dev/null ; then
+      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxPermSize=${DREMIO_MAX_PERMGEN_MEMORY_SIZE_MB:-512}m"
+    fi
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
+
+    # Add to the command log file vital stats on our environment.
+    echo "`date` Starting $command on `hostname`" >> $logout
+    echo "`ulimit -a`" >> $logout 2>&1
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon \
+        $command "$@" start >> "$logout" 2>&1 &
+    echo $! > "$pid"
+    wait
+  ;;
+
+(stop)
+    rm -f "$DREMIO_START_FILE"
+    if [ -f "$pid" ]; then
+      pidToKill=`cat "$pid"`
+      # kill -0 == see if the PID exists
+      if kill -0 $pidToKill > /dev/null 2>&1; then
+        echo stopping $command
+        echo "`date` Terminating $command pid $pidToKill">> $logout
+        kill $pidToKill > /dev/null 2>&1
+        waitForProcessEnd $pidToKill $command
+        rm "$pid"
+      else
+        retval=$?
+        echo no $command to stop because kill -0 of pid $pidToKill failed with status $retval
+      fi
+    else
+      echo no $command to stop because no pid file "$pid"
+    fi
+  ;;
+
+(restart)
+    # stop the command
+    $thiscmd --config "${DREMIO_CONF_DIR}" stop $command $args &
+    wait_until_done $!
+    # wait a user-specified sleep period
+    sp=${DREMIO_RESTART_SLEEP:-3}
+    if [ $sp -gt 0 ]; then
+      sleep $sp
+    fi
+    # start the command
+    $thiscmd --config "${DREMIO_CONF_DIR}" start $command $args &
+    wait_until_done $!
+  ;;
+
+(status)
+
+    if [ -f "$pid" ]; then
+      TARGET_PID=`cat "$pid"`
+      if kill -0 $TARGET_PID > /dev/null 2>&1; then
+        echo $command is running.
+        exit 0
+      else
+        echo "$pid file is present but $command not running."
+        exit 1
+      fi
+    else
+      echo $command not running.
+      exit 2
+    fi
+    ;;
+
+(*)
+  echo $usage
+  exit 1
+  ;;
+esac

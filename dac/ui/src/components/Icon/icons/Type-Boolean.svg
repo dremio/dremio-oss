@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="18px" viewBox="0 0 24 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/Type-Boolean</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Type-Boolean" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup" id="icon-box-24-copy-10">
+                <g sketch:type="MSShapeGroup">
+                    <rect id="icon-box-16" x="0" y="0" width="24" height="18"></rect>
+                    <rect id="Rectangle-234" fill="#77818F" x="12" y="3" width="1" height="12"></rect>
+                    <path d="M10.1269531,6.66210938 L8.25683594,6.66210938 L8.25683594,13 L7.36328125,13 L7.36328125,6.66210938 L5.49804688,6.66210938 L5.49804688,5.890625 L10.1269531,5.890625 L10.1269531,6.66210938 Z M19.0527344,9.86035156 L16.6503906,9.86035156 L16.6503906,13 L15.7568359,13 L15.7568359,5.890625 L19.4580078,5.890625 L19.4580078,6.66210938 L16.6503906,6.66210938 L16.6503906,9.09375 L19.0527344,9.09375 L19.0527344,9.86035156 Z" id="T--F" fill="#77818F"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

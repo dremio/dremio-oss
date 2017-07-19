@@ -1,0 +1,83 @@
+/*
+ * Copyright 2016 Dremio Corporation
+ */
+ <@pp.dropOutputFile />
+ <@pp.changeOutputFile name="javacc/QueryConverter.jj" />
+
+options {
+  STATIC=false;
+}
+
+PARSER_BEGIN(QueryConverter)
+/*
+ * Copyright 2016 Dremio Corporation
+ */
+package com.dremio.lucene.queryparser.classic;
+
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import com.dremio.exec.planner.sql.parser.SqlContains;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * QueryConverter parses a lucene query string, and replaces the field names with the corresponding field names as
+ * defined in a fieldMap
+ */
+public class QueryConverter {
+
+  /**
+   * Parses a query, and returns a new string in which the field names have been replaced according to the mapping
+   * @param query The original query string
+   * @param fieldMap the field mapping used for replacedment
+   * @return The new query string
+   * @throws Exception
+   */
+  public static String convert(String query, Map<String,String> fieldMap) throws Exception {
+    QueryConverter q = new QueryConverter(new java.io.StringReader(query));
+    return q.ConvertedLuceneQuery(fieldMap);
+  }
+
+  private SqlParserPos getPos() {
+    return null;
+  }
+}
+
+PARSER_END(QueryConverter)
+
+TOKEN_MGR_DECLS: {
+  void leftParen() {
+  //no op
+  }
+
+  void rightParen() {
+  //no op
+  }
+}
+
+<DEFAULT> TOKEN : {
+  <BLANK: "" > : LUCENE_DEFAULT
+}
+
+<NEVER> TOKEN : {
+  <L_CONTAINS: "L_CONTAINS" >
+}
+
+String ConvertedLuceneQuery(Map<String,String> fieldMap) :
+{
+  StringBuilder b = new StringBuilder();
+}
+{
+  <BLANK> Query(b, fieldMap)
+  {
+    return b.toString().trim();
+  }
+}
+
+// Everything below is same as lucene.ftl
+<#include "/@includes/lucene.ftl" />
+

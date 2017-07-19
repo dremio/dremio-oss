@@ -1,0 +1,429 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package exec.shared;
+
+option java_package = "com.dremio.exec.proto";
+option java_outer_classname = "UserBitShared";
+option optimize_for = SPEED;
+
+import "Types.proto";
+import "Coordination.proto";
+import "SchemaDef.proto";
+
+enum RpcChannel {
+  BIT_CONTROL = 0;
+  BIT_DATA = 1;
+  USER = 2;
+}
+
+enum QueryType {
+  SQL = 1;
+  LOGICAL = 2;
+  PHYSICAL = 3;
+  EXECUTION = 4;
+
+  /* Input is a prepared statement */
+  PREPARED_STATEMENT = 5;
+}
+
+message UserCredentials {
+  optional string user_name = 1;
+}
+
+message QueryId {
+  optional sfixed64 part1 = 1;
+  optional sfixed64 part2 = 2;
+}
+
+message ExternalId {
+  optional sfixed64 part1 = 1;
+  optional sfixed64 part2 = 2;
+}
+
+message RpcEndpointInfos {
+    optional string name = 1;               // example: Dremio Server, Dremio C++ client
+    optional string version = 2;            // example: 1.9.0
+    optional uint32 major_version = 3;      // example: 1
+    optional uint32 minor_version = 4;      // example: 9
+    optional uint32 patch_version = 5;      // example: 0
+    optional string application = 6;        // example: Tableau 9.3
+    optional uint32 build_number = 7;       // example: 32
+    optional string version_qualifier = 8;  // example: SNAPSHOT
+}
+
+enum WorkloadClass {
+  REALTIME = 1; // Reserved for internal use. 
+  NRT = 2; // for things like UI submission.
+  GENERAL = 3; // standard pool.
+  BACKGROUND = 4;
+}
+
+message DremioPBError{
+  enum ErrorType {
+    /* equivalent to SQLClientInfoException
+     * - handshake version error
+     * - invalid schema
+     */
+    CONNECTION = 0;
+    /* equivalent to SQLRecoverableException
+     * - corrupt files: can't be read. FS read error
+     * - parsing error due to incomplete or incorrectly written records
+     */
+    DATA_READ = 1;
+    /* equivalent to SQLDataException
+     * - data type unsupported by format
+     */
+    DATA_WRITE = 2;
+    /* equivalent to SQLDataException
+     * - Casting errors
+     * - function not found for incoming types after implicit casting
+     * - Flatten misuse
+     */
+    FUNCTION = 3;
+    /* equivalent to SQLSyntaxErrorException
+     * - typos
+     * - missing table
+     * - SQL keyword misuse
+     * - function names/resolution
+     */
+    PARSE = 4;
+    /* equivalent to SQLInvalidAuthorizationSpecException
+     */
+    PERMISSION = 5;
+    /* equivalent to SQLNonTransientException
+     */
+    PLAN = 6;
+    /* equivalent to SQLRecoverableException or SQLTransientException
+     * - Recoverable: memory, disk
+     * - Transient: network
+     */
+    RESOURCE = 7;
+    /* equivalent to SQLNonTransientException.
+     */
+    SYSTEM = 8;
+    /* equivalent to SQLFeatureNotSupportedException
+     * - type change
+     * - schema change
+     */
+    UNSUPPORTED_OPERATION = 9;
+    /* SQL validation exception
+     * - invalid schema path
+     * - invalid entries in SQL tree
+     */
+    VALIDATION = 10;
+
+    /* Out of Memory exception
+     * This is mainly used for re-attempting the query
+     * This is a new error type not present in Apache Drill
+     */
+    OUT_OF_MEMORY = 1011;
+
+    /* Schema change exception
+     * This is mainly used for re-attempting the query
+     * This is a new error type not present in Apache Drill
+     */
+    SCHEMA_CHANGE = 1012;
+
+    /* I/O exception
+     * 
+     * This is a new error type not present in Apache Drill
+     */
+    IO_EXCEPTION = 1013;
+  }
+  optional string error_id = 1; // for debug tracing purposes
+  optional NodeEndpoint endpoint = 2;
+  optional ErrorType error_type = 3;
+  optional string message = 4;
+  optional ExceptionWrapper exception = 5;
+  repeated ParsingError parsing_error = 6; //optional, used when providing location of error within a piece of text.
+
+  // these additional fields are not present in Apache Drill
+  optional string original_message = 1001;
+  repeated string context = 1002;
+}
+
+message ExceptionWrapper {
+  optional string exception_class = 1;
+  optional string message = 2;
+  repeated StackTraceElementWrapper stack_trace = 3;
+  optional ExceptionWrapper cause = 4;
+}
+
+message StackTraceElementWrapper {
+    optional string class_name = 1;
+    optional string file_name = 2;
+    optional int32 line_number = 3;
+    optional string method_name = 4;
+    optional bool is_native_method = 5;
+}
+
+
+message ParsingError{
+  optional int32 start_column = 2;
+  optional int32 start_row = 3;
+  optional int32 end_column = 4;
+  optional int32 end_row = 5;
+}
+
+message RecordBatchDef {
+  optional int32 record_count = 1;
+  repeated SerializedField field = 2;
+  optional bool carries_two_byte_selection_vector = 3;
+}
+
+message NamePart{
+
+  enum Type{
+    NAME = 0;
+    ARRAY = 1;
+  }
+
+  optional Type type = 1;
+  optional string name = 2;
+  optional NamePart child = 3;
+}
+
+message SerializedField {
+  optional common.MajorType major_type = 1; // the type associated with this field.
+  optional NamePart name_part = 2;
+  repeated SerializedField child = 3; // only in the cases of type == MAP or REPEAT_MAP or REPEATED_LIST
+
+  optional int32 value_count = 4;
+  optional int32 var_byte_length = 5;
+  optional int32 buffer_length = 7;
+}
+
+message NodeStatus {
+	optional int32 node_id = 1;
+	optional int64 memory_footprint = 2;
+}
+
+/*
+ * Used by the server to report informations about the query state to the client
+ */
+message QueryResult {
+	enum QueryState {
+	  STARTING = 0; // query has been scheduled for execution. This is post-enqueued.
+	  RUNNING = 1;
+	  COMPLETED = 2; // query has completed successfully
+	  CANCELED = 3; // query has been cancelled, and all cleanup is complete
+	  FAILED = 4;
+	  NO_LONGER_USED_1 = 5; // formerly meant cancellation requested, no longer used.
+	  ENQUEUED = 6; // query has been enqueued. this is pre-starting.
+	}
+
+	optional QueryState query_state = 1;
+	optional QueryId query_id = 2;
+	repeated DremioPBError error = 3;
+}
+
+/*
+ * Used by the server when sending query result data batches to the client
+ */
+message QueryData {
+  optional QueryId query_id = 1;
+  optional int32 row_count = 2;
+  optional RecordBatchDef def = 3;
+}
+
+message QueryInfo {
+  optional string query = 1;
+  optional int64 start = 2;
+  optional QueryResult.QueryState state = 3;
+  optional string user = 4 [default = "-"];
+  optional NodeEndpoint foreman = 5;
+}
+
+message QueryProfile {
+  optional QueryId id = 1;
+  optional QueryType type = 2;
+  optional int64 start = 3;
+  optional int64 end = 4;
+  optional string query = 5;
+  optional string plan = 6;
+  optional NodeEndpoint foreman = 7;
+  optional QueryResult.QueryState state = 8;
+  optional int32 total_fragments = 9;
+  optional int32 finished_fragments = 10;
+  repeated MajorFragmentProfile fragment_profile = 11;
+  optional string user = 12 [default = "-"];
+  optional string error = 13;
+  optional string verbose_error = 14;
+  optional string error_id = 15;
+  optional string error_node = 16;
+  optional int64 planning_start = 17;
+  optional int64 planning_end = 18;
+  optional string json_plan = 19;
+  optional QueryId prepare_id = 24;
+  optional RpcEndpointInfos client_info = 25;
+  repeated PlanPhaseProfile plan_phases = 26;
+  optional AccelerationProfile acceleration_profile = 27;
+}
+
+message AccelerationProfile {
+  optional bool accelerated = 1;
+  optional int32 num_substitutions = 2;
+  optional int64 millis_taken_getting_materializations = 3;
+  optional int64 millis_taken_normalizing = 4;
+  optional int64 millis_taken_substituting = 5;
+  repeated LayoutMaterializedViewProfile layout_profiles = 7;
+}
+
+message LayoutMaterializedViewProfile {
+  optional string layout_id = 1;
+  optional string materialization_id = 2;
+  optional int64 materialization_expiration_timestamp = 3;
+  optional string plan = 5;
+  repeated string dimensions = 6;
+  repeated string measures = 7;
+  repeated string sorted_columns = 8;
+  repeated string partitioned_columns = 9;
+  repeated string distribution_columns = 10;
+  repeated string display_columns = 11;
+  optional int32 num_used = 12;
+  optional int32 num_substitutions = 13;
+  // optional int64 millis_taken_normalizing = 14;  Not used anymore.
+  optional int64 millis_taken_substituting = 15;
+  repeated SubstitutionProfile substitutions = 16;
+  repeated string normalized_plans = 17;
+  repeated string normalized_query_plans = 18;
+}
+
+message SubstitutionProfile {
+  optional string plan = 1;
+}
+
+message PlanPhaseProfile {
+  optional string phase_name = 1;
+  optional int64 duration_millis = 2;
+  optional string plan = 3;
+}
+
+message MajorFragmentProfile {
+  optional int32 major_fragment_id = 1;
+  repeated MinorFragmentProfile minor_fragment_profile = 2;
+}
+
+message MinorFragmentProfile {
+  optional FragmentState state = 1;
+  optional DremioPBError error = 2;
+  optional int32 minor_fragment_id = 3;
+  repeated OperatorProfile operator_profile = 4;
+  optional int64 start_time = 5;
+  optional int64 end_time = 6;
+  optional int64 memory_used = 7;
+  optional int64 max_memory_used = 8;
+  optional NodeEndpoint endpoint = 9;
+  optional int64 last_update = 10;
+  optional int64 last_progress = 11;
+
+// if you make any changes to the fragment stats make sure to update the profile rendering code in FragmentWrapper
+  optional int64 sleeping_duration = 1001;
+  optional int64 blocked_duration = 1002;
+  optional int64 first_run = 1003;
+  optional int64 run_duration = 1004;
+  optional int64 num_runs = 1005;
+  optional int64 setup_duration = 1006;
+  optional int64 finish_duration = 1007;
+}
+
+message OperatorProfile {
+  repeated StreamProfile input_profile = 1;
+  optional int32 operator_id = 3;
+  optional int32 operator_type = 4;
+  optional int64 setup_nanos = 5;
+  optional int64 process_nanos = 6;
+  optional int64 peak_local_memory_allocated = 7;
+  repeated MetricValue metric = 8;
+  optional int64 wait_nanos = 9;
+}
+
+message StreamProfile {
+  optional int64 records = 1;
+  optional int64 batches = 2;
+  optional int64 schemas = 3;
+  optional int64 size = 4; // in bytes
+}
+
+message MetricValue {
+  optional int32 metric_id = 1;
+  optional int64 long_value = 2;
+  optional double double_value = 3;
+}
+
+enum FragmentState {
+  SENDING = 0;
+  AWAITING_ALLOCATION = 1;
+  RUNNING = 2;
+  FINISHED = 3;
+  CANCELLED = 4;
+  FAILED = 5;
+  CANCELLATION_REQUESTED = 6;
+}
+
+enum CoreOperatorType {
+  SINGLE_SENDER = 0;
+  BROADCAST_SENDER = 1;
+  FILTER = 2;
+  HASH_AGGREGATE = 3;
+  HASH_JOIN = 4;
+  MERGE_JOIN = 5;
+  HASH_PARTITION_SENDER = 6;
+  LIMIT = 7;
+  MERGING_RECEIVER = 8;
+  ORDERED_PARTITION_SENDER = 9;
+  PROJECT = 10;
+  UNORDERED_RECEIVER = 11;
+  RANGE_SENDER = 12;
+  SCREEN = 13;
+  SELECTION_VECTOR_REMOVER = 14;
+  STREAMING_AGGREGATE = 15;
+  TOP_N_SORT = 16;
+  EXTERNAL_SORT = 17;
+  TRACE = 18;
+  UNION = 19;
+  OLD_SORT = 20;
+  PARQUET_ROW_GROUP_SCAN = 21;
+  HIVE_SUB_SCAN = 22;
+  SYSTEM_TABLE_SCAN = 23;
+  MOCK_SUB_SCAN = 24;
+  PARQUET_WRITER = 25;
+  DIRECT_SUB_SCAN = 26;
+  TEXT_WRITER = 27;
+  TEXT_SUB_SCAN = 28;
+  JSON_SUB_SCAN = 29;
+  INFO_SCHEMA_SUB_SCAN = 30;
+  COMPLEX_TO_JSON = 31;
+  PRODUCER_CONSUMER = 32;
+  HBASE_SUB_SCAN = 33;
+  WINDOW = 34;
+  NESTED_LOOP_JOIN = 35;
+  AVRO_SUB_SCAN = 36;
+  MONGO_SUB_SCAN = 37;
+  ELASTICSEARCH_SUB_SCAN = 38;
+  ELASTICSEARCH_AGGREGATOR_SUB_SCAN = 39;
+  FLATTEN = 40;
+  EXCEL_SUB_SCAN = 41;
+  ARROW_SUB_SCAN = 42;
+  ARROW_WRITER = 43;
+  JSON_WRITER = 44;
+  VALUES_READER = 45;
+  CONVERT_FROM_JSON = 46;
+  JDBC_SUB_SCAN = 47;
+  DICTIONARY_LOOKUP = 48;
+  WRITER_COMMITTER = 49;
+  ROUND_ROBIN_SENDER = 50;
+}

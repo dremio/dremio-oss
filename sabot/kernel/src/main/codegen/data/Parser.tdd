@@ -1,0 +1,142 @@
+#
+# Copyright (C) 2017 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+{
+  # Generated parser implementation class package and name
+  package: "com.dremio.exec.planner.sql.parser.impl",
+  class: "ParserImpl",
+
+  # List of import statements.
+  imports: [
+    "com.dremio.exec.planner.sql.parser.*",
+    "org.apache.calcite.util.*",
+    "com.dremio.exec.util.*",
+    "java.util.*"
+  ]
+
+  # List of keywords.
+  keywords: [
+    "DATABASES",
+    "SCHEMAS",
+    "SHOW",
+    "LOCALSORT",
+    "TABLES",
+    "USE",
+    "FILES",
+    "REFRESH",
+    "METADATA",
+    "IF"
+    "STORE",
+    "SINGLE",
+    "WRITER",
+    "HASH",
+    "ROUNDROBIN",
+    "DISTRIBUTE",
+    "ACCELERATION",
+    "AGGREGATE",
+    "LAYOUT",
+    "DIMENSIONS",
+    "MEASURES",
+    "RAW",
+    "DISPLAY",
+    "ENABLE",
+    "DISABLE",
+    "FORGET",
+    "PDS",
+    "VDS",
+    "DATASET"
+  ]
+
+  nonReservedKeywords: [
+    "STORE",
+    "SINGLE",
+    "WRITER",
+    "LOCALSORT",
+    "HASH",
+    "ROUNDROBIN"
+    "DISTRIBUTE",
+    "ACCELERATION",
+    "AGGREGATE",
+    "LAYOUT",
+    "DIMENSIONS",
+    "MEASURES",
+    "RAW",
+    "DISPLAY",
+    "ENABLE",
+    "DISABLE",
+    "FORGET",
+    "PDS",
+    "VDS",
+    "DATASET"
+  ]
+
+  # List of methods for parsing custom SQL statements.
+  statementParserMethods: [
+    "SqlShowTables()",
+    "SqlShowSchemas()",
+    "SqlDescribeTable()",
+    "SqlUseSchema()",
+    "SqlCreateOrReplaceView()",
+    "SqlDropView()",
+    "SqlShowFiles()",
+    "SqlCreateTable()",
+    "SqlDropTable()",
+    "SqlRefreshMetadata()",
+    "SqlAccel()",
+  ]
+
+  # List of methods for parsing custom literals.
+  # Example: ParseJsonLiteral().
+  literalParserMethods: [
+    "LuceneQuery()"
+  ]
+
+  # List of methods for parsing custom data types.
+  dataTypeParserMethods: [
+  ]
+
+
+  # List of methods for parsing extensions to "ALTER <scope>" calls.
+  # Each must accept arguments "(SqlParserPos pos, String scope)".
+  # Example: "SqlUploadJarNode"
+  alterStatementParserMethods: [
+  ]
+
+  # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
+  # Each must accept arguments "(SqlParserPos pos, boolean replace)".
+  createStatementParserMethods: [
+  ]
+
+  # List of methods for parsing extensions to "DROP" calls.
+  # Each must accept arguments "(SqlParserPos pos)".
+  dropStatementParserMethods: [
+  ]
+
+  # List of files in @includes directory that have parser method
+  # implementations for custom SQL statements, literals or types
+  # given as part of "statementParserMethods", "literalParserMethods" or
+  # "dataTypeParserMethods".
+  implementationFiles: [
+    "parserImpls.ftl",
+    "alter.ftl",
+    "lucene.ftl"
+  ]
+
+  includeCompoundIdentifier: false,
+  includeBraces: false,
+  includeAdditionalDeclarations: true,
+  identifierMaxLength: 1024
+}

@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<component>
+  <dependencySets>
+    <dependencySet>
+      <!-- Now, select which projects to include in this module-set. -->
+      <includes>
+        <include>com.dremio:*:jar</include>
+        <include>com.dremio.*:*:jar</include>
+      </includes>
+      <excludes>
+        <exclude>com.dremio.*:*-shade</exclude>
+        <exclude>com.dremio.*:*-shaded</exclude>
+        <exclude>com.dremio.jdbc:*</exclude>
+        <exclude>com.dremio:dremio-jdbc:*</exclude>
+        <exclude>com.dremio.distribution:*</exclude>
+        <exclude>com.dremio.provision:dremio-shimloader:jar</exclude>
+      </excludes>
+      <outputDirectory>jars</outputDirectory>
+      <useProjectArtifact>false</useProjectArtifact>
+    </dependencySet>
+
+    <dependencySet>
+      <outputDirectory>jars/3rdparty/</outputDirectory>
+      <unpack>false</unpack>
+      <useProjectArtifact>false</useProjectArtifact>
+      <includes>
+        <include>com.dremio.*:*-shade</include>
+        <include>com.dremio.*:*-shaded</include>
+        <include>com.dremio.jdbc:*</include>
+      </includes>
+    </dependencySet>
+
+    <dependencySet>
+      <outputDirectory>jars/3rdparty/</outputDirectory>
+      <unpack>false</unpack>
+      <useProjectArtifact>false</useProjectArtifact>
+      <excludes>
+        <exclude>com.dremio:*</exclude>
+        <exclude>com.dremio.*:*</exclude>
+        <exclude>org.apache.twill:*</exclude>
+      </excludes>
+    </dependencySet>
+  </dependencySets>
+</component>

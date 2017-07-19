@@ -1,0 +1,10 @@
+{
+    "person": {
+        "name": {
+            "first_name": "BillyBob",
+            "last_name": "Hecka"
+        },
+        "sid": 12345
+    },
+    "message": "This is a message."
+}

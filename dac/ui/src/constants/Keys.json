@@ -1,0 +1,8 @@
+{
+  "ENTER": 13,
+  "BACKSPACE": 8,
+  "TAB": 9,
+  "LEFT": 37,
+  "RIGHT": 39,
+  "ESCAPE": 27
+}

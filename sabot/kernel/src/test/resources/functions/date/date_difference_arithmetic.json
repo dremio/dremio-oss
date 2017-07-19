@@ -1,0 +1,34 @@
+{
+  "head" : {
+    "version" : 1,
+    "generator" : {
+      "type" : "com.dremio.exec.planner.logical.LogicalPlanImplementor",
+      "info" : ""
+    },
+    "type" : "PHYSICAL",
+    "resultMode" : "EXEC"
+  },
+  graph:[
+  {
+      @id:1,
+      pop:"fs-scan",
+      format: {type: "json"},
+      storage:{type: "file_default", connection: "classpath:///"},
+      files:["#{TEST_FILE}"]
+  },
+        {
+            pop:"project",
+            @id:2,
+            child: 1,
+            exprs: [
+              { ref: "Date1", expr: "cast('2008-2-23' as date) - cast('2007-2-23' as date)"},
+              { ref: "TimeStamp1", expr: "cast('2008-2-23 12:00:00' as timestamp) - cast('2009-2-23 12:01:00' as timestamp) "}
+            ]
+        },
+        {
+            @id: 3,
+            child: 2,
+            pop: "screen"
+        }
+    ]
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "name": "ds1",
+    "parentsList": [
+      {
+        "datasetPathList": [
+          "dfs",
+          "tmp",
+          "dac-sample1.json"
+        ]
+      }
+    ],
+    "sql": "SELECT *\nFROM dfs.tmp.\"dac-sample1.json\"",
+    "sqlFieldsList": [
+      {
+        "isNullable": true,
+        "name": "*",
+        "type": "ANY"
+      }
+    ],
+    "state": {
+      "from": {
+        "datasetPath": "dfs.tmp.\"dac-sample1.json\"",
+        "type": "Table"
+      }
+    },
+    "version": "00b4a06bb72075b8"
+  },
+  {
+    "name": "ds2",
+    "parentsList": [
+      {
+        "datasetPathList": [
+          "dfs",
+          "tmp",
+          "dac-sample1.json"
+        ]
+      }
+    ],
+    "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20",
+    "sqlFieldsList": [
+      {
+        "isNullable": true,
+        "name": "*",
+        "type": "ANY"
+      }
+    ],
+    "state": {
+      "from": {
+        "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20",
+        "type": "SQL"
+      }
+    },
+    "version": "00b4a06bb884c7d5"
+  }
+]

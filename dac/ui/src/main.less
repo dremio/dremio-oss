@@ -1,0 +1,392 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "./uiTheme/less/reset.less";
+@import "./uiTheme/fonts/fonts.less";
+
+@min-screen-width: 950px;
+@min-screen-height: 700px;
+
+@body-bg: #fff;
+@font-size-base: 14px;
+@line-height-base: 1.428571429;
+@line-height-computed: floor((@font-size-base * @line-height-base));
+@table-cell-padding: 8px;
+@table-condensed-cell-padding: 5px;
+@table-bg: transparent;
+@table-bg-accent: #f9f9f9;
+@table-bg-hover: #f5f5f5;
+@table-bg-active: @table-bg-hover;
+@table-border-color: rgba(0,0,0,.1);
+@blue: #43B8C9;
+
+.VirtualScroll {
+  outline: none;
+}
+
+.ReactVirtualized__Grid {
+  outline: none;
+}
+
+.reactable-header-sortable {
+  cursor: pointer;
+}
+
+.noneDisplay {
+  display: none;
+}
+
+.ReactModal__Overlay {
+  z-index: 31000;
+}
+
+// http://stackoverflow.com/questions/12046315/prevent-overscrolling-of-web-page
+html {
+  height: 100%;
+
+  // preventing the scroll bounce
+  // but making sure can still scroll when below min width/height
+  @media (min-width: @min-screen-width) and (min-height: @min-screen-height) {
+    overflow: hidden;
+  }
+}
+body {
+  height: 100%;
+  overflow: auto;
+  margin: 0;
+  font-family: Roboto, sans-serif;
+  min-width: @min-screen-width;
+  min-height: @min-screen-height;
+  position: relative; /* so modal portal can be position: absolute relative to body */
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+#root {
+  height: 100%;
+
+  > div {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .item-block {
+    [type="checkbox"]:not(:checked),
+    [type="checkbox"]:checked {
+      position: absolute;
+      left: -9999px;
+    }
+
+    [type="checkbox"] + label {
+      position: relative;
+      padding-left: 25px;
+      cursor: pointer;
+    }
+
+    /* checkbox aspect */
+    [type="checkbox"] + label::before {
+      content: '';
+      position: absolute;
+      left:0; top: 2px;
+      width: 17px; height: 17px;
+      border: 1px solid #aaa;
+      background: #f8f8f8;
+      border-radius: 3px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,.3)
+    }
+
+    /* checked mark aspect */
+    [type="checkbox"] + label::after {
+      content: '✔';
+      position: absolute;
+      top: 5px;
+      left: 2px;
+      font-size: 16px;
+      line-height: 0.8;
+      color: #000;
+      transition: all .2s;
+      opacity: 0;
+      transform: scale(0);
+    }
+
+    [type="checkbox"]:checked + label::after {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* disabled checkbox */
+    [type="checkbox"]:disabled + label::before {
+      box-shadow: none;
+      border-color: #bbb;
+      background-color: #ddd;
+    }
+
+    [type="checkbox"]:disabled:checked + label::after {
+      color: #999;
+    }
+
+    [type="checkbox"]:disabled + label {
+      color: #aaa;
+    }
+
+    /* accessibility */
+    [type="checkbox"]:focus + label::before {
+      border: 1px dotted blue;
+    }
+
+    /* hover style just for information */
+    label:hover::before {
+      border: 1px solid #4778d9 !important;
+    }
+
+    .item-label {
+      display: inline-block;
+      cursor: pointer;
+      position: relative;
+      padding-left: 25px;
+      margin-right: 15px;
+      font-size: 13px;
+      font-weight: 500;
+
+      &::before {
+        content: "";
+        display: inline-block;
+        width: 17px;
+        height: 17px;
+        margin-right: 10px;
+        position: absolute;
+        left: 0;
+        bottom: 1px;
+        background-color: #E1E1E1;
+        box-shadow: inset 0 2px 3px 0 rgba(0, 0, 0, .1), 0 1px 0 0 rgba(255, 255, 255, .7);
+        border-radius: 8px;
+      }
+    }
+
+    .item-input[type=radio]:checked + label::before {
+      content: "\2022";
+      color: #000;
+      font-size: 23px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .item-input[type=radio] {
+      display: none;
+    }
+  }
+}
+
+/* styles for tables */
+table {
+  background-color: @table-bg;
+  border-collapse: collapse;
+}
+caption {
+  padding-top: @table-cell-padding;
+  padding-bottom: @table-cell-padding;
+  text-align: left;
+}
+th {
+  text-align: left;
+}
+
+.table {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: @line-height-computed;
+  > thead,
+  > tbody,
+  > tfoot {
+    > tr {
+      > th,
+      > td {
+        padding: @table-cell-padding;
+        vertical-align: middle;
+      }
+    }
+  }
+  > thead > tr > th {
+    vertical-align: bottom;
+    border-bottom: 1px solid @table-border-color;
+  }
+  > caption + thead,
+  > colgroup + thead,
+  > thead:first-child {
+    > tr:first-child {
+      > th,
+      > td {
+        border-top: 0;
+      }
+    }
+  }
+
+  > tbody + tbody {
+    border-top: 1px solid @table-border-color;
+  }
+
+  .table {
+    background-color: @body-bg;
+  }
+}
+
+.table-acceleration {
+  > thead,
+  > tbody {
+    > tr {
+      > th,
+      > td {
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+.table-condensed {
+  > thead,
+  > tbody,
+  > tfoot {
+    > tr {
+      > th,
+      > td {
+        padding: @table-condensed-cell-padding;
+      }
+    }
+  }
+}
+
+.table-striped {
+  > tbody > tr:nth-of-type(odd) {
+    background-color: @table-bg-accent;
+  }
+}
+
+.table-hover {
+  > tbody > tr:hover {
+    background-color: @table-bg-hover;
+  }
+}
+
+.table-responsive {
+  overflow-x: auto;
+  min-height: 0.01%;
+}
+
+table col[class*="col-"] {
+  position: static;
+  float: none;
+  display: table-column;
+}
+table {
+  td,
+  th {
+    &[class*="col-"] {
+      position: static;
+      float: none;
+      display: table-cell;
+    }
+  }
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  margin: 4px 0 0;
+  line-height: normal;
+}
+input[type="file"] {
+  display: block;
+}
+input[type="range"] {
+  display: block;
+  width: 100%;
+}
+select[multiple],
+select[size] {
+  height: auto;
+}
+
+
+a{
+  color: @blue;
+  text-decoration: none;
+  outline: 0;
+  cursor: pointer;
+  &:hover{
+    text-decoration: underline;
+  }
+}
+button{
+  cursor: pointer;
+}
+input, textarea, keygen, select, button {
+  font-family: Roboto, Arial, sans-serif;
+  box-sizing: border-box;
+}
+/* several small tricks to customazi calendar icons, active elements */
+.rdr-MonthAndYear-button.next, .rdr-MonthAndYear-button.prev {
+  i {
+    border: none !important;
+    width: 26px !important;
+    height: 26px !important;
+    position: relative;
+    top: -6px;
+    left: -16px;
+    content: url(./components/Icon/icons/Arrow-Right.svg);
+  }
+}
+
+.rdr-MonthAndYear-button.prev i {
+  content: url(./components/Icon/icons/Arrow-Left.svg);
+  left: -6px;
+}
+
+.rdr-Days {
+  max-height: 126px;
+  min-height: 126px;
+}
+
+.rdr-Day {
+  height: 21px !important;
+}
+
+.today {
+  background: transparent !important;
+}
+
+.rdr-Day.is-selected:not(.is-passive), .rdr-Day.is-inRange:not(.is-passive) {
+  position: relative;
+  border-bottom: 2px solid #fff !important;
+
+  &::before {
+    content: '';
+    position: absolute;
+    display: inline-block;
+    width: 21px;
+    height: 20px;
+    left: -1px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.0980392);
+  }
+}
+/* tricks end */
+
+.container-striped {
+  > :nth-of-type(odd) {
+    background-color: @table-bg-accent;
+  }
+}

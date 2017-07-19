@@ -1,0 +1,5 @@
+{ "a": 1, "mylist":["a", "b", "c"] }
+{ "a": 2, "mylist":null }
+{ "a": 2, "mylist":[] }
+{ "a": 3 }
+{ "a": 4, "mylist":["a", "b", "c"] }

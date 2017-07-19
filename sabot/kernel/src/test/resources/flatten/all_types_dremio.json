@@ -1,0 +1,338 @@
+[
+    {
+        "float_col": 1.5,
+        "int_col": 1,
+        "bool_col": null,
+        "int_list_col": [
+            1,
+            2,
+            3
+        ],
+        "float_list_col": [
+            1.1,
+            2.2,
+            3.3
+        ],
+        "bool_list_col": [
+            true,
+            false,
+            true
+        ],
+        "str_list_col": [
+            "1",
+            "2",
+            "3"
+        ],
+        "str_list_list_col": [
+            [
+                "a",
+                "B",
+                "c"
+            ]
+        ],
+        "order_list": [
+            {
+                "order_id": 1,
+                "product": "snake oil",
+                "quantity": 5,
+                "date": "2014-05-10 01:00:10.000"
+            },
+            {
+                "order_id": 3,
+                "product": "virtual boy",
+                "quantity": 1,
+                "date": null
+            }
+        ],
+        "user_map": {
+            "username": "Jonny",
+            "age": 29,
+            "location": {
+                "city": "San Jose",
+                "state": "CA"
+            },
+            "friend_user_ids": []
+        },
+        "int_text_col": "1",
+        "float_text_col": "1.5",
+        "time_text_col": "01:00:00",
+        "timestamp_text_col": "2014-05-10 01:00:10.000",
+        "date_text_col": "1995-01-01",
+        "splittable_col": "1,2,3",
+        "address": "123 fake street somecity beststate 12345",
+        "text_col": "Hello World!"
+    },
+    {
+        "float_col": null,
+        "int_col": null,
+        "bool_col": false,
+        "int_list_col": [
+            5,
+            4,
+            3
+        ],
+        "str_list_col": [
+            "3",
+            "5",
+            "4",
+            "3"
+        ],
+        "str_list_list_col": [
+            [
+                "word",
+                "of"
+            ],
+            [
+                "the",
+                "day"
+            ]
+        ],
+        "order_list": [],
+        "user_map": {
+            "username": "Timmy",
+            "age": null,
+            "location": {
+                "city": "Sunnyvale",
+                "state": "CA"
+            },
+            "friend_user_ids": [
+                1,
+                10,
+                1001
+            ]
+        },
+        "int_text_col": null,
+        "float_text_col": null,
+        "time_text_col": "08:00:00",
+        "timestamp_text_col": null,
+        "date_text_col": "1970-01-01",
+        "splittable_col": "5,4,3",
+        "address": "101 first street othercity worststate",
+        "text_col": "This is a string long enough so that it will need the large value popover to show the full value."
+    },
+    {
+        "float_col": 1.5,
+        "int_col": 1,
+        "bool_col": false,
+        "int_list_col": null,
+        "str_list_col": null,
+        "str_list_list_col": null,
+        "order_list": [
+            {
+                "order_id": 5000000001,
+                "product": null,
+                "quantity": 0,
+                "date": "1995-03-03 03:00:30.000"
+            },
+            {
+                "order_id": 101,
+                "product": "",
+                "quantity": null,
+                "date": "2013-06-18 05:00:30.000"
+            }
+        ],
+        "user_map": {
+            "username": "Sara",
+            "age": 36,
+            "location": {
+                "city": "Seattle",
+                "state": "WA"
+            },
+            "friend_user_ids": [
+                50,
+                3,
+                2001
+            ]
+        },
+        "int_text_col": "1",
+        "float_text_col": "1.5",
+        "time_text_col": null,
+        "timestamp_text_col": "1995-03-03 03:00:30.000",
+        "date_text_col": "2016-05-30",
+        "splittable_col": null,
+        "address": "303 last street bigcity beststate 98765",
+        "text_col": " abc"
+    },
+    {
+        "float_col": 0.0,
+        "int_col": 0,
+        "bool_col": true,
+        "int_list_col": [
+            100,
+            101
+        ],
+        "str_list_col": [
+            100,
+            101
+        ],
+        "str_list_list_col": [
+            [
+                "asdf",
+                "Qwerty"
+            ]
+        ],
+        "order_list": [
+            {}
+        ],
+        "user_map": {
+            "username": "Dean",
+            "age": 45,
+            "location": {
+                "city": "Las Vegas",
+                "state": "NV"
+            },
+            "friend_user_ids": [
+                1,
+                10
+            ]
+        },
+        "int_text_col": "0",
+        "float_text_col": "0",
+        "time_text_col": "08:00:00",
+        "timestamp_text_col": "1970-01-01 00:00:00.000",
+        "date_text_col": null,
+        "splittable_col": "100,101",
+        "address": null,
+        "text_col": null
+    },
+    {
+        "float_col": 214748364800000.1,
+        "int_col": 98,
+        "bool_col": false,
+        "int_list_col": [
+            9001,
+            9002,
+            9003,
+            9004
+        ],
+        "str_list_col": [
+            "9001",
+            "9002",
+            "9003",
+            "9004"
+        ],
+        "str_list_list_col": [],
+        "order_list": [
+            {},
+            {
+                "order_id": 9001,
+                "product": "betamax blank tape",
+                "quantity": 100,
+                "date": "2014-05-10 01:00:10.000"
+            }
+        ],
+        "user_map": {
+            "username": "Emma",
+            "age": 21,
+            "location": {
+                "city": "Green Bay",
+                "state": "WI"
+            },
+            "friend_user_ids": [
+                1,
+                1,
+                2,
+                3,
+                5,
+                8
+            ]
+        },
+        "int_text_col": "not an integer",
+        "float_text_col": "9.8e100",
+        "time_text_col": "11:59:00",
+        "timestamp_text_col": null,
+        "date_text_col": "2050-12-31",
+        "splittable_col": "9001,9002,9003,9004",
+        "address": "1010 fake street somecity mystate 55555",
+        "text_col": "QWERTY"
+    },
+    {
+        "float_col": -2.147483648,
+        "int_col": -2147483648,
+        "bool_col": false,
+        "int_list_col": [
+            1,
+            2,
+            3
+        ],
+        "str_list_col": [
+            "1",
+            "2",
+            "3"
+        ],
+        "str_list_list_col": [
+            [
+                "asdf"
+            ],
+            []
+        ],
+        "order_list": [
+            {
+                "order_id": 10101010101,
+                "product": "hotcakes",
+                "quantity": 5,
+                "date": "2001-02-05 01:00:10.000"
+            }
+        ],
+        "user_map": {
+            "username": null,
+            "age": 1000001,
+            "location": {
+                "city": null,
+                "state": ""
+            },
+            "friend_user_ids": [
+                42
+            ]
+        },
+        "int_text_col": "-2147483648",
+        "float_text_col": "-2.14748364800000",
+        "time_text_col": null,
+        "timestamp_text_col": "1995-03-03 03:00:30.000",
+        "date_text_col": null,
+        "splittable_col": "1,2,3",
+        "address": "",
+        "text_col": " ABC "
+    },
+    {
+        "float_col": -1.0,
+        "int_col": 2147483648,
+        "bool_col": true,
+        "int_list_col": [],
+        "str_list_col": [],
+        "str_list_list_col": [
+            [],
+            [
+                "1",
+                "two",
+                "3"
+            ]
+        ],
+        "order_list": [
+            {
+                "order_id": null,
+                "product": "virtual boy",
+                "quantity": 1,
+                "date": "1990-06-18 05:00:30.000"
+            }
+        ],
+        "user_map": {
+            "username": "",
+            "age": -1,
+            "location": {
+                "city": "",
+                "state": null
+            },
+            "friend_user_ids": null
+        },
+        "int_text_col": "2147483648",
+        "float_text_col": "not a float",
+        "time_text_col": "03:14:15",
+        "timestamp_text_col": "2050-01-01 01:00:10.000",
+        "date_text_col": "2016-05-30",
+        "splittable_col": "",
+        "address": "1010 fake street somecity mystate 55555",
+        "text_col": "Hello World!"
+    },
+    {}
+]

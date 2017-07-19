@@ -1,0 +1,186 @@
+/*
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.accelerator.proto;
+
+import "acceleration-common.proto";
+import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+
+
+option java_package = "com.dremio.service.accelerator.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "AccelerationDacProtobuf";
+
+// defines messages that represent a user intent
+
+// minimal depiction of an acceleration
+message AccelerationDescriptor {
+  required AccelerationId id = 1;
+  required AccelerationType type = 2;
+  required AccelerationStateDescriptor state = 3 [default = NEW];
+  required AccelerationContextDescriptor context = 4;
+  // acceleration mode
+  required AccelerationMode mode = 5 [default = AUTO];
+  // aggregation layouts
+  required LayoutContainerDescriptor aggregationLayouts = 6;
+  // raw layouts
+  required LayoutContainerDescriptor rawLayouts = 7;
+  // descriptor version for OCC
+  optional uint64 version = 8;
+}
+
+enum AccelerationStateDescriptor {
+  // new acceleration. pipeline is still working on it.
+  NEW = 1;
+  // pipeline is done. acceleration is requested.
+  REQUESTED = 2;
+  // pipeline is done. acceleration is enabled.
+  ENABLED = 3;
+  // pipeline is done. acceleration is disabled.
+  DISABLED = 4;
+  // acceleration processing failed.
+  ERROR = 5;
+  // acceleration is system enabled.
+  ENABLED_SYSTEM = 6;
+  // acceleration is out of date due to changes in dataset.
+  OUT_OF_DATE = 7;
+}
+
+message AccelerationContextDescriptor {
+  // schema of accelerated dataset
+  required RowType datasetSchema = 1;
+  // accelerated dataset details
+  required DatasetConfigDescriptor dataset = 2;
+  // associated job id if this acceleration is based upon a job i.e. anonymous
+  optional com.dremio.service.job.proto.JobId jobId = 3;
+  // logical aggregation fields fed to suggestor
+  required LogicalAggregationDescriptor logicalAggregation = 4;
+}
+
+message DatasetConfigDescriptor {
+  // dataset path
+  repeated string path = 1;
+  required com.dremio.service.namespace.dataset.proto.DatasetType type = 2;
+  optional uint64 version = 3;
+  optional uint64 createdAt = 4;
+  optional VirtualDatasetDescriptor virtualDataset = 5;
+}
+
+// represents a logical aggregation suggested by user
+message LogicalAggregationDescriptor {
+  // logical dimensions
+  repeated LayoutFieldDescriptor dimension = 1;
+  // logical measures
+  repeated LayoutFieldDescriptor measure = 2;
+}
+
+message VirtualDatasetDescriptor {
+  // current sql generated from the state
+  required string sql = 1;
+  // list of parent dataset paths
+  repeated ParentDatasetDescriptor parent = 2;
+}
+
+message ParentDatasetDescriptor {
+  repeated string path = 1;
+  required DatasetType type = 2;
+}
+
+message LayoutContainerDescriptor {
+  // layout type
+  required LayoutType type = 1;
+  // list of layouts
+  repeated LayoutDescriptor layout = 2;
+  // enabled
+  required bool enabled = 3 [default = false];
+}
+
+message LayoutDescriptor {
+  // layout details
+  required LayoutDetailsDescriptor details = 1;
+  // unique layout id
+  optional LayoutId id = 2;
+  // name
+  optional string name = 3;
+}
+
+message LayoutDetailsDescriptor {
+  // partition fields
+  repeated LayoutFieldDescriptor partitionField = 1;
+  // order sensitive list of sort fields
+  repeated LayoutFieldDescriptor sortField = 2;
+  // dimension fields
+  repeated LayoutDimensionFieldDescriptor dimensionField = 3;
+  // measure fields
+  repeated LayoutFieldDescriptor measureField = 4;
+  // display fields
+  repeated LayoutFieldDescriptor displayField = 5;
+  // distribution fields
+  repeated LayoutFieldDescriptor distributionField = 6;
+}
+
+message LayoutFieldDescriptor {
+  // field name
+  required string name = 1;
+}
+
+message LayoutDimensionFieldDescriptor {
+  // field name
+  required string name = 1;
+  // granularity
+  optional DimensionGranularity granularity = 2 [default = DATE];
+}
+
+message AccelerationInfo {
+  // acceleration id
+  required AccelerationId id = 1;
+  // acceleration state
+  required AccelerationStateDescriptor state = 2;
+  // whether API user made a request to accelerate this entry
+  required bool selfRequested = 3;
+  // is aggretation acceleration enabled?
+  required bool aggregationEnabled = 4;
+  // is raw acceleration enabled?
+  required bool rawAccelerationEnabled = 5;
+  // total number of requests
+  required int32 totalRequests = 6;
+}
+
+message AccelerationEntry {
+  required AccelerationDescriptor descriptor = 1;
+  // acceleration requests
+  repeated AccelerationRequest request = 7;
+}
+
+// represents an individual acceleration vote
+message AccelerationRequest {
+  // user requesting acceleration
+  required string username = 1;
+  // epoch time of the request
+  optional uint64 createdAt = 2;
+  // type of acceleration request
+  optional AccelerationType type = 3;
+  // context for acceleration.
+  optional AccelerationRequestContext context = 4;
+
+  message AccelerationRequestContext {
+    // dataset path to accelerate
+    repeated string datasetPath = 1;
+    // job to accelerate
+    optional JobId jobId = 2;
+  }
+}

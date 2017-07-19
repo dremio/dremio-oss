@@ -1,0 +1,11 @@
+{
+  "options": ["Hourly", "Daily", "Weekly", "Monthly"],
+  "every": 1,
+  "day": {
+    "hours": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "mins": [0, 10, 20, 30, 40, 50, 59],
+    "modes": ["AM", "PM"]
+  },
+  "week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+  "month": ["the second", "exact day"]
+}
