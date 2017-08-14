@@ -71,6 +71,7 @@ public final class KryoLogicalPlanSerializers {
   public static LogicalPlanDeserializer forDeserialization(final RelOptCluster cluster, final CalciteCatalogReader catalog,
                                                          final StoragePluginRegistry registry) {
     final Kryo kryo = new Kryo();
+    kryo.getFieldSerializerConfig().setUseAsm(true);
     final RelSerializer serializer = RelSerializer.newBuilder(kryo, cluster, catalog, registry).build();
 
     return new LogicalPlanDeserializer() {

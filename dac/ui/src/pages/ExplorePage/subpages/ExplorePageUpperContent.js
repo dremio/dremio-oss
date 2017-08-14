@@ -32,6 +32,7 @@ const MAX_WIDTH_SETTINGS_PANEL = 290;
 export default class ExplorePageUpperContent extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
+    pageType: PropTypes.string,
     startDrag: PropTypes.func,
     rightTreeVisible: PropTypes.bool,
     sqlState: PropTypes.bool,
@@ -46,7 +47,7 @@ export default class ExplorePageUpperContent extends Component {
   }
 
   render() {
-    const { dataset, dragType, rightTreeVisible, sqlState, sqlSize } = this.props;
+    const { dataset, pageType, dragType, rightTreeVisible, sqlState, sqlSize } = this.props;
     const pullClass = classNames('settings-block',
       {'opened': rightTreeVisible},
       {'closed': !rightTreeVisible}
@@ -60,6 +61,7 @@ export default class ExplorePageUpperContent extends Component {
             <div className='inner-wrap' style={styles.innerWrap}>
               <ExploreInfoHeader
                 dataset={dataset}
+                pageType={pageType}
                 toggleRightTree={this.props.toggleRightTree}
                 rightTreeVisible={rightTreeVisible}
                 exploreViewState={this.props.exploreViewState}

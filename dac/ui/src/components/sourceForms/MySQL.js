@@ -18,13 +18,14 @@ import { Component, PropTypes } from 'react';
 import General from 'components/Forms/General';
 import SingleHost from 'components/Forms/SingleHost';
 import Credentials from 'components/Forms/Credentials';
+import JDBCOptions from 'components/Forms/JDBCOptions';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { section, sectionTitle } from 'uiTheme/radium/forms';
 import AdvancedOptionsExpandable from 'components/Forms/AdvancedOptionsExpandable';
-const SECTIONS = [General, SingleHost, Credentials, MetadataRefresh];
+const SECTIONS = [General, SingleHost, Credentials, JDBCOptions, MetadataRefresh];
 const DEFAULT_PORT = 3306;
 
 export class MySQL extends Component {
@@ -49,6 +50,7 @@ export class MySQL extends Component {
             <div style={section}>
               <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
               <AdvancedOptionsExpandable>
+                <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>
               </AdvancedOptionsExpandable>
             </div>

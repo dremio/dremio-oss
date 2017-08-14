@@ -17,18 +17,6 @@ import { Component, PropTypes } from 'react';
 import Immutable from 'immutable';
 
 
-const clearUndefinedProps = (fields) => {
-  return fields.map((field) => {
-    const clean = {};
-    Object.keys(field).forEach(key => {
-      if (field[key] !== undefined) {
-        clean[key] = field[key];
-      }
-    });
-    return clean;
-  });
-};
-
 export default function FormDirtyStateWatcher(Form) {
   return class extends Component {
     static propTypes = {
@@ -53,6 +41,29 @@ export default function FormDirtyStateWatcher(Form) {
       this.setState({initialValues: this.props.initialValuesForDirtyStateWatcher});
     }
 
+    //Jackson serialization: when value does not exist, it is processed as undefined
+    //We want to remove these undefined values to make check for deep equality
+    //So undefined values are not the only differences between them
+    _removeKeysWithUndefinedValue(valuesList) {
+      return valuesList.map((itemValues) => {
+        const clean = {};
+        // undefined itemValues should be parsed as null if they ever occur
+        if (itemValues === undefined) {
+          return null;
+        }
+        // keep non-objects and nulls as they are
+        if (itemValues === null || typeof itemValues !== 'object') {
+          return itemValues;
+        }
+        Object.keys(itemValues).forEach(key => {
+          if (itemValues[key] !== undefined) {
+            clean[key] = itemValues[key];
+          }
+        });
+        return clean;
+      });
+    }
+
     areArrayFieldsDirty(nextProps) {
       // fields in props used as initial value for array field
       // and tracks field's dirty state because of issue in redux-form
@@ -63,7 +74,8 @@ export default function FormDirtyStateWatcher(Form) {
 
         const currentValue = nextProps.values[field];
         const initialValue = this.state.initialValues[field] || []; // fallback for creation forms
-        return !areFieldsEqual(clearUndefinedProps(currentValue), clearUndefinedProps(initialValue));
+        return !areFieldsEqual(this._removeKeysWithUndefinedValue(currentValue),
+                               this._removeKeysWithUndefinedValue(initialValue));
       });
     }
 

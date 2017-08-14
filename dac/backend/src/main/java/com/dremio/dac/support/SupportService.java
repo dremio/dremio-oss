@@ -355,6 +355,7 @@ public class SupportService implements Service {
     final String submissionId = UUID.randomUUID().toString();
     outSubmissionId.value = submissionId;
 
+    Files.createDirectories(supportPath);
     Path path = supportPath.resolve(submissionId + ".zip");
     outUserConfig.value = userService.get().getUser(userId);
     User config = outUserConfig.value;
@@ -493,11 +494,11 @@ public class SupportService implements Service {
     }
     List<Node> nodes = new ArrayList<>();
     for(NodeEndpoint ep : executionContextProvider.get().getExecutors()){
-      nodes.add(new Node().setName(ep.getAddress()));
+      nodes.add(new Node().setName(ep.getAddress()).setRole("executor"));
     }
 
     for(NodeEndpoint ep : executionContextProvider.get().getCoordinators()){
-      nodes.add(new Node().setName(ep.getAddress()));
+      nodes.add(new Node().setName(ep.getAddress()).setRole("coordinator"));
     }
 
     return new ClusterInfo()
@@ -505,12 +506,20 @@ public class SupportService implements Service {
         .setVersion(version)
         .setSourceList(sources)
         .setNodeList(nodes)
+        .setJavaVmVersion(System.getProperty("java.vm.version"))
+        .setJreVersion(System.getProperty("java.specification.version"))
+        .setEdition(getEditionInfo())
         ;
   }
 
   @Override
   public void close() {
   }
+
+  /**
+   * @return the current edition that's running. Other editions should override this value
+   */
+  public String getEditionInfo() { return "community"; }
 
   private class CompletionListener implements JobStatusListener {
     private final CountDownLatch latch = new CountDownLatch(1);

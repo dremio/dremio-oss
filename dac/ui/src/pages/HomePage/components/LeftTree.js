@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { PropTypes, Component } from 'react';
+import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
@@ -21,9 +22,14 @@ import pureRender from 'pure-render-decorator';
 import FinderNav from 'components/FinderNav';
 import FinderNavItem from 'components/FinderNavItem';
 import ViewStateWrapper from 'components/ViewStateWrapper';
+import LinkButton from 'components/Buttons/LinkButton';
+import SimpleButton from 'components/Buttons/SimpleButton';
 
-import { h3, body } from 'uiTheme/radium/typography';
+import { h3, body, formDescription } from 'uiTheme/radium/typography';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
+
+import ApiUtils from 'utils/apiUtils/apiUtils';
+import {createSampleSource, isSampleSource} from 'actions/resources/sources';
 
 import Radium from 'radium';
 
@@ -31,10 +37,11 @@ import './LeftTree.less';
 
 @pureRender
 @Radium
-export default class LeftTree extends Component {
+export class LeftTree extends Component {
   static contextTypes = {
     location: PropTypes.object,
-    loggedInUser: PropTypes.object
+    loggedInUser: PropTypes.object,
+    router: PropTypes.object
   };
 
   static propTypes = {
@@ -44,8 +51,27 @@ export default class LeftTree extends Component {
     spacesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     sourcesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     toggleSpacePin: PropTypes.func,
-    toggleSourcePin: PropTypes.func
+    toggleSourcePin: PropTypes.func,
+    createSampleSource: PropTypes.func.isRequired
   };
+
+  state = {
+    isAddingSampleSource: false
+  };
+
+  addSampleSource = () => {
+    this.setState({isAddingSampleSource: true});
+    return this.props.createSampleSource().then((response) => {
+      if (response && !response.error) {
+        const nextSource = ApiUtils.getEntityFromResponse('source', response);
+        this.context.router.push(nextSource.getIn(['links', 'self']));
+      }
+      this.setState({isAddingSampleSource: false});
+    }).catch((error) => {
+      this.setState({isAddingSampleSource: false});
+      throw error;
+    });
+  }
 
   getHomeObject() {
     return {
@@ -58,8 +84,71 @@ export default class LeftTree extends Component {
     };
   }
 
+  getInitialSpacesContent() {
+    const addHref = this.getAddSpaceHref();
+    return this.props.spaces.size > 0 ? null : <div className='button-wrap'>
+      <span style={formDescription}>
+        {la('You do not have any spaces.')}
+      </span>
+      {addHref && <LinkButton
+        buttonStyle='primary'
+        data-qa={'add-spaces'}
+        to={addHref}>{la('Add Space')}</LinkButton>}
+    </div>;
+  }
+
+  getInitialSourcesContent() {
+    const addHref = this.getAddSourceHref();
+    const count = this.props.sources.size;
+
+    const isEmpty = count === 0;
+    const haveSampleSource = isSampleSource(this.props.sources.toJS()[0]);
+
+    // situations...
+
+    // - only sample source, user can't add: show nothing
+    if (count === 1 && haveSampleSource && !this.getCanAddSource()) return null;
+
+    // - single source (not sample): show nothing
+    if (count === 1 && !haveSampleSource) return null;
+
+    // - multiple sources, user can add: show nothing
+    // - multiple sources, user can't add: show nothing
+    if (count > 1) return null;
+
+    // - no sources, user can add: show text and both buttons
+    // - no sources, user can't add: show text
+    // - only sample source, user can add: show text and add button
+    return <div className='button-wrap'>
+      <span style={formDescription}>
+        {isEmpty ? la('You do not have any sources.') : la('Add your own source:')}
+      </span>
+      {this.getCanAddSource() && !haveSampleSource && <SimpleButton
+        buttonStyle='primary'
+        submitting={this.state.isAddingSampleSource}
+        style={{padding: '0 12px'}}
+        onClick={this.addSampleSource}>{la('Add Sample Source')}</SimpleButton>}
+      {this.getCanAddSource() && <LinkButton
+        buttonStyle='primary'
+        data-qa={'add-sources'}
+        to={addHref}>{la('Add Source')}</LinkButton>}
+    </div>;
+  }
+
+  getAddSpaceHref() {
+    return {...this.context.location, state: {modal: 'SpaceModal'}};
+  }
+
+  getCanAddSource() {
+    return this.context.loggedInUser.admin;
+  }
+
+  getAddSourceHref() {
+    return this.getCanAddSource() ?
+      {...this.context.location, state: {modal: 'AddSourceModal', source: null}} : undefined;
+  }
+
   render() {
-    const { location } = this.context;
     const { className, spaces, sources, spacesViewState, sourcesViewState } = this.props;
     const classes = classNames('left-tree', className);
     const homeItem = this.getHomeObject();
@@ -80,11 +169,11 @@ export default class LeftTree extends Component {
             <FinderNav
               navItems={spaces}
               title={la('Spaces')}
-              addButtonText={la('+ New Space')}
               toggleActivePin={this.props.toggleSpacePin}
               isInProgress={spacesViewState.get('isInProgress')}
-              addHref={{...location, state: {modal: 'SpaceModal'}}}
+              addHref={this.getAddSpaceHref()}
               listHref='/spaces/list'
+              children={this.getInitialSpacesContent()}
             />
           </ViewStateWrapper>
         </div>
@@ -97,14 +186,11 @@ export default class LeftTree extends Component {
             <FinderNav
               navItems={sources}
               title={la('Sources')}
-              addButtonText={la('+ New Source')}
               toggleActivePin={this.props.toggleSourcePin}
               isInProgress={sourcesViewState.get('isInProgress')}
-              addHref={
-                this.context.loggedInUser.admin ?
-                  {...location, state: {modal: 'AddSourceModal', source: null}} : undefined
-              }
+              addHref={this.getAddSourceHref()}
               listHref='/sources/list'
+              children={this.getInitialSourcesContent()}
             />
           </ViewStateWrapper>
         </div>
@@ -112,6 +198,8 @@ export default class LeftTree extends Component {
     );
   }
 }
+
+export default connect(null, {createSampleSource})(LeftTree);
 
 const styles = {
   leftTreeHolder: {

@@ -21,7 +21,7 @@ import $ from 'jquery';
 
 import { getViewState, getEntity } from 'selectors/resources';
 import { getDataset, getHistory } from 'selectors/explore';
-import { performLoadDataset, previewJobResults } from 'actions/explore/dataset/get';
+import { performLoadDataset } from 'actions/explore/dataset/get';
 import { setCurrentSql } from 'actions/explore/view';
 import { resetViewState } from 'actions/resources';
 
@@ -36,7 +36,7 @@ import { setResizeProgressState } from 'actions/explore/ui';
 import { updateGridSizes, updateRightTreeVisibility } from 'actions/ui/ui';
 
 import { hasDatasetChanged } from 'utils/datasetUtils';
-import { constructFullPath, splitFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode, splitFullPath } from 'utils/pathUtils';
 
 import { EXPLORE_VIEW_ID } from 'reducers/explore/view'; // NOTE: typically want exploreViewState.get('viewId')
 
@@ -69,7 +69,6 @@ export class ExplorePageControllerComponent extends Component {
     performLoadDataset: PropTypes.func.isRequired,
     setCurrentSql: PropTypes.func.isRequired,
     resetViewState: PropTypes.func.isRequired,
-    previewJobResults: PropTypes.func.isRequired,
     style: PropTypes.object,
     showConfirmationDialog: PropTypes.func,
     router: PropTypes.object
@@ -197,7 +196,7 @@ export class ExplorePageControllerComponent extends Component {
       return false;
     }
 
-    const nextTipVersion = nextLocation.query && nextLocation.query.tipVersion;
+    const {tipVersion: nextTipVersion, version: nextVersion} = nextLocation.query || {};
     const historyTipVersion = history && history.get('tipVersion');
 
     // leaving modified sql?
@@ -205,9 +204,11 @@ export class ExplorePageControllerComponent extends Component {
     const sqlChanged = currentSql !== undefined && dataset.get('sql') !== currentSql;
 
     // Check if we are navigating within same history or this hook was called after saving dataset
-    // which means that initialDatasetVersion and nextTipVersion would be the same since initialDatasetVersion
-    // was updated after save
-    if (nextTipVersion && (nextTipVersion === historyTipVersion)) {
+    if (nextTipVersion && nextTipVersion === historyTipVersion) {
+      // not actually leaving datasetVersion? eg moving to ./graph
+      if (dataset.get('datasetVersion') === nextVersion) {
+        return false;
+      }
       return sqlChanged;
     }
 
@@ -289,7 +290,7 @@ function getInitialDataset(location, routeParams, viewState) {
       self: location.pathname + '?version=' + version
     },
     apiLinks: {
-      self: `/dataset/${constructFullPath(fullPath, false, true)}` + (version ? `/version/${version}` : '')
+      self: `/dataset/${constructFullPathAndEncode(fullPath)}` + (version ? `/version/${version}` : '')
     }
   });
 }
@@ -357,7 +358,6 @@ export default connect(mapStateToProps, {
   performLoadDataset,
   setCurrentSql,
   resetViewState,
-  previewJobResults,
   updateSqlPartSize,
   updateGridSizes,
   setResizeProgressState,

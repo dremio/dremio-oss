@@ -38,6 +38,7 @@ import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
@@ -56,6 +57,9 @@ import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
+import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -117,6 +121,14 @@ public class TestHiveStorage extends HiveTestBase {
         .sqlQuery("SELECT * FROM hive.empty_table")
         .expectsEmptyResultSet()
         .go();
+  }
+
+  @Test
+  public void queryPartitionedEmptyHiveTable() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT * FROM hive.partitioned_empty_table")
+      .expectsEmptyResultSet()
+      .go();
   }
 
   @Test // DRILL-3328
@@ -570,16 +582,16 @@ public class TestHiveStorage extends HiveTestBase {
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.avro")))).size());
-    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.dummy")))).size());
+    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.dummy")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.skipper.kv_parquet_large")))).size());
-    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.countstar_parquet")))).size());
+    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.countstar_parquet")))).size());
 
-    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.readtest")))).size());
-    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.readtest_parquet")))).size());
+    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.readtest")))).size());
+    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.readtest_parquet")))).size());
 
-    assertEquals(10, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.kv_parquet")))).size());
-    assertEquals(54, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.partition_with_few_schemas")))).size());
-    assertEquals(56, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.partition_pruning_test")))).size());
+    assertEquals(10, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.kv_parquet")))).size());
+    assertEquals(54, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")))).size());
+    assertEquals(56, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_pruning_test")))).size());
   }
 
   @Test
@@ -591,7 +603,7 @@ public class TestHiveStorage extends HiveTestBase {
     assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
-    datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.partition_with_few_schemas")));
+    datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")));
     assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
       datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
@@ -605,7 +617,7 @@ public class TestHiveStorage extends HiveTestBase {
       assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
-      datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.default.partition_with_few_schemas")));
+      datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")));
       assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
     } finally {
@@ -655,5 +667,74 @@ public class TestHiveStorage extends HiveTestBase {
       return cachedEntities;
     }
     return null;
+  }
+
+  @Test
+  public void testAddRemoveHiveTable() throws Exception {
+    List<NamespaceKey> tables0 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+
+    getSabotContext().getCatalogService().refreshSource(
+      new NamespaceKey("hive"),
+      new MetadataPolicy()
+        .setAuthTtlMs(0l)
+        .setDatasetUpdateMode(UpdateMode.PREFETCH)
+        .setDatasetDefinitionTtlMs(0l)
+        .setNamesRefreshMs(0l));
+
+    List<NamespaceKey> tables1 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    assertEquals(tables0.size(), tables1.size());
+
+    // create an empty table
+    hiveTest.executeDDL("CREATE TABLE IF NOT EXISTS foo_bar(a INT, b STRING)");
+
+    getSabotContext().getCatalogService().refreshSource(
+      new NamespaceKey("hive"),
+      new MetadataPolicy()
+        .setAuthTtlMs(0l)
+        .setDatasetUpdateMode(UpdateMode.PREFETCH)
+        .setDatasetDefinitionTtlMs(0l)
+        .setNamesRefreshMs(0l));
+
+    // make sure new table is visible
+    List<NamespaceKey> tables2 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    assertEquals(tables1.size() + 1, tables2.size());
+
+    assertTrue(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(PathUtils.parseFullPath("hive.`default`.foo_bar")), Type.DATASET));
+    assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
+
+    // run query on table with short name
+    testBuilder()
+      .sqlQuery("SELECT * FROM hive.foo_bar")
+      .expectsEmptyResultSet()
+      .go();
+
+    assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
+
+    // no new table is added
+    List<NamespaceKey> tables3 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    assertEquals(tables2.size(), tables3.size());
+
+    // drop table
+    hiveTest.executeDDL("DROP TABLE foo_bar");
+
+    getSabotContext().getCatalogService().refreshSource(
+      new NamespaceKey("hive"),
+      new MetadataPolicy()
+      .setAuthTtlMs(0l)
+      .setDatasetUpdateMode(UpdateMode.PREFETCH)
+      .setDatasetDefinitionTtlMs(0l)
+      .setNamesRefreshMs(0l));
+
+    // make sure table is deleted from namespace
+    List<NamespaceKey> tables4 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    assertEquals(tables3.size() - 1, tables4.size());
+
+    assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(PathUtils.parseFullPath("hive.`default`.foo_bar")), Type.DATASET));
+    assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
   }
 }

@@ -50,6 +50,12 @@ public class SchemaMerger {
 
   private static final Logger logger = LoggerFactory.getLogger(SchemaMerger.class);
 
+  private final String datasetPath;
+
+  public SchemaMerger(String datasetPath){
+    this.datasetPath = datasetPath;
+  }
+
   public MergeResult merge(ElasticMapping mapping, BatchSchema schema) {
     final ResultBuilder resultBuilder = new ResultBuilder();
     Collection<MergeField> fields = mergeFields(null, mapping.getFields(), schema != null ? schema.getFields() : ImmutableList.<Field>of());
@@ -182,10 +188,17 @@ public class SchemaMerger {
 
   private UserException failure(SchemaPath path, ElasticField declaredField, CompleteType observedType){
     return UserException.dataReadError()
-        .message("Failure handling type. Dremio only supports a path to type mapping across all schema mappings.")
-        .addContext("Parent path", child(path, declaredField.getName()).getAsUnescapedPath())
-        .addContext("Elastic Declared Type", Describer.describe(declaredField.toArrowField()))
-        .addContext("Elastic Observed Type", Describer.describe(observedType.toField(declaredField.getName())))
+        .message(
+            "Failure handling type. Dremio only supports a path to type mapping across all schema mappings. \n"
+            + "\tDataset path %s.\n"
+            + "\tPath to field %s.\n"
+            + "\tDeclared Type %s.\n"
+            + "\tObserved Type %s.\n",
+            datasetPath,
+            child(path, declaredField.getName()).getAsUnescapedPath(),
+            Describer.describe(declaredField.toArrowField()),
+            Describer.describe(observedType.toField(declaredField.getName()))
+            )
         .build(logger);
   }
 
@@ -384,7 +397,6 @@ public class SchemaMerger {
     public MergeResult toResult(List<Field> fields){
       return new MergeResult(fields, annotations.values());
     }
-
 
     private ElasticAnnotation.Builder anno(SchemaPath path){
       ElasticAnnotation annotation = annotations.get(path);

@@ -27,7 +27,7 @@ import FontIcon from 'components/Icon/FontIcon';
 import StateIconTypes from 'constants/jobPage/StateIconType.json';
 import StateLabels from 'constants/jobPage/StateLabels.json';
 import datasetPathUtils from 'utils/resourcePathUtils/dataset';
-import { constructFullPath, constructResourcePath } from 'utils/pathUtils';
+import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
 import { getViewState } from 'selectors/resources';
 
 import { h4 } from 'uiTheme/radium/typography';
@@ -95,7 +95,7 @@ class HeaderDetails extends Component {
     const datasetFullPath = jobDetails.get('datasetPathList')
         || jobDetails.getIn(['parentsList', 0, 'datasetPathList']);
 
-    const fullPath = constructFullPath(datasetFullPath, null, true);
+    const fullPath = constructFullPathAndEncode(datasetFullPath);
     const resourcePath  = constructResourcePath(fullPath);
 
     const nextLocation = {

@@ -78,7 +78,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
   private static final Joiner SPLIT_KEY_JOINER = Joiner.on('-');
   private static final Joiner RESOURCE_JOINER = Joiner.on('/');
 
-  private static final int SAMPLE_FETCH_SIZE = 100;
+  private static final int SAMPLE_FETCH_SIZE = 4000;
   private static final double SPLIT_DEFAULT_SIZE = 100000;
 
   private final ElasticConnection connection;
@@ -169,7 +169,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
 
     dataset.setReadDefinition(new ReadDefinition());
 
-    final SchemaMerger merger = new SchemaMerger();
+    final SchemaMerger merger = new SchemaMerger(new NamespaceKey(dataset.getFullPathList()).toString());
     final BatchSchema schema;
     if(oldConfig == null || DatasetHelper.getSchemaBytes(oldConfig) == null){
       schema = null;

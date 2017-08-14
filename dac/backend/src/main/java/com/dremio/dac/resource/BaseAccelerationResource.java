@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.resource;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.AccelerationStateApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.ApiErrorCode;
@@ -46,7 +43,6 @@ import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializatonFailure;
 import com.dremio.service.accelerator.proto.pipeline.AccelerationPipeline;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -83,9 +79,7 @@ public class BaseAccelerationResource {
     final Acceleration acceleration = AccelerationUtils.getOrFailUnchecked(
         accelerationService.getAccelerationById(descriptor.getId()), messageNotFound);
 
-    Map<LayoutId, Layout> layoutMap = getLayoutMap(acceleration);
-
-    calculateAndSetSummaryInfo(acceleration, descriptor, layoutMap);
+    calculateAndSetSummaryInfo(acceleration, descriptor);
 
     if (state == AccelerationStateApiDescriptor.ERROR) {
       // write pipeline failures
@@ -114,28 +108,77 @@ public class BaseAccelerationResource {
     return descriptor;
   }
 
-  private Map<LayoutId, Layout> getLayoutMap(Acceleration acceleration) {
-    Map<LayoutId, Layout> map = new HashMap<>();
-    for (Layout layout : AccelerationUtils.getAllLayouts(acceleration)) {
-      map.put(layout.getId(), layout);
+  private void calculateAndSetSummaryInfo(Acceleration acceleration, AccelerationApiDescriptor descriptor) {
+    for (LayoutApiDescriptor layoutDescriptor : getAllLayouts(descriptor)) {
+      LayoutId layoutId = layoutDescriptor.getId();
+      final long currentTime = System.currentTimeMillis();
+      Optional<Layout> layoutOpt = getLayout(acceleration, layoutId);
+      if (!layoutOpt.isPresent()) {
+        return;
+      }
+      final Layout layout = layoutOpt.get();
+      Optional<Materialization> validMaterialization = getValidMaterialization(acceleration, layout, currentTime);
+      if (validMaterialization.isPresent()) {
+        layoutDescriptor.setHasValidMaterialization(true);
+        layoutDescriptor.setCurrentByteSize(validMaterialization.get().getMetrics().getFootprint());
+      } else {
+        layoutDescriptor.setHasValidMaterialization(false);
+        layoutDescriptor.setCurrentByteSize(0L);
+      }
+      Optional<Materialization> latestMaterializationOpt = getLatestMaterialization(layoutId);
+      if (latestMaterializationOpt.isPresent()) {
+        Materialization latestMaterialization = latestMaterializationOpt.get();
+        MaterializationState state = latestMaterialization.getState();
+        if (state == MaterializationState.DONE  &&
+            !isOutOfDate(layout, latestMaterialization) && !hasExpired(latestMaterialization, currentTime) &&
+            (!validMaterialization.isPresent() || !validMaterialization.get().getId().equals(latestMaterialization.getId()))) {
+          // latest materialization is done in state, not expired, but its different from the valid materialization
+          layoutDescriptor.setLatestMaterializationState(MaterializationState.RUNNING);
+        } else {
+         layoutDescriptor.setLatestMaterializationState(state);
+        }
+      }
+      layoutDescriptor.setTotalByteSize(getTotalSize(layoutId));
     }
-    return map;
   }
 
-  private void calculateAndSetSummaryInfo(Acceleration acceleration, AccelerationApiDescriptor descriptor, Map<LayoutId, Layout> layoutMap) {
-    for (LayoutApiDescriptor layout : getAllLayouts(descriptor)) {
-      LayoutId layoutId = layout.getId();
-      Optional<Materialization> latestValidMaterialization = getLatestValidMaterialization(layout, layoutMap.get(layoutId));
-      if (latestValidMaterialization.isPresent()) {
-        layout.setHasValidMaterialization(true);
-        layout.setCurrentByteSize(latestValidMaterialization.get().getMetrics().getFootprint());
+  private Optional<Layout> getLayout(final Acceleration acceleration, LayoutId layoutId) {
+    for (Layout layout : AccelerationUtils.getAllLayouts(acceleration)) {
+      if (layout.getId().equals(layoutId)) {
+        return Optional.fromNullable(layout);
       }
-      Optional<Materialization> lastestMaterialization = getLatestMaterialization(layoutId);
-      if (lastestMaterialization.isPresent()) {
-        layout.setLatestMaterializationState(lastestMaterialization.get().getState());
-      }
-      layout.setTotalByteSize(getTotalSize(layoutId));
     }
+    return Optional.absent();
+  }
+
+  public Optional<Materialization> getValidMaterialization(final Acceleration acceleration, final Layout layout, final long currentTime) {
+    List<Materialization> result = AccelerationServiceImpl.COMPLETION_ORDERING
+        .greatestOf(FluentIterable
+            .from(accelerationService.getMaterializations(layout.getId()))
+            .filter(new Predicate<Materialization>() {
+              @Override
+              public boolean apply(@Nullable final Materialization materialization) {
+                if (materialization.getState() != MaterializationState.DONE) {
+                  return false;
+                }
+                if (isOutOfDate(layout, materialization)) {
+                  return false;
+                }
+                if (hasExpired(materialization, currentTime)) {
+                  return false;
+                }
+                return accelerationService.isMaterializationCached(materialization.getId());
+              }
+            }), 1);
+    return Optional.fromNullable(Iterables.getLast(result, null));
+  }
+
+  private boolean isOutOfDate(final Layout layout, final Materialization materialization) {
+    return !materialization.getLayoutVersion().equals(layout.getVersion());
+  }
+
+  private boolean hasExpired(final Materialization materialization, final long currentTime) {
+    return( materialization.getExpiration() == null || currentTime > materialization.getExpiration());
   }
 
   private long getTotalSize(LayoutId id) {
@@ -147,33 +190,6 @@ public class BaseAccelerationResource {
       }
     }
     return totalSize;
-  }
-
-  private Optional<Materialization> getLatestValidMaterialization(final LayoutApiDescriptor layoutDescriptor,final Layout layout) {
-    final long currentTime = System.currentTimeMillis();
-    List<Materialization> result = AccelerationServiceImpl.COMPLETION_ORDERING
-        .greatestOf(FluentIterable
-            .from(accelerationService.getMaterializations(layoutDescriptor.getId()))
-            .filter(new Predicate<Materialization>() {
-              @Override
-              public boolean apply(@Nullable final Materialization materialization) {
-                if (materialization.getState() != MaterializationState.DONE) {
-                  return false;
-                }
-                if (materialization.getLayoutVersion() != layout.getVersion()) {
-                  return false;
-                }
-                if (materialization.getExpiration() == null) {
-                  return false;
-                }
-                long expiration = materialization.getExpiration();
-                if (currentTime > expiration) {
-                  return false;
-                }
-                return true;
-              }
-            }), 1);
-    return Optional.fromNullable(Iterables.getLast(result, null));
   }
 
   /**
@@ -232,28 +248,32 @@ public class BaseAccelerationResource {
    */
   protected void checkForDatasetOutOfDate(final Acceleration acceleration,
       final AccelerationDescriptor accelerationDescriptor) {
-    if (acceleration.getContext() != null) {
-      DatasetConfig acclerationDatasetConfig = acceleration.getContext().getDataset();
-      if (acclerationDatasetConfig != null) {
-        try {
-          DatasetConfig datasetConfig = namespaceService.getDataset(new DatasetPath(acclerationDatasetConfig.getFullPathList()).toNamespaceKey());
-          //if versions are same , then the acceleration cannot be OUT_OF_DATE
-          if (!acclerationDatasetConfig.getVersion().equals(datasetConfig.getVersion())) {
-            ByteString accelerationSchema = acclerationDatasetConfig.getRecordSchema();
-            ByteString datasetSchema = datasetConfig.getRecordSchema();
-            // if schema is absent or if dataset schema is different, then return OUT_OF_DATE
-            if ((accelerationSchema == null || datasetSchema == null || !accelerationSchema.equals(datasetSchema))) {
-              accelerationDescriptor.setState(AccelerationStateDescriptor.OUT_OF_DATE);
-            } else if (acclerationDatasetConfig.getType() == DatasetType.VIRTUAL_DATASET &&
-                !acclerationDatasetConfig.getVirtualDataset().getSql().equals(datasetConfig.getVirtualDataset().getSql())) {
-              // if dataset is a virtual dataset, then compare the sql
-              accelerationDescriptor.setState(AccelerationStateDescriptor.OUT_OF_DATE);
-            }
-          }
-        } catch (NamespaceException e) {
-          logger.info("Error while obtaining the datasource config", e);
-        }
-      }
+    if (acceleration.getContext() == null) {
+      return;
+    }
+    DatasetConfig accelerationDatasetConfig = acceleration.getContext().getDataset();
+    if (accelerationDatasetConfig == null) {
+      return;
+    }
+    DatasetConfig datasetConfig = namespaceService.findDatasetByUUID(accelerationDatasetConfig.getId().getId());
+    //if dataset is not present, then mark it as out of date.
+    if (datasetConfig == null) {
+      accelerationDescriptor.setState(AccelerationStateDescriptor.OUT_OF_DATE);
+      return;
+    }
+    //if versions are same , then the acceleration cannot be OUT_OF_DATE
+    if (accelerationDatasetConfig.getVersion().equals(datasetConfig.getVersion())) {
+      return;
+    }
+    ByteString accelerationSchema = accelerationDatasetConfig.getRecordSchema();
+    ByteString datasetSchema = datasetConfig.getRecordSchema();
+    // if schema is absent or if dataset schema is different, then return OUT_OF_DATE
+    if ((accelerationSchema == null || datasetSchema == null || !accelerationSchema.equals(datasetSchema))) {
+      accelerationDescriptor.setState(AccelerationStateDescriptor.OUT_OF_DATE);
+    } else if (accelerationDatasetConfig.getType() == DatasetType.VIRTUAL_DATASET &&
+        !accelerationDatasetConfig.getVirtualDataset().getSql().equals(datasetConfig.getVirtualDataset().getSql())) {
+      // if dataset is a virtual dataset, then compare the sql
+      accelerationDescriptor.setState(AccelerationStateDescriptor.OUT_OF_DATE);
     }
   }
 }

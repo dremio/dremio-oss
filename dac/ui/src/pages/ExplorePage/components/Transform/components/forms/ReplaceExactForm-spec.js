@@ -24,8 +24,14 @@ describe('ReplaceExactForm', () => {
   let minimalProps;
   let commonProps;
   let values;
-
+  let context;
   beforeEach(() => {
+    context = {
+      router: {
+        push: sinon.spy(),
+        replace: sinon.spy()
+      }
+    };
     minimalProps = {
       transform: Immutable.Map({
         columnName: 'age',
@@ -34,7 +40,8 @@ describe('ReplaceExactForm', () => {
       }),
       submit: sinon.stub().returns('submitResponse'),
       onCancel: sinon.spy(),
-      fields: {replaceValues: [{value: 'address1'}]}
+      loadTransformValuesPreview: sinon.spy(),
+      fields: {replaceValues: [{value: 'address1'}], replaceNull: {value: false}}
     };
     commonProps = {
       ...minimalProps
@@ -43,7 +50,7 @@ describe('ReplaceExactForm', () => {
       newFieldName: 'age',
       dropSourceField: false,
       activeCard: 0,
-      replaceNull:false,
+      replaceNull: false,
       replaceTitleType: 'pattern',
       replaceType: 'VALUE',
       replacementValue: '1'
@@ -53,6 +60,38 @@ describe('ReplaceExactForm', () => {
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<ReplaceExactForm {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
+  });
+
+  describe('#componentWillReceiveProps', () => {
+    let wrapper;
+    let instance;
+    beforeEach(() => {
+      wrapper = shallow(<ReplaceExactForm {...commonProps}/>, {context});
+      instance = wrapper.instance();
+      sinon.stub(instance, 'loadTransformValuesPreview');
+    });
+    it('should update if replaceValues changed', () => {
+      const nextProps = {
+        ...commonProps,
+        fields: {
+          ...commonProps.fields,
+          replaceValues: [{value: 'address2'}]
+        }
+      };
+      instance.componentWillReceiveProps(nextProps);
+      expect(commonProps.loadTransformValuesPreview).to.be.calledOnce;
+    });
+    it('should update if replaceNull changed', () => {
+      const nextProps = {
+        ...commonProps,
+        fields: {
+          ...commonProps.fields,
+          replaceNull: {value: true}
+        }
+      };
+      instance.componentWillReceiveProps(nextProps);
+      expect(commonProps.loadTransformValuesPreview).to.be.calledOnce;
+    });
   });
 
   describe('submit', () => {
@@ -106,6 +145,32 @@ describe('ReplaceExactForm', () => {
       expect(commonProps.submit.getCall(0).args[0]).to.eql({
         ...filterMappers.getCommonFilterValues(values, transform),
         filter: filterMappers.mapFilterExcludeValues(values,  commonProps.transform.get('columnType'))
+      });
+    });
+    it('should correctly replace values with null if replaceNull is true', () => {
+      const transform = Immutable.Map({
+        columnName: 'a',
+        transformType: 'exclude',
+        columnType: 'INTEGER'
+      });
+
+      const nullValues = {
+        ...values,
+        replaceNull: true
+      };
+
+      const expectedValues = {
+        ...nullValues,
+        replaceValues: [null]
+      };
+
+      const wrapper = shallow(<ReplaceExactForm {...commonProps} transform={transform}/>);
+
+      expect(wrapper.instance().submit(nullValues)).to.eql('submitResponse');
+      expect(commonProps.submit.calledOnce).to.eql(true);
+      expect(commonProps.submit.getCall(0).args[0]).to.eql({
+        ...filterMappers.getCommonFilterValues(expectedValues, transform),
+        filter: filterMappers.mapFilterExcludeValues(expectedValues,  commonProps.transform.get('columnType'))
       });
     });
   });

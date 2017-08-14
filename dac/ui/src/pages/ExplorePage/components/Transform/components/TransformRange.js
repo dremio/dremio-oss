@@ -37,7 +37,8 @@ export default class TransformRange extends Component {
     fields: PropTypes.object,
     data: PropTypes.array,
     columnType: PropTypes.string,
-    chartWidth: PropTypes.number
+    chartWidth: PropTypes.number,
+    isReplace: PropTypes.bool
   };
 
   static getAnchorBound(bound, domain) {
@@ -153,8 +154,24 @@ export default class TransformRange extends Component {
     return isEmptyValue(upperValue) || Number(newValue) < Number(upperValue);
   }
 
+  renderKeepNullCheckbox() {
+    const { fields: { keepNull }, isReplace} = this.props;
+    if (!isReplace) {
+      return  (<div style={[styles.footer]}>
+        <Checkbox
+          {...keepNull}
+          label={<span style={body}>{la('Keep null values')}</span>}
+          labelStyle={{ ...body, ...styles.labelChecked }}
+          dummyInputStyle={styles.dummyStyle}
+          style={styles.checkbox}
+        />
+      </div>);
+    }
+    return;
+  }
+
   render() {
-    const { columnType, fields: { lowerBound, upperBound, keepNull }, data, chartWidth } = this.props;
+    const { columnType, fields: { lowerBound, upperBound }, data, chartWidth } = this.props;
 
     if (!data) {
       return null;
@@ -222,15 +239,7 @@ export default class TransformRange extends Component {
               style={[styles.bound, styles.white, widthForColumns]}
             />
           </div>
-          <div style={[styles.footer]}>
-            <Checkbox
-              {...keepNull}
-              label={<span style={body}>{la('Keep null values')}</span>}
-              labelStyle={{ ...body, ...styles.labelChecked }}
-              dummyInputStyle={styles.dummyStyle}
-              style={styles.checkbox}
-            />
-          </div>
+          {this.renderKeepNullCheckbox()}
         </div>
       </div>
     );

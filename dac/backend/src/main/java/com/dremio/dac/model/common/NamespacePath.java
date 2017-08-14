@@ -199,9 +199,9 @@ public abstract class NamespacePath {
 
   protected String toUrlPathWithRootAndAction(String action) {
     final URITemplateBuilder builder = new URITemplateBuilder();
-
     builder.add(root.getRootUrl());
     builder.add(root.getName());
+
     if (action != null) {
       builder.add(action);
       if (folderPath != null) {
@@ -235,6 +235,14 @@ public abstract class NamespacePath {
     URI uri = UriBuilder.fromUri("/dataset/{fullPath}/preview")
       .build(PathUtils.constructFullPath(pathList));
     return uri.toString();
+  }
+
+  public String getUrlFromPath(List<String> pathList) {
+    final URITemplateBuilder builder = new URITemplateBuilder();
+    for (String path : pathList) {
+      builder.add(path);
+    }
+    return builder.build();
   }
 
   // default impl assume its a folder

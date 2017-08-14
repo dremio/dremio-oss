@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -32,6 +33,7 @@ import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -154,8 +156,8 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
           && (!sameTypesOnly || a.node.getType().equals(b.node.getType()))
           ){
         // this is a simple condition. Let's return a replacement
-
-        return new StateHolder(Type.CONDITION, null).add(call);
+        return new StateHolder(Type.CONDITION, null)
+            .add((RexCall) builder.makeCall(call.getType(), call.getOperator(), Arrays.asList(a.node, b.node)));
       } else {
         // the two inputs are not literals/direct inputs.
         return new StateHolder(Type.OTHER, call);
@@ -182,8 +184,17 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
       if (a.type == Type.CONDITION) {
         return a;
       }
-
     }
+
+    case CAST:
+    {
+      if (SqlTypeName.ANY == call.getType().getSqlTypeName()) {
+        return call.getOperands().get(0).accept(this);
+      }
+
+      // fallthrough
+    }
+
     default:
       return new StateHolder(Type.OTHER, call);
     }

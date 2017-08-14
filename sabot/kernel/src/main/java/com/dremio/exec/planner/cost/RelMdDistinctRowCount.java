@@ -15,15 +15,19 @@
  */
 package com.dremio.exec.planner.cost;
 
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
+import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.exec.planner.common.OldScanRelBase;
 import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.logical.ScanRel;
 
 public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMdDistinctRowCount {
   private static final RelMdDistinctRowCount INSTANCE =
@@ -33,13 +37,42 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
       ReflectiveRelMetadataProvider.reflectiveSource(
           BuiltInMethod.DISTINCT_ROW_COUNT.method, INSTANCE);
 
-  public Double getDistinctRowCount(ScanRel scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
-    // Consistent with the estimation of Aggregate row count in RelMdRowCount : distinctRowCount = rowCount * 10%.
-    return scan.estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()) * 0.1;
+  public Double getDistinctRowCount(OldScanRelBase scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+    return getDistinctRowCountFromEstimateRowCount(scan, mq, groupKey, predicate);
   }
 
   public Double getDistinctRowCount(ScanRelBase scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
-    // Consistent with the estimation of Aggregate row count in RelMdRowCount : distinctRowCount = rowCount * 10%.
-    return scan.estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()) * 0.1;
+    return getDistinctRowCountFromEstimateRowCount(scan, mq, groupKey, predicate);
+  }
+
+  public Double getDistinctRowCount(Aggregate rel, RelMetadataQuery mq,
+                                    ImmutableBitSet groupKey, RexNode predicate) {
+    if (predicate == null || predicate.isAlwaysTrue()) {
+      if (groupKey.isEmpty()) {
+        return 1D;
+      }
+    }
+
+    final ImmutableBitSet allGroupSet = rel.getGroupSet().union(groupKey);
+    return getDistinctRowCountFromEstimateRowCount(rel.getInput(), mq, allGroupSet, predicate);
+  }
+
+  public Double getDistinctRowCount(Join rel, RelMetadataQuery mq,
+                                    ImmutableBitSet groupKey, RexNode predicate) {
+    if (predicate == null || predicate.isAlwaysTrue()) {
+      if (groupKey.isEmpty()) {
+        return 1D;
+      }
+    }
+    return getDistinctRowCountFromEstimateRowCount(rel, mq, groupKey, predicate);
+  }
+
+  // Relnode's distinct row count given the grouping key and predicate should depend on a few things.
+  // 1.  proportional to the number of records in the table
+  // 2.  inversely proportional to the number of grouping keys (group by A should be fewer rows than group by A, B, C)
+  // 3.  proportional the filter/predicate selectivity
+  private Double getDistinctRowCountFromEstimateRowCount(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+    final int groupKeySize = groupKey.cardinality();
+    return rel.estimateRowCount(mq) * (1.0 - Math.pow(0.9, groupKeySize)) * RelMdUtil.guessSelectivity(predicate);
   }
 }

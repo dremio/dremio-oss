@@ -53,6 +53,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "readtest")
         .baselineValues("hive.default", "readtest_parquet")
         .baselineValues("hive.default", "empty_table")
+        .baselineValues("hive.default", "partitioned_empty_table")
         .baselineValues("hive.default", "infoschematest")
         .baselineValues("hive.default", "kv")
         .baselineValues("hive.default", "kv_parquet")

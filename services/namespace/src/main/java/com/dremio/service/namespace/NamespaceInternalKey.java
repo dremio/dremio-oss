@@ -123,7 +123,11 @@ class NamespaceInternalKey {
    */
   private int components;
 
-  public NamespaceInternalKey(final NamespaceKey path) {
+  NamespaceInternalKey(final NamespaceKey path) {
+    this(path, ENABLE_KEY_NORMALIZATION);
+  }
+
+  NamespaceInternalKey(final NamespaceKey path, boolean normalize) {
     this.namespaceKey = path;
     this.namespaceFullPath = path.getSchemaPath();
     this.keyBytes = null;
@@ -144,8 +148,7 @@ class NamespaceInternalKey {
             .message("Invalid name space key. Given: %s, Expected format: %s", namespaceFullPath, NAMESPACE_PATH_FORMAT)
             .build(logger);
       }
-
-      if (ENABLE_KEY_NORMALIZATION) {
+      if (normalize) {
         this.pathComponentBytes[i] = pathComponents.get(i).toLowerCase().getBytes(UTF_8);
       } else {
         this.pathComponentBytes[i] = pathComponents.get(i).getBytes(UTF_8);

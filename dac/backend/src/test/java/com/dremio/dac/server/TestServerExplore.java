@@ -1387,7 +1387,7 @@ public class TestServerExplore extends BaseTestServer {
     final String pathName = "space1.v1";
     final DatasetPath datetimePath = new DatasetPath(pathName);
     DatasetUI dateTimeVD = createDatasetFromSQLAndSave(datetimePath,
-      "select timestampdiff(SECOND, date1, date2) as tsdiff from cp.\"json/datetime.json\"", asList("cp"));
+      "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"", asList("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName, pathName));
     final Job ctasJob = jobsService.submitJob(query, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
     ctasJob.getData().loadIfNecessary();
@@ -1804,14 +1804,27 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(asList("cp", "json/join/c.json"), r2.getRightTableFullPathList());
   }
 
-  @Ignore("Fails with SYSTEM ERROR: IllegalArgumentException: Invalid format: \"0\" is too short.")
   @Test
   public void testConvertDateToNumber() throws Exception {
-    DatasetUI dataset = createDatasetFromParentAndSave("groupBy", "cp.\"json/numbers.json\"");
+    DatasetUI dataset = createDatasetFromParentAndSave("dateToNumber", "cp.\"json/datetime.json\"");
 
     TransformBase t1 =
         new TransformField()
-            .setSourceColumnName("a")
+          .setSourceColumnName("datetime1")
+          .setNewColumnName("a1")
+          .setDropSourceColumn(true)
+          .setFieldTransformation(
+            new FieldConvertDateToNumber(NumberToDateFormat.JULIAN, DATETIME, INTEGER)
+              .wrap()
+          );
+
+    DatasetUI datasetDate = transform(dataset, t1).getDataset();
+    assertContains("cast(ceil(unix_timestamp(datetime1, 'yyyy-mm-dd hh24:mi:ss.fff') / 86400 + 2440587.5) as integer)", datasetDate.getSql().toLowerCase());
+
+    DatasetUI datasetExcel = createDatasetFromParentAndSave("datasetExcel", "cp.\"json/datetime.json\"");
+    TransformBase t2 =
+        new TransformField()
+            .setSourceColumnName("date1")
             .setNewColumnName("a1")
             .setDropSourceColumn(true)
             .setFieldTransformation(
@@ -1819,35 +1832,22 @@ public class TestServerExplore extends BaseTestServer {
                     .wrap()
             );
 
-    DatasetUI datasetDate = transform(dataset, t1).getDataset();
-    assertContains("cast(ceil(unix_timestamp(a, 'YYYY-MM-DD') / 86400 + 25569) as integer)", datasetDate.getSql().toLowerCase());
+    DatasetUI datasetDate2 = transform(datasetExcel, t2).getDataset();
+    assertContains("cast(ceil(unix_timestamp(date1, 'yyyy-mm-dd') / 86400 + 25569) as integer)", datasetDate2.getSql().toLowerCase());
 
-    TransformBase t2 =
-        new TransformField()
-            .setSourceColumnName("a")
-            .setNewColumnName("a1")
-            .setDropSourceColumn(true)
-            .setFieldTransformation(
-                new FieldConvertDateToNumber(NumberToDateFormat.JULIAN, TIME, INTEGER)
-                    .wrap()
-            );
-
-    DatasetUI datasetTime = transform(dataset, t2).getDataset();
-    assertContains("cast(ceil(unix_timestamp(a, 'HH:MI:SS.FFF') / 86400 + 2440587.5) as integer)", datasetTime.getSql().toLowerCase());
-
+    DatasetUI datasetEpoch = createDatasetFromParentAndSave("datasetEpoch", "cp.\"json/datetime.json\"");
     TransformBase t3 =
         new TransformField()
-            .setSourceColumnName("a")
-            .setNewColumnName("a1")
-            .setDropSourceColumn(true)
-            .setFieldTransformation(
-                new FieldConvertDateToNumber(NumberToDateFormat.EPOCH, DATE, FLOAT)
-                    .wrap()
-            );
+          .setSourceColumnName("time1")
+          .setNewColumnName("a1")
+          .setDropSourceColumn(true)
+          .setFieldTransformation(
+            new FieldConvertDateToNumber(NumberToDateFormat.EPOCH, TIME, FLOAT)
+              .wrap()
+          );
 
-    DatasetUI datasetTimestamp = transform(dataset, t3).getDataset();
-    assertContains("cast(unix_timestamp(a, 'YYYY-MM-DD') as double", datasetTimestamp.getSql().toLowerCase());
-    assertNotContains("ceil", datasetTimestamp.getSql().toLowerCase());
+    DatasetUI datasetDate3 = transform(datasetEpoch, t3).getDataset();
+    assertContains("unix_timestamp(time1, 'yyyy-mm-dd\"t\"hh24:mi:ss.ffftzo')", datasetDate3.getSql().toLowerCase());
   }
 
   @Test

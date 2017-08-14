@@ -229,10 +229,6 @@ public enum PlannerPhase {
 
   public abstract RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins);
 
-  private static StoragePluginTypeRulesFactory ELASTIC_RULES_FACTORY;
-  private static StoragePluginTypeRulesFactory JDBC_RULES_FACTORY;
-
-
   /**
    * Collect all rules for StoragePlugins.
    *
@@ -290,9 +286,6 @@ public enum PlannerPhase {
       }
     }
 
-    // hack until JDBC is entirely in new storage plugin system.
-    rules.addAll(JDBC_RULES_FACTORY.getRules(context, phase, null));
-
     ImmutableSet<RelOptRule> rulesSet = rules.build();
     return RuleSets.ofList(rulesSet);
   }
@@ -338,16 +331,7 @@ public enum PlannerPhase {
    */
   static final FilterJoinRule FILTER_INTO_JOIN_CALCITE_RULE =
     new FilterIntoJoinRule(true, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM) {
-      @Override
-      public void onMatch(RelOptRuleCall call) {
-        try {
-          super.onMatch(call);
-        } catch (Exception | AssertionError e) {
-          logger.warn("Failure applying rule", e);
-        }
-      }
-    };
+      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
 
   /**
    * Planner rule that pushes predicates in a Join into the inputs to the Join.
@@ -554,19 +538,5 @@ public enum PlannerPhase {
       }
     }
     return RuleSets.ofList(relOptRuleSetBuilder.build());
-  }
-
-  static {
-    JDBC_RULES_FACTORY = getJdbcPlugin();
-  }
-
-  // Hack to support single JDBC rules factory until JDBC is moved to the new framework.
-  private static StoragePluginTypeRulesFactory getJdbcPlugin() {
-    try {
-      return (StoragePluginTypeRulesFactory) Class.forName("com.dremio.exec.store.jdbc.JdbcRulesFactory").newInstance();
-    } catch(Exception ex) {
-      logger.warn("failure loading JDBC storage rules.", ex);
-      return StoragePluginTypeRulesFactory.NO_OP;
-    }
   }
 }

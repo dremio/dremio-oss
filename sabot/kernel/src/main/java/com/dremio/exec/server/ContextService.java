@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.server;
 
-import static com.dremio.exec.server.options.OptionValue.createBoolean;
 
 import java.net.InetAddress;
 import java.util.Arrays;
@@ -31,7 +30,6 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.PersistentStoreProvider;

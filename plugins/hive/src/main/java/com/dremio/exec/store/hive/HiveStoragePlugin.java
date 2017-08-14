@@ -35,10 +35,10 @@ public class HiveStoragePlugin extends AbstractStoragePlugin<ConversionContext.N
 
   private final HiveStoragePluginConfig config;
   private final SabotContext context;
-  private final HiveStoragePlugin2 registry;
+  private final HiveStoragePlugin2 plugin2;
 
   public HiveStoragePlugin(HiveStoragePluginConfig config, SabotContext context, String name) throws ExecutionSetupException {
-    this.registry = new HiveStoragePlugin2(config, name, createHiveConf(config.config), context.getConfig());
+    this.plugin2 = new HiveStoragePlugin2(config, name, createHiveConf(config.config), context.getConfig(), context.isCoordinator());
     this.config = config;
     this.context = context;
   }
@@ -62,7 +62,7 @@ public class HiveStoragePlugin extends AbstractStoragePlugin<ConversionContext.N
   }
 
   public StoragePlugin2 getStoragePlugin2() {
-    return registry;
+    return plugin2;
   }
 
   @Override

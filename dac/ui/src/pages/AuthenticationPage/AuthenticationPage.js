@@ -22,7 +22,7 @@ import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import { checkForFirstUser, logoutUser } from 'actions/account';
 import browserUtils from 'utils/browserUtils';
-import UnsupportedBrowserForm from './components/UnsupportedBrowserForm';
+import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
 import LoginForm from './components/LoginForm';
 
 @Radium
@@ -56,11 +56,11 @@ export class AuthenticationPage extends Component {
     const { style, location, user } = this.props;
 
     return (
-      <div id='authentication-page' style={[style, styles.base]}>
-        {this.state.showLoginForm ? <LoginForm user={user} location={location}/>
-          : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} />
-        }
-      </div>
+      this.state.showLoginForm ?
+        <div id='authentication-page' style={[style, styles.base]}>
+          <LoginForm user={user} location={location}/>
+        </div>
+        : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} style={style}/>
     );
   }
 }

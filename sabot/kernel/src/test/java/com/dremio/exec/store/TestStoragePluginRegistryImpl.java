@@ -60,6 +60,8 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceType;
+import com.dremio.service.scheduler.LocalSchedulerService;
+import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -84,6 +86,7 @@ public class TestStoragePluginRegistryImpl {
   private StoragePlugin2 testStoragePlugin2;
   private NamespaceKey testPluginKey;
   private CatalogService catalogService;
+  private SchedulerService schedulerService;
 
   private final List<DatasetConfig> mockDatasets =
       ImmutableList.of(
@@ -114,7 +117,8 @@ public class TestStoragePluginRegistryImpl {
     when(sabotContext.getNamespaceService(anyString())).thenReturn(ns);
     when(sabotContext.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence()).thenReturn(new LogicalPlanPersistence(SabotConfig.create(), CLASSPATH_SCAN_RESULT));
-    catalogService = new CatalogServiceImpl(DirectProvider.wrap(sabotContext), mock(BindingCreator.class), false, true);
+    schedulerService = new LocalSchedulerService();
+    catalogService = new CatalogServiceImpl(DirectProvider.wrap(sabotContext), DirectProvider.wrap(schedulerService), mock(BindingCreator.class), false, true);
 
     registry = new StoragePluginRegistryImpl(sabotContext, catalogService, pStoreProvider);
 

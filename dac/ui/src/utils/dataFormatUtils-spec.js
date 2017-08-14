@@ -16,7 +16,7 @@
 import Immutable from 'immutable';
 
 import { MAP, LIST, BOOLEAN, TEXT } from 'constants/DataTypes';
-import { UNMATCHED_CELL_VALUE, EMPTY_NULL_VALUE } from './dataFormatUtils';
+import { UNMATCHED_CELL_VALUE, EMPTY_NULL_VALUE, EMPTY_STRING_VALUE } from './dataFormatUtils';
 import DataFormatUtils from './dataFormatUtils';
 
 
@@ -30,12 +30,12 @@ describe('#DataFormatUtils', () => {
       });
     });
 
-    it('should return empty string when value is undefined', () => {
-      expect(DataFormatUtils.formatValue(undefined, TEXT, row)).to.be.empty;
+    it('should return EMPTY_NULL_VALUE when value is undefined', () => {
+      expect(DataFormatUtils.formatValue(undefined, TEXT, row)).to.be.equal(EMPTY_NULL_VALUE);
     });
 
-    it('should return empty string when value is empty', () => {
-      expect(DataFormatUtils.formatValue('', TEXT, row)).to.be.empty;
+    it('should return EMPTY_STRING_VALUE when value is empty string', () => {
+      expect(DataFormatUtils.formatValue('', TEXT, row)).to.be.equal(EMPTY_STRING_VALUE);
     });
 
     it('should return EMPTY_NULL_VALUE when value is null', () => {

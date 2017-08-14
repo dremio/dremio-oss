@@ -77,7 +77,7 @@ describe('MainInfo', () => {
     });
   });
 
-  describe('#getFolderMenu', () => {
+  describe('#getFolderActions', () => {
 
     it('should show setting button for folder-as-dataset', () => {
       const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
@@ -86,7 +86,19 @@ describe('MainInfo', () => {
         fileSystemFolder: true,
         queryable: true
       });
-      instance.getFolderMenu(folder);
+      instance.getFolderActions(folder);
+
+      expect(instance.getSettingsBtnByType).to.have.been.calledWith(<DatasetMenu entity={folder} entityType='folder'/>);
+    });
+
+    it('should show query button for folder-as-dataset', () => {
+      const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
+      sinon.stub(instance, 'getSettingsBtnByType');
+      const folder = Immutable.fromJS({
+        fileSystemFolder: true,
+        queryable: true
+      });
+      instance.getFolderActions(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<DatasetMenu entity={folder} entityType='folder'/>);
     });
@@ -100,7 +112,7 @@ describe('MainInfo', () => {
         entityType: 'folder',
         id: 1
       });
-      instance.getFolderMenu(folder);
+      instance.getFolderActions(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(
         <UnformattedEntityMenu entity={folder}/>
@@ -114,7 +126,7 @@ describe('MainInfo', () => {
         fileSystemFolder: false,
         queryable: false
       });
-      instance.getFolderMenu(folder);
+      instance.getFolderActions(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<FolderMenu folder={folder}/>);
     });

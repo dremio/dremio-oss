@@ -41,10 +41,12 @@ public class OracleSourceConfigurator extends SingleSourceToStoragePluginConfig<
     String hostname = checkNotNull(oracle.getHostname(), "missing hostname");
     String port = checkNotNull(oracle.getPort(), "missing port");
     String instance = checkNotNull(oracle.getInstance(), "missing instance");
+    Integer fetchSize = oracle.getFetchSize();
+
     JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.ORACLE_DRIVER,
         "jdbc:oracle:thin:" + username + "/" + password + "@" + hostname + ":"
             + port + "/" + instance,
-            null, null
+            null, null, fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
         );
 
     return config;

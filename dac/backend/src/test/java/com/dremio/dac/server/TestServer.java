@@ -33,6 +33,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.util.List;
 
 import javax.ws.rs.client.Entity;
@@ -43,8 +44,10 @@ import javax.ws.rs.core.Response.Status;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.Column;
@@ -87,6 +90,9 @@ import com.dremio.service.users.UserService;
  */
 public class TestServer extends BaseTestServer {
 
+  @ClassRule
+  public static final TemporaryFolder folder = new TemporaryFolder();
+
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
@@ -99,20 +105,23 @@ public class TestServer extends BaseTestServer {
     source.setCtime(1000L);
 
     final NASConfig config1 = new NASConfig();
-    config1.setPath(System.getProperty("user.dir"));
+    config1.setPath(folder.getRoot().getAbsolutePath());
     source.setConfig(config1);
     String sourceResource = "source/src1";
+
+    File v1 = folder.newFolder();
+    File v2 = folder.newFolder();
 
     doc("create source 1");
     final SourceUI putSource1 = expectSuccess(getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(source)), SourceUI.class);
 
     doc("update source 1");
-    ((NASConfig) putSource1.getConfig()).setPath(config1.getPath() + "1");
+    ((NASConfig) putSource1.getConfig()).setPath(v1.getAbsolutePath());
     final SourceUI putSource2 = expectSuccess(getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), SourceUI.class);
     assertEquals(((NASConfig) putSource1.getConfig()).getPath(), ((NASConfig) putSource2.getConfig()).getPath());
 
     doc("update source 1 based on previous version");
-    ((NASConfig) putSource1.getConfig()).setPath(config1.getPath() + "2");
+    ((NASConfig) putSource1.getConfig()).setPath(v2.getAbsolutePath());
     GenericErrorMessage errorPut = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), GenericErrorMessage.class);
     assertErrorMessage(errorPut, "tried to update version 0, found previous version 1");
 

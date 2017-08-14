@@ -73,7 +73,7 @@ const styles = {
   link: {
     ...bodyWhite,
     textDecoration: 'none',
-    marginTop: 4,
+    marginTop: 3,
     paddingBottom: 4,
     height: 17,
     display: 'block'

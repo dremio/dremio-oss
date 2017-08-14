@@ -72,6 +72,9 @@ export default class TimeDot extends Component {
   getLinkLocation() {
     const { tipVersion, historyItem, datasetPathname, location } = this.props;
     const query = location && location.query || {};
+    if (query.version === historyItem.get('datasetVersion')) {
+      return null;
+    }
     return {
       pathname: datasetPathname,
       query: {
@@ -175,13 +178,17 @@ export default class TimeDot extends Component {
   }
 
   render() {
-    return <Link
-      className='time-dot'
-      style={styles.base}
-      to={this.getLinkLocation()}
-    >
-      {this.renderContent()}
-    </Link>;
+    const linkLocation = this.getLinkLocation();
+    if (linkLocation) {
+      return <Link
+        className='time-dot'
+        style={styles.base}
+        to={linkLocation}
+      >
+        {this.renderContent()}
+      </Link>;
+    }
+    return <span className='time-dot' style={styles.base}>{this.renderContent()}</span>;
   }
 }
 
@@ -199,7 +206,6 @@ const styles = {
   wrapStyle: {
     minWidth: 30,
     minHeight: 15,
-    cursor: 'pointer',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center'
@@ -278,7 +284,6 @@ const styles = {
     backgroundColor: HISTORY_ITEM_COLOR,
     width: TIME_DOT_DIAMETER,
     height: TIME_DOT_DIAMETER,
-    cursor: 'pointer',
     borderRadius: TIME_DOT_DIAMETER / 2
   },
   popoverWrap: {

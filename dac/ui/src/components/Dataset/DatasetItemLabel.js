@@ -21,6 +21,7 @@ import pureRender from 'pure-render-decorator';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
+import EllipsedText from 'components/EllipsedText';
 import DatasetOverlayContent from './DatasetOverlayContent';
 
 @Radium
@@ -78,16 +79,16 @@ export default class DatasetItemLabel extends Component {
 
   renderDefaultNode() {
     const { name, inputValue, fullPath, showFullPath } = this.props;
+    const joinedPath = fullPath.slice(0, -1).join('.');
 
     return (
       <div style={styles.datasetLabel}>
-        <div style={[styles.fullPath]} data-qa={name}>
+        <EllipsedText text={name} data-qa={name}>
           <TextHighlight text={name} inputValue={inputValue}/>
-        </div>
-        { showFullPath
-          && <div style={styles.fullPath}>
-            <TextHighlight text={fullPath.slice(0, -1).join('.')} inputValue={inputValue}/>
-          </div> }
+        </EllipsedText>
+        { showFullPath && <EllipsedText text={joinedPath}>
+          <TextHighlight text={joinedPath} inputValue={inputValue}/>
+        </EllipsedText> }
       </div>
     );
   }
@@ -171,12 +172,6 @@ const styles = {
   largeIcon: {
     width: 40,
     height: 38
-  },
-  fullPath: {
-    width: '100%',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
   },
   iconsBase: {
     position: 'relative'

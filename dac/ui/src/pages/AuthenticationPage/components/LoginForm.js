@@ -75,7 +75,7 @@ export class LoginForm extends Component {
           style={{marginBottom: 10}}
           subTitle={la('Welcome to Dremio, please log in.')}/>
         <ViewStateWrapper
-          style={{paddingTop: 45, flex: 1}}
+          style={{paddingTop: 45}}
           hideChildrenWhenFailed={false}
           viewState={viewState}
           hideSpinner>
@@ -152,7 +152,7 @@ const styles = {
     position: 'relative',
     backgroundColor: '#344253',
     minWidth: 775,
-    minHeight: 430,
+    height: 430,
     maxWidth: 775,
     maxHeight: 430,
     overflow: 'hidden',

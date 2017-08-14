@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import org.apache.calcite.plan.Convention;
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexNode;
@@ -34,7 +33,6 @@ import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.PlannerType;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.physical.DistributionTrait;
-import com.google.common.collect.Sets;
 
 public final class RexSubQueryUtils {
 
@@ -98,6 +96,9 @@ public final class RexSubQueryUtils {
       try {
         final RelNode convertedSubquery = subQuery.rel.accept(new InjectSampleAndJdbcLogical(false, true));
         transformed = PrelTransformer.transform(config, PlannerType.VOLCANO, PlannerPhase.JDBC_PUSHDOWN, convertedSubquery, traitSet, false);
+
+        // We may need to run the planner again on the sub-queries in the sub-tree this produced.
+        transformed = transformed.accept(new RelsWithRexSubQueryTransformer(config));
       } catch (Throwable t) {
         failed = true;
         return subQuery;
@@ -198,25 +199,33 @@ public final class RexSubQueryUtils {
   /**
    * Checks that the subquery is of JDBC convention.
    */
-  public static class RexSubQueryConventionChecker extends RexShuttle {
-    private final Set<Convention> conventions = Sets.newHashSet();
-    private boolean cannotPushdownRexSubQuery = false;
+  public static class RexSubQueryPluginIdChecker extends RexShuttle {
+    private StoragePluginId pluginId;
+    private boolean canPushdownRexSubQuery = true;
 
-    public boolean isCannotPushdownRexSubQuery() {
-      return cannotPushdownRexSubQuery;
+    public RexSubQueryPluginIdChecker(StoragePluginId pluginId) {
+      this.pluginId = pluginId;
     }
 
-    public Set<Convention> getConventions() {
-      return conventions;
+    public boolean canPushdownRexSubQuery() {
+      return canPushdownRexSubQuery;
+    }
+
+    public StoragePluginId getPluginId() {
+      return pluginId;
     }
 
     @Override
     public RexNode visitSubQuery(RexSubQuery subQuery) {
-      RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker();
+      RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(pluginId);
       checker.visit(subQuery.rel);
-      conventions.addAll(checker.getAllConventionsFound());
-      if (checker.cannotPushdownRexSubQuery()) {
-        cannotPushdownRexSubQuery = true;
+      if (!checker.canPushdownRexSubQuery()) {
+        canPushdownRexSubQuery = false;
+      }
+
+      // Begin validating against the plugin ID identified by the pushdown checker.
+      if (checker.getPluginId() != null) {
+        pluginId = checker.getPluginId();
       }
       return super.visitSubQuery(subQuery);
     }
@@ -224,80 +233,101 @@ public final class RexSubQueryUtils {
 
   /**
    * Checks for RexSubQuery rexnodes in the tree, and if there are any, ensures that the underlying
-   * table scans for these RexSubQuery is of a single JDBC Convention (cannot pushdown a subquery
-   * that is across multiple/different databases).
+   * table scans for these RexSubQuery nodes all either share one pluginId or have a null pluginId, and that the
+   * single unique Plugin ID is from a JDBC data source.
+   *
+   * Two different non-null pluginIds indicate that the table scans are from different databases and thus the
+   * subquery cannot be pushed down.
    */
   public static class RexSubQueryPushdownChecker {
 
-    private final Set<Convention> allConventionsFound = Sets.newHashSet();
-    private boolean cannotPushdownRexSubQuery = false;
+    public RexSubQueryPushdownChecker(StoragePluginId pluginId) {
+      this.pluginId = pluginId;
+    }
+
+    private StoragePluginId pluginId;
+    private boolean canPushdownRexSubQuery = true;
     private boolean foundRexSubQuery = false;
 
-    public boolean cannotPushdownRexSubQuery() {
-      return cannotPushdownRexSubQuery;
+    public boolean canPushdownRexSubQuery() {
+      return canPushdownRexSubQuery;
     }
 
     public boolean foundRexSubQuery() {
       return foundRexSubQuery;
     }
 
-    public Set<Convention> getAllConventionsFound() {
-      return allConventionsFound;
+    public StoragePluginId getPluginId() {
+      return pluginId;
     }
 
-    public Set<Convention> visit(final RelNode node) {
-      if (node instanceof TableScan) {
-        allConventionsFound.add(node.getConvention());
-        return Sets.newHashSet(node.getConvention());
+    /**
+     * Inspect the sub-tree starting at this node to see if there is at most one non-null
+     * pluginId, and that pluginId supports subquery pushdown.
+     *
+     * @param node The node to start visiting from.
+     * @return True if the given node can be pushed down if it's in a sub-query.
+     */
+    public boolean visit(final RelNode node) {
+      if (node instanceof ScanRelBase) {
+        ScanRelBase scan = ((ScanRelBase) node);
+        if (!verifyAndUpdatePluginId(scan.getPluginId())) {
+          return false;
+        }
       }
 
-      if (cannotPushdownRexSubQuery) {
-        return Sets.newHashSet();
-      }
-
-      final Set<Convention> childrenConventions = new HashSet<>();
       for (RelNode input : node.getInputs()) {
-        childrenConventions.addAll(visit(input));
+        canPushdownRexSubQuery = visit(input) && canPushdownRexSubQuery;
       }
 
       final RexSubQueryFinder subQueryFinder = new RexSubQueryFinder();
       node.accept(subQueryFinder);
       if (!subQueryFinder.getFoundSubQuery()) {
-        return childrenConventions;
+        return canPushdownRexSubQuery;
       }
 
       foundRexSubQuery = true;
 
-      // Check that the subquery has the same jdbc convention as well!
-      final RexSubQueryConventionChecker subQueryConventionChecker = new RexSubQueryConventionChecker();
+      // Check that the subquery has the same pluginId as well!
+      final RexSubQueryPluginIdChecker subQueryConventionChecker = new RexSubQueryPluginIdChecker(pluginId);
       node.accept(subQueryConventionChecker);
-      childrenConventions.addAll(subQueryConventionChecker.getConventions());
-      if (subQueryConventionChecker.isCannotPushdownRexSubQuery()) {
-        return childrenConventions;
+      if (!subQueryConventionChecker.canPushdownRexSubQuery()) {
+        canPushdownRexSubQuery = false;
+        return false;
       }
 
-      // Found some subquery or field access or correlated variables.
-      Convention found = null;
-      boolean foundMoreThanOneConvention = false;
-      boolean foundNoneJdbcConvention = false;
-      for (final Convention childConvention : childrenConventions) {
-        if (found == null) {
-          found = childConvention;
-          if (!(found instanceof JdbcConventionIndicator)) {
-            foundNoneJdbcConvention = true;
-            break;
-          }
-        } else if (found != childConvention) {
-          foundMoreThanOneConvention = true;
-          break;
+      return true;
+    }
+
+    /**
+     * Checks if the given pluginId would allow for sub-query pushdown within the context
+     * of this tree.
+     *
+     * @param pluginId The pluginId to verify.
+     * @return True if the pluginId would allow for sub-query pushdown.
+     */
+    private boolean verifyAndUpdatePluginId(StoragePluginId pluginId) {
+      if (!canPushdownRexSubQuery) {
+        return false;
+      }
+
+      if (this.pluginId == null) {
+        this.pluginId = pluginId;
+        if (pluginId.getCapabilities().getCapability(SourceCapabilities.SUBQUERY_PUSHDOWNABLE)) {
+          return true;
+        } else {
+          canPushdownRexSubQuery = false;
+          return false;
         }
       }
 
-      if (foundMoreThanOneConvention || foundNoneJdbcConvention) {
-        cannotPushdownRexSubQuery = true;
+      if (pluginId == null ||
+        pluginId.equals(this.pluginId)) {
+        return true;
       }
 
-      return childrenConventions;
+      canPushdownRexSubQuery = false;
+      return false;
     }
   }
 }

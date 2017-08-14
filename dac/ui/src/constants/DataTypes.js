@@ -158,7 +158,7 @@ export function parseTextToDataType(cellText, dataType) {
   case FLOAT:
   case DECIMAL:
   case BIGINT: // can MAYBE remove BIGINT with DX-5403 Acceleration UI missing type icons due to incorrect types from BE
-    return Number(cellText);
+    return cellText === null ? null : Number(cellText);
   case BOOLEAN:
     return cellText === 'true';
   default:

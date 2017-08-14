@@ -13,15 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MAP, LIST, BOOLEAN, TEXT } from 'constants/DataTypes';
+import { MAP, LIST, BOOLEAN, TEXT, FLOAT } from 'constants/DataTypes';
 
 export const UNMATCHED_CELL_VALUE = '???';
 export const EMPTY_NULL_VALUE = 'null';
+export const EMPTY_STRING_VALUE = 'empty text';
 
 class DataFormatUtils {
   formatValue(value, columnType, row) {
-    if (value === undefined || value === '') {
-      return '';
+    if (value === undefined) {
+      return EMPTY_NULL_VALUE;
+    }
+    if (value === '') {
+      return EMPTY_STRING_VALUE;
     }
     if (value === null) {
       if (row && row.get('isDeleted')) {
@@ -39,6 +43,8 @@ class DataFormatUtils {
       return JSON.stringify(value);
     case TEXT:
       return value.replace(/^ /g, '\u00a0');  // force showing initial space
+    case FLOAT:
+      return String(value); // Edge renders float inconsistently, so explicitly convert to String here
     default:
       return value;
     }

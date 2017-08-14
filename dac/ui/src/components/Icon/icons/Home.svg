@@ -16,23 +16,14 @@
     limitations under the License.
 
 -->
-<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
-    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
-    <title>Icon/Home</title>
-    <desc>Created with Sketch.</desc>
-    <defs></defs>
-    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
-        <g id="Icon/Home" sketch:type="MSArtboardGroup">
-            <g sketch:type="MSLayerGroup">
-                <g id="icon-box-24" sketch:type="MSShapeGroup">
-                    <rect x="0" y="0" width="24" height="24"></rect>
-                </g>
-                <g id="Stroke-5549-+-Stroke-5550-+-Stroke-5551" transform="translate(4.000000, 4.000000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
-                    <path d="M2.48990023,8.69565217 L2.48990023,15.6521739 L6.44413364,15.6521739 L6.44413364,10.7826087 L9.73932815,10.7826087 L9.73932815,15.6521739 L13.6935616,15.6521739 L13.6935616,9.04347826" id="Stroke-5549"></path>
-                    <path d="M0.512783524,8.34782609 L8.09173089,0.347826087 L15.6706783,8.34782609" id="Stroke-5550"></path>
-                    <path d="M10.7278865,1.04347826 L13.0345227,1.04347826 L13.0345227,3.47826087" id="Stroke-5551"></path>
-                </g>
-            </g>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;">
+    <g id="Icon.2f.Home">
+        <rect id="icon.-box.-24" x="0" y="0" width="24" height="24" style="fill:none;"/>
+        <g id="Stroke.-5549.-.2b..-Stroke.-5550.-.2b..-Stroke.-5551">
+            <path id="Stroke.-5549" d="M6.398,12.696l0,6.956l3.954,0l0,-4.869l3.296,0l0,4.869l3.954,0l0,-6.609" style="fill:none;stroke:#77818f;stroke-width:1px;"/>
+            <path id="Stroke.-5550" d="M4.421,12.348l7.579,-8l7.579,8" style="fill:none;stroke:#77818f;stroke-width:1px;"/>
+            <path id="Stroke.-5551" d="M14.636,5.043l2.307,0l0,2.435" style="fill:none;stroke:#77818f;stroke-width:1px;"/>
         </g>
     </g>
 </svg>

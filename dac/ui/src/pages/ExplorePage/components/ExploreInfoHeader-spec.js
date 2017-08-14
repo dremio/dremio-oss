@@ -27,6 +27,7 @@ describe('ExploreInfoHeader', () => {
   let instance;
   beforeEach(() => {
     commonProps = {
+      pageType: 'default',
       exploreViewState: Immutable.fromJS({}),
       dataset: Immutable.fromJS({
         datasetVersion: '11',
@@ -66,7 +67,6 @@ describe('ExploreInfoHeader', () => {
       performTransform: sinon.stub().returns(Promise.resolve('performTransform')),
       transformHistoryCheck: sinon.spy(),
       performLoadDataset: sinon.stub().returns(Promise.resolve('performLoadDataset')),
-      previewDataset: sinon.stub().returns(Promise.resolve('previewDataset')),
       navigateToNextDataset: sinon.stub().returns('navigateToNextDataset')
     };
     context = {
@@ -172,19 +172,28 @@ describe('ExploreInfoHeader', () => {
       sinon.stub(instance, 'transformIfNecessary');
     });
 
-    it('should not call not previewDataset if didTransform', () => {
+    it('should not call performLoadDataset if didTransform', () => {
       instance.handlePreviewClick();
       instance.transformIfNecessary.args[0][0](true);
-      expect(commonProps.previewDataset).to.not.be.called;
+      expect(commonProps.performLoadDataset).to.not.be.called;
     });
 
-    it('should call previewDataset if !didTransform', () => {
+    it('should call navigateToExploreTableIfNecessary, and performLoadDataset if !didTransform', () => {
+      sinon.spy(instance, 'navigateToExploreTableIfNecessary');
       instance.handlePreviewClick();
-      const promise = instance.transformIfNecessary.args[0][0](false);
-      expect(commonProps.previewDataset).to.be.called;
-      return promise.then(() => {
-        expect(commonProps.navigateToNextDataset).to.be.called;
-      });
+      instance.transformIfNecessary.args[0][0](false);
+      expect(commonProps.performLoadDataset).to.be.called;
+    });
+  });
+
+  describe('#navigateToExploreTableIfNecessary', () => {
+    it('should navigate to url parent path only if props.pageType !== default', () => {
+      instance.navigateToExploreTableIfNecessary();
+      expect(context.router.push).to.not.be.called;
+
+      wrapper.setProps({location: {pathname: '/ds1/graph'}, pageType: 'graph'});
+      instance.navigateToExploreTableIfNecessary();
+      expect(context.router.push).to.be.calledWith({pathname: '/ds1'});
     });
   });
 
@@ -265,36 +274,21 @@ describe('ExploreInfoHeader', () => {
     });
 
     describe('#transformIfNecessary', () => {
-      it('should call transformHistoryCheck only if needsTranform or exploreViewState.isFailed', () => {
+      it('should call transformHistoryCheck only if needsTranform', () => {
         sinon.stub(instance, 'needsTransform').returns(false);
         instance.transformIfNecessary();
         expect(commonProps.transformHistoryCheck).to.not.be.called;
 
         instance.needsTransform.returns(true);
         instance.transformIfNecessary();
-        expect(commonProps.transformHistoryCheck).to.be.calledOnce;
-
-        instance.needsTransform.returns(false);
-        wrapper.setProps({exploreViewState: commonProps.exploreViewState.set('isFailed', true)});
-        instance.transformIfNecessary();
-        expect(commonProps.transformHistoryCheck).to.be.calledTwice;
+        expect(commonProps.transformHistoryCheck).to.be.called;
       });
 
-      it('should call callback with didTransform=true if transformHistoryCheck', () => {
+      it('should call navigateToExploreTableIfNecessary if performing transform', () => {
         sinon.stub(instance, 'needsTransform').returns(true);
-        const theCallback = sinon.spy();
-        instance.transformIfNecessary(theCallback);
-        commonProps.transformHistoryCheck.args[0][1](); // call transformHistoryCheck callback
-        expect(commonProps.performTransform).to.be.called;
-        commonProps.performTransform.args[0][0].callback(); // call performTransform callback
-        expect(theCallback).to.be.calledWith(true);
-      });
-
-      it('should call callback with didTransform=false if no transformHistoryCheck', () => {
-        sinon.stub(instance, 'needsTransform').returns(false);
-        const theCallback = sinon.spy();
-        instance.transformIfNecessary(theCallback);
-        expect(theCallback).to.be.calledWith(false);
+        sinon.spy(instance, 'navigateToExploreTableIfNecessary');
+        instance.transformIfNecessary(() => {});
+        expect(instance.navigateToExploreTableIfNecessary).to.be.called;
       });
     });
 
@@ -313,6 +307,11 @@ describe('ExploreInfoHeader', () => {
         instance.runDataset();
         expect(commonProps.performTransformAndRun).to.not.be.called;
         expect(commonProps.transformHistoryCheck).to.be.calledOnce;
+      });
+      it('should call navigateToExploreTableIfNecessary', () => {
+        sinon.spy(instance, 'navigateToExploreTableIfNecessary');
+        instance.runDataset();
+        expect(instance.navigateToExploreTableIfNecessary).to.be.called;
       });
     });
   });

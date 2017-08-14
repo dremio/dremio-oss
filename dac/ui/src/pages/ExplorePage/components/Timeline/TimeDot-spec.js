@@ -60,6 +60,11 @@ describe('TimeDot', () => {
     expect(wrapper.find('Link')).to.have.length(1);
   });
 
+  it('should not render Link when at current version', () => {
+    wrapper.setProps({location: {query: {version: commonProps.historyItem.get('datasetVersion')}}});
+    expect(wrapper.find('Link')).to.have.length(0);
+  });
+
   describe('#getLinkLocation', () => {
     it('should have pathname=props.datasetPathname', () => {
       expect(instance.getLinkLocation().pathname).to.equal(commonProps.datasetPathname);
@@ -70,6 +75,17 @@ describe('TimeDot', () => {
         tipVersion: commonProps.tipVersion,
         version: commonProps.historyItem.get('datasetVersion')
       });
+    });
+
+    it('should return null if already at this datasetVersion', () => {
+      wrapper.setProps({location: {
+        ...commonProps.location,
+        query: {
+          version: commonProps.historyItem.get('datasetVersion')
+        }
+      }});
+
+      expect(instance.getLinkLocation()).to.be.null;
     });
   });
 

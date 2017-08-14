@@ -20,9 +20,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
@@ -36,6 +39,7 @@ import com.dremio.service.namespace.StoragePluginId;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 public class ScanCrel extends ScanRelBase implements CopyToCluster, IncrementallyUpdateable {
 
@@ -51,6 +55,16 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       boolean isDirectNamespaceDescendent) {
     super(cluster, traitSet, new RelOptNamespaceTable(metadata, cluster), pluginId, metadata, projectedColumns, observedRowcountAdjustment);
     this.isDirectNamespaceDescendent = isDirectNamespaceDescendent;
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq) {
+    // Check if the data source requires ScanCrels to be converted to other node types.
+    // This is enforced by making the cost infinite.
+    if (pluginId.getCapabilities().getCapability(SourceCapabilities.TREAT_CALCITE_SCAN_COST_AS_INFINITE)) {
+      return planner.getCostFactory().makeInfiniteCost();
+    }
+    return super.computeSelfCost(planner, mq);
   }
 
   @Override

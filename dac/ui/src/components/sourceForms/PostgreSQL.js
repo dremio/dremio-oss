@@ -18,6 +18,7 @@ import { Component, PropTypes } from 'react';
 import General from 'components/Forms/General';
 import SingleHost from 'components/Forms/SingleHost';
 import Credentials from 'components/Forms/Credentials';
+import JDBCOptions from 'components/Forms/JDBCOptions';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
@@ -33,7 +34,7 @@ class DatabaseSection {
   }
 }
 
-const SECTIONS = [General, SingleHost, DatabaseSection, Credentials, MetadataRefresh];
+const SECTIONS = [General, SingleHost, DatabaseSection, Credentials, JDBCOptions, MetadataRefresh];
 const DEFAULT_PORT = 5432;
 
 export class Postgres extends Component {
@@ -63,6 +64,7 @@ export class Postgres extends Component {
             <div style={section}>
               <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
               <AdvancedOptionsExpandable>
+                <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>
               </AdvancedOptionsExpandable>
             </div>

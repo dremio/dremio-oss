@@ -22,6 +22,7 @@ import com.dremio.service.accelerator.proto.AccelerationEntry;
 import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.Materialization;
+import com.dremio.service.accelerator.proto.MaterializationId;
 import com.dremio.service.accelerator.proto.SystemSettings;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.namespace.NamespaceKey;
@@ -128,6 +129,13 @@ public interface AccelerationService extends Service {
    * @return
    */
   boolean isPipelineCompletedOrNotStarted(AccelerationId id);
+
+  /**
+   * return true if the materialization is cached
+   * @param materializationId
+   * @return
+   */
+  boolean isMaterializationCached(MaterializationId materializationId);
 
   /**
    * Access developer services

@@ -19,11 +19,12 @@ import static com.dremio.exec.store.dfs.easy.EasyDatasetXAttrSerDe.EASY_DATASET_
 import static com.dremio.exec.store.parquet.ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -41,6 +42,7 @@ import com.dremio.exec.store.SplitsPointerImpl;
 import com.dremio.exec.store.StoragePlugin2;
 import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
 import com.dremio.exec.store.StoragePluginTypeRulesFactory;
+import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
@@ -58,6 +60,7 @@ import com.dremio.service.namespace.file.proto.FileSystemCachedEntity;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
 import io.protostuff.ByteString;
@@ -70,6 +73,8 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSystemStoragePlugin2.class);
 
   private static final BooleanCapabilityValue REQUIRES_HARD_AFFINITY = new BooleanCapabilityValue(SourceCapabilities.REQUIRES_HARD_AFFINITY, true);
+
+  private static final int PERMISSION_CHECK_TASK_BATCH_SIZE = 10;
 
   private final FileSystemPlugin fsPlugin;
   private final String name;
@@ -260,62 +265,121 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
     if (fsPlugin.getConfig().isImpersonationEnabled()) {
       if (datasetConfig.getReadDefinition() != null) { // allow accessing partial datasets
         final FileSystemWrapper userFs = fsPlugin.getFS(user);
-        return hasAccessPermissionReadSignature(datasetConfig, userFs) &&
-          hasAccessPermissionSplits(datasetConfig, userFs, user);
+        final List<TimedRunnable<Boolean>> permissionCheckTasks = Lists.newArrayList();
+
+        permissionCheckTasks.addAll(getUpdateKeyPermissionTasks(datasetConfig, userFs));
+        permissionCheckTasks.addAll(getSplitPermissiomTasks(datasetConfig, userFs, user));
+
+        try {
+          Stopwatch stopwatch = Stopwatch.createStarted();
+          final List<Boolean> accessPermissions = TimedRunnable.run("check access permission for " + key, logger, permissionCheckTasks, 16);
+          stopwatch.stop();
+          logger.debug("Checking access permission for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+          for (Boolean permission : accessPermissions) {
+            if (!permission) {
+              return false;
+            }
+          }
+        } catch (IOException ioe) {
+          throw UserException.dataReadError(ioe).build(logger);
+        }
       }
     }
     return true;
   }
 
   // Check if all sub directories can be listed/read
-  private boolean hasAccessPermissionReadSignature(DatasetConfig datasetConfig, FileSystemWrapper userFs) {
+  private Collection<FsPermissionTask> getUpdateKeyPermissionTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs) {
     final FileUpdateKey fileUpdateKey = new FileUpdateKey();
     ProtostuffIOUtil.mergeFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray(), fileUpdateKey, fileUpdateKey.getSchema());
     if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
-      return true;
+      return Collections.emptyList();
     }
+    final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
+    final FsAction action;
+    final List<Path> batch = Lists.newArrayList();
+
+    //DX-7850 : remove once solution for maprfs is found
+    if (userFs.isMapRfs()) {
+      action = FsAction.READ;
+    } else {
+      action = FsAction.READ_EXECUTE;
+    }
+
     for (FileSystemCachedEntity cachedEntity : fileUpdateKey.getCachedEntitiesList()) {
-      final Path cachedEntityPath = new Path(cachedEntity.getPath());
-      try {
-        //DX-7850 : remove once solution for maprfs is found
-        if (userFs.isMapRfs()) {
-          userFs.access(cachedEntityPath, FsAction.READ);
-        } else {
-          userFs.access(cachedEntityPath, FsAction.READ_EXECUTE);
-        }
-      } catch (AccessControlException ace) {
-        return false;
-      } catch (FileNotFoundException fnfe) {
-        throw UserException.dataReadError(fnfe).message(String.format("Missing file %s under dataset", cachedEntityPath)).build(logger);
-      } catch (IOException ioe) {
-        throw UserException.dataReadError(ioe).message(String.format("Error reading file %s", cachedEntityPath)).build(logger);
+      batch.add(new Path(cachedEntity.getPath()));
+      if (batch.size() == PERMISSION_CHECK_TASK_BATCH_SIZE) {
+        // make a copy of batch
+        fsPermissionTasks.add(new FsPermissionTask(userFs, Lists.newArrayList(batch), action));
+        batch.clear();
       }
     }
-    return true;
+    if (!batch.isEmpty()) {
+      fsPermissionTasks.add(new FsPermissionTask(userFs, batch, action));
+    }
+    return fsPermissionTasks;
   }
 
   // Check if all splits are accessible
-  private boolean hasAccessPermissionSplits(DatasetConfig datasetConfig, FileSystemWrapper userFs, String user) {
+  private Collection<FsPermissionTask> getSplitPermissiomTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs, String user) {
     final SplitsPointer splitsPointer = new SplitsPointerImpl(datasetConfig, fsPlugin.getContext().getNamespaceService(user));
     final boolean isParquet = datasetConfig.getPhysicalDataset().getFormatSettings().getType() == FileType.PARQUET;
+    final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
+    final List<Path> batch = Lists.newArrayList();
+
     for (DatasetSplit split:  splitsPointer.getSplitIterable()) {
-      Path filePath;
+      final Path filePath;
       if (isParquet) {
         filePath = new Path(PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray()).getPath());
       } else {
         filePath = new Path(EASY_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray()).getPath());
       }
-      try {
-        userFs.access(filePath, FsAction.READ);
-      } catch (AccessControlException ace) {
-        return false;
-      } catch (FileNotFoundException fnfe) {
-        throw UserException.dataReadError(fnfe).message(String.format("Missing file %s under dataset", filePath)).build(logger);
-      } catch (IOException ioe) {
-        throw UserException.dataReadError(ioe).message(String.format("Error reading file %s", filePath)).build(logger);
+
+      batch.add(filePath);
+      if (batch.size() == PERMISSION_CHECK_TASK_BATCH_SIZE) {
+        // make a copy of batch
+        fsPermissionTasks.add(new FsPermissionTask(userFs, new ArrayList<>(batch), FsAction.READ));
+        batch.clear();
       }
     }
-    return true;
+
+    if (!batch.isEmpty()) {
+      fsPermissionTasks.add(new FsPermissionTask(userFs, batch, FsAction.READ));
+    }
+
+    return fsPermissionTasks;
+  }
+
+  private class FsPermissionTask extends TimedRunnable<Boolean> {
+    private final FileSystemWrapper userFs;
+    private final List<Path> cachedEntityPaths;
+    private final FsAction permission;
+
+    FsPermissionTask(FileSystemWrapper userFs, List<Path> cachedEntityPaths, FsAction permission) {
+      this.userFs = userFs;
+      this.cachedEntityPaths = cachedEntityPaths;
+      this.permission = permission;
+    }
+
+    @Override
+    protected IOException convertToIOException(Exception e) {
+      if (e instanceof IOException) {
+        return (IOException) e;
+      }
+      return new IOException(e);
+    }
+
+    @Override
+    protected Boolean runInner() throws Exception {
+      for (Path cachedEntityPath:  cachedEntityPaths) {
+        try {
+          userFs.access(cachedEntityPath, permission);
+        } catch (AccessControlException ace) {
+          return false;
+        }
+      }
+      return true;
+    }
   }
 
   public FileSystemPlugin getFsPlugin() {

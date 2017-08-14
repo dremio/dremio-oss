@@ -128,6 +128,7 @@ class ExplorePageContentWrapper extends Component {
     return (
       <ExplorePageUpperContent
         dataset={props.dataset}
+        pageType={props.pageType}
         rightTreeVisible={props.rightTreeVisible}
         sqlSize={props.sqlSize}
         sqlState={props.sqlState}

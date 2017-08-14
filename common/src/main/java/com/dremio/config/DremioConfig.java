@@ -78,13 +78,11 @@ public class DremioConfig extends NestedConfig {
    */
   public static final String WEB_UI_SERVICE_CONFIG = "services.coordinator.web.ui";
 
-  /**
-   * Path where debug options are located
-   */
-  public static final String DEBUG_OPTIONS = "debug";
-
   public static final String CLIENT_PORT_INT = "services.coordinator.client-endpoint.port";
   public static final String SERVER_PORT_INT = "services.fabric.port";
+
+  public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
+
   public static final String REGISTRATION_ADDRESS = "registration.publish-host";
   public static final String DB_PATH_STRING = "paths.db";
   public static final String ACCELERATOR_PATH_STRING = "paths.accelerator";
@@ -95,6 +93,12 @@ public class DremioConfig extends NestedConfig {
   public static final String SPILLING_PATH_STRING = "paths.spilling";
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
+
+  /**
+   * Path where debug options are located
+   */
+  public static final String DEBUG_OPTIONS = "debug";
+
   // to enable remote debugging of the DremioDaemon running in YARN container
   public static final String DEBUG_YARN_ENABLED = "debug.yarnremote.enabled";
   public static final String YARN_HEAP_SIZE = "provisioning.yarn.heapsize";

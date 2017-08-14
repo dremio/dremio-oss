@@ -111,7 +111,7 @@ public class TestAccelerationFailures extends AccelerationTestUtil {
     BaseTestServer.init();
 
     // Add custom PipelineFactory that replaces each stage with dummy stages that can fail.
-    final AccelerationServiceImpl service = (AccelerationServiceImpl) l(AccelerationService.class);
+    final AccelerationService service = (AccelerationService) l(AccelerationService.class);
     Field pipeManagerField = service.getClass().getDeclaredField("pipelineManager");
     pipeManagerField.setAccessible(true);
     PipelineManager pipeManager = (PipelineManager) pipeManagerField.get(service);

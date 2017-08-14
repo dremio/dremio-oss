@@ -108,4 +108,20 @@ describe('FormDirtyStateWatcher', () => {
       expect(wrapper.instance().areArrayFieldsDirty(wrapper.props())).to.be.false;
     });
   });
+
+  describe('#_removeKeysWithUndefinedValue', () => {
+    it('should replace undefined values inside objects, change undefined to null, and keep nonobjects the same', () => {
+      const wrapper = shallow(<TestComponent {...minimalProps}/>);
+      const instance = wrapper.instance();
+      const valuesList = [
+        {key1: 'foo'},
+        {key2: undefined},
+        null,
+        1,
+        undefined
+      ];
+      const expected = [{key1: 'foo'}, {}, null, 1, null];
+      expect(instance._removeKeysWithUndefinedValue(valuesList)).to.be.eql(expected);
+    });
+  });
 });

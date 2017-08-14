@@ -20,6 +20,7 @@ import static com.dremio.BaseTestQuery.getTempDir;
 import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -116,9 +117,19 @@ public class HiveTestDataGenerator {
     pluginRegistry.deletePlugin(HIVE_TEST_PLUGIN_NAME);
   }
 
-  private void generateTestData() throws Exception {
-    HiveConf conf = new HiveConf(SessionState.class);
+  public void executeDDL(String query) throws IOException {
+    final HiveConf conf = new HiveConf(SessionState.class);
+    final SessionState ss = new SessionState(conf);
+    try {
+      SessionState.start(ss);
+      final Driver hiveDriver = getHiveDriver(conf);
+      executeQuery(hiveDriver, query);
+    } finally {
+      ss.close();
+    }
+  }
 
+  private Driver getHiveDriver(HiveConf conf) {
     conf.set("javax.jdo.option.ConnectionURL", String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
     conf.set("hive.metastore.warehouse.dir", whDir);
@@ -127,9 +138,15 @@ public class HiveTestDataGenerator {
     conf.set(ConfVars.LOCALSCRATCHDIR.varname, getTempDir("local_scratch_dir"));
     conf.set(ConfVars.DYNAMICPARTITIONINGMODE.varname, "nonstrict");
 
+    Driver hiveDriver = new Driver(conf);
+    return hiveDriver;
+  }
+
+  private void generateTestData() throws Exception {
+    HiveConf conf = new HiveConf(SessionState.class);
     SessionState ss = new SessionState(conf);
     SessionState.start(ss);
-    Driver hiveDriver = new Driver(conf);
+    Driver hiveDriver = getHiveDriver(conf);
 
     // generate (key, value) test data
     String testDataFile = generateTestDataFile(5, "dremio-hive-test");
@@ -165,6 +182,9 @@ public class HiveTestDataGenerator {
 
     // create a table with no data
     executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS empty_table(a INT, b STRING)");
+
+    // create empty partitioned table
+    executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS partitioned_empty_table(a INT, b STRING) PARTITIONED BY (p INT)");
     // delete the table location of empty table
     File emptyTableLocation = new File(whDir, "empty_table");
     if (emptyTableLocation.exists()) {

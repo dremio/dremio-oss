@@ -32,18 +32,21 @@ public class JdbcStorageConfig extends StoragePluginConfig {
   private final String url;
   private final String username;
   private final String password;
+  private final int fetchSize;
 
   @JsonCreator
   public JdbcStorageConfig(
       @JsonProperty("driver") String driver,
       @JsonProperty("url") String url,
       @JsonProperty("username") String username,
-      @JsonProperty("password") String password) {
+      @JsonProperty("password") String password,
+      @JsonProperty(value = "fetchSize", defaultValue = "0") int fetchSize) {
     super();
     this.driver = driver;
     this.url = url;
     this.username = username;
     this.password = password;
+    this.fetchSize = fetchSize;
   }
 
   public String getDriver() {
@@ -62,6 +65,10 @@ public class JdbcStorageConfig extends StoragePluginConfig {
     return password;
   }
 
+  public int getFetchSize() {
+    return fetchSize;
+  }
+
   @Override
   public int hashCode() {
     final int prime = 31;
@@ -70,6 +77,7 @@ public class JdbcStorageConfig extends StoragePluginConfig {
     result = prime * result + ((password == null) ? 0 : password.hashCode());
     result = prime * result + ((url == null) ? 0 : url.hashCode());
     result = prime * result + ((username == null) ? 0 : username.hashCode());
+    result = prime * result + fetchSize;
     return result;
   }
 
@@ -111,6 +119,9 @@ public class JdbcStorageConfig extends StoragePluginConfig {
         return false;
       }
     } else if (!username.equals(other.username)) {
+      return false;
+    }
+    if (fetchSize !=  other.fetchSize) {
       return false;
     }
     return true;

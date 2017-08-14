@@ -38,10 +38,13 @@ public class MYSQLSourceConfigurator extends SingleSourceToStoragePluginConfig<M
   public StoragePluginConfig configureSingle(MySQLConfig mysql) {
     String hostname = checkNotNull(mysql.getHostname(), "missing hostname");
     String port = checkNotNull(mysql.getPort(), "missing port");
+    Integer fetchSize = mysql.getFetchSize();
+
     JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.MYSQL_DRIVER,
         "jdbc:mariadb://" + hostname + ":" + port,
         mysql.getUsername(),
-        mysql.getPassword()
+        mysql.getPassword(),
+        fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
         );
     return config;
   }

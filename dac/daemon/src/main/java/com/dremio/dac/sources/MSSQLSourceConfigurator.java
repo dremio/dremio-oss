@@ -40,10 +40,13 @@ public class MSSQLSourceConfigurator extends SingleSourceToStoragePluginConfig<M
   public StoragePluginConfig configureSingle(MSSQLConfig mssql) {
     String hostname = checkNotNull(mssql.getHostname(), "missing hostname");
     String port = checkNotNull(mssql.getPort(), "missing port");
+    Integer fetchSize = mssql.getFetchSize();
+
     JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.MSSQL_DRIVER,
         "jdbc:sqlserver://" + hostname + ":" + port,
         mssql.getUsername(),
-        mssql.getPassword()
+        mssql.getPassword(),
+        fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
         );
     return config;
   }

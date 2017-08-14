@@ -125,7 +125,11 @@ public class ${datetype}${intervaltype}Functions {
     @Param ${datetype}Holder left;
     @Param ${intervaltype}Holder right;
     @Workspace org.joda.time.MutableDateTime temp;
+    <#if datetype == "DateMilli" && (intervaltype.startsWith("Interval"))>
+    @Output TimeStampMilliHolder out;
+    <#else>
     @Output ${datetype}Holder out;
+    </#if>
 
         public void setup() {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);

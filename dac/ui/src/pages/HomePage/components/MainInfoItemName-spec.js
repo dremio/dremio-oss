@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow, mount } from 'enzyme';
 
 import MainInfoItemName from './MainInfoItemName';
 
@@ -23,6 +23,19 @@ describe('MainInfoItemName', () => {
       id: 1,
       name: 'foo',
       links: {self: '/href', query: '/query'},
+      queryable: false,
+      fileType: 'folder',
+      fullPathList: ['Prod-sample'],
+      datasetConfig: {fullPathList: []}
+    })
+  };
+
+  const queryableFolderProps = {
+    item: Immutable.fromJS({
+      id: 1,
+      name: 'foo',
+      links: {self: '/href', query: '/query'},
+      queryable: true,
       fileType: 'folder',
       fullPathList: ['Prod-sample'],
       datasetConfig: {fullPathList: []}
@@ -56,6 +69,13 @@ describe('MainInfoItemName', () => {
     expect(wrapper.find('Link').props().to).to.eql('/href');
   });
 
+  it('should render color only for queryable folder', () => {
+    const wrapper1 = shallow(<MainInfoItemName {...queryableFolderProps}/>, {context});
+    const wrapper2 = shallow(<MainInfoItemName {...commonProps}/>, {context});
+    expect(wrapper1.find('Link').props().style.color).to.eql('#333');
+    expect(wrapper2.find('Link').props().style.color).to.eql(undefined);
+  });
+
   it('should render modal href for non-queryable file', () => {
     const wrapper = shallow(<MainInfoItemName {...fileProps} />, {context});
     expect(wrapper.find('Link').props().to).to.eql({
@@ -71,7 +91,7 @@ describe('MainInfoItemName', () => {
   });
 
   it('should render name as text', () => {
-    const wrapper = shallow(<MainInfoItemName {...commonProps}/>, {context});
+    const wrapper = mount(<MainInfoItemName {...commonProps}/>, {context});
     expect(wrapper.find('.last-File').text()).to.eql('foo');
   });
 

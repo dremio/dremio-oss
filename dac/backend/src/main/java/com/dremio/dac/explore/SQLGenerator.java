@@ -374,6 +374,9 @@ class SQLGenerator {
   }
 
   private String prepareValue(final String value, DataType type) throws Exception {
+    if (value == null) {
+      return "NULL";
+    }
     switch (type) {
       case BOOLEAN:
       case DECIMAL:
@@ -449,21 +452,33 @@ class SQLGenerator {
 
       @Override
       public String visit(FilterValue filterValue) throws Exception {
+        List<String> copyValues = new ArrayList<String>(filterValue.getValuesList());
+        boolean containsNull = copyValues.contains(null);
         StringBuilder sb = new StringBuilder();
         sb.append(column);
-        if (filterValue.getValuesList().size() == 1) {
-          String value = filterValue.getValuesList().get(0);
-          sb.append(isExclude ? " <> " : " = ").append(prepareValue(value, filterValue.getDataType()));
-        } else {
-          if (isExclude) {
-            sb.append(" NOT");
+        if (containsNull) {
+          sb.append(isExclude ? " IS NOT NULL" : " IS NULL");
+          copyValues.remove(null);
+        }
+        if (!copyValues.isEmpty()) {
+          if (containsNull) {
+            sb.append(isExclude ? " AND " : " OR ").append(column);
           }
-          sb.append(" IN (");
-          List<String> values = new ArrayList<>();
-          for (String value : filterValue.getValuesList()) {
-            values.add(prepareValue(value, filterValue.getDataType()));
+
+          if (copyValues.size() == 1) {
+            String value = copyValues.get(0);
+            sb.append(isExclude ? " <> " : " = ").append(prepareValue(value, filterValue.getDataType()));
+          } else {
+            if (isExclude) {
+              sb.append(" NOT");
+            }
+            sb.append(" IN (");
+            List<String> values = new ArrayList<>();
+            for (String value : copyValues) {
+              values.add(prepareValue(value, filterValue.getDataType()));
+            }
+            sb.append(Joiner.on(", ").join(values)).append(")");
           }
-          sb.append(Joiner.on(", ").join(values)).append(")");
         }
         return sb.toString();
       }
@@ -750,13 +765,13 @@ class SQLGenerator {
 
       switch (dateToNumber.getConvertType()) {
         case DATE:
-          format = "'yyyy-MM-dd'";
+          format = "'YYYY-MM-DD'";
           break;
         case DATETIME:
-          format = "'yyyy-MM-dd HH:mm:ss.SSS'";
+          format = "'YYYY-MM-DD HH24:MI:SS.FFF'";
           break;
         case TIME:
-          format = "'yyyy-MM-dd''T''HH:mm:ss.SSSZ'";
+          format = "'YYYY-MM-DD\"T\"HH24:MI:SS.FFFTZO'";
           break;
         default:
           throw new ClientErrorException("only DATE, TIME or DATETIME are valid. Got " + dateToNumber.getConvertType());
@@ -784,8 +799,6 @@ class SQLGenerator {
         default:
           throw new ClientErrorException("only EPOCH, EXCEL and JULIAN ar valid. Got " + dateToNumber.getFormat());
       }
-
-
 
       return format(
               functionCall,

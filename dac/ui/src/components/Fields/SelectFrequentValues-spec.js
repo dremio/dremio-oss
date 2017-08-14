@@ -26,7 +26,7 @@ describe('SelectFrequentValues', () => {
         { percent: 25, value: 'foo' },
         { percent: 25, value: 'bar' },
         { percent: 25, value: 'baz' },
-        { percent: 25, value: 'qux' }
+        { percent: 25, value: '' }
       ],
       field: {
         value: {},

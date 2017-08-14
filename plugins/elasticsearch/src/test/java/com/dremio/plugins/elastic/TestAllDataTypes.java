@@ -82,7 +82,7 @@ public class TestAllDataTypes extends ElasticBaseTestQuery {
             new ElasticsearchCluster.ColumnData("colString", STRING, new Object[][]{  {"abcde"}, {null}  }),
             new ElasticsearchCluster.ColumnData("colCompletion", ElasticsearchType.COMPLETION, new Object[][]{  {"abcde"}, {"hello"}  }), // unknown type should be treated as hidden field.
             // requires es5 // new ElasticsearchCluster.ColumnData("halfFloat", ElasticsearchType.HALF_FLOAT, new Object[][]{  {1.0}, {-1.0}  }),
-            new ElasticsearchCluster.ColumnData("colLong", LONG, new Object[][]{  {853848593}, {null}  }),
+            new ElasticsearchCluster.ColumnData("colLong", LONG, new Object[][]{  {853848593.0}, {null}  }),
             new ElasticsearchCluster.ColumnData("colInt", INTEGER, new Object[][]{ {35000}, {null} }),
             new ElasticsearchCluster.ColumnData("colShort", SHORT, new Object[][]{  {100}, {null}  }),
             new ElasticsearchCluster.ColumnData("colByte", BYTE, new Object[][]{  {3}, {null}  }),

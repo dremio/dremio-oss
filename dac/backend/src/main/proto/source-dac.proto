@@ -110,6 +110,7 @@ message OracleConfig {
   optional string username = 4; 
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
+  optional uint32 fetchSize = 7;
 }
 
 message MySQLConfig {
@@ -119,6 +120,7 @@ message MySQLConfig {
   optional string username = 4;
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
+  optional uint32 fetchSize = 7; // Default is 10
 }
 
 message MSSQLConfig {
@@ -128,6 +130,7 @@ message MSSQLConfig {
   optional string username = 4;
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
+  optional uint32 fetchSize = 7;
 }
 
 message DB2Config {
@@ -138,6 +141,7 @@ message DB2Config {
   optional string username = 4;
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
+  optional uint32 fetchSize = 7;
 }
 
 message PostgresConfig {
@@ -148,6 +152,7 @@ message PostgresConfig {
   optional string username = 4;
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
+  optional uint32 fetchSize = 7;
 }
 
 message RedshiftConfig {
@@ -156,6 +161,7 @@ message RedshiftConfig {
   optional string username = 4;
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
+  optional uint32 fetchSize = 7;
 }
 
 message KuduConfig {

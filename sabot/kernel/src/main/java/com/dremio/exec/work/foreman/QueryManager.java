@@ -41,6 +41,7 @@ import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.store.SchemaTreeProvider;
 import com.dremio.exec.work.EndpointListener;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
@@ -67,6 +68,7 @@ class QueryManager {
   private final QueryContext context;
   private final CompletionListener completionListener;
   private final PlanCaptureAttemptObserver capturer;
+  private final SchemaTreeProvider schemaTreeProvider;
 
   private ImmutableMap<NodeEndpoint, NodeTracker> nodeMap = ImmutableMap.of();
   private ImmutableMap<FragmentHandle, FragmentData> fragmentDataMap = ImmutableMap.of();
@@ -85,16 +87,18 @@ class QueryManager {
   private final AtomicInteger finishedFragments = new AtomicInteger(0);
 
   public QueryManager(
-      final QueryId queryId,
-      final QueryContext context,
-      final CompletionListener completionListener,
-      final Pointer<QueryId> prepareId,
-      final AttemptObservers observers,
-      final boolean verboseProfiles) {
+    final QueryId queryId,
+    final QueryContext context,
+    final CompletionListener completionListener,
+    final Pointer<QueryId> prepareId,
+    final AttemptObservers observers,
+    final boolean verboseProfiles,
+    final SchemaTreeProvider schemaTreeProvider) {
     this.queryId =  queryId;
     this.completionListener = completionListener;
     this.context = context;
     this.prepareId = prepareId;
+    this.schemaTreeProvider = schemaTreeProvider;
 
     capturer = new PlanCaptureAttemptObserver(verboseProfiles);
     observers.add(capturer);
@@ -289,7 +293,6 @@ class QueryManager {
 
     UserResult.addError(ex, profileBuilder);
 
-
     if (capturer != null) {
       profileBuilder.setAccelerationProfile(capturer.getAccelerationProfile());
 
@@ -308,6 +311,9 @@ class QueryManager {
         profileBuilder.addAllPlanPhases(planPhases);
       }
     }
+
+    // get stats from schema tree provider
+    profileBuilder.addAllPlanPhases(schemaTreeProvider.getMetadataStatsCollector().getPlanPhaseProfiles());
 
     for(MajorFragmentReporter reporter : reporters){
       final MajorFragmentProfile.Builder builder = MajorFragmentProfile.newBuilder().setMajorFragmentId(reporter.majorFragmentId);

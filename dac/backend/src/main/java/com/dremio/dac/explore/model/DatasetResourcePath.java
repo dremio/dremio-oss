@@ -23,6 +23,7 @@ import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
  * "/dataset/{space.[folder.]*name}"
@@ -67,4 +68,10 @@ public class DatasetResourcePath extends ResourcePath {
     return appendVersion(new DatasetVersion(version));
   }
 
+  @JsonValue
+  @Override
+  public String toString() {
+    // the json value should be a valid URL
+    return dataset.getUrlFromPath(asPath());
+  }
 }

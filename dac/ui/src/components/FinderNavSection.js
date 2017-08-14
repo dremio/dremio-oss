@@ -31,8 +31,10 @@ export default class FinderNavSection extends Component {
 
   render() {
     const { items, maxItemsCount, toggleActivePin, listHref } = this.props;
+    if (!items.size) return null;
+
     const hasMore = items.size > maxItemsCount;
-    return (//todo: loc
+    return (
       <div
         className='holder'
         style={styles.base}>
@@ -49,7 +51,7 @@ export default class FinderNavSection extends Component {
             }
           })}
         </ul>
-        {hasMore && (
+        {hasMore && ( //todo: loc
           <Link className='show-more-btn' to={listHref}>
             {`Show All (${items.size}) »`}
           </Link>

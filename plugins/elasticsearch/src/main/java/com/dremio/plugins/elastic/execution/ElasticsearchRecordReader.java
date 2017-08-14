@@ -1,5 +1,17 @@
 /*
- * Copyright 2016 Dremio Corporation
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.dremio.plugins.elastic.execution;
 
@@ -184,7 +196,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         throw UserException.dataReadError().message("Mapping updated since last metadata refresh. Please run \"ALTER TABLE %s REFRESH METADATA\" before rerunning query.", new NamespaceKey(tableSchemaPath).toString()).build(logger);
       }
 
-      SchemaMerger merger = new SchemaMerger();
+      SchemaMerger merger = new SchemaMerger(new NamespaceKey(oldConfig.getFullPathList()).toString());
       // Since the newlyObserved schema could be partial due to projections, we need to merge it with the original.
       DatasetConfig newConfig = DefaultSchemaMutator.clone(oldConfig);
 

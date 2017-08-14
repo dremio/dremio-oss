@@ -18,12 +18,20 @@ package com.dremio.exec.expr.fn.impl;
 import static java.lang.String.format;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
+import java.io.PrintWriter;
+
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 
 public class TestStringFunctions extends BaseTestQuery {
+
+  @ClassRule
+  public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void testStrPosMultiByte() throws Exception {
@@ -106,6 +114,84 @@ public class TestStringFunctions extends BaseTestQuery {
         .baselineColumns("res1")
         .baselineValues("a,b,c")
         .go();
+  }
+
+  @Test
+  public void testSplitPartMultiRow() throws Exception {
+    File datasetSplit = tempDir.newFile("splitPart.csv");
+    PrintWriter pw = new PrintWriter(datasetSplit);
+    pw.println("abc~@~def~@~ghi");
+    pw.println("abc~@~def");
+    pw.println("abc");
+    pw.close();
+
+    testBuilder()
+      .sqlQuery(String.format("select split_part(columns[0], '~@~', 1) as res1 FROM dfs.`%s`",
+        datasetSplit.getAbsolutePath()))
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues("abc")
+      .baselineValues("abc")
+      .baselineValues("abc")
+      .go();
+
+    testBuilder()
+      .sqlQuery(String.format("select split_part(columns[0], '~@~', 2) as res1 FROM dfs.`%s`",
+        datasetSplit.getAbsolutePath()))
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues("def")
+      .baselineValues("def")
+      .baselineValues("")
+      .go();
+
+    // invalid index
+    boolean expectedErrorEncountered;
+    try {
+      testBuilder()
+        .sqlQuery(String.format("select split_part(columns[0], '~@~', 0) as res1 FROM dfs.`%s`",
+          datasetSplit.getAbsolutePath()))
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues("abc")
+        .go();
+      expectedErrorEncountered = false;
+    } catch (Exception ex) {
+      assertTrue(ex.getMessage().contains("Index in split_part must be positive, value provided was 0"));
+      expectedErrorEncountered = true;
+    }
+    if (!expectedErrorEncountered) {
+      throw new RuntimeException("Missing expected error on invalid index for split_part function");
+    }
+
+    File datasetMultiByteSplit = tempDir.newFile("splitPartMultiByte.csv");
+    PrintWriter pwMB = new PrintWriter(datasetMultiByteSplit);
+    pwMB.println("abc\\u1111dremio\\u1111ghi', '\\u1111");
+    pwMB.println("abc\\u1111dremio1\\u1111ghi', '\\u1111");
+    pwMB.println("abc\\u1111dremio2\\u1111ghi', '\\u1111");
+    pwMB.close();
+
+    // with a multi-byte splitter
+    testBuilder()
+      .sqlQuery(String.format("select split_part(columns[0], '\\u1111', 2) as res1 FROM dfs.`%s`",
+        datasetMultiByteSplit.getAbsolutePath()))
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues("dremio")
+      .baselineValues("dremio1")
+      .baselineValues("dremio2")
+      .go();
+
+    // if the delimiter does not appear in the string, 1 returns the whole string
+    testBuilder()
+      .sqlQuery(String.format("select split_part(columns[0], ' ', 1) as res1 FROM dfs.`%s`",
+        datasetSplit.getAbsolutePath()))
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues("abc~@~def~@~ghi")
+      .baselineValues("abc~@~def")
+      .baselineValues("abc")
+      .go();
   }
 
   @Test

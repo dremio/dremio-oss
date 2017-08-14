@@ -217,7 +217,7 @@ export default class ExploreTableCell extends Component {
     const row = data.get(rowIndex);
     const showEllipsis = this.showEllipsis();
     const cellValue = this.getCellValue();
-    const emptyStyle = cellValue === null ? styles.nullCell : {};
+    const emptyStyle = (cellValue === null || cellValue === '') ? styles.nullCell : {};
     const removedStyle = row && row.deleted ? styles.removedCell : {};
 
     return (

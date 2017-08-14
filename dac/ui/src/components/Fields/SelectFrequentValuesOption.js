@@ -21,6 +21,8 @@ import EllipsisIcon from 'pages/ExplorePage/components/EllipsisIcon';
 
 import { formDescription, body } from 'uiTheme/radium/typography';
 
+import dataFormatUtils from 'utils/dataFormatUtils';
+
 export default class SelectFrequentValuesOption extends Component {
   static propTypes = {
     option: PropTypes.shape({
@@ -72,6 +74,22 @@ export default class SelectFrequentValuesOption extends Component {
     return this.state.cellStringBiggerThanCell;
   }
 
+  renderLabelValue() {
+    const { option } = this.props;
+    const correctText = dataFormatUtils.formatValue(option.value);
+    const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
+       ? {...styles.nullwrap}
+       : {...styles.wrap};
+    return (
+      <span
+        onMouseEnter={this.onMouseEnter}
+        style={{...correctTextStyle, marginLeft: 10 }}
+      >
+        {correctText}
+      </span>
+    );
+  }
+
   render() {
     const { option, field, maxPercent } = this.props;
     const isChecked = field.value[option.value];
@@ -89,12 +107,7 @@ export default class SelectFrequentValuesOption extends Component {
                 style={styles.container}
               >
                 <div className='cell-data'>
-                  <span
-                    onMouseEnter={this.onMouseEnter}
-                    style={{ ...styles.wrap, marginLeft: 10 }}
-                  >
-                    {option.value}
-                  </span>
+                  { this.renderLabelValue() }
                 </div>
                 { this.shouldShowEllipsis() && <EllipsisIcon
                   onClick={this.onEllipsisClick}
@@ -131,6 +144,12 @@ const styles = {
     overflow: 'hidden',
     whiteSpace: 'nowrap',
     textOverflow: 'ellipsis'
+  },
+  nullwrap: {
+    color: '#aaa',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    width: '95%'
   },
   checkbox: {
     width: 200,

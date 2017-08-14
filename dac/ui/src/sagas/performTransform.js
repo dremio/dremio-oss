@@ -56,6 +56,7 @@ export function* handlePerformTransform({ payload }) {
   yield* performTransform(payload);
 }
 
+// callback = function(didTransform, dataset)
 export function* performTransform({
   dataset, currentSql, queryContext, viewId, nextTable, isRun, transformData, callback
 }) {
@@ -80,9 +81,14 @@ export function* performTransform({
       }
       // response can be null if performTransform was called to createNew.
     }
-    if ((!response || !response.error) && callback) {
-      nextDataset = response ? apiUtils.getEntityFromResponse('datasetUI', response) : nextDataset;
-      yield call(callback, nextDataset);
+
+    if (callback) {
+      if (!response) {
+        yield call(callback, false, nextDataset);
+      } else if (!response.error) {
+        nextDataset = response ? apiUtils.getEntityFromResponse('datasetUI', response) : nextDataset;
+        yield call(callback, true, nextDataset);
+      }
     }
     if (dataset.get('isNewQuery')) {
       // Expand the sql box state after executing New Query

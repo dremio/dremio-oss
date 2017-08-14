@@ -19,7 +19,7 @@ import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
 
 import { formLabel, formDefault } from 'uiTheme/radium/typography';
-import { PALE_BLUE } from 'uiTheme/radium/colors';
+import { PALE_BLUE, RED } from 'uiTheme/radium/colors';
 import SelectFrequentValues from 'components/Fields/SelectFrequentValues';
 import { SearchField } from 'components/Fields';
 
@@ -28,6 +28,8 @@ import { applyValidators, notEmptyObject } from 'utils/validation';
 import CardFooter from './../CardFooter';
 
 export const MIN_VALUES_TO_SHOW_SEARCH = 6;
+
+export const MAX_SUGGESTIONS = 100;
 
 @Radium
 @pureRender
@@ -45,7 +47,7 @@ export default class ReplaceValues extends Component {
   }
 
   static propTypes = {
-    fields: PropTypes.object,
+    fields: PropTypes.object.isRequired,
     sqlSize: PropTypes.number,
     valueOptions: PropTypes.instanceOf(Immutable.Map)
   };
@@ -85,7 +87,7 @@ export default class ReplaceValues extends Component {
     e.preventDefault();
     const { valueOptions, fields } = this.props;
     const filteredValues = this.filterValuesList(valueOptions && valueOptions.get('values'));
-    const valuesList = filteredValues.map((value) => value.get('value'));
+    const valuesList = filteredValues.map((value) => value.get('value')).slice(0, MAX_SUGGESTIONS);
     const form = valuesList.reduce((prev, curr) => {
       return { ...prev, [curr]: true };
     }, {});
@@ -121,6 +123,23 @@ export default class ReplaceValues extends Component {
       : <div style={styles.notFound}>{la('Not found')}</div>;
   }
 
+  renderSelectedValuesCount() {
+    const { fields, valueOptions } = this.props;
+    const filteredValues = this.filterValuesList(valueOptions && valueOptions.get('values'));
+    if (!fields.replaceValues || !fields.replaceValues.value) {
+      return;
+    }
+    const numSelected = Object.values(fields.replaceValues.value).filter(Boolean).length;
+    const text = numSelected === 0
+      ? la('Please select at least one value.')
+      : `${numSelected} of ${filteredValues.size} selected.`;
+    return (
+      <em style={numSelected === 0
+        ? styles.noSelectValue
+        : {...styles.noSelectValue, color: '#333'}}> {text} </em>
+    );
+  }
+
   render() {
     const { valueOptions } = this.props;
     const filteredValues = this.filterValuesList(valueOptions && valueOptions.get('values'));
@@ -134,6 +153,7 @@ export default class ReplaceValues extends Component {
               {la('All')}
             </a> | <a style={styles.bulkAction} onClick={this.handleNoneClick}>{la('None')}</a>
           </span>
+          {this.renderSelectedValuesCount()}
         </div>
         <div style={{ ...styles.valuesWrap }}>
           {this.renderSearchField()}
@@ -153,7 +173,9 @@ const styles = {
   },
   header: {
     ...formLabel,
-    lineHeight: '24px'
+    lineHeight: '24px',
+    display: 'flex',
+    width: 600
   },
   bulkActions: {
     ...formDefault,
@@ -179,5 +201,10 @@ const styles = {
   },
   notFound: {
     padding: '10px 10px'
+  },
+  noSelectValue: {
+    flex: 1,
+    textAlign: 'right',
+    color: RED
   }
 };

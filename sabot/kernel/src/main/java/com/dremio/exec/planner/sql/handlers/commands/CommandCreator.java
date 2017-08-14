@@ -35,7 +35,6 @@ import com.dremio.exec.planner.sql.handlers.direct.DropTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropViewHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ExplainHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ForgetTableHandler;
-import com.dremio.exec.planner.sql.handlers.direct.RefreshMetadataHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowFileHandler;
@@ -52,7 +51,6 @@ import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.planner.sql.parser.SqlAddLayout;
 import com.dremio.exec.planner.sql.parser.SqlDropLayout;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
-import com.dremio.exec.planner.sql.parser.SqlRefreshMetadata;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.planner.sql.parser.SqlShowFiles;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
@@ -254,9 +252,7 @@ public class CommandCreator {
 
       case OTHER:
       case OTHER_DDL:
-        if (sqlNode instanceof SqlRefreshMetadata) {
-          return direct.create(new RefreshMetadataHandler(context.getNewDefaultSchema()));
-        } else if (sqlNode instanceof SqlShowFiles) {
+        if (sqlNode instanceof SqlShowFiles) {
           return direct.create(new ShowFileHandler(context.getNewDefaultSchema()));
         } else if (sqlNode instanceof SqlShowSchemas) {
           return direct.create(new ShowSchemasHandler(context.getRootSchema(true)));

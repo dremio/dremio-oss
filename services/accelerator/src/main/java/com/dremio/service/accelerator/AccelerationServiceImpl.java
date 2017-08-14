@@ -85,6 +85,7 @@ import com.dremio.service.accelerator.proto.LayoutField;
 import com.dremio.service.accelerator.proto.LayoutFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.Materialization;
+import com.dremio.service.accelerator.proto.MaterializationId;
 import com.dremio.service.accelerator.proto.MaterializationMetrics;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
@@ -98,7 +99,9 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.base.Function;
@@ -123,7 +126,6 @@ public class AccelerationServiceImpl implements AccelerationService {
 
   private static final Schedule EVERY_DAY = Schedule.Builder.everyDays(1).build();
   private static final TemporalAmount COMPACTION_GRACE_PERIOD = Duration.ofHours(4);
-
   public static final Ordering<Materialization> COMPLETION_ORDERING = Ordering.from(new Comparator<Materialization>() {
     @Override
     public int compare(final Materialization first, final Materialization second) {
@@ -154,10 +156,9 @@ public class AccelerationServiceImpl implements AccelerationService {
   private final MaterializationStore materializationStore;
 
   private CachedMaterializationProvider materializationProvider;
-
   private final AtomicReference<DependencyGraph> dependencyGraph = new AtomicReference<>();
-
   private MaterializationPlanningFactory materializationPlanningFactory = new MaterializationPlanningFactory();
+  private AtomicReference<Cancellable> cleanupTaskRef = new AtomicReference<>();
 
   public AccelerationServiceImpl(
       final BindingCreator bindingCreator,
@@ -229,6 +230,17 @@ public class AccelerationServiceImpl implements AccelerationService {
 
       @Override
       public void setDebug(boolean debug) {}
+
+      @Override
+      public Optional<MaterializationDescriptor> get(String materializationId) {
+        List<MaterializationDescriptor> materializations = get();
+        for (MaterializationDescriptor descriptor:materializations) {
+          if (descriptor.getMaterializationId().equals(materializationId)) {
+            return Optional.of(descriptor);
+          }
+        }
+        return Optional.absent();
+      }
     };
 
     materializationProvider = new CachedMaterializationProvider(provider, contextProvider, this);
@@ -238,8 +250,14 @@ public class AccelerationServiceImpl implements AccelerationService {
     schedulerService.get().schedule(EVERY_DAY, new EnableMostRequestedAccelerationTask(this));
     schedulerService.get().schedule(EVERY_DAY, new GarbageCollectorTask(this, COMPACTION_GRACE_PERIOD));
     executor.submit(RenamingCallable.of(RebuildRefreshGraph.of(this), "accel-refresher-startup"));
-
+    cleanupTaskRef.set(scheduleCleanupTask());
     logger.info("Acceleration service is up");
+  }
+
+  private Cancellable scheduleCleanupTask() {
+    return schedulerService.get().schedule(
+        Schedule.Builder.everyMillis(getSettings().getOrphanCleanupInterval().longValue()).build(),
+        new RemoveOrphanedAccelerations());
   }
 
   @Override
@@ -302,6 +320,11 @@ public class AccelerationServiceImpl implements AccelerationService {
           }
         })
         .transform(new EntryRefresher());
+  }
+
+  @Override
+  public boolean isMaterializationCached(MaterializationId materializationId) {
+    return materializationProvider.get(materializationId.getId()).isPresent();
   }
 
   private boolean isEmptyDatasetSchema(final AccelerationEntry entry) {
@@ -542,8 +565,6 @@ public class AccelerationServiceImpl implements AccelerationService {
     }
   }
 
-
-
   @Override
   public AccelerationEntry create(final Acceleration acceleration) {
     final AccelerationDescriptor descriptor = AccelerationMapper.toAccelerationDescriptor(acceleration);
@@ -591,7 +612,8 @@ public class AccelerationServiceImpl implements AccelerationService {
     return new SystemSettings()
         .setLimit((int)manager.getOption(ExecConstants.ACCELERATION_LIMIT))
         .setAccelerateAggregation(manager.getOption(ExecConstants.ACCELERATION_AGGREGATION_ENABLED))
-        .setAccelerateRaw(manager.getOption(ExecConstants.ACCELERATION_RAW_ENABLED));
+        .setAccelerateRaw(manager.getOption(ExecConstants.ACCELERATION_RAW_ENABLED))
+        .setOrphanCleanupInterval(manager.getOption(ExecConstants.ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS));
   }
 
   @Override
@@ -600,6 +622,11 @@ public class AccelerationServiceImpl implements AccelerationService {
     manager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ACCELERATION_LIMIT.getOptionName(), settings.getLimit()));
     manager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ExecConstants.ACCELERATION_AGGREGATION_ENABLED.getOptionName(), settings.getAccelerateAggregation()));
     manager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ExecConstants.ACCELERATION_RAW_ENABLED.getOptionName(), settings.getAccelerateRaw()));
+    if (settings.getOrphanCleanupInterval() != null && getSettings().getOrphanCleanupInterval() != settings.getOrphanCleanupInterval()) {
+      manager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS.getOptionName(), settings.getOrphanCleanupInterval()));
+      Cancellable cleanupTask = cleanupTaskRef.getAndSet(scheduleCleanupTask());
+      cleanupTask.cancel();
+    }
   }
 
   @Override
@@ -849,7 +876,7 @@ public class AccelerationServiceImpl implements AccelerationService {
       logger.warn(
           "Excluding materializations that have expired:{}",
           expiredString.toString()
-        );
+      );
     }
     return result;
   }
@@ -894,16 +921,19 @@ public class AccelerationServiceImpl implements AccelerationService {
       try {
         Optional<Acceleration> acceleration = accelerationStore.getByIndex(AccelerationIndexKeys.LAYOUT_ID, layout.getId().getId());
         if (acceleration.isPresent()) {
-          MaterializationPlanningTask task = materializationPlanningFactory.createTask(
-              acceleratorStoragePluginProvider.get().getStorageName(),
-              jobsService.get(), layout, layoutMap, namespaceService.get(), acceleration.get());
-          executor.execute(task);
-          DependencyNode vertex = new DependencyNode(layout);
-          graph.addVertex(vertex);
-          List<DependencyNode> dependencyNodes = task.getDependencies();
-          for (DependencyNode node : dependencyNodes) {
-            graph.addVertex(node);
-            graph.addEdge(node, vertex);
+          DatasetConfig dataset = namespaceService.get().findDatasetByUUID(acceleration.get().getId().getId());
+          if (dataset != null) {
+            MaterializationPlanningTask task = materializationPlanningFactory.createTask(
+                acceleratorStoragePluginProvider.get().getStorageName(),
+                jobsService.get(), layout, layoutMap, namespaceService.get(), acceleration.get());
+            executor.execute(task);
+            DependencyNode vertex = new DependencyNode(layout);
+            graph.addVertex(vertex);
+            List<DependencyNode> dependencyNodes = task.getDependencies();
+            for (DependencyNode node : dependencyNodes) {
+              graph.addVertex(node);
+              graph.addEdge(node, vertex);
+            }
           }
         }
       } catch (ExecutionSetupException e) {
@@ -928,6 +958,18 @@ public class AccelerationServiceImpl implements AccelerationService {
       return;
     }
     pipelineManager.replan(entry.get().getDescriptor());
+  }
+
+  private void cleanupOrphanedAccelerations() {
+    final Iterable<Acceleration> accelerations = accelerationStore.find();
+    for (final Acceleration acceleration : accelerations) {
+      DatasetConfig dataset = namespaceService.get().findDatasetByUUID(acceleration.getId().getId());
+      if (dataset == null) {
+        // Remove the entry from the store
+        logger.info("removing acceleration {} because dataset is removed", acceleration.getId().getId());
+        remove(acceleration.getId());
+      }
+    }
   }
 
   private class DevService implements DeveloperAccelerationService {
@@ -972,6 +1014,11 @@ public class AccelerationServiceImpl implements AccelerationService {
       }
     }
 
+    @Override
+    public void removeOrphanedAccelerations() {
+      cleanupOrphanedAccelerations();
+    }
+
   }
 
   /**
@@ -1000,4 +1047,15 @@ public class AccelerationServiceImpl implements AccelerationService {
     }
   }
 
+  /**
+   *  iterate through all accelerations
+   *  check if dataset exists.
+   *  If the dataset does not exist, then remove the acceleration
+   */
+  private class RemoveOrphanedAccelerations implements Runnable {
+    @Override
+    public void run() {
+      cleanupOrphanedAccelerations();
+    }
+  }
 }

@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableMap;
  */
 public class LocalKVStoreProvider implements KVStoreProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalKVStoreProvider.class);
-  private final CoreStoreProviderRpcService coreStoreProvider;
+  private final CoreStoreProviderImpl coreStoreProvider;
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
   private final String hostName;
@@ -124,6 +124,14 @@ public class LocalKVStoreProvider implements KVStoreProvider {
 
   public void deleteEverything(String... skipNamesArray) throws IOException {
     ((CoreStoreProviderImpl)coreStoreProvider).deleteEverything(skipNamesArray);
+  }
+
+  /**
+   * reIndex a specific store
+   * @param id
+   */
+  public int reIndex(String id) {
+    return coreStoreProvider.reIndex(id);
   }
 
   /**

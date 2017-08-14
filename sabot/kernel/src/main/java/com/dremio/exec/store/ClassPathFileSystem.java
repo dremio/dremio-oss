@@ -125,7 +125,7 @@ public class ClassPathFileSystem extends FileSystem{
 
   @Override
   public FileStatus[] listStatus(Path arg0) throws IOException {
-    throw new UnsupportedOperationException("ClassPathFileSystem doesn't currently support listing files.");
+    return new FileStatus[0];
   }
 
   @Override

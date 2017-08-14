@@ -49,6 +49,7 @@ message Node {
   optional string name = 1;
   optional NodeMemory memory = 2;
   optional int32 cores = 3;
+  optional string role = 4;
 }
 
 message NodeMemory {
@@ -62,7 +63,10 @@ message ClusterInfo {
   optional SoftwareVersion version = 2;
   repeated Source source = 3;
   repeated Node node = 4;
-  repeated SystemProperty property = 5;   
+  repeated SystemProperty property = 5;
+  optional string javaVmVersion = 6;
+  optional string jreVersion = 7;
+  optional string edition = 8;
 }
 
 message SystemProperty {

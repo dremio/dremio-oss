@@ -533,6 +533,8 @@ public class TestNamespaceService {
       // delete folder datasets so that the dataset underneath them are now visible
       ns.deleteDataset(new NamespaceKey(asList("src1", "foo")), ns.getDataset(new NamespaceKey(asList("src1", "foo"))).getVersion());
       assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
+      //Make sure datasets under "src1.foo" are uncovered
+      assertEquals(1, ns.getAllDatasets(new NamespaceKey(PathUtils.parseFullPath("src1.foo"))).size());
 
       ns.deleteDataset(new NamespaceKey(asList("src1", "foo", "bar")), ns.getDataset(new NamespaceKey(asList("src1", "foo", "bar"))).getVersion());
       assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());

@@ -768,4 +768,77 @@ public class TestSQLGenerator {
       " WHERE 1 < Sum_b";
     validate(expQuery, filtState);
   }
+
+  @Test
+  public void testNullFilterExcludeKeepOnly() {
+    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+
+    Expression column = new ExpColumnReference("user").wrap();
+
+    //exclude null and multiple non-null values
+    validate(
+      "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
+        "WHERE parentDS.\"user\" IS NOT NULL AND parentDS.\"user\" NOT IN ('foo', 'bar')",
+      state
+        .setColumnsList(asList(new Column("foo", column)))
+        .setFiltersList(asList(new Filter(column, new FilterDefinition(FilterType.Value)
+          .setValue(new FilterValue(DataType.DATE).setValuesList(asList(null, "foo", "bar")))).setExclude(true)
+        ))
+    );
+
+    //exclude null and a single non-null value
+    validate(
+      "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
+        "WHERE parentDS.\"user\" IS NOT NULL AND parentDS.\"user\" <> 'foo'",
+      state
+        .setColumnsList(asList(new Column("foo", column)))
+        .setFiltersList(asList(new Filter(column, new FilterDefinition(FilterType.Value)
+          .setValue(new FilterValue(DataType.DATE).setValuesList(asList(null, "foo")))).setExclude(true)
+        ))
+    );
+
+    //exclude just null (and no other values)
+    validate(
+      "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
+        "WHERE parentDS.\"user\" IS NOT NULL",
+      state
+        .setColumnsList(asList(new Column("foo", column)))
+        .setFiltersList(asList(new Filter(column, new FilterDefinition(FilterType.Value)
+          .setValue(new FilterValue(DataType.DATE).setValuesList(asList((String)null)))).setExclude(true)
+        ))
+    );
+
+    //keeponly null and multiple non-null values
+    validate(
+      "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
+        "WHERE parentDS.\"user\" IS NULL OR parentDS.\"user\" IN ('foo', 'bar')",
+      state
+        .setColumnsList(asList(new Column("foo", column)))
+        .setFiltersList(asList(new Filter(column, new FilterDefinition(FilterType.Value)
+          .setValue(new FilterValue(DataType.DATE).setValuesList(asList(null, "foo", "bar")))).setExclude(false)
+        ))
+    );
+
+    //keeponly null and a single non-null value
+    validate(
+      "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
+        "WHERE parentDS.\"user\" IS NULL OR parentDS.\"user\" = 'foo'",
+      state
+        .setColumnsList(asList(new Column("foo", column)))
+        .setFiltersList(asList(new Filter(column, new FilterDefinition(FilterType.Value)
+          .setValue(new FilterValue(DataType.DATE).setValuesList(asList(null, "foo")))).setExclude(false)
+        ))
+    );
+
+    //keeponly just null (and no other values)
+    validate(
+      "SELECT parentDS.\"user\" AS foo\nFROM myspace.parentDS\n " +
+        "WHERE parentDS.\"user\" IS NULL",
+      state
+        .setColumnsList(asList(new Column("foo", column)))
+        .setFiltersList(asList(new Filter(column, new FilterDefinition(FilterType.Value)
+          .setValue(new FilterValue(DataType.DATE).setValuesList(asList((String)null)))).setExclude(false)
+        ))
+    );
+  }
 }

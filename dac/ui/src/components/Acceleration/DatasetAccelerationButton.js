@@ -18,7 +18,7 @@ import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import { getEntity } from 'selectors/resources';
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 import {
   getDatasetAccelerationRequest
@@ -36,7 +36,7 @@ export class DatasetAccelerationButton extends Component {
   }
 
   componentWillMount() {
-    this.props.getDatasetAccelerationRequest(constructFullPath(this.props.fullPath));
+    this.props.getDatasetAccelerationRequest(constructFullPathAndEncode(this.props.fullPath));
   }
 
   render() {
@@ -54,7 +54,7 @@ export class DatasetAccelerationButton extends Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
-  const acceleration = getEntity(state, constructFullPath(ownProps.fullPath), 'datasetAcceleration');
+  const acceleration = getEntity(state, constructFullPathAndEncode(ownProps.fullPath), 'datasetAcceleration');
   return {
     acceleration
   };

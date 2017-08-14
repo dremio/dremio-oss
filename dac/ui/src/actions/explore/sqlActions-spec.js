@@ -72,7 +72,7 @@ describe('sql actions', () => {
       expect(realResult.types[1].type).to.eql(Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS);
       expect(realResult.method).to.eql('PUT');
       expect(realResult.body).to.eql(JSON.stringify(datasetConfig));
-      expect(realResult.endpoint).to.eql(`${API_URL_V2}/dataset/dataset.1/copyFrom/dataset.1`);
+      expect(realResult.endpoint).to.eql(`${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`);
     });
     it('test result of calling of function createDatasetFromExisting', () => {
       const fullPathSource = ['bla', 'bla'];
@@ -87,4 +87,3 @@ describe('sql actions', () => {
     });
   });
 });
-

@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.s3.store;
 
+import java.net.URLEncoder;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +58,8 @@ public class S3Plugin extends FileSystemPlugin {
   @Override
   public boolean refreshState() {
     try {
-      getFsConf().set(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://"+getStorageName());
+      String urlSafeName = URLEncoder.encode(getStorageName(), "UTF-8");
+      getFsConf().set(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://" + urlSafeName);
       // when/if eventually we decide to refresh on the schedule following code will have to be added
       // dfs.initialize(dfs.getUri(), dfs.getConf());
       // at this point it is quite expensive, since we get region per bucket during init time

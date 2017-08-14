@@ -36,11 +36,14 @@ public class RedshiftSourceConfigurator extends SingleSourceToStoragePluginConfi
   @Override
   public StoragePluginConfig configureSingle(RedshiftConfig redshiftConfig) {
     String connectionString = checkNotNull(redshiftConfig.getConnectionString(), "missing connection URL");
+    Integer fetchSize = redshiftConfig.getFetchSize();
+
     JdbcStorageConfig config = new JdbcStorageConfig(
         CompatCreator.REDSHIFT_DRIVER,
         connectionString,
         redshiftConfig.getUsername(),
-        redshiftConfig.getPassword()
+        redshiftConfig.getPassword(),
+        fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
     );
     return config;
   }

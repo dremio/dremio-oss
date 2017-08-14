@@ -16,11 +16,14 @@
 import React, { Component, PropTypes } from 'react';
 import { reduxForm, propTypes as formPropTypes } from 'redux-form';
 import flatten from 'lodash/flatten';
-import { assign, merge } from 'lodash/object';
-import FormDirtyStateWatcher from 'components/Forms/FormDirtyStateWatcher';
-import ConflictDetectionWatcher from 'components/Forms/ConflictDetectionWatcher';
+import { merge } from 'lodash/object';
+import hoistNonReactStatic from 'hoist-non-react-statics';
 
 import Message from 'components/Message';
+
+import FormDirtyStateWatcher from './FormDirtyStateWatcher';
+import ConflictDetectionWatcher from './ConflictDetectionWatcher';
+import wrapSubmitValueMutator from './wrapSubmitValueMutator';
 
 export class InnerComplexForm extends Component {
   static propTypes = {
@@ -75,7 +78,7 @@ export function connectComplexForm(reduxFormParams = {}, sections = [], mapState
   };
 
   function validate() {
-    return assign(
+    return merge(
       {},
       formParams.validate && formParams.validate(...arguments),
       sections.reduce((obj, section) => {
@@ -84,20 +87,36 @@ export function connectComplexForm(reduxFormParams = {}, sections = [], mapState
     );
   }
 
+  function complexMapStateToProps() {
+    return merge(
+      {},
+      mapStateToProps && mapStateToProps(...arguments),
+      sections.reduce((obj, section) => {
+        return merge(obj, section.mapStateToProps ? section.mapStateToProps(...arguments) : {});
+      }, {})
+    );
+  }
+
+  function mutateSubmitValues(values) {
+    formParams.mutateSubmitValues && formParams.mutateSubmitValues(values);
+    sections.forEach(section => {
+      section.mutateSubmitValues && section.mutateSubmitValues(values);
+    });
+  }
+
   const mapStateToPropsForDirtyWatcher = function(state, ownProps) {
     let propsInitialValues = ownProps.initialValues;
-    let props = {};
-    if (mapStateToProps) {
-      props = mapStateToProps(...arguments) || props;
-      propsInitialValues = props.initialValues || propsInitialValues;
-    }
+    const props = complexMapStateToProps(...arguments) || {};
+    propsInitialValues = props.initialValues || propsInitialValues;
     props.initialValuesForDirtyStateWatcher = propsInitialValues;
     return props;
   };
 
-  const complexForm = reduxForm({
-    ...formParams, fields, validate, initialValues
-  }, mapStateToPropsForDirtyWatcher, mapDispatchToProps);
+  const complexForm = (component) => {
+    return reduxForm({
+      ...formParams, fields, validate, initialValues
+    }, mapStateToPropsForDirtyWatcher, mapDispatchToProps)(wrapSubmitValueMutator(mutateSubmitValues, component));
+  };
 
   if (formParams.disableStateWatcher) {
     return complexForm;
@@ -106,7 +125,7 @@ export function connectComplexForm(reduxFormParams = {}, sections = [], mapState
   return (component) => {
     const conflictDetectionComponent = ConflictDetectionWatcher(component);
     const dirtyWatchedComponent = FormDirtyStateWatcher(conflictDetectionComponent);
-    return complexForm(dirtyWatchedComponent);
+    return hoistNonReactStatic(complexForm(dirtyWatchedComponent), component);
   };
 }
 
@@ -116,3 +135,4 @@ const styles = {
     flexWrap: 'wrap'
   }
 };
+

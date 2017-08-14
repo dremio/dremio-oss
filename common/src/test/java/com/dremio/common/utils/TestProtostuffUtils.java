@@ -129,5 +129,14 @@ public class TestProtostuffUtils {
     foo.bar = Double.NaN;
 
     assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false), CoreMatchers.containsString("NaN"));
+    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false), CoreMatchers.not(CoreMatchers.containsString("\"NaN\"")));
+  }
+
+  @Test
+  public void testNanSerDe() throws IOException {
+    Foo foo = new Foo();
+    foo.bar = Double.NaN;
+
+    assertEquals(Double.NaN, ProtostuffUtil.fromJSON(ProtostuffUtil.toJSON(foo, SCHEMA, false), SCHEMA, false).bar, 0);
   }
 }

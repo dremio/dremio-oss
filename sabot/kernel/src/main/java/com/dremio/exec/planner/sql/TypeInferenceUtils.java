@@ -208,7 +208,7 @@ public class TypeInferenceUtils {
           // this logic can validate and execute user queries seamlessly
           boolean allBooleanOutput = true;
           for (BaseFunctionHolder function : functions) {
-            if (function.isReturnTypeIndependent() && function.getReturnType(null).toMinorType() != TypeProtos.MinorType.BIT) {
+            if (!function.isReturnTypeIndependent() || function.getReturnType(null).toMinorType() != TypeProtos.MinorType.BIT) {
               allBooleanOutput = false;
               break;
             }

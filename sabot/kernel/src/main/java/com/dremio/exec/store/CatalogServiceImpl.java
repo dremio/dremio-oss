@@ -17,7 +17,6 @@ package com.dremio.exec.store;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -28,8 +27,9 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import org.threeten.bp.Instant;
+
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.ExecConstants;
@@ -38,6 +38,9 @@ import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.StoragePlugin2.CheckResult;
 import com.dremio.exec.store.StoragePlugin2.UpdateStatus;
 import com.dremio.service.BindingCreator;
+import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -58,6 +61,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -69,20 +73,22 @@ public class CatalogServiceImpl implements CatalogService {
 
   private final Map<NamespaceKey, StoragePlugin2> sourceRegistryMap = Maps.newConcurrentMap();
   private final Map<NamespaceKey, SourceState> sourceStateMap = Maps.newConcurrentMap();
+  private final Map<NamespaceKey, Cancellable> updateTasks = Maps.newConcurrentMap();
 
   private final BindingCreator bindingCreator;
   private final Provider<SabotContext> context;
+  private final Provider<SchedulerService> scheduler;
   private final boolean isMaster;
   private final boolean isCoordinator;
 
   private OptionManager options;
-  private NamespaceUpdateThread updateThread;
 
   private NamespaceService systemUserNamespaceService;
   private StoragePluginRegistryImpl registry;
 
-  public CatalogServiceImpl(Provider<SabotContext> context, BindingCreator bindingCreator, boolean isMaster, boolean isCoordinator) {
+  public CatalogServiceImpl(Provider<SabotContext> context, Provider<SchedulerService> scheduler, BindingCreator bindingCreator, boolean isMaster, boolean isCoordinator) {
     this.context = context;
+    this.scheduler = scheduler;
     this.isMaster = isMaster;
     this.isCoordinator = isCoordinator;
     this.bindingCreator = bindingCreator;
@@ -106,11 +112,6 @@ public class CatalogServiceImpl implements CatalogService {
     this.systemUserNamespaceService = context.getNamespaceService(SYSTEM_USERNAME);
     this.registry = new StoragePluginRegistryImpl(context, this, context.getStoreProvider());
     registry.init();
-    if(isCoordinator){
-      updateThread = new NamespaceUpdateThread(isMaster, context.getOptionManager().getOption(ExecConstants.SOURCE_STATE_REFRESH_MIN) * 60 * 1000l);
-      updateThread.start();
-    }
-
     bindingCreator.bind(StoragePluginRegistry.class, registry);
   }
 
@@ -169,11 +170,34 @@ public class CatalogServiceImpl implements CatalogService {
     if(sourceRegistry != null){
       sourceRegistryMap.put(source, sourceRegistry);
     }
+    if (isCoordinator && isMaster) {  // metadata collection is a master-only proposition.
+      if (updateTasks.get(source) == null) {
+        PerSourceNamespaceUpdateTask ut = new PerSourceNamespaceUpdateTask(source, source.getRoot());
+        Cancellable c = scheduler.get().schedule(Schedule.Builder
+          .everyMillis(getRefreshRateMillis())
+          .startingAt(Instant.now().plusMillis(getRefreshRateMillis()))
+          .build(), ut);
+        updateTasks.put(source, c);
+      }
+    }
+  }
+
+  @Override
+  public void unregisterSource(NamespaceKey source) {
+    // Note: V1 plugins not stored in the sourceRegistryMap, so the removal for them is a no-op
+    sourceRegistryMap.remove(source);
+    Cancellable c = updateTasks.remove(source);
+    if (c != null) {
+      c.cancel();
+    }
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(registry, updateThread);
+    AutoCloseables.close(registry);
+    for(Cancellable c : updateTasks.values()) {
+      c.cancel();
+    }
   }
 
   private class MutatedSourceTableDefinition implements SourceTableDefinition {
@@ -321,32 +345,32 @@ public class CatalogServiceImpl implements CatalogService {
         // for each known dataset, update things.
         try {
           DatasetConfig config = systemUserNamespaceService.getDataset(foundKey);
+          CheckResult result = CheckResult.UNCHANGED;
 
-          final CheckResult result;
+          if(sourceRegistry.datasetExists(foundKey)) {
+            if(policy.getDatasetUpdateMode() == UpdateMode.PREFETCH ||
+              (policy.getDatasetUpdateMode() == UpdateMode.PREFETCH_QUERIED && config.getReadDefinition() != null)) {
+              if (config.getReadDefinition() == null) {
+                // this is currently a name only dataset. Get the read definition.
+                final SourceTableDefinition definition = sourceRegistry.getDataset(foundKey, config, false);
+                result = new CheckResult() {
+                  @Override
+                  public UpdateStatus getStatus() {
+                    return UpdateStatus.CHANGED;
+                  }
 
-          if(policy.getDatasetUpdateMode() == UpdateMode.PREFETCH || (policy.getDatasetUpdateMode() == UpdateMode.PREFETCH_QUERIED && config.getReadDefinition() != null)) {
-            if(config.getReadDefinition() == null){
-              // this is currently a name only dataset. Get the read definition.
-              final SourceTableDefinition definition = sourceRegistry.getDataset(foundKey, config, false);
-              result = new CheckResult(){
-                @Override
-                public UpdateStatus getStatus() {
-                  return UpdateStatus.CHANGED;
-                }
-                @Override
-                public SourceTableDefinition getDataset() {
-                  return definition;
-                }};
-            } else {
-              // have a read definition, need to check if it is up to date.
-              result = sourceRegistry.checkReadSignature(config.getReadDefinition().getReadSignature(), config);
+                  @Override
+                  public SourceTableDefinition getDataset() {
+                    return definition;
+                  }
+                };
+              } else {
+                // have a read definition, need to check if it is up to date.
+                result = sourceRegistry.checkReadSignature(config.getReadDefinition().getReadSignature(), config);
+              }
             }
           } else {
-            if(sourceRegistry.datasetExists(foundKey)){
-              result = CheckResult.UNCHANGED;
-            }else{
-              result = CheckResult.DELETED;
-            }
+            result = CheckResult.DELETED;
           }
 
           if(result.getStatus() == UpdateStatus.DELETED){
@@ -372,7 +396,7 @@ public class CatalogServiceImpl implements CatalogService {
             continue;
           }
 
-          // this is a new datset, add it to namespace.
+          // this is a new dataset, add it to namespace.
           if(policy.getDatasetUpdateMode() != UpdateMode.PREFETCH){
             shallowSave(accessor);
           } else {
@@ -415,9 +439,9 @@ public class CatalogServiceImpl implements CatalogService {
 
   private void saveInHomeSpace(NamespaceService namespaceService, SourceTableDefinition accessor, DatasetConfig nsConfig) {
     Preconditions.checkNotNull(nsConfig);
+    final NamespaceKey key = new NamespaceKey(nsConfig.getFullPathList());
     try{
       // use key from namespace config
-      NamespaceKey key = new NamespaceKey(nsConfig.getFullPathList());
       DatasetConfig srcConfig = accessor.getDataset();
       if (nsConfig.getId() == null) {
         nsConfig.setId(srcConfig.getId());
@@ -431,7 +455,7 @@ public class CatalogServiceImpl implements CatalogService {
       List<DatasetSplit> splits = accessor.getSplits();
       namespaceService.addOrUpdateDataset(key, nsConfig, splits);
     }catch(Exception ex){
-      logger.warn("Failure while retrieving and saving dataset", ex);
+      logger.warn("Failure while retrieving and saving dataset {}.", key, ex);
     }
   }
 
@@ -460,7 +484,7 @@ public class CatalogServiceImpl implements CatalogService {
       List<DatasetSplit> splits = accessor.getSplits();
       namespaceService.addOrUpdateDataset(key, config, splits);
     }catch(Exception ex){
-      logger.warn("Failure while retrieving and saving dataset", ex);
+      logger.warn("Failure while retrieving and saving dataset {}.", accessor.getName(), ex);
     }
   }
 
@@ -481,124 +505,66 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   /*
-   * Background namespace refresher thread should only be ran coordinator nodes.
+   * Background namespace and metadata refresher thread. One per source. Runs only on coordinator nodes
    */
-  private class NamespaceUpdateThread extends Thread implements AutoCloseable {
-    private final boolean isMaster;
-    private final long stateRefresh;
-    private long lastStateRefresh;
+  private class PerSourceNamespaceUpdateTask implements Runnable {
+    private final NamespaceKey sourceKey;
+    private final String sourceName;  // TODO: when all plugins moved to V2 interface, remove the sourceName (it's no longer needed)
 
-    public NamespaceUpdateThread(boolean isMaster, long stateRefresh) {
-      super("metadata-refresh");
-      setDaemon(true);
-      this.isMaster = isMaster;
-      this.stateRefresh = stateRefresh;
-    }
-
-    private void refreshSourceStates() {
-      HashSet<String> v2pluginNames = new HashSet<>();
-      for (Map.Entry<NamespaceKey, StoragePlugin2> entry : sourceRegistryMap.entrySet()) {
-        final NamespaceKey source = entry.getKey();
-        try {
-          final StoragePlugin2 sourceRegistry = entry.getValue();
-          v2pluginNames.add(source.getName());
-          sourceStateMap.put(source, sourceRegistry.getState());
-        } catch (Exception ex) {
-          logger.warn("Failure refreshing source state for source {}.", source.getName(), ex);
-        }
-      }
-
-      // Walk through the old storage plugins. Skip over the ones that have a StoragePlugin2.
-      final StoragePluginRegistryImpl registry = CatalogServiceImpl.this.registry;
-      Iterator<Map.Entry<String, StoragePlugin<?>>> v1Iter = registry.iterator();
-      while (v1Iter.hasNext()) {
-        final Map.Entry<String, StoragePlugin<?>> entry = v1Iter.next();
-        final StoragePlugin<?> v1plugin = entry.getValue();
-        final String v1pluginName = entry.getKey();
-
-        // Skip over plugins that may have already been registered as StoragePlugin2 plugins.
-        // Also skip over INFORMATION_SCHEMA and sys namespaces, which automatically get added.
-        if (v1plugin.getStoragePlugin2() != null && v2pluginNames.contains(v1pluginName) ||
-          StoragePluginRegistryImpl.isInternal(v1pluginName) ||
-          v1pluginName.equals("INFORMATION_SCHEMA") ||
-          v1pluginName.equals("sys")) {
-          continue;
-        }
-
-        try {
-          registry.refreshSourceMetadataInNamespace(v1pluginName, v1plugin, SYSTEM_USERNAME);
-        } catch (NamespaceException e) {
-          throw Throwables.propagate(e);
-        }
-      }
+    public PerSourceNamespaceUpdateTask(NamespaceKey sourceKey, String sourceName) {
+      this.sourceKey = sourceKey;
+      this.sourceName = sourceName;
     }
 
     @Override
     public void run() {
-      while(true){
-
-        // let's not start refreshing until the first interval completes.
-        if(sleepExit()){
-          return;
-        }
-
-        if(System.currentTimeMillis() > lastStateRefresh + stateRefresh){
-          refreshSourceStates();
-          lastStateRefresh = System.currentTimeMillis();
-        }
-
-        if(!isMaster){
-          // metadata collection is a master-only proposition.
-          return;
-        }
-
-        for (Map.Entry<NamespaceKey, StoragePlugin2> entry : sourceRegistryMap.entrySet()) {
-          try {
-
-            final NamespaceKey source = entry.getKey();
-            SourceState state = sourceStateMap.get(source);
-            if(state == null || state.getStatus() == SourceStatus.bad){
-              logger.info("Ignoring metadata load for source {} since it is currently in a bad state.", source.getName());
-              continue;
-            }
-
-            SourceConfig config = systemUserNamespaceService.getSource(source);
-            MetadataPolicy policy = config.getMetadataPolicy();
-            if (policy == null) {
-              policy = DEFAULT_METADATA_POLICY;
-            }
-            long lastRefresh = config.getLastRefreshDate() == null ? 0 : config.getLastRefreshDate();
-            final long refreshMs = Math.min(policy.getNamesRefreshMs(), policy.getDatasetDefinitionTtlMs());
-            if(System.currentTimeMillis() > (refreshMs + lastRefresh)) {
-              refreshSource(source, policy);
-              systemUserNamespaceService.addOrUpdateSource(source, config.setLastRefreshDate(System.currentTimeMillis()));
-            }
-
-          } catch (Throwable e) {
-            logger.warn(String.format("Failed to update namespace for plugin '%s'", entry.getKey()), e);
+      // Task scheduled to run every 'getRefreshRateMillis()'
+      try {
+        StoragePlugin2 plugin2 = sourceRegistryMap.get(sourceKey);
+        if (plugin2 != null) {
+          SourceState sourceState = plugin2.getState();
+          if (sourceState == null || sourceState.getStatus() == SourceStatus.bad) {
+            logger.info("Ignoring metadata load for source {} since it is currently in a bad state.", sourceKey);
+            return;
           }
+          SourceConfig config = systemUserNamespaceService.getSource(sourceKey);
+          MetadataPolicy policy = config.getMetadataPolicy();
+          if (policy == null) {
+            policy = DEFAULT_METADATA_POLICY;
+          }
+          long lastRefresh = config.getLastRefreshDate() == null ? 0 : config.getLastRefreshDate();
+          final long refreshMs = Math.min(policy.getNamesRefreshMs(), policy.getDatasetDefinitionTtlMs());
+          if (System.currentTimeMillis() > (refreshMs + lastRefresh)) {
+            refreshSource(sourceKey, policy);
+            systemUserNamespaceService.addOrUpdateSource(sourceKey, config.setLastRefreshDate(System.currentTimeMillis()));
+          }
+        } else {
+          // V1 plugin: update always
+          StoragePlugin<?> plugin = registry.getPlugin(sourceName);
+          registry.refreshSourceMetadataInNamespace(sourceName, plugin, SYSTEM_USERNAME);
         }
-
+      } catch (Exception e) {
+        // Exception while updating the metadata. Ignore, and try again later
+        logger.warn(String.format("Failed to update namespace for plugin '%s'", sourceKey), e);
       }
-    }
-
-    private boolean sleepExit(){
-      try{
-        Thread.sleep(getRefreshRateMillis());
-        return false;
-      }catch(InterruptedException ex){
-        logger.debug("Metadata maintenance thread exiting.");
-        return true;
-      }
-    }
-    @Override
-    public void close() throws Exception {
-      this.interrupt();
     }
   }
 
   @Override
   public StoragePluginRegistry getOldRegistry() {
     return registry;
+  }
+
+  @Override
+  public void testTrimBackgroundTasks() {
+    List<NamespaceKey> toBeRemoved = Lists.newArrayList();
+    for (NamespaceKey sourceKey : updateTasks.keySet()) {
+      if (!systemUserNamespaceService.exists(sourceKey)) {
+        toBeRemoved.add(sourceKey);
+      }
+    }
+    for (NamespaceKey sourceKey : toBeRemoved) {
+      unregisterSource(sourceKey);
+    }
   }
 }

@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.store.excel;
 
+import com.dremio.common.exceptions.UserException;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -66,4 +68,43 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
 
+  @Test
+  public void testProjectAll1() throws Exception {
+    getHelper().test(testBuilder(), "sheet 1", true,  true);
+  }
+
+  @Test
+  public void testProjectAll2() throws Exception {
+    getHelper().test(testBuilder(), "sheet 1", true,  false);
+  }
+
+  @Test
+  public void testProjectPushdown1() throws Exception {
+    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true,  true);
+  }
+
+  @Test
+  public void testProjectPushdown2() throws Exception {
+    getHelper().testProjectPushdown1(testBuilder(), "sheet 1", true,  false);
+  }
+
+  @Test
+  public void testProjectPushdown3() throws Exception {
+    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true,  true);
+  }
+
+  @Test
+  public void testProjectPushdown4() throws Exception {
+    getHelper().testProjectPushdown2(testBuilder(), "sheet 1", true,  false);
+  }
+
+  @Test
+  public void testProjectPushdown5() throws Exception {
+    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  true);
+  }
+
+  @Test
+  public void testProjectPushdown6() throws Exception {
+    getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  false);
+  }
 }

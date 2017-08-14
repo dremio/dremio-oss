@@ -88,7 +88,13 @@ export default class DatasetList extends Component {
                 theme={styles.addIcon}
                 onClick={addFullPathToSqlEditor.bind(this, displayFullPath)}/>
             }
-            <div style={{width: parentItems ? 200 : null, marginLeft: 6, flexShrink: 0}}>
+            <div style={{
+              minWidth: parentItems ? 200 : null,
+              width: parentItems ? '30%' : null,
+              marginLeft: 6,
+              flexShrink: parentItems ? 0 : 1,
+              overflow: 'hidden' // make sure sub-element ellipsis happens
+            }}>
               <DatasetItemLabel
                 dragType={this.props.dragType}
                 name={name}

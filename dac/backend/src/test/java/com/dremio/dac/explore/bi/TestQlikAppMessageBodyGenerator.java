@@ -65,9 +65,9 @@ public class TestQlikAppMessageBodyGenerator {
 
     String script = new String(baos.toByteArray(), UTF_8);
 
-    assertTrue(script.contains(" DIMENSION testdimension, testdimension2"));
-    assertTrue(script.contains(" MEASURE testmeasure, testmeasure2"));
-    assertTrue(script.contains(" DETAIL testdetail, testdetail2"));
+    assertTrue(script.contains(" DIMENSION \"testdimension\", \"testdimension2\""));
+    assertTrue(script.contains(" MEASURE \"testmeasure\", \"testmeasure2\""));
+    assertTrue(script.contains(" DETAIL \"testdetail\", \"testdetail2\""));
     assertTrue(script.contains(" FROM \"tmp\".\"UNTITLED\""));
   }
 
@@ -91,8 +91,34 @@ public class TestQlikAppMessageBodyGenerator {
 
     String script = new String(baos.toByteArray(), UTF_8);
 
-    assertTrue(script.contains(" DIMENSION testdimension"));
-    assertTrue(script.contains(" MEASURE testmeasure"));
+    assertTrue(script.contains(" DIMENSION \"testdimension\""));
+    assertTrue(script.contains(" MEASURE \"testmeasure\""));
+    assertTrue(script.contains(" FROM \"space.folder.ext\".\"UNTITLED\""));
+  }
+
+  @Test
+  public void testFieldNamesWithSpaceQuoting() throws Exception {
+    QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
+
+    VirtualDataset dataset = new VirtualDataset()
+      .setSqlFieldsList(Arrays.asList(new ViewFieldType("test dimension", "VARCHAR"), new ViewFieldType("test \" measure", "INTEGER")));
+
+    DatasetConfig datasetConfig = new DatasetConfig()
+      .setName("UNTITLED")
+      .setType(DatasetType.VIRTUAL_DATASET)
+      .setFullPathList(Arrays.asList("space", "folder.ext", "UNTITLED"))
+      .setVirtualDataset(dataset);
+
+    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+
+    String script = new String(baos.toByteArray(), UTF_8);
+
+    // make sure everything is escaped correctly
+    assertTrue(script.contains(" DIMENSION \"test dimension\""));
+    assertTrue(script.contains(" MEASURE \"test \"\" measure\""));
     assertTrue(script.contains(" FROM \"space.folder.ext\".\"UNTITLED\""));
   }
 

@@ -21,6 +21,8 @@ import {
   TEXT,
   FLOAT,
   INTEGER,
+  BIGINT,
+  DECIMAL,
   TIME,
   DATE,
   DATETIME
@@ -75,6 +77,12 @@ describe('DataTypes', () => {
     describe('when dataType == FLOAT', () => {
       it('should return 0.02 for "0.02"', () => {
         expect(parseTextToDataType('0.02', FLOAT)).to.equal(0.02);
+      });
+      it('should return null for null value for numeric types (float, integer, bigint, decimal)', () => {
+        expect(parseTextToDataType(null, FLOAT)).to.be.null;
+        expect(parseTextToDataType(null, INTEGER)).to.be.null;
+        expect(parseTextToDataType(null, BIGINT)).to.be.null;
+        expect(parseTextToDataType(null, DECIMAL)).to.be.null;
       });
     });
 

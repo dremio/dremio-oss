@@ -30,7 +30,6 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.TempSpace;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -44,7 +43,7 @@ public class DatasetPath extends NamespacePath {
   private static final String URL_PATH_TYPE = "dataset";
 
   public static DatasetPath fromURLPath(RootEntity root, String path) {
-    List<String> components = Splitter.on('/').omitEmptyStrings().splitToList(path);
+    List<String> components = PathUtils.toPathComponents(path);
 
     return new DatasetPath(ImmutableList.<String> builder().add(root.getName()).addAll(components).build());
   }

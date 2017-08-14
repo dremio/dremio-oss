@@ -20,6 +20,7 @@ import Radium from 'radium';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
+import EllipsedText from 'components/EllipsedText';
 import { constructFullPath, splitFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
 import { getIconDataTypeFromEntity } from 'utils/iconUtils';
 
@@ -89,8 +90,8 @@ export default class MainInfoItemName extends Component {
     }
     return (
       <div style={styles.flexAlign}>
-        <FontIcon type={typeIcon}/>
-        <div className='last-File' style={styles.fullPath}>{item.get('name')}</div>
+        <FontIcon type={typeIcon} />
+        <EllipsedText className='last-File' style={styles.fullPath} text={item.get('name')} />
       </div>
     );
   }
@@ -100,7 +101,9 @@ export default class MainInfoItemName extends Component {
     const fileType = item.get('fileType');
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
     const href = this.getHref(item);
-    const linkStyle = fileType === 'folder' ? styles.flexAlign : {...styles.flexAlign, ...styles.leafLink};
+    const linkStyle = (fileType === 'folder' && !item.get('queryable'))
+        ? styles.flexAlign
+        : {...styles.flexAlign, ...styles.leafLink};
     const holderClass = fileType + '-path';
 
     return (
@@ -108,9 +111,7 @@ export default class MainInfoItemName extends Component {
         <Link style={linkStyle} to={href}>
           {this.renderDatasetItemLabel()}
         </Link>
-        { fullPath &&
-        <CopyButton text={fullPath} title={la('Copy Path')} />
-        }
+        { fullPath && <CopyButton text={fullPath} title={la('Copy Path')} /> }
       </div>
     );
   }
@@ -121,10 +122,6 @@ const styles = {
     width: 'calc(100% - 20px)'
   },
   fullPath: {
-    width: '100%',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
     marginLeft: 5
   },
   flexAlign: {

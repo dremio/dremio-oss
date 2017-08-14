@@ -344,12 +344,12 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.NUM_BUCKETS,  table.capacity());
       stats.setLongStat(Metric.NUM_RESIZING, table.getRehashCount());
       stats.setLongStat(Metric.RESIZING_TIME_NANOS, table.getRehashTime(ns));
+      stats.setLongStat(Metric.PIVOT_TIME_NANOS, table.getBuildPivotTime(ns));
+      stats.setLongStat(Metric.INSERT_TIME_NANOS, table.getInsertTime(ns) - table.getRehashTime(ns));
     }
 
     stats.setLongStat(Metric.VECTORIZED, mode.ordinal());
-    stats.setLongStat(Metric.PIVOT_TIME_NANOS, table.getBuildPivotTime(ns));
     stats.setLongStat(Metric.LINK_TIME_NANOS, linkWatch.elapsed(ns));
-    stats.setLongStat(Metric.INSERT_TIME_NANOS, table.getInsertTime(ns) - table.getRehashTime(ns));
 
     if(probe != null){
       stats.setLongStat(Metric.PROBE_PIVOT_NANOS, table.getProbePivotTime(ns));

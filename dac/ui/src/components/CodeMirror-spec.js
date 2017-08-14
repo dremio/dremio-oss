@@ -66,14 +66,10 @@ describe('CodeMirror', () => {
       expect(instance.editor.on).to.be.calledTwice;
 
       expect(instance.editor.on.args[0][0]).to.equal('change');
-      expect(commonProps.onChange).to.not.be.called;
-      instance.editor.on.args[0][1](); // call handler
-      expect(commonProps.onChange).to.be.called;
+      expect(instance.editor.on.args[0][1]).to.equal(instance.handleChange);
 
       expect(instance.editor.on.args[1][0]).to.equal('dragover');
-      expect(commonProps.onDragover).to.not.be.called;
-      instance.editor.on.args[1][1](); // call handler
-      expect(commonProps.onDragover).to.be.called;
+      expect(instance.editor.on.args[1][1]).to.equal(commonProps.onDragover);
     });
 
     it('should set default value only if it !== undefined', () => {
@@ -117,11 +113,24 @@ describe('CodeMirror', () => {
     });
   });
 
+  describe('#handleChange', () => {
+    it('should call props.onChange only if !reseting', () => {
+      instance.reseting = true;
+      instance.handleChange();
+      expect(commonProps.onChange).to.not.be.called;
+      instance.reseting = false;
+      instance.handleChange();
+      expect(commonProps.onChange).to.be.called;
+    });
+  });
+
   describe('#resetValue()', () => {
     it('should setValue', () => {
       instance.editor = commonProps.codeMirror();
       instance.resetValue();
       expect(instance.editor.setValue).to.be.calledWith(commonProps.defaultValue);
+      expect(commonProps.onChange).to.not.be.called;
+      expect(instance.reseting).to.be.false;
     });
 
     it('should default defaultValue to empty string', () => {

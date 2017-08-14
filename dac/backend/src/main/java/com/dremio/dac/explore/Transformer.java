@@ -27,10 +27,12 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.proto.model.dataset.FilterType;
 import com.dremio.dac.proto.model.dataset.FromType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
+import com.dremio.dac.proto.model.dataset.TransformFilter;
 import com.dremio.dac.proto.model.dataset.TransformType;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
@@ -79,6 +81,28 @@ class Transformer {
 
   private String username(){
     return securityContext.getUserPrincipal().getName();
+  }
+
+  /**
+   * Protobuf removes nulls inside lists: this makes sure to keep null values as they are
+   * by re-adding them after parsing with protobuf. Since replaceNull is not part of protobuf,
+   * this is necessary to parse null filter values (most importantly in replaceExact)
+   * @param transformResult
+   * @param transform
+   * @return
+   */
+  private VirtualDatasetState protectAgainstNull(TransformResult transformResult, TransformBase transform) {
+    VirtualDatasetState vss = transformResult.getNewState();
+    if (transform instanceof TransformFilter
+      && FilterType.Value == ((TransformFilter) transform).getFilter().getType()) {
+      List<String> pureFilter = ((TransformFilter) transform).getFilter().getValue().getValuesList();
+      vss.getFiltersList()
+        .get(vss.getFiltersList().size() - 1)
+        .getFilterDef()
+        .getValue()
+        .setValuesList(pureFilter);
+    }
+    return vss;
   }
 
   /**
@@ -180,13 +204,13 @@ class Transformer {
   private VirtualDatasetUI asDataset(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform, TransformResult result, QueryMetadata metadata) {
     baseDataset.setPreviousVersion(new NameDatasetRef(path.toString()).setDatasetVersion(baseDataset.getVersion().toString()));
     baseDataset.setVersion(newVersion);
-    baseDataset.setState(result.getNewState());
+    baseDataset.setState(protectAgainstNull(result, transform));
     // If the user edited the SQL manually we want to keep the SQL as is
     // SQLGenerator.generateSQL(result.getNewState()) is functionally equivalent but not exactly the same
     String sql =
         transform.wrap().getType() == updateSQL ?
         ((TransformUpdateSQL)transform).getSql() :
-        SQLGenerator.generateSQL(result.getNewState());
+        SQLGenerator.generateSQL(protectAgainstNull(result, transform));
     baseDataset.setSql(sql);
     baseDataset.setLastTransform(transform.wrap());
     DatasetTool.applyQueryMetadata(baseDataset, metadata);
@@ -224,7 +248,8 @@ class Transformer {
       resultToReturn = new DatasetAndJob(actor.getJob(), asDataset(newVersion, path, original, transform, transformResult, actor.getMetadata()));
     } else {
       // if the actor didn't require a query, it didn't start a job and we need to start one here.
-      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(transformResult.getNewState()), transformResult.getNewState().getContextList(), securityContext);
+      VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
+      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
       final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
       JobUI job = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
       resultToReturn = new DatasetAndJob(job, asDataset(newVersion, path, original, transform, transformResult, collector.getMetadata()));
@@ -266,7 +291,8 @@ class Transformer {
       dataset = asDataset(newVersion, path, original, transform, transformResult, actor.getMetadata());
     } else {
       // if the actor didn't require a query, it didn't start a job and we need to start one here.
-      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(transformResult.getNewState()), transformResult.getNewState().getContextList(), securityContext);
+      VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
+      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
       final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
       job = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, path, newVersion, collector);
       dataset = asDataset(newVersion, path, original, transform, transformResult, collector.getMetadata());

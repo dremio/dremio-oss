@@ -37,10 +37,12 @@ public class DB2SourceConfigurator extends SingleSourceToStoragePluginConfig<DB2
     String hostname = checkNotNull(db2config.getHostname(), "missing hostname");
     String port = checkNotNull(db2config.getPort(), "missing port");
     String db = checkNotNull(db2config.getDatabaseName(), "missing databaseName");
+    Integer fetchSize = db2config.getFetchSize();
     JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.DB2_DRIVER,
         "jdbc:db2://" + hostname + ":" + port + "/" + db,
         db2config.getUsername(),
-        db2config.getPassword()
+        db2config.getPassword(),
+        fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
     );
 
     return config;

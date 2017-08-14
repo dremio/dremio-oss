@@ -34,14 +34,28 @@ describe('notification reducer', () => {
     expect(result).to.eql({message: 'foo'});
   });
 
-  it('should set notification from errorMessage if error = true and notification = true', () => {
+  it('should set notification from errorMessage and default moreInfo if error = true and notification = true', () => {
+    const defaultMoreInfo = 'Something went wrong';
     const result = notification(initialState, {
       type: 'bla',
       error: true,
       payload: {errorMessage: 'message'},
       meta: {notification: true}
     });
-    expect(result).to.eql({message: 'message', level: 'error'});
+    expect(result).to.eql({
+      message: Immutable.Map({ message: 'message', moreInfo: defaultMoreInfo }),
+      level: 'error'
+    });
+  });
+
+  it('should set notification from payload.response if error = true and notification = true', () => {
+    const result = notification(initialState, {
+      type: 'bla',
+      error: true,
+      payload: { response: { errorMessage: 'message', moreInfo: 'more info' } },
+      meta: {notification: true}
+    });
+    expect(result).to.eql({ message: Immutable.Map({ message: 'message', moreInfo: 'more info' }), level: 'error' });
   });
 
   it('should return unaltered state if notification is true but no error', () => {
@@ -49,16 +63,18 @@ describe('notification reducer', () => {
     expect(result).to.equal(initialState);
   });
 
-  it('should set notification with default message no errorMessage and error = true and notification = true', () => {
+  it('should set notification with default message when error = true and notification = true', () => {
+    const defaultMessage = 'Something went wrong';
     const result = notification(initialState, {
       type: 'bla',
       error: true,
       meta: {notification: true}
     });
-    expect(result).to.eql({message: 'Something went wrong', level: 'error'});
+    expect(result).to.eql({ message: Immutable.Map({ message: defaultMessage }), level: 'error' });
   });
 
   it('should set default message to "data has changed" when status = 409', () => {
+    const defaultMessage409 = 'The data has been changed since you last accessed it. Please refresh the page';
     const result = notification(initialState, {
       type: 'bla',
       payload: {
@@ -67,9 +83,6 @@ describe('notification reducer', () => {
       error: true,
       meta: {notification: true}
     });
-    expect(result).to.eql({
-      message: 'The data has been changed since you last accessed it. Please refresh the page',
-      level: 'error'
-    });
+    expect(result).to.eql({ message: Immutable.Map({ message: defaultMessage409 }), level: 'error' });
   });
 });

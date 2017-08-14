@@ -23,9 +23,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.sabot.exec.context.MetricDef;
-import com.dremio.sabot.exec.context.OperatorStats;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.SchemaChangeCallBack;
@@ -53,7 +50,9 @@ import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.driver.SchemaChangeListener;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.values.EmptyValuesCreator.EmptyRecordReader;
 import com.google.common.base.Function;
@@ -197,15 +196,13 @@ public class ScanOperator implements ProducerOperator {
 
     while ((recordCount = currentReader.next()) == 0) {
 
-      // this reader has no more records, close it.
-      currentReader.close();
       readTime.stop();
       readTime.reset();
       readTime.start();
       if (!readers.hasNext()) {
         // We're on the last reader, and it has no (more) rows.
-
-        // might as well release any memory that we're holding.
+        // no need to close the reader (will be done when closing the operator)
+        // but we might as well release any memory that we're holding.
         outgoing.zeroVectors();
         state = ProducerOperator.State.DONE;
         outgoing.setRecordCount(0);
@@ -213,7 +210,8 @@ public class ScanOperator implements ProducerOperator {
         return 0;
       }
 
-      // There are more readers, let's get the next one.
+      // There are more readers, let's close the previous one and get the next one.
+      currentReader.close();
       currentReader = readers.next();
       setupReader(currentReader);
       currentReader.allocate(fieldVectorMap);
@@ -238,7 +236,11 @@ public class ScanOperator implements ProducerOperator {
         try {
           schemaUpdater.observedSchemaChange(tableSchemaPath, config.getSchema(), newSchema, currentReader.getSchemaChangeMutator());
         } catch(Exception ex){
-          throw UserException.schemaChangeError(ex).message("Schema change detected but unable to learn schema, query failed. Original: %s, New: %s.", config.getSchema(), newSchema).build(logger);
+          throw UserException.schemaChangeError(ex)
+            .addContext("Original schema", config.getSchema())
+            .addContext("New schema", newSchema)
+            .message("Schema change detected but unable to learn schema, query failed. A full table scan may be necessary to fully learn the schema.")
+            .build(logger);
         }
         throw UserException.schemaChangeError()
           .addContext("Original Schema", config.getSchema().toString())

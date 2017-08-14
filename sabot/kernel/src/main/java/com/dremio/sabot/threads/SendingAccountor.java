@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
-import com.google.common.base.Preconditions;
 
 /**
  * Account for whether all messages sent have been completed. Necessary before finishing a task so we don't think
@@ -61,7 +60,11 @@ public class SendingAccountor {
    */
   public boolean markBlockingWhenMessagesOutstanding(SharedResourceGroup manager) {
     synchronized(this) {
-      Preconditions.checkArgument(sendComplete == null || sendComplete.isAvailable(), "You can't block on a send complete when someone is already blocking on it.");
+      if (sendComplete != null && !sendComplete.isAvailable()) {
+        // we are already blocked waiting for pending messages
+        return false;
+      }
+
       final int pending = pendingMessages.get();
       if(pending == 0) {
         // do nothing with manager.

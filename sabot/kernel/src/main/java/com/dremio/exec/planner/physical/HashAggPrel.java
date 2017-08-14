@@ -17,6 +17,8 @@ package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -37,6 +39,8 @@ import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.HashAggregate;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.collect.ImmutableList;
@@ -70,7 +74,37 @@ public class HashAggPrel extends AggPrelBase implements Prel{
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return super.computeHashAggCost(planner, mq);
+    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+      return super.computeSelfCost(planner).multiplyBy(.1);
+    }
+    final RelNode child = this.getInput();
+    double inputRows = mq.getRowCount(child);
+
+    int numGroupByFields = this.getGroupCount();
+    int numAggrFields = this.aggCalls.size();
+    // cpu cost of hashing each grouping key
+    double cpuCost = DremioCost.HASH_CPU_COST * numGroupByFields * inputRows;
+    // add cpu cost for computing the aggregate functions
+    cpuCost += DremioCost.FUNC_CPU_COST * numAggrFields * inputRows;
+    double diskIOCost = 0; // assume in-memory for now until we enforce operator-level memory constraints
+
+    // TODO: use distinct row count
+    // + hash table template stuff
+    double factor = PrelUtil.getPlannerSettings(planner).getOptions()
+      .getOption(ExecConstants.HASH_AGG_TABLE_FACTOR_KEY).float_val;
+    long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
+      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).num_val;
+
+    // table + hashValues + links
+    double memCost =
+      (
+        (fieldWidth * numGroupByFields) +
+          IntHolder.WIDTH +
+          IntHolder.WIDTH
+      ) * inputRows * factor;
+
+    Factory costFactory = (Factory) planner.getCostFactory();
+    return costFactory.makeCost(inputRows, cpuCost, diskIOCost, 0 /* network cost */, memCost);
   }
 
 

@@ -73,9 +73,12 @@ export default class CodeMirror extends PureComponent {
 
     Object.keys(PROP_NAME_TO_CM_EVENT).forEach((propName) => {
       if (this.props[propName]) {
-        this.editor.on(PROP_NAME_TO_CM_EVENT[propName], function() {
-          this.props[propName](...arguments);
-        }.bind(this));
+        // special case onChange to prevent change event when reseting
+        if (propName === 'onChange') {
+          this.editor.on('change', this.handleChange);
+        } else {
+          this.editor.on(PROP_NAME_TO_CM_EVENT[propName], this.props[propName]);
+        }
       }
     });
 
@@ -99,8 +102,19 @@ export default class CodeMirror extends PureComponent {
     }
   }
 
+  handleChange = (cm, event) => {
+    if (!this.reseting) {
+      this.props.onChange(cm, event);
+    }
+  }
+
   resetValue() {
-    this.editor.setValue(this.props.defaultValue || '');
+    this.reseting = true;
+    try {
+      this.editor.setValue(this.props.defaultValue || '');
+    } finally {
+      this.reseting = false;
+    }
   }
 
   render() {

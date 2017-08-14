@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +33,6 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.api.Binary;
-import org.apache.parquet.schema.OriginalType;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeConstants;
 
@@ -125,49 +123,6 @@ public class ParquetReaderUtility {
 
   public static int autoCorrectCorruptedDate(int corruptedDate) {
     return (int) (corruptedDate - CORRECT_CORRUPT_DATE_SHIFT);
-  }
-
-  public static void correctDatesInMetadataCache(Metadata.ParquetTableMetadataBase parquetTableMetadata) {
-    boolean isDateCorrect = parquetTableMetadata.isDateCorrect();
-    DateCorruptionStatus cacheFileContainsCorruptDates = isDateCorrect ?
-        DateCorruptionStatus.META_SHOWS_NO_CORRUPTION : DateCorruptionStatus.META_SHOWS_CORRUPTION;
-    if (cacheFileContainsCorruptDates == DateCorruptionStatus.META_SHOWS_CORRUPTION) {
-      // Looking for the DATE data type of column names in the metadata cache file ("metadata_version" : "v2")
-      String[] names = new String[0];
-      if (parquetTableMetadata instanceof Metadata.ParquetTableMetadata_v2) {
-        for (Metadata.ColumnTypeMetadata_v2 columnTypeMetadata :
-            ((Metadata.ParquetTableMetadata_v2) parquetTableMetadata).columnTypeInfo.values()) {
-          if (OriginalType.DATE.equals(columnTypeMetadata.originalType)) {
-            names = columnTypeMetadata.name;
-          }
-        }
-      }
-      for (Metadata.ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
-        // Drill has only ever written a single row group per file, only need to correct the statistics
-        // on the first row group
-        Metadata.RowGroupMetadata rowGroupMetadata = file.getRowGroups().get(0);
-        for (Metadata.ColumnMetadata columnMetadata : rowGroupMetadata.getColumns()) {
-          // Setting Min/Max values for ParquetTableMetadata_v1
-          if (parquetTableMetadata instanceof Metadata.ParquetTableMetadata_v1) {
-            OriginalType originalType = columnMetadata.getOriginalType();
-            if (OriginalType.DATE.equals(originalType) && columnMetadata.hasSingleValue() &&
-                (Integer) columnMetadata.getMaxValue() > ParquetReaderUtility.DATE_CORRUPTION_THRESHOLD) {
-              int newMinMax = ParquetReaderUtility.autoCorrectCorruptedDate((Integer) columnMetadata.getMaxValue());
-              columnMetadata.setMax(newMinMax);
-              columnMetadata.setMin(newMinMax);
-            }
-          }
-          // Setting Max values for ParquetTableMetadata_v2
-          else if (parquetTableMetadata instanceof Metadata.ParquetTableMetadata_v2 &&
-              columnMetadata.getName() != null && Arrays.equals(columnMetadata.getName(), names) &&
-              columnMetadata.hasSingleValue() && (Integer) columnMetadata.getMaxValue() >
-              ParquetReaderUtility.DATE_CORRUPTION_THRESHOLD) {
-            int newMax = ParquetReaderUtility.autoCorrectCorruptedDate((Integer) columnMetadata.getMaxValue());
-            columnMetadata.setMax(newMax);
-          }
-        }
-      }
-    }
   }
 
   /**

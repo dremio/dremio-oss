@@ -24,6 +24,7 @@ import com.dremio.datastore.indexed.IndexKey;
  */
 public interface DatasetIndexKeys {
   IndexKey DATASET_ID = new IndexKey("id", "DATASET_ID", String.class, SearchFieldSorting.FieldType.STRING, true, false);
+  IndexKey DATASET_UUID = new IndexKey("uuid", "DATASET_UUID", String.class, null, true, false);
   IndexKey DATASET_SQL = new IndexKey("sql", "SQL", String.class, null, true, false);
   IndexKey DATASET_PARENTS = new IndexKey("par", "PARENTS", String.class, null, false, false); // to get immidiate children
   IndexKey DATASET_COLUMNS_NAMES = new IndexKey("col", "COLUMNS", String.class, null, true, false);
@@ -33,7 +34,7 @@ public interface DatasetIndexKeys {
 
   // TODO add Physical dataset search index keys
 
-  FilterIndexMapping MAPPING = new FilterIndexMapping(DATASET_ID, DATASET_SQL, DATASET_PARENTS, DATASET_COLUMNS_NAMES,
+  FilterIndexMapping MAPPING = new FilterIndexMapping(DATASET_ID, DATASET_UUID, DATASET_SQL, DATASET_PARENTS, DATASET_COLUMNS_NAMES,
     DATASET_OWNER, DATASET_SOURCES, DATASET_ALLPARENTS);
 
 }

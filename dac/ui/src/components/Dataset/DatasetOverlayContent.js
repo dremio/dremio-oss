@@ -228,22 +228,6 @@ const styles = {
     float: 'left',
     width: 90
   },
-  dbName: {
-    textDecoration: 'none',
-    textOverflow: 'ellipsis',
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    maxWidth: 300,
-    display: 'flex',
-    flexDirection: 'column',
-    flexWrap: 'wrap'
-  },
-  itemText: {
-    width: 105,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
   breadCrumbs: {
     overflow: 'auto',
     display: 'flex',

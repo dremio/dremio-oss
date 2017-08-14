@@ -45,7 +45,7 @@ class TabsContent extends Component {
     if (jobDetails && jobDetails.get('isEmptyJob')) {
       return (
         <div style={[styles.spinner]}>
-          <span style={{fontSize: 20}}>{la('No Data')}</span>
+          <span style={{fontSize: 20}}>{la('No job info available.')}</span>
         </div>
       );
     }

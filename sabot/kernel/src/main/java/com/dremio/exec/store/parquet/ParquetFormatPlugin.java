@@ -144,7 +144,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       List<SchemaPath> columns,
       BatchSchema schema,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns) throws IOException {
-    return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.selectionRoot, columns, tableSchemaPath, schema, false,
+    return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.selectionRoot, columns, schema,
       globalDictionaryColumns, null);
   }
 
@@ -197,32 +197,15 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       return super.isFileReadable(fs, fileStatus, codecFactory);
     }
 
-    private Path getMetadataPath(FileStatus dir) {
-      return new Path(dir.getPath(), Metadata.METADATA_FILENAME);
-    }
-
-    private boolean metaDataFileExists(FileSystem fs, FileStatus dir) throws IOException {
-      return fs.exists(getMetadataPath(dir));
-    }
-
     private boolean isDirReadable(FileSystemWrapper fs, FileStatus dir, CompressionCodecFactory codecFactory) {
-      Path p = new Path(dir.getPath(), ParquetFileWriter.PARQUET_METADATA_FILE);
       try {
-        if (fs.exists(p)) {
-          return true;
-        } else {
+        PathFilter filter = new DefaultPathFilter();
 
-          if (metaDataFileExists(fs, dir)) {
-            return true;
-          }
-          PathFilter filter = new DefaultPathFilter();
-
-          FileStatus[] files = fs.listStatus(dir.getPath(), filter);
-          if (files.length == 0) {
-            return false;
-          }
-          return super.isFileReadable(fs, files[0], codecFactory);
+        FileStatus[] files = fs.listStatus(dir.getPath(), filter);
+        if (files.length == 0) {
+          return false;
         }
+        return super.isFileReadable(fs, files[0], codecFactory);
       } catch (IOException e) {
         logger.info("Failure while attempting to check for Parquet metadata file.", e);
         return false;

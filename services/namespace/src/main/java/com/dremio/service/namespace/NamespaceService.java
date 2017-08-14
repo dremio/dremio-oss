@@ -64,6 +64,7 @@ public interface NamespaceService {
 
   //// GET
   boolean exists(NamespaceKey key, Type type);
+  boolean exists(NamespaceKey key);
 
   SourceConfig getSource(NamespaceKey sourcePath) throws NamespaceException;
 
@@ -110,12 +111,16 @@ public interface NamespaceService {
   //// LIST or COUNT datasets under folder/space/home/source
   List<NamespaceKey> getAllDatasets(final NamespaceKey parent) throws NamespaceException;
 
+  List<FolderConfig> getAllFolders(final NamespaceKey parent) throws NamespaceException;
+
   int getAllDatasetsCount(NamespaceKey path) throws NamespaceException;
 
   //// DELETE
   void deleteSource(NamespaceKey sourcePath, long version) throws NamespaceException;
 
   void deleteSpace(NamespaceKey spacePath, long version) throws NamespaceException;
+
+  void deleteEntity(NamespaceKey entityPath) throws NamespaceException;
 
   void deleteDataset(NamespaceKey datasetPath, long version) throws NamespaceException;
 
@@ -155,5 +160,12 @@ public interface NamespaceService {
    * @param datasetSplits list of split ids to be removed.
    */
   void deleteSplits(Iterable<DatasetSplitId> datasetSplits);
+
+  /**
+   * finds a dataset using UUID
+   * @param uuid
+   * @return a dataset, or null if not found.
+   */
+  DatasetConfig findDatasetByUUID(String uuid);
 
 }

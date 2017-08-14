@@ -122,6 +122,7 @@ export default class TransformView extends Component {
         <ReplaceExactForm
           tabId='Exact'
           {...formProps}
+          loadTransformValuesPreview={this.props.loadTransformValuesPreview}
           formKey={formKey}
           />
         <ReplaceRangeForm

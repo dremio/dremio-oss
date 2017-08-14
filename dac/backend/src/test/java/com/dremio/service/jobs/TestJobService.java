@@ -474,14 +474,19 @@ public class TestJobService extends BaseTestServer {
     context.getOptionManager().setOption(days);
     OptionValue millis = OptionValue.createLong(OptionType.SYSTEM, ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS.getOptionName(), 10);
     context.getOptionManager().setOption(millis);
-    jobsService.start();
 
     Thread.sleep(20);
+
+    LocalJobsService.CleanupTask cleanupTask = jobsService.new CleanupTask();
+    cleanupTask.cleanup();
 
     //make sure that the job output directory is gone
     assertFalse(jobsService.getjobResultsStore().jobOutputDirectoryExists(job.getJobId()));
     job = jobsService.getJob(job.getJobId());
     assertFalse(new JobDetailsUI(job).getResultsAvailable());
+
+    context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 30));
+    context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS.getOptionName(), 0));
   }
 
   @Test

@@ -19,8 +19,7 @@ import Immutable  from 'immutable';
 import classNames from 'classnames';
 
 import FontIcon from 'components/Icon/FontIcon';
-import { h4, formDescription } from 'uiTheme/radium/typography';
-import LinkButton from 'components/Buttons/LinkButton';
+import { h4 } from 'uiTheme/radium/typography';
 
 import './FinderNav.less';
 
@@ -32,55 +31,41 @@ const MAX_TO_SHOW = Infinity;
 export default class FinderNav extends Component {
   static propTypes = {
     title: PropTypes.string.isRequired,
-    addButtonText: PropTypes.string,
     navItems: PropTypes.instanceOf(Immutable.List).isRequired,
     isInProgress: PropTypes.bool,
     addHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    toggleActivePin: PropTypes.func
+    toggleActivePin: PropTypes.func,
+    children: PropTypes.node
   };
 
   render() {
-    const { title, navItems, isInProgress, addHref, listHref, addButtonText } = this.props;
+    const { title, navItems, isInProgress, addHref, listHref, children } = this.props;
     const wrapClass = classNames('finder-nav', `${title.toLowerCase()}-wrap`); // todo: don't use ui-string for code keys
-    const isEmptyItems = navItems.size < 1 && !isInProgress;
+
     return (
       <div className={wrapClass}>
         <div className='finder-nav-title' data-qa={title} style={{...h4, fontWeight: 500}}>
-          <Link className='pointer' to={listHref}>{title}</Link>
-          {!isEmptyItems && addHref ?
-            (
-              <Link
-                className='pull-right'
-                data-qa={`add-${title.toLowerCase()}`}
-                to={addHref}>
-                <FontIcon type='Add' hoverType='AddHover' theme={styles.fontIcon}/>
-              </Link>
-            )
-          : null }
+          <Link className='pointer' to={listHref}>{title} »</Link>
+          {addHref && (
+            <Link
+              className='pull-right'
+              data-qa={`add-${title.toLowerCase()}`}
+              to={addHref}>
+              <FontIcon type='Add' hoverType='AddHover' theme={styles.fontIcon}/>
+            </Link>
+          )}
         </div>
         <div className='nav-list'>
-          {isEmptyItems ?
-            ( /* todo: loc sub patterns below */
-              <div className='button-wrap' style={styles.buttonWrap}>
-                <span style={formDescription}>{la(`You do not have any ${title.toLowerCase()}.`)}</span>
-                {addHref && <LinkButton
-                  buttonStyle='primary'
-                  data-qa={`add-${title.toLowerCase()}`}
-                  to={addHref}
-                  style={styles.addButton}>{addButtonText}</LinkButton>}
-              </div>
-            ) :
-            (
-              <FinderNavSection
-                items={navItems}
-                isInProgress={isInProgress}
-                maxItemsCount={MAX_TO_SHOW}
-                title={title}
-                listHref={listHref}
-                toggleActivePin={this.props.toggleActivePin} />
-            )
+          {!isInProgress && <FinderNavSection
+            items={navItems}
+            isInProgress={isInProgress}
+            maxItemsCount={MAX_TO_SHOW}
+            title={title}
+            listHref={listHref}
+            toggleActivePin={this.props.toggleActivePin} />
           }
+          {!isInProgress && children}
         </div>
       </div>
     );
@@ -97,17 +82,5 @@ const styles = {
       height: 20,
       verticalAlign: 'middle'
     }
-  },
-  buttonWrap: {
-    border: '1px dotted #46B4D5',
-    height: 110,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'column',
-    textAlign: 'center'
-  },
-  addButton: {
-    marginTop: 10
   }
 };

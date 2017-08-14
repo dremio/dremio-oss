@@ -17,6 +17,7 @@ import { Component, PropTypes } from 'react';
 import Immutable from 'immutable';
 import { Link } from 'react-router';
 
+import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import jobsUtils from 'utils/jobsUtils';
 import {mapStateToText, mapStateToIcon} from 'utils/accelerationUtils';
@@ -53,10 +54,10 @@ export default class LayoutInfo extends Component {
         <Link to={jobsURL} style={{height: 24}}><FontIcon type={mapStateToIcon(layoutState)}/></Link>
         {this.props.showStateText && <div>{mapStateToText(layoutState)}</div>}
       </div>
-      <div className='ellipsis' style={{flex: '1 1', marginRight}}>
+      <EllipsedText style={{flex: '1 1', marginRight}}>{/* todo: figure out how to @text for this */}
         <b>{la('Footprint: ')}</b>
         <Footprint currentByteSize={layoutData.currentByteSize} totalByteSize={layoutData.totalByteSize} />
-      </div>
+      </EllipsedText>
       <div>
         <Link to={jobsURL}>{la('jobs')} »</Link>
       </div>

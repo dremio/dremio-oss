@@ -53,7 +53,6 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.accelerator.AccelerationService;
-import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -91,7 +90,6 @@ public class DatasetResource {
   private final DatasetVersionMutator datasetService;
   private final JobsService jobsService;
   private final SecurityContext securityContext;
-  private final AccelerationService accelerationService;
   private final DatasetPath datasetPath;
   private final NamespaceService namespaceService;
 
@@ -107,7 +105,6 @@ public class DatasetResource {
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.securityContext = securityContext;
-    this.accelerationService = accelerationService;
     this.datasetPath = datasetPath;
   }
 
@@ -222,9 +219,6 @@ public class DatasetResource {
       throw new ClientErrorException("missing savedVersion parameter");
     }
     final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
-    // remove acceleration
-    final AccelerationId id = new AccelerationId(virtualDataset.getId());
-    accelerationService.remove(id);
 
     DatasetUI datasetUI = newDataset(virtualDataset);
 

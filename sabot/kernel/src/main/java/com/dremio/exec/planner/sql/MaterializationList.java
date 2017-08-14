@@ -40,6 +40,7 @@ import com.google.common.collect.Sets;
  * {@link MaterializationDescriptor materialization} itself.
  */
 public class MaterializationList implements MaterializationProvider<RelOptMaterialization> {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationList.class);
 
   private final Map<TablePath, MaterializationDescriptor> mapping = Maps.newHashMap();
   private final Supplier<List<RelOptMaterialization>> factory = Suppliers.memoize(new Supplier<List<RelOptMaterialization>>() {
@@ -97,13 +98,17 @@ public class MaterializationList implements MaterializationProvider<RelOptMateri
         continue;
       }
 
-      final DremioRelOptMaterialization materialization = descriptor.getMaterializationFor(converter);
-      if (materialization == null) {
-        continue;
-      }
+      try {
+        final DremioRelOptMaterialization materialization = descriptor.getMaterializationFor(converter);
+        if (materialization == null) {
+          continue;
+        }
 
-      mapping.put(TablePath.of(descriptor.getPath()), descriptor);
-      materializations.add(materialization);
+        mapping.put(TablePath.of(descriptor.getPath()), descriptor);
+        materializations.add(materialization);
+      } catch (Throwable e) {
+        logger.warn("failed to expand materialization {}", descriptor.getMaterializationId(), e);
+      }
     }
     return materializations;
   }

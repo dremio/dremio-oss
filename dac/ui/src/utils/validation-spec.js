@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import {
-  isRequired, isNumber, isInteger, isWholeNumber, isRegularExpression, isEmail, confirmPassword
+  isRequired, isNumber, isInteger, isWholeNumber,
+  isRegularExpression, isEmail, confirmPassword
 } from './validation';
 
 describe('validation', () => {
@@ -57,8 +58,8 @@ describe('validation', () => {
 
   describe('isWholeNumber', () => {
     itShouldIgnoreMissingValues(isWholeNumber);
-    itShouldPassForGoodValues(isWholeNumber, [1, '1']);
-    itShouldFailForBadValues(isWholeNumber, ['a', '-1', -1]);
+    itShouldPassForGoodValues(isWholeNumber, [1, 0, '2']);
+    itShouldFailForBadValues(isWholeNumber, ['a', 'sdf', 1.1, '1.1', -1]);
     itShouldWorkForNestedKeys(isWholeNumber, '1', 'asdf');
     itShouldPutLabelInMessage(isWholeNumber, 'asdf');
   });

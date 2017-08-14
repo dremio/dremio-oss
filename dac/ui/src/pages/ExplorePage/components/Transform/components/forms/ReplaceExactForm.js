@@ -46,9 +46,31 @@ export class ReplaceExactForm extends Component {
     dataset: PropTypes.instanceOf(Immutable.Map)
   };
 
+  constructor(props) {
+    super(props);
+  }
+
+  componentWillReceiveProps(nextProps) {
+    const newValues = nextProps.fields;
+    const oldValues = this.props.fields;
+    if (newValues.replaceValues[0].value !== oldValues.replaceValues[0].value ||
+        newValues.replaceNull.value !== oldValues.replaceNull.value) {
+      this.runLoadTransformValues(newValues);
+    }
+  }
+
+  runLoadTransformValues(transformValues) {
+    const value = [transformValues.replaceNull.value ? null : transformValues.replaceValues[0].value];
+    this.props.loadTransformValuesPreview(value);
+  }
+
   submit = (values, submitType) => {
     const transformType = this.props.transform.get('transformType');
     const columnType = this.props.transform.get('columnType');
+    const submitValues = {...values};
+    if (values.replaceNull) {
+      submitValues.replaceValues = [null];
+    }
     const data = transformType === 'replace'
       ? {
         ...fieldsMappers.getCommonValues(values, this.props.transform),
@@ -59,7 +81,7 @@ export class ReplaceExactForm extends Component {
       }
       : {
         ...filterMappers.getCommonFilterValues(values, this.props.transform),
-        filter: filterMappers.mapFilterExcludeValues(values, columnType)
+        filter: filterMappers.mapFilterExcludeValues(submitValues, columnType)
       };
 
     return this.props.submit(data, submitType);

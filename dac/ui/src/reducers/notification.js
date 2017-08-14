@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import * as ActionTypes from 'actions/notification';
+import actionUtils from 'utils/actionUtils/actionUtils';
 
 // Every state change here gets picked up by containers/Notifications and shown.
 // Only change state if you want to show a notification.
@@ -24,12 +25,7 @@ export default function notification(state = {}, action) {
       if (!action.error) {
         return state;
       }
-
-      const defaultMessage = action.payload && action.payload.status === 409
-        ? la('The data has been changed since you last accessed it. Please refresh the page')
-        : la('Something went wrong');
-      const message = action.payload && action.payload.errorMessage || defaultMessage;
-      return {message, level: 'error'};
+      return actionUtils.humanizeNotificationMessage()(action.payload);
     }
     if (typeof action.meta.notification === 'function') {
       return action.meta.notification(action.payload);

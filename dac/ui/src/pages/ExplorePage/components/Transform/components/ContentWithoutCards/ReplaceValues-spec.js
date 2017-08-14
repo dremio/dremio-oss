@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow, render } from 'enzyme';
+
+import { RED } from 'uiTheme/radium/colors';
 
 import ReplaceValues, { MIN_VALUES_TO_SHOW_SEARCH } from './ReplaceValues';
 
@@ -22,12 +24,15 @@ describe('ReplaceValues', () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {};
+    minimalProps = {
+      fields: {}
+    };
     commonProps = {
       ...minimalProps,
       fields: {
         replaceValues: {
-          onChange: sinon.spy()
+          onChange: sinon.spy(),
+          value: {}
         }
       },
       valueOptions: Immutable.fromJS({
@@ -71,6 +76,72 @@ describe('ReplaceValues', () => {
       wrapper.instance().handleNoneClick(e);
 
       expect(commonProps.fields.replaceValues.onChange).to.have.been.calledWith({});
+    });
+  });
+
+  describe('#renderSelectedValuesCount', () => {
+    it('should render proper color and text if nothing selected', () => {
+      const wrapper = shallow(<ReplaceValues {...commonProps}/>);
+      const instance = wrapper.instance();
+
+      expect(render(instance.renderSelectedValuesCount()).text()).to.contain('Please select at least one value.');
+      expect(shallow(instance.renderSelectedValuesCount()).props().style.color).to.equal(RED);
+    });
+    it('should render proper color and text if something is selected (using allClick, for example)', () => {
+      const checkedProps = {
+        ...commonProps,
+        fields: {
+          replaceValues: {
+            value: {foo: true, bar: true}
+          }
+        }
+      };
+
+      const wrapper = shallow(<ReplaceValues {...checkedProps}/>);
+      const instance = wrapper.instance();
+
+      expect(render(instance.renderSelectedValuesCount()).text()).to.contain('2 of 2 selected');
+      expect(shallow(instance.renderSelectedValuesCount()).props().style.color).to.equal('#333');
+    });
+    it('should not include false values in selected count', () => {
+      const checkedProps = {
+        ...commonProps,
+        fields: {
+          replaceValues: {
+            value: {foo: true, bar: false}
+          }
+        }
+      };
+
+      const wrapper = shallow(<ReplaceValues {...checkedProps}/>);
+      const instance = wrapper.instance();
+
+      expect(render(instance.renderSelectedValuesCount()).text()).to.contain('1 of 2 selected');
+      expect(shallow(instance.renderSelectedValuesCount()).props().style.color).to.equal('#333');
+    });
+    it('should return if nothing to replace (redux bug)', () => {
+      const brokenProps = {
+        ...commonProps,
+        fields: {
+          replaceValues: {
+            value: null
+          }
+        }
+      };
+
+      const wrapper = shallow(<ReplaceValues {...brokenProps}/>);
+      const instance = wrapper.instance();
+
+      expect(instance.renderSelectedValuesCount()).to.be.empty;
+    });
+    it('should throw an error if fields is not present', () => {
+      const noFieldProps = {
+        ...minimalProps,
+        fields: null
+      };
+      expect(function() {
+        shallow(<ReplaceValues {...noFieldProps}/>);
+      }).to.throw(Error);
     });
   });
 

@@ -105,7 +105,6 @@ export default class SelectFrequentValues extends Component {
         <table>
           <tbody>
             {options && options
-              .filter((option) => option.value)
               .slice(0, MAX_SUGGESTIONS)
               .map((option) => this.renderOption(option, maxPercent))}
           </tbody>

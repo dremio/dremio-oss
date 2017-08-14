@@ -28,7 +28,7 @@ import { constructFullPath } from 'utils/pathUtils';
 import { PHYSICAL_DATASET_TYPES } from 'constants/datasetTypes';
 //actions
 import { navigateToNextDataset } from 'actions/explore/dataset/common';
-import { performLoadDataset, previewDataset } from 'actions/explore/dataset/get';
+import { performLoadDataset } from 'actions/explore/dataset/get';
 import { saveDataset, saveAsDataset } from 'actions/explore/dataset/save';
 import { performTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
 import { runDataset, performTransformAndRun } from 'actions/explore/dataset/run';
@@ -64,7 +64,7 @@ export const QLIK_TOOL_NAME = 'Qlik Sense';
 export class ExploreInfoHeader extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
-    type: PropTypes.string,
+    pageType: PropTypes.string,
     toggleRightTree: PropTypes.func.isRequired,
     grid: PropTypes.object,
     space: PropTypes.object,
@@ -89,7 +89,6 @@ export class ExploreInfoHeader extends PureComponent {
     startDownloadDataset: PropTypes.func.isRequired,
     runDataset: PropTypes.func.isRequired,
     performLoadDataset: PropTypes.func,
-    previewDataset: PropTypes.func,
     navigateToNextDataset: PropTypes.func,
     showConfirmationDialog: PropTypes.func
   };
@@ -144,6 +143,8 @@ export class ExploreInfoHeader extends PureComponent {
   runDataset() {
     const { dataset, currentSql, queryContext, exploreViewState } = this.props;
 
+    this.navigateToExploreTableIfNecessary();
+
     const doTransformAndRun = () => {
       return this.props.performTransformAndRun({
         dataset,
@@ -172,33 +173,45 @@ export class ExploreInfoHeader extends PureComponent {
   handlePreviewClick() {
     this.transformIfNecessary((didTransform, dataset) => {
       if (didTransform) return;
+      // There was no transform so reload the dataset instead
+
+      // preview should still navigate to table
+      this.navigateToExploreTableIfNecessary();
 
       const { exploreViewState } = this.props;
-      return this.props.previewDataset(
-        dataset, exploreViewState.get('viewId')
-      ).then((response) => {
-        if (!response.error) {
-          this.props.navigateToNextDataset(response, {preserveTip: true});
-        }
-      });
+      return this.props.performLoadDataset(dataset, exploreViewState.get('viewId'));
     });
   }
 
   transformIfNecessary(callback) {
     const { dataset, currentSql, queryContext, exploreViewState } = this.props;
 
-    if (this.needsTransform() || exploreViewState.get('isFailed')) {
-      this.props.transformHistoryCheck(dataset, () => {
-        return this.props.performTransform({
-          dataset,
-          currentSql,
-          queryContext,
-          viewId: exploreViewState.get('viewId'),
-          callback: (ds) => callback(true, ds)
-        });
+    const doPerformTransform = () => {
+      return this.props.performTransform({
+        dataset,
+        currentSql,
+        queryContext,
+        viewId: exploreViewState.get('viewId'),
+        callback
       });
+    };
+
+    if (this.needsTransform()) {
+      // need to navigate before history check
+      this.navigateToExploreTableIfNecessary();
+      this.props.transformHistoryCheck(dataset, doPerformTransform);
     } else {
-      callback && callback(false, dataset);  // eslint-disable-line callback-return
+      doPerformTransform();
+    }
+  }
+
+  navigateToExploreTableIfNecessary() {
+    const { pageType, location } = this.props;
+    if (pageType !== 'default') {
+      this.context.router.push({
+        ...location,
+        pathname: location.pathname.split('/').slice(0, -1).join('/')
+      });
     }
   }
 
@@ -489,7 +502,6 @@ export default connect(mapStateToProps, {
   performNextAction,
   runDataset,
   performLoadDataset,
-  previewDataset,
   navigateToNextDataset,
   showConfirmationDialog
 })(ExploreInfoHeader);

@@ -54,6 +54,8 @@ import com.dremio.service.SingletonRegistry;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.scheduler.LocalSchedulerService;
+import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
@@ -171,8 +173,11 @@ public class SabotNode implements AutoCloseable {
         false
         ));
 
+    registry.bind(SchedulerService.class, new LocalSchedulerService());
+
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
+        registry.provider(SchedulerService.class),
         registry.getBindingCreator(),
         true,
         true));

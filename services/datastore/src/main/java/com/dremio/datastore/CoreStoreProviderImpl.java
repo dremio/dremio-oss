@@ -138,7 +138,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
 
   public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC) {
     super();
-
     switch(MODE){
     case DISK:
       inMemory = false;
@@ -167,6 +166,19 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
     indexManager.start();
   }
 
+  /**
+   * reIndex a specific store
+   * @param id
+   */
+  public int reIndex(String id) {
+    CoreKVStore<?, ?> kvStore = getStore(id);
+    if (kvStore instanceof CoreIndexedStore<?, ?>) {
+      return ((CoreIndexedStore<?, ?>)kvStore).reIndex();
+    } else {
+      throw new IllegalArgumentException("ReIndexed should be called on a Indexed Store. " +
+          id + " is not indexed.");
+    }
+  }
 
   @VisibleForTesting
   KVStore<byte[], byte[]> getDB(String name) {
@@ -357,7 +369,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
       return store;
     }
   }
-
 
   private class StoreWithId {
     private final String id;

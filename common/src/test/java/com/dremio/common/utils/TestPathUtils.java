@@ -36,6 +36,7 @@ public class TestPathUtils {
   public void testPathComponents() throws Exception {
     assertEquals(ImmutableList.of("a", "b", "c"), PathUtils.toPathComponents(new Path("/a/b/c")));
     assertEquals(ImmutableList.of("a", "b", "c"), PathUtils.toPathComponents(new Path("a/b/c")));
+    assertEquals(ImmutableList.of("a", "b", "c/"), PathUtils.toPathComponents(new Path("a/b/\"c/\"")));
   }
 
   @Test

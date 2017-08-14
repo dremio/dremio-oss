@@ -24,7 +24,7 @@ import { POWER_BI_MANUAL } from 'constants/links.json';
 import FileUtils from 'utils/FileUtils';
 import browserUtils from 'utils/browserUtils';
 import jobsUtils from 'utils/jobsUtils';
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 export const START_DATASET_DOWNLOAD = 'START_DATASET_DOWNLOAD';
 
@@ -143,7 +143,7 @@ export const openTableau = (dataset) => {
     }
 
     const displayFullPath = dataset.get('displayFullPath') || dataset.get('fullPathList');
-    const href = `/tableau/${encodeURIComponent(constructFullPath(displayFullPath))}`;
+    const href = `/tableau/${constructFullPathAndEncode(displayFullPath)}`;
     return dispatch(downloadTableau({ href }))
       .then((response) => {
         if (!response.error) {

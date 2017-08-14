@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.jdbc;
 
+import java.sql.DriverManager;
 import java.sql.SQLException;
 
 import javax.sql.DataSource;
@@ -45,6 +46,14 @@ public final class CompatCreator {
 
   private CompatCreator(){}
 
+  static {
+    // If multiple JDBC sources tries to get a datasource at the same time, it might cause a deadlock situation
+    // as one driver might try to register itself with DriverManager, causing another driver to load (from
+    // ServiceLoader) and trying to also register itself...
+    // Forcing DriverManager to initialize first in a single thread context to prevent this deadlock situation.
+    // See DBCP-272 and DX-8683 for more details.
+    DriverManager.getDrivers();
+  }
   public static DataSource getDataSource(String driver, String url, String username, String password) throws SQLException {
 
     switch(driver){

@@ -66,7 +66,7 @@ class ExcelTestHelper {
     headerRow.createCell(0).setCellValue("Number");
     headerRow.createCell(1).setCellValue("String1");
     headerRow.createCell(2).setCellValue("String2");
-    headerRow.createCell(3).setCellValue("DateTime");
+    headerRow.createCell(3).setCellValue("MyTime");
     headerRow.createCell(4).setCellValue("Formula");
     headerRow.createCell(5).setCellValue("Boolean");
     headerRow.createCell(6).setCellValue("Error");
@@ -166,7 +166,7 @@ class ExcelTestHelper {
               .unOrdered();
 
     if (header) {
-      testBuilder.baselineColumns("Number", "String1", "String2", "DateTime", "Formula", "Boolean", "Error");
+      testBuilder.baselineColumns("Number", "String1", "String2", "MyTime", "Formula", "Boolean", "Error");
     } else {
       testBuilder.baselineColumns("A", "B", "C", "D", "E", "F", "G");
     }
@@ -185,6 +185,165 @@ class ExcelTestHelper {
               .baselineValues(3.0d, "Three and Three", null, null, null, false, null)
               .baselineValues(4.0d, "Four and Four, Five and Five", null, null, null, null, null)
               .baselineValues(5.0d, null, null, null, null, null, null);
+    }
+
+    testBuilder.go();
+  }
+
+  void testProjectPushdown1(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
+    final StringBuilder builder = new StringBuilder()
+      .append("SELECT Number, MyTime FROM ")
+      .append("TABLE(dfs.`").append(testFilePath).append("` (")
+      .append("type => 'excel'");
+
+    if (sheetName != null) {
+      builder.append(", sheet => '").append(sheetName).append("'");
+    }
+
+    if (header) {
+      builder.append(", extractHeader => true");
+    }
+
+    if (mergedCellExpansion) {
+      builder.append(", hasMergedCells => true");
+    }
+
+    if (xls) {
+      builder.append(", xls => true");
+    }
+
+    builder.append("))");
+
+    testBuilder
+      .sqlQuery(builder.toString())
+      .unOrdered();
+
+    if (header) {
+      testBuilder.baselineColumns("Number", "MyTime");
+    } else {
+      testBuilder.baselineColumns("A", "D");
+    }
+
+    /* the output for NUMBER, DateTime should be same regardless of whether we use mergedCellExpansion or not */
+    testBuilder
+        .baselineValues(1.0d, EXP_DATE_1)
+        .baselineValues(2.0d, EXP_DATE_2)
+        .baselineValues(3.0d, null)
+        .baselineValues(4.0d, null)
+        .baselineValues(5.0d, null);
+
+    testBuilder.go();
+  }
+
+  void testProjectPushdown2(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
+    final StringBuilder builder = new StringBuilder()
+      .append("SELECT  Number, String2 FROM ")
+      .append("TABLE(dfs.`").append(testFilePath).append("` (")
+      .append("type => 'excel'");
+
+    if (sheetName != null) {
+      builder.append(", sheet => '").append(sheetName).append("'");
+    }
+
+    if (header) {
+      builder.append(", extractHeader => true");
+    }
+
+    if (mergedCellExpansion) {
+      builder.append(", hasMergedCells => true");
+    }
+
+    if (xls) {
+      builder.append(", xls => true");
+    }
+
+    builder.append("))");
+
+    testBuilder
+      .sqlQuery(builder.toString())
+      .unOrdered();
+
+    if (header) {
+      testBuilder.baselineColumns("Number", "String2");
+    } else {
+      testBuilder.baselineColumns("A", "C");
+    }
+
+    /* STRING2 is the projected column and has merged cell values from STRING1 which is
+     * a non-projected column
+     */
+    if(mergedCellExpansion) {
+      testBuilder
+        .baselineValues(1.0d, "One")
+        .baselineValues(2.0d, "Two")
+        .baselineValues(3.0d, "Three and Three")
+        .baselineValues(4.0d, "Four and Four, Five and Five")
+        .baselineValues(5.0d, "Four and Four, Five and Five");
+    }
+    else {
+      testBuilder
+        .baselineValues(1.0d, "One")
+        .baselineValues(2.0d, "Two")
+        .baselineValues(3.0d, null)
+        .baselineValues(4.0d, null)
+        .baselineValues(5.0d, null);
+    }
+
+    testBuilder.go();
+  }
+
+  void testProjectPushdown3(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
+    final StringBuilder builder = new StringBuilder()
+      .append("SELECT  String1, String2 FROM ")
+      .append("TABLE(dfs.`").append(testFilePath).append("` (")
+      .append("type => 'excel'");
+
+    if (sheetName != null) {
+      builder.append(", sheet => '").append(sheetName).append("'");
+    }
+
+    if (header) {
+      builder.append(", extractHeader => true");
+    }
+
+    if (mergedCellExpansion) {
+      builder.append(", hasMergedCells => true");
+    }
+
+    if (xls) {
+      builder.append(", xls => true");
+    }
+
+    builder.append("))");
+
+    testBuilder
+      .sqlQuery(builder.toString())
+      .unOrdered();
+
+    if (header) {
+      testBuilder.baselineColumns("String1", "String2");
+    } else {
+      testBuilder.baselineColumns("B", "C");
+    }
+
+    /* STRING2 is the projected column and has merged cell values from STRING1 which is
+     * also a projected column
+     */
+    if(mergedCellExpansion) {
+      testBuilder
+        .baselineValues("One", "One")
+        .baselineValues("Two", "Two")
+        .baselineValues("Three and Three", "Three and Three")
+        .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five")
+        .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five");
+    }
+    else {
+      testBuilder
+        .baselineValues("One", "One")
+        .baselineValues("Two", "Two")
+        .baselineValues("Three and Three", null)
+        .baselineValues("Four and Four, Five and Five", null)
+        .baselineValues(null, null);
     }
 
     testBuilder.go();

@@ -248,7 +248,7 @@ public class HomeResource {
   @Produces(MediaType.APPLICATION_JSON)
   public File finishUploadFile(FileFormat fileFormat, @PathParam("path") String path) throws Exception {
     final FilePath filePath = FilePath.fromURLPath(homeName, path);
-    if (namespaceService.exists(filePath.toNamespaceKey(), NameSpaceContainer.Type.DATASET)) {
+    if (namespaceService.exists(filePath.toNamespaceKey())) {
       throw UserException.validationError()
           .message(format("File %s already exists", filePath.toPathString()))
           .build(logger);

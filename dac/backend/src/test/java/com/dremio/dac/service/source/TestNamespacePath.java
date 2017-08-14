@@ -42,6 +42,10 @@ public class TestNamespacePath {
 
     path = new SpacePath("myspace");
     assertEquals("/space/myspace", path.toUrlPath());
+
+    // test escaping of /
+    path = new SourceFilePath(Arrays.asList("mysource", "myfolder", "my/file"));
+    assertEquals("/source/mysource/file/myfolder/my%2Ffile", path.toUrlPathWithAction("file"));
   }
 
   @Test

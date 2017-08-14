@@ -17,9 +17,6 @@ import { CALL_API } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import exploreUtils from 'utils/explore/exploreUtils';
-import tableDataSchema from 'schemas/v2/tableData';
-import fullDatasetSchema from 'schemas/v2/fullDataset';
 
 export const LOAD_EXPLORE_ENTITIES_STARTED = 'LOAD_EXPLORE_ENTITIES_STARTED';
 export const LOAD_EXPLORE_ENTITIES_SUCCESS = 'LOAD_EXPLORE_ENTITIES_SUCCESS';
@@ -50,26 +47,6 @@ export const PERFORM_LOAD_DATASET = 'PERFORM_LOAD_DATASET';
 export const performLoadDataset = (dataset, viewId, callback) => {
   return {type: PERFORM_LOAD_DATASET, meta: {dataset, viewId, callback}};
 };
-
-export const previewDataset = (dataset, viewId) => {
-  const href = exploreUtils.getPreviewLink(dataset, dataset.get('tipVersion'));
-  return loadExploreEntities({
-    href,
-    viewId,
-    schema: fullDatasetSchema
-  });
-};
-
-export const previewJobResults = (href, viewId) =>
-  (dispatch) => dispatch(
-    loadExploreEntities({
-      href,
-      viewId,
-      uiPropsForEntity: [{key: 'version', value: href}],
-      schema: tableDataSchema
-    })
-  );
-
 
 export const CLEAN_DATA_VIEW_ID = 'CLEAN_DATA_VIEW_ID';
 

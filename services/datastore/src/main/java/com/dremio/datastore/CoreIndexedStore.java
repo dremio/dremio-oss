@@ -42,4 +42,10 @@ public interface CoreIndexedStore<K, V> extends CoreKVStore<K, V> {
    */
   List<Integer> getCounts(SearchQuery... conditions);
 
+  /**
+   * ReIndex all the entries in the store
+   * @return number of entries which got reIndexed.
+   */
+   int reIndex();
+
 }

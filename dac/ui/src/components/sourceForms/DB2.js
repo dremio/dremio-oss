@@ -18,6 +18,7 @@ import { Component, PropTypes } from 'react';
 import General from 'components/Forms/General';
 import SingleHost from 'components/Forms/SingleHost';
 import Credentials from 'components/Forms/Credentials';
+import JDBCOptions from 'components/Forms/JDBCOptions';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
@@ -26,7 +27,7 @@ import { FieldWithError, TextField } from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
 import { section, sectionTitle } from 'uiTheme/radium/forms';
 import AdvancedOptionsExpandable from 'components/Forms/AdvancedOptionsExpandable';
-const SECTIONS = [General, SingleHost, Credentials, MetadataRefresh];
+const SECTIONS = [General, SingleHost, Credentials, JDBCOptions, MetadataRefresh];
 const DEFAULT_PORT = 50000;
 
 export class DB2 extends Component {
@@ -57,6 +58,7 @@ export class DB2 extends Component {
             <div style={section}>
               <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
               <AdvancedOptionsExpandable>
+                <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>
               </AdvancedOptionsExpandable>
             </div>

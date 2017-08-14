@@ -24,6 +24,7 @@ import { moveDataSet, createDatasetFromExisting } from 'actions/explore/sqlActio
 import { renameSpaceDataset, loadSpaceData, loadDependentDatasets } from 'actions/resources/spaceDetails';
 import { getDescendantsList } from 'selectors/resources';
 import ApiUtils from 'utils/apiUtils/apiUtils';
+import { constructFullPath, splitFullPath } from 'utils/pathUtils';
 
 import UpdateDatasetView from './UpdateDatasetView';
 
@@ -80,7 +81,7 @@ export class UpdateDataset extends Component {
 
   getCurrentFullPath = (item = this.props.item) => item && item.get('fullPathList')
 
-  getNewFullPath = (datasetName, selectedEntity) => [selectedEntity].concat(datasetName)
+  getNewFullPath = (datasetName, selectedEntity) => splitFullPath(selectedEntity).concat(datasetName)
 
   receiveProps = (nextProps, oldProps) => {
     if (!oldProps.item && nextProps.item) {
@@ -121,9 +122,13 @@ export class UpdateDataset extends Component {
   render() {
     const { mode } = this.props.query;
     const config = mode && this.config[mode](this.props.dependentDatasets);
+    const fullPath = this.getCurrentFullPath();
+    // initialPath should be the parent folder
+    const initialPath = fullPath ? constructFullPath(fullPath.slice(0, -1)) : null;
 
     const datasetView = config
       ? <UpdateDatasetView
+        initialPath={initialPath}
         name={this.props.query.name}
         buttons={config.buttons}
         hidePath={config.hidePath}

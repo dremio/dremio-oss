@@ -35,10 +35,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
@@ -46,7 +43,6 @@ import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.ScanStats.GroupScanProperty;
-import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -61,9 +57,8 @@ import com.dremio.exec.store.dfs.ReadEntryWithPath;
 import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.exec.store.parquet.Metadata.ColumnMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetFileMetadata;
-import com.dremio.exec.store.parquet.Metadata.ParquetTableMetadataBase;
+import com.dremio.exec.store.parquet.Metadata.ParquetTableMetadata;
 import com.dremio.exec.store.parquet.Metadata.RowGroupMetadata;
-import com.dremio.exec.store.schedule.AffinityCreator;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.dremio.exec.store.schedule.EndpointByteMap;
 import com.dremio.exec.store.schedule.EndpointByteMapImpl;
@@ -93,9 +88,6 @@ public class ParquetGroupScanUtils {
   private final List<ReadEntryWithPath> entries;  // rowGroupInfos should be sufficient for equals() and hashCode()
   private Map<String,FileStatus> fileStatusMap;
   private final FileSystemWrapper fs;
-  private boolean usedMetadataCache = false;
-  private List<EndpointAffinity> endpointAffinities;
-  private ListMultimap<Integer, RowGroupInfo> mappings;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns;
 
   /**
@@ -103,7 +95,7 @@ public class ParquetGroupScanUtils {
    * from a metadata cache file earlier; we can re-use during
    * the ParquetGroupScanUtils and avoid extra loading time.
    */
-  private Metadata.ParquetTableMetadataBase parquetTableMetadata = null;
+  private ParquetTableMetadata parquetTableMetadata = null;
   /*
    * total number of non-null value for each column in each parquet file.
    */
@@ -113,10 +105,7 @@ public class ParquetGroupScanUtils {
   private Set<String> fileSet;
   private Map<SchemaPath, MajorType> columnTypeMap = Maps.newHashMap();
 
-  private final String userName;
-  private final List<String> tableSchemaPath;
   private final BatchSchema schema;
-  private final boolean includeModTime;
 
   /**
    * total number of rows (obtained from parquet footer)
@@ -130,16 +119,11 @@ public class ParquetGroupScanUtils {
       ParquetFormatPlugin formatPlugin,
       String selectionRoot,
       List<SchemaPath> columns,
-      List<String> tableSchemaPath,
       BatchSchema schema,
-      boolean includeModeTime,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
       List<FilterCondition> conditions)
       throws IOException {
-    this.userName = userName;
     this.schema = schema;
-    this.tableSchemaPath = tableSchemaPath;
-    this.includeModTime = includeModeTime;
     this.formatPlugin = formatPlugin;
     this.conditions = conditions;
     this.columns = columns;
@@ -147,10 +131,8 @@ public class ParquetGroupScanUtils {
     this.plugin = plugin;
     this.selectionRoot = selectionRoot;
 
-    final FileSelection fileSelection = expandIfNecessary(selection);
-
     this.entries = Lists.newArrayList();
-    final List<FileStatus> files = fileSelection.getStatuses(fs);
+    final List<FileStatus> files = selection.getStatuses(fs);
     for (FileStatus file : files) {
       entries.add(new ReadEntryWithPath(file.getPath().toString()));
     }
@@ -166,30 +148,6 @@ public class ParquetGroupScanUtils {
     init();
   }
 
-  /**
-   * expands the selection's folders if metadata cache is found for the selection root.<br>
-   * If the selection has already been expanded or no metadata cache was found, does nothing
-   *
-   * @param selection actual selection before expansion
-   * @return new selection after expansion, if no expansion was done returns the input selection
-   *
-   * @throws IOException
-   */
-  private FileSelection expandIfNecessary(FileSelection selection) throws IOException {
-    if (selection.isExpanded()) {
-      return selection;
-    }
-    if (!fs.isDirectory(new Path(selection.getSelectionRoot()))) {
-      return selection;
-    }
-    Path metaFilePath = new Path(selection.getSelectionRoot(), Metadata.METADATA_FILENAME);
-    if (!fs.exists(metaFilePath)) { // no metadata cache
-      return selection;
-    }
-
-    return initFromMetadataCache(selection, metaFilePath);
-  }
-
   public List<ReadEntryWithPath> getEntries() {
     return entries;
   }
@@ -198,20 +156,12 @@ public class ParquetGroupScanUtils {
     return this.formatPlugin.getConfig();
   }
 
-  public StoragePluginConfig getEngineConfig() {
-    return this.formatPlugin.getStorageConfig();
-  }
-
   public FileSystemPlugin getPlugin() {
     return plugin;
   }
 
   public String getSelectionRoot() {
     return selectionRoot;
-  }
-
-  public Set<String> getFileSet() {
-    return fileSet;
   }
 
   public Map<String, FileStatus> getFileStatusMap() {
@@ -224,10 +174,6 @@ public class ParquetGroupScanUtils {
 
   public Map<SchemaPath, MajorType> getColumnTypeMap() {
     return columnTypeMap;
-  }
-
-  public boolean hasFiles() {
-    return true;
   }
 
   public Collection<String> getFiles() {
@@ -249,20 +195,14 @@ public class ParquetGroupScanUtils {
    * potential partition column now no longer qualifies, so it needs to be removed from the list.
    * @return whether column is a potential partition column
    */
-  private boolean checkForPartitionColumn(ColumnMetadata columnMetadata, boolean first, long rowCount) {
+  private boolean checkForPartitionColumn(ParquetFileMetadata fileMetadata, ColumnMetadata columnMetadata, boolean first, long rowCount) {
     SchemaPath schemaPath = SchemaPath.getCompoundPath(columnMetadata.getName());
     if (schemaPath.getAsUnescapedPath().equals(UPDATE_COLUMN)) {
       return true;
     }
-    final PrimitiveTypeName primitiveType;
-    final OriginalType originalType;
-    if (this.parquetTableMetadata.hasColumnMetadata()) {
-      primitiveType = this.parquetTableMetadata.getPrimitiveType(columnMetadata.getName());
-      originalType = this.parquetTableMetadata.getOriginalType(columnMetadata.getName());
-    } else {
-      primitiveType = columnMetadata.getPrimitiveType();
-      originalType = columnMetadata.getOriginalType();
-    }
+    final PrimitiveTypeName primitiveType = fileMetadata.getPrimitiveType(columnMetadata.getName());
+    final OriginalType originalType = fileMetadata.getOriginalType(columnMetadata.getName());
+
     if (first) {
       if (hasSingleValue(columnMetadata, rowCount)) {
         columnTypeMap.put(schemaPath, getType(primitiveType, originalType));
@@ -342,27 +282,6 @@ public class ParquetGroupScanUtils {
     return (columnChunkMetaData != null) &&
       ((columnChunkMetaData.hasSingleValue() && (columnChunkMetaData.getNulls() == null || columnChunkMetaData.getNulls() == 0) ||
         (columnChunkMetaData.getNulls() != null && rowCount == columnChunkMetaData.getNulls())));
-  }
-
-  public void modifyFileSelection(FileSelection selection) {
-    entries.clear();
-    fileSet = Sets.newHashSet();
-    for (String fileName : selection.getFiles()) {
-      entries.add(new ReadEntryWithPath(fileName));
-      fileSet.add(fileName);
-    }
-
-    List<RowGroupInfo> newRowGroupList = Lists.newArrayList();
-    for (RowGroupInfo rowGroupInfo : rowGroupInfos) {
-      if (fileSet.contains(rowGroupInfo.getPath())) {
-        newRowGroupList.add(rowGroupInfo);
-      }
-    }
-    this.rowGroupInfos = newRowGroupList;
-  }
-
-  public MajorType getTypeForColumn(SchemaPath schemaPath) {
-    return columnTypeMap.get(schemaPath);
   }
 
   public static class RowGroupInfo extends ReadEntryFromHDFS implements CompleteWork, FileWork {
@@ -445,132 +364,24 @@ public class ParquetGroupScanUtils {
     }
   }
 
-
-  /**
-   * Create and return a new file selection based on reading the metadata cache file.
-   *
-   * This function also initializes a few of ParquetGroupScanUtils's fields as appropriate.
-   *
-   * @param selection initial file selection
-   * @param metaFilePath metadata cache file path
-   * @return file selection read from cache
-   *
-   * @throws IOException
-   * @throws UserException when the updated selection is empty, this happens if the user selects an empty folder.
-   */
-  private FileSelection
-  initFromMetadataCache(FileSelection selection, Path metaFilePath) throws IOException {
-    // get the metadata for the root directory by reading the metadata file
-    // parquetTableMetadata contains the metadata for all files in the selection root folder, but we need to make sure
-    // we only select the files that are part of selection (by setting fileSet appropriately)
-
-    // get (and set internal field) the metadata for the directory by reading the metadata file
-    this.parquetTableMetadata = Metadata.readBlockMeta(fs, metaFilePath.toString(), formatPlugin.getConfig(), plugin.getFsConf());
-    if (formatPlugin.getConfig().autoCorrectCorruptDates) {
-      ParquetReaderUtility.correctDatesInMetadataCache(this.parquetTableMetadata);
-    }
-    List<String> fileNames = Lists.newArrayList();
-    List<FileStatus> fileStatuses = selection.getStatuses(fs);
-
-    final Path first = fileStatuses.get(0).getPath();
-    if (fileStatuses.size() == 1 && selection.getSelectionRoot().equals(first.toString())) {
-      // we are selecting all files from selection root. Expand the file list from the cache
-      for (Metadata.ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
-        fileNames.add(file.getPath());
-      }
-      // we don't need to populate fileSet as all files are selected
-    } else {
-      // we need to expand the files from fileStatuses
-      for (FileStatus status : fileStatuses) {
-        if (status.isDirectory()) {
-          //TODO [DRILL-4496] read the metadata cache files in parallel
-          final Path metaPath = new Path(status.getPath(), Metadata.METADATA_FILENAME);
-          final Metadata.ParquetTableMetadataBase metadata = Metadata.readBlockMeta(fs, metaPath.toString(), formatPlugin.getConfig(), plugin.getFsConf());
-          for (Metadata.ParquetFileMetadata file : metadata.getFiles()) {
-            fileNames.add(file.getPath());
-          }
-        } else {
-          final Path path = Path.getPathWithoutSchemeAndAuthority(status.getPath());
-          fileNames.add(path.toString());
-        }
-      }
-
-      // populate fileSet so we only keep the selected row groups
-      fileSet = Sets.newHashSet(fileNames);
-    }
-
-    if (fileNames.isEmpty()) {
-      // no files were found, most likely we tried to query some empty sub folders
-      throw UserException.validationError().message("The table you tried to query is empty").build(logger);
-    }
-
-    // when creating the file selection, set the selection root in the form /a/b instead of
-    // file:/a/b.  The reason is that the file names above have been created in the form
-    // /a/b/c.parquet and the format of the selection root must match that of the file names
-    // otherwise downstream operations such as partition pruning can break.
-    final Path metaRootPath = Path.getPathWithoutSchemeAndAuthority(new Path(selection.getSelectionRoot()));
-    this.selectionRoot = metaRootPath.toString();
-
-    // Use the FileSelection constructor directly here instead of the FileSelection.create() method
-    // because create() changes the root to include the scheme and authority; In future, if create()
-    // is the preferred way to instantiate a file selection, we may need to do something different...
-    // WARNING: file statuses and file names are inconsistent
-    FileSelection newSelection = new FileSelection(selection.getStatuses(fs), fileNames, metaRootPath.toString());
-
-    newSelection.setExpanded();
-    return newSelection;
-  }
-
   private void init() throws IOException {
     final Stopwatch watch = Stopwatch.createStarted();
     columnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
     if (entries.size() == 1) {
+      // TODO: do we need this code path?
       Path p = Path.getPathWithoutSchemeAndAuthority(new Path(entries.get(0).getPath()));
-      Path metaPath = null;
-      if (fs.isDirectory(p)) {
-        // Using the metadata file makes sense when querying a directory; otherwise
-        // if querying a single file we can look up the metadata directly from the file
-        metaPath = new Path(p, Metadata.METADATA_FILENAME);
-      }
-      if (metaPath != null && fs.exists(metaPath)) {
-        usedMetadataCache = true;
-        if (parquetTableMetadata == null) {
-          parquetTableMetadata = Metadata.readBlockMeta(fs, metaPath.toString(), formatPlugin.getConfig(), plugin.getFsConf());
-          if (formatPlugin.getConfig().autoCorrectCorruptDates) {
-            ParquetReaderUtility.correctDatesInMetadataCache(this.parquetTableMetadata);
-          }
-        }
-      } else {
-        parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), fs, p.toString(), formatPlugin.getConfig(), plugin.getFsConf());
-      }
+      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), fs, p.toString(), formatPlugin.getConfig(), plugin.getFsConf());
     } else {
-      Path p = Path.getPathWithoutSchemeAndAuthority(new Path(selectionRoot));
-      Path metaPath = new Path(p, Metadata.METADATA_FILENAME);
-      if (fs.isDirectory(new Path(selectionRoot)) && fs.exists(metaPath)) {
-        usedMetadataCache = true;
-        if (parquetTableMetadata == null) {
-          parquetTableMetadata = Metadata.readBlockMeta(fs, metaPath.toString(), formatPlugin.getConfig(), plugin.getFsConf());
-          if (formatPlugin.getConfig().autoCorrectCorruptDates) {
-            ParquetReaderUtility.correctDatesInMetadataCache(this.parquetTableMetadata);
-          }
-        }
-        if (fileSet != null) {
-          parquetTableMetadata = removeUnneededRowGroups(parquetTableMetadata);
-        }
-      } else {
-        final List<FileStatus> fileStatuses = Lists.newArrayList();
-        for (ReadEntryWithPath entry : entries) {
-          getFiles(entry.getPath(), fileStatuses);
-        }
-        parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), fs, fileStatuses, formatPlugin.getConfig(), plugin.getFsConf());
+      final List<FileStatus> fileStatuses = Lists.newArrayList();
+      for (ReadEntryWithPath entry : entries) {
+        getFiles(entry.getPath(), fileStatuses);
       }
+      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), fileStatuses, formatPlugin.getConfig(), plugin.getFsConf());
     }
 
-    if (fileSet == null) {
-      fileSet = Sets.newHashSet();
-      for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
-        fileSet.add(file.getPath());
-      }
+    fileSet = Sets.newHashSet();
+    for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
+      fileSet.add(file.getPath());
     }
 
     ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getExecutors())
@@ -610,8 +421,6 @@ public class ParquetGroupScanUtils {
       }
     }
 
-    this.endpointAffinities = AffinityCreator.getAffinityMap(rowGroupInfos);
-
     columnValueCounts = Maps.newHashMap();
     this.rowCount = 0;
     boolean first = true;
@@ -636,7 +445,7 @@ public class ParquetGroupScanUtils {
               columnValueCounts.put(schemaPath, GroupScan.NO_COLUMN_STATS);
             }
           }
-          boolean partitionColumn = checkForPartitionColumn(column, first, rowCount);
+          boolean partitionColumn = checkForPartitionColumn(file, column, first, rowCount);
           if (partitionColumn) {
             Map<SchemaPath, Object> map = partitionValueMap.get(file.getPath());
             if (map == null) {
@@ -678,37 +487,6 @@ public class ParquetGroupScanUtils {
     return list.get(ThreadLocalRandom.current().nextInt(0, list.size()));
   }
 
-  private ParquetTableMetadataBase removeUnneededRowGroups(ParquetTableMetadataBase parquetTableMetadata) {
-    List<ParquetFileMetadata> newFileMetadataList = Lists.newArrayList();
-    for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
-      if (fileSet.contains(file.getPath())) {
-        newFileMetadataList.add(file);
-      }
-    }
-
-    ParquetTableMetadataBase metadata = parquetTableMetadata.clone();
-    metadata.assignFiles(newFileMetadataList);
-    return metadata;
-  }
-
-  public Iterator getSplits() {
-    throw new UnsupportedOperationException("getSplits is not supported in deprecated ParquetGroupScanUtils");
-  }
-
-  public SubScan getSpecificScan(List work) throws ExecutionSetupException {
-    throw new UnsupportedOperationException("getSpecificScan is not supported in deprecated ParquetGroupScanUtils");
-  }
-
-  /**
-   * Calculates the affinity each endpoint has for this scan, by adding up the affinity each endpoint has for each
-   * rowGroup
-   *
-   * @return a list of EndpointAffinity objects
-   */
-  public List<EndpointAffinity> getOperatorAffinity() {
-    return this.endpointAffinities;
-  }
-
   private void getFiles(String path, List<FileStatus> fileStatuses) throws IOException {
     Path p = Path.getPathWithoutSchemeAndAuthority(new Path(path));
     FileStatus fileStatus = fs.getFileStatus(p);
@@ -719,16 +497,6 @@ public class ParquetGroupScanUtils {
     } else {
       fileStatuses.add(fileStatus);
     }
-  }
-
-
-  private List<RowGroupReadEntry> convertToReadEntries(List<RowGroupInfo> rowGroups) {
-    List<RowGroupReadEntry> entries = Lists.newArrayList();
-    for (RowGroupInfo rgi : rowGroups) {
-      RowGroupReadEntry entry = new RowGroupReadEntry(rgi.getPath(), rgi.getStart(), rgi.getLength(), rgi.getRowGroupIndex());
-      entries.add(entry);
-    }
-    return entries;
   }
 
   public int getMaxParallelizationWidth() {
@@ -766,8 +534,6 @@ public class ParquetGroupScanUtils {
     return ScanCostFactor.of(ScanCostFactor.PARQUET.getFactor() / getSortFactor());
   }
 
-
-
   public String getDigest() {
     return toString();
   }
@@ -776,7 +542,6 @@ public class ParquetGroupScanUtils {
     return "ParquetGroupScanUtils [entries=" + entries
         + ", selectionRoot=" + selectionRoot
         + ", numFiles=" + getEntries().size()
-        + ", usedMetadataFile=" + usedMetadataCache
         + ", conditions=" + conditions
         + ", columns=" + columns + "]";
   }
@@ -806,14 +571,6 @@ public class ParquetGroupScanUtils {
 
   public List<FilterCondition> getConditions() {
     return conditions;
-  }
-
-
-  /**
-   *  Return column value count for the specified column. If does not contain such column, return 0.
-   */
-  public long getColumnValueCount(SchemaPath column) {
-    return columnValueCounts.containsKey(column) ? columnValueCounts.get(column) : 0;
   }
 
   public List<SchemaPath> getPartitionColumns() {

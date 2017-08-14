@@ -49,7 +49,7 @@ export default class DropdownForSelectedText extends Component {
   }
 
   componentWillUnmount() {
-    Mousetrap.unbind(['command+c', 'ctrl+c'], this.copyText);
+    Mousetrap.unbind(['command+c', 'ctrl+c']);
   }
 
   copyText = () => {

@@ -28,11 +28,17 @@ describe('pathUtils', () => {
     it('should remove ""', () => {
       expect(splitFullPath('foo."my-folder"')).to.eql(['foo', 'my-folder']);
       expect(splitFullPath('"my-space"."my-folder"')).to.eql(['my-space', 'my-folder']);
+      expect(splitFullPath('"my-space".my-folder')).to.eql(['my-space', 'my-folder']);
     });
 
     it('should ignore . in ""', () => {
       expect(splitFullPath('foo."my.folder"')).to.eql(['foo', 'my.folder']);
       expect(splitFullPath('"my.space"."my.folder"')).to.eql(['my.space', 'my.folder']);
+    });
+
+    it('should handle "" as escaped "', () => {
+      expect(splitFullPath('foo."""folder"')).to.eql(['foo', '"folder']);
+      expect(splitFullPath('foo."my.""folder"')).to.eql(['foo', 'my."folder']);
     });
   });
 
@@ -109,6 +115,10 @@ describe('pathUtils', () => {
 
     it('should not be quoted if token of path is single alpha character', () => {
       expect(constructFullPath(['Prod', 'a'])).to.eql('Prod.a');
+    });
+
+    it('should escape " as ""', () => {
+      expect(constructFullPath(['Prod', 'a"'])).to.eql('Prod."a"""');
     });
   });
 

@@ -279,6 +279,10 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return infoProvider;
   }
 
+  public SchemaTreeProvider getSchemaTreeProvider() {
+    return schemaTreeProvider;
+  }
+
   public boolean isUserAuthenticationEnabled() {
     return sabotContext.isUserAuthenticationEnabled();
   }

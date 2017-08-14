@@ -513,6 +513,8 @@ class ExploreUtils {
     return fakeElement;
   }
   copySelection = (elementOrText) => {
+    if (elementOrText === null) return;
+
     const isText = typeof elementOrText === 'string';
     const selectionElement = isText ? this._createFakeElement(elementOrText) : elementOrText;
 

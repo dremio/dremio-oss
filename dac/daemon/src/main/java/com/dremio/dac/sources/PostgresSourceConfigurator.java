@@ -35,10 +35,12 @@ public class PostgresSourceConfigurator extends SingleSourceToStoragePluginConfi
 
   @Override
   public StoragePluginConfig configureSingle(PostgresConfig source) {
-    PostgresConfig postgres = (PostgresConfig) source;
+    PostgresConfig postgres = source;
     String hostname = checkNotNull(postgres.getHostname(), "missing hostname");
     String port = checkNotNull(postgres.getPort(), "missing port");
     String db = checkNotNull(postgres.getDatabaseName(), "missing database");
+    Integer fetchSize = postgres.getFetchSize();
+
     // Unfortunate Redshift jdbc driver problem:  Redshift jdbc driver will intercept postgres's connection
     // since redshift registers for both jdbc:postgresql and jdbc:redshift.  So, "OpenSourceSubProtocolOverride=true"
     // indicates to redshift to leave this connection alone!
@@ -48,7 +50,8 @@ public class PostgresSourceConfigurator extends SingleSourceToStoragePluginConfi
     JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.POSTGRES_DRIVER,
         "jdbc:postgresql://" + hostname + ":" + port + "/" + db + "?OpenSourceSubProtocolOverride=true",
         postgres.getUsername(),
-        postgres.getPassword()
+        postgres.getPassword(),
+        fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
         );
 
     return config;

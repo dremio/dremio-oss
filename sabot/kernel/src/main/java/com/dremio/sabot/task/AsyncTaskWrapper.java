@@ -88,11 +88,14 @@ public class AsyncTaskWrapper implements Task {
 
   public void run() {
     sleepEnded();
-    asyncTask.run();
-    if (getState() == State.BLOCKED) {
-      blockedStarted();
-    } else if (getState() == State.RUNNABLE) {
-      sleepStarted();
+    try {
+      asyncTask.run();
+    } finally {
+      if (getState() == State.BLOCKED) {
+        blockedStarted();
+      } else if (getState() == State.RUNNABLE) {
+        sleepStarted();
+      }
     }
   }
 

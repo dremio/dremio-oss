@@ -160,8 +160,8 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, HiveSubScan config) throws ExecutionSetupException {
     try{
-      HiveStoragePlugin2 registry = (HiveStoragePlugin2) fragmentExecContext.getStoragePlugin(config.getPluginId());
-      HiveConf conf = registry.getHiveConf();
+      HiveStoragePlugin2 storagePlugin = (HiveStoragePlugin2) fragmentExecContext.getStoragePlugin(config.getPluginId());
+      HiveConf conf = storagePlugin.getHiveConf();
       final HiveTableXattr tableAttr = HiveTableXattr.parseFrom(config.getReadDefinition().getExtendedProperty().toByteArray());
       final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getReadDefinition().getPartitionColumnsList());
 

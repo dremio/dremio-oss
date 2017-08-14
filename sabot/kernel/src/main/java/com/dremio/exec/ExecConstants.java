@@ -173,6 +173,7 @@ public interface ExecConstants {
   BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
   BooleanValidator ACCELERATION_ENABLE_MIN_MAX = new BooleanValidator("accelerator.enable_min_max", true);
   BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
+  LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   // TODO: We need to add a feature that enables storage plugins to add their own options. Currently we have to declare
   // in core which is not right. Move this option and above two mongo plugin related options once we have the feature.
@@ -329,9 +330,12 @@ public interface ExecConstants {
   PositiveLongValidator SOURCE_STATE_REFRESH_MIN = new PositiveLongValidator("store.metadata.state.refresh_min", Character.MAX_VALUE, 5);
   PositiveLongValidator SOURCE_METADATA_REFRESH_MIN = new PositiveLongValidator("store.metadata.base.refresh_min", Character.MAX_VALUE, 5);
   BooleanValidator PARQUET_SINGLE_STREAM = new BooleanValidator("store.parquet.single_stream", false);
-  LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 30);
+  LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", -1);
   //Configuration used for testing or debugging
   LongValidator DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS = new LongValidator("debug.results.max.age_in_milliseconds", 0);
 
   BooleanValidator SORT_FILE_BLOCKS = new BooleanValidator("store.file.sort_blocks", false);
+
+  // Check for storage plugin status at time of creation of the plugin
+  BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
 }

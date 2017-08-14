@@ -1,10 +1,24 @@
 /*
- * Copyright 2016 Dremio Corporation
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.dremio.exec.store.easy.excel;
 
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.List;
+import java.util.ArrayList;
 
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
@@ -42,6 +56,8 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
 
   private long runningRecordCount = 0;
 
+  private HashSet<String> columnsToProject;
+
   public ExcelRecordReader(final OperatorContext executionContext, final FileSystemWrapper dfs, final Path path,
       final ExcelFormatPluginConfig pluginConfig, final List<SchemaPath> columns) {
     super(executionContext, columns);
@@ -49,6 +65,26 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
     this.dfs = dfs;
     this.path = path;
     this.pluginConfig = pluginConfig;
+
+    /* Get the list of columns to project, build a lookup table and pass it
+     * to respective parsers for filtering the columns from excel sheets.
+     */
+    ArrayList<SchemaPath> columnInfo;
+    if(!isStarQuery() && !isSkipQuery()) {
+      columnInfo = new ArrayList<>(getColumns());
+      this.columnsToProject = new HashSet<>();
+
+      for (int i = 0; i < columnInfo.size(); i++) {
+        String columnName = (columnInfo.get(i)).getAsNamePart().getName();
+        this.columnsToProject.add(columnName);
+      }
+
+      logger.debug("number of projected columns: ", columnsToProject.size());
+    }
+    else {
+      logger.debug("projected columns is null");
+      this.columnsToProject = null;
+    }
   }
 
   @Override
@@ -64,9 +100,9 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
       if (pluginConfig.xls) {
         // we don't need to close this stream, it will be closed by the parser
         final XlsInputStream xlsStream = new XlsInputStream(this, inputStream);
-        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf);
+        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf, columnsToProject);
       } else {
-        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf);
+        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf, columnsToProject);
       }
     } catch (final SheetNotFoundException e) {
       // This check will move to schema validation in planning after DX-2271

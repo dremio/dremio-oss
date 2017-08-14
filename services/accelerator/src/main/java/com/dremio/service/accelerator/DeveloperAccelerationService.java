@@ -75,4 +75,9 @@ public interface DeveloperAccelerationService {
    * Clears all accelerations.
    */
   void clearAllAccelerations();
+
+  /**
+   * removes all accelerations which is not associated with a dataset
+   */
+  void removeOrphanedAccelerations();
 }

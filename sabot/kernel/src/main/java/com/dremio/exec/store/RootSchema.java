@@ -28,6 +28,7 @@ import org.apache.calcite.schema.SchemaPlus;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
+import com.dremio.exec.store.SchemaTreeProvider.MetadataStatsCollector;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -52,12 +53,15 @@ public class RootSchema extends AbstractSchema {
   private final Supplier<Set<String>> spaces;
   private final Supplier<Set<String>> allHomeSpaces;
   private final Supplier<Boolean> userHomeExists;
+  private final MetadataStatsCollector metadataStatsCollector;
 
-  public RootSchema(final NamespaceService ns, final SabotContext sabotContext, final SchemaConfig schemaConfig) {
+  public RootSchema(final NamespaceService ns, final SabotContext sabotContext, final SchemaConfig schemaConfig,
+                    final MetadataStatsCollector metadataStatsCollector) {
     super(Collections.<String>emptyList(), "");
     this.ns = ns;
     this.sabotContext = sabotContext;
     this.schemaConfig = schemaConfig;
+    this.metadataStatsCollector = metadataStatsCollector;
     this.sources = Suppliers.memoize(new Supplier<Map<String, SourceConfig>>() {
       @Override
       public Map<String, SourceConfig> get() {
@@ -184,7 +188,7 @@ public class RootSchema extends AbstractSchema {
   }
 
   private SimpleSchema newTopLevelSchema(String name, SchemaType type, MetadataPolicy metadata, SchemaMutability schemaMutability) {
-    return new SimpleSchema(sabotContext, ns, Collections.<String>emptyList(), name, schemaConfig, type, metadata, schemaMutability);
+    return new SimpleSchema(sabotContext, ns, metadataStatsCollector, Collections.<String>emptyList(), name, schemaConfig, type, metadata, schemaMutability);
   }
 
   public void exposeSubSchemasAsTopLevelSchemas(SchemaPlus rootSchema) {

@@ -33,7 +33,8 @@ describe('ReplaceValuesForm', () => {
         columnName: 'a',
         columnType: TEXT,
         transformType: 'replace'
-      })
+      }),
+      fields: {}
     };
     commonProps = {
       ...minimalProps,

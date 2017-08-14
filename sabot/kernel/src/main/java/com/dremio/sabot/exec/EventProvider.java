@@ -32,5 +32,5 @@ public interface EventProvider {
   /**
    * @return true if fragment has been cancelled
    */
-  boolean isCanceled();
+  boolean isCancelled();
 }

@@ -91,11 +91,10 @@ export function isNumber(key, label = key) {
 }
 
 export function isWholeNumber(key, label = key) {
-
   return function(values) {
     const value = result(values, key);
-    if (!isEmptyValue(value) && isNaN(Number(value)) || value !== undefined && Number(value) < 0) {
-      return set({}, key, `${label} must be a number > 0`);
+    if (!isEmptyValue(value) && (isNaN(Number(value)) || Number(value) % 1 || Number(value) < 0)) {
+      return set({}, key, `${label} must be an integer greater than or equal to zero`);
     }
   };
 }
@@ -113,7 +112,7 @@ export function isPositiveInteger(key, label = key) {
   return function(values) {
     const value = result(values, key);
     if (!isEmptyValue(value) && (isNaN(Number(value)) || Number(value) % 1 || Number(value) <= 0)) {
-      return set({}, key, `${label} must be a positive integer`);
+      return set({}, key, `${label} must be an integer greater than zero`);
     }
   };
 }

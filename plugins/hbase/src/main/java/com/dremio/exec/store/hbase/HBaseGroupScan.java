@@ -159,6 +159,8 @@ public class HBaseGroupScan extends OldAbstractGroupScan<RegionWork> implements 
       NodeEndpoint endpoint = executionNodes.getEndpoint(name);
       if(endpoint != null){
         work.add(new RegionWork(entry.getKey(), bytes, new EndpointAffinity(endpoint, bytes)));
+      } else {
+        work.add(new RegionWork(entry.getKey(), bytes));
       }
     }
     return work.iterator();

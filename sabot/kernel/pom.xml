@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>1.0.8-201707190805180330-27f36e1</version>
+    <version>1.1.0-201708121825170680-436784e</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -68,6 +68,11 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-namespace</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-scheduler</artifactId>
     </dependency>
 
     <dependency>
@@ -172,7 +177,7 @@
     <dependency>
       <groupId>com.esotericsoftware</groupId>
       <artifactId>kryo</artifactId>
-      <version>4.0.0</version>
+      <version>4.0.1</version>
     </dependency>
     <dependency>
       <groupId>org.objenesis</groupId>

@@ -73,15 +73,17 @@ import com.dremio.exec.store.parquet.ParquetFooterCache;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.TableInstance;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * A Storage engine associated with a Hadoop FileSystem Implementation. Examples include HDFS, MapRFS, QuantacastFileSystem,
@@ -207,14 +209,22 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
   public List<SchemaEntity> list(List<String> folderPath, String userName) {
     try {
       List<FileStatus> files = Lists.newArrayList(getFS(userName).listStatus(Path.mergePaths(new Path(getConfig().getPath()), PathUtils.toFSPathSkipRoot(folderPath, getStorageName()))));
-      final List<List<String>> tableNames = Lists.transform(context.getNamespaceService(userName).getAllDatasets(new NamespaceKey(folderPath)), new com.google.common.base.Function<NamespaceKey, List<String>>() {
-        @Nullable
-        @Override
-        public List<String> apply(@Nullable NamespaceKey input) {
-          List<String> pathComponents = input.getPathComponents();
-          return getFullPath(pathComponents);
+
+      final Set<List<String>> tableNames = Sets.newHashSet();
+      final NamespaceService ns = context.getNamespaceService(userName);
+      final NamespaceKey folderNSKey = new NamespaceKey(folderPath);
+      if (ns.exists(folderNSKey, Type.DATASET)) {
+        // if the folder is a dataset, then there is nothing to list
+        return ImmutableList.of();
+      }
+      if (ns.exists(folderNSKey)) {
+        for(NameSpaceContainer entity : ns.list(folderNSKey)) {
+          if (entity.getType() == Type.DATASET) {
+            tableNames.add(getFullPath(entity.getDataset().getFullPathList()));
+          }
         }
-      });
+      }
+
       Iterable<SchemaEntity> itr = Iterables.transform(files, new com.google.common.base.Function<FileStatus, SchemaEntity>() {
         @Nullable
         @Override
@@ -268,18 +278,6 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
     return fullPath;
   }
 
-
-  public FileSelection getFileSelection(DatasetConfig datasetConfig, String userName) throws IOException {
-    FileSystemWrapper fs = getFS(userName);
-    return FileSelection.create(
-      fs,
-      ImmutableList.<String>builder()
-        .addAll(PathUtils.toPathComponents(new Path(config.getPath())))
-        .addAll(stripFirst(datasetConfig.getFullPathList()))
-        .build()
-    ).minusDirectories(fs);
-  }
-
   @Override
   public RelNode getRel(final RelOptCluster cluster, final RelOptTable relOptTable, final ConversionContext.NamespaceConversionContext relContext) {
     throw new UnsupportedOperationException();
@@ -307,10 +305,6 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
 
   public ArrayList<FormatMatcher> getMatchers() {
     return matchers;
-  }
-
-  public List<FormatMatcher> getDropFileMatchers() {
-    return dropFileMatchers;
   }
 
   public FormatPlugin getFormatPlugin(String name) {
@@ -372,10 +366,6 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
   @Override
   public List<Function> getFunctions(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return optionExtractor.getFunctions(tableSchemaPath, this, schemaConfig);
-  }
-
-  public FormatPluginConfig createConfigForTable(TableInstance t) {
-    return optionExtractor.createConfigForTable(t);
   }
 
   private FormatMatcher findMatcher(FileSystemWrapper fs, FileStatus file) {

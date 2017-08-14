@@ -24,26 +24,28 @@ export default class S3Credentials extends Component {
     return ['config.accessKey', 'config.accessSecret'];
   }
 
+  static mutateSubmitValues(values) {
+    // fix for DX-8437 Clicking in the access key box breaks anonymous s3 addition
+    if (!values.config.accessKey) delete values.config.accessKey;
+    if (!values.config.accessSecret) delete values.config.accessSecret;
+  }
+
   static propTypes = {
     fields: PropTypes.object
   };
 
   static validate(values) {
     const errors = {config: {}};
-    if (!values.config.externalBucketList.length) {
-      if (!values.config.accessSecret) {
-        errors.config.accessSecret = 'Access secret is required';
-      }
-
+    if (values.config.accessKey || values.config.accessSecret) {
+      const error = la('Both access secret and key are required for private S3 buckets.');
       if (!values.config.accessKey) {
-        errors.config.accessKey = 'Access key is required';
+        errors.config.accessKey = error;
+      }
+      if (!values.config.accessSecret) {
+        errors.config.accessSecret = error;
       }
     }
     return errors;
-  }
-
-  constructor(props) {
-    super(props);
   }
 
   render() {
@@ -53,15 +55,15 @@ export default class S3Credentials extends Component {
       <div className='credentials' style={section}>
         <h3 style={sectionTitle}>{la('Credentials')}</h3>
         <div style={{display: 'inline-flex'}}>
-          <FieldWithError label='AWS Access Key' {...accessKey} style={formRow}>
+          <FieldWithError errorPlacement='top' label={la('AWS Access Key')} {...accessKey} style={formRow}>
             <TextField {...accessKey}/>
           </FieldWithError>
-          <FieldWithError label='AWS Access Secret' {...accessSecret} style={formRow}>
+          <FieldWithError errorPlacement='top' label={la('AWS Access Secret')} {...accessSecret} style={formRow}>
             <TextField type='password' {...accessSecret}/>
           </FieldWithError>
         </div>
         <div style={description}>
-          Note: AWS credentials are not required for accessing public S3 buckets.
+          {la('Note: AWS credentials are not required for accessing public S3 buckets.')}
         </div>
       </div>
     );

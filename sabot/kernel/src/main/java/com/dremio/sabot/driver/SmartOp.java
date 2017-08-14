@@ -102,13 +102,30 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     return type == null ? String.format("Unknown (%d)", operatorType) : type.name();
   }
 
+
   protected RuntimeException contextualize(Throwable e) {
+
+
+    String operatorName = "Unknown";
+    int operatorId = -1;
+    try {
+      operatorName = getOperatorName(context.getStats().getOperatorType());
+    }catch(Exception ex){
+      e.addSuppressed(e);
+    }
+
+    try {
+      operatorId = context.getStats().getOperatorId();
+    }catch(Exception ex){
+      e.addSuppressed(e);
+    }
+
     final FragmentHandle h = context.getFragmentHandle();
     UserException.Builder builder = UserException.systemError(e).message("General execution failure.");
       return builder
-          .addContext("SqlOperatorImpl", getOperatorName(context.getStats().getOperatorType()))
+          .addContext("SqlOperatorImpl", operatorName)
           .addContext("Location",
-              String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), context.getStats().getOperatorId()))
+              String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId))
           .build(logger);
   }
 

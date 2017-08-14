@@ -329,4 +329,27 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         .baselineValues(time1, time2, ts1, ts2, date1, date2)
         .go();
   }
+
+  @Test // DX-8689
+  public void testDateTruncMultipleRows() throws Exception {
+    String query = "SELECT date_trunc('QUARTER', dateCol) as res FROM (values" +
+        "(date '2017-06-14')," +
+        "(date '2017-06-14')," +
+        "(date '2000-04-04')," +
+        "(date '2005-02-01')," +
+        "(date '2015-11-01')," +
+        "(cast(null as date))) as t(dateCol)";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("res")
+        .baselineValues(formatDate.parseLocalDateTime("2017-04-01"))
+        .baselineValues(formatDate.parseLocalDateTime("2017-04-01"))
+        .baselineValues(formatDate.parseLocalDateTime("2000-04-01"))
+        .baselineValues(formatDate.parseLocalDateTime("2005-01-01"))
+        .baselineValues(formatDate.parseLocalDateTime("2015-10-01"))
+        .baselineValues(new Object[]{null})
+        .go();
+  }
 }

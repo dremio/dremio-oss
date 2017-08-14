@@ -164,12 +164,14 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
   @JsonIgnore
   public ElasticMapping getMergedMapping(){
     ElasticMapping mapping = null;
+    String index_name = "";
     for(ElasticIndex index : indexes){
       for(ElasticMapping m : index.mappings){
         if(mapping == null){
           mapping = m;
+          index_name = index.name;
         } else {
-          mapping = mapping.merge(m);
+          mapping = mapping.merge(m, index_name, index.name);
         }
       }
     }
@@ -293,40 +295,42 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     }
 
-    public ElasticField merge(ElasticField field){
+    public ElasticField merge(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index){
       if(equals(field)){
         return this;
       }
 
+      if(name != field.name){
+        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
+      }
+
       if(type != field.type){
-        throw UserException.dataReadError()
-        .message("Unable to merge two different definitions for field %s as they are different types. The two types are %s and %s.", name, type, field.type)
-        .build(logger);
+        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
       }
 
       if(indexing != field.indexing){
-        throw UserException.dataReadError()
-        .message("Unable to merge two different definitions for field %s as they have different indexing schemes. The schemes are %s and %s.", name, indexing, field.indexing)
-        .build(logger);
+        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
       }
 
-      if(Objects.equal(formats, field.formats)){
-        throw UserException.dataReadError()
-        .message("Unable to merge two different definitions for field %s as they have different date format schemes. The formats are %s and %s.", name, formats, field.formats)
-        .build(logger);
+      if(!Objects.equal(formats, field.formats)){
+        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
       }
 
       if(docValues != field.docValues){
-        throw UserException.dataReadError()
-        .message("Unable to merge two different definitions for field %s as they have different doc values storage settings. The settings are %s and %s.", name, docValues, field.docValues)
-        .build(logger);
+        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
       }
 
       // we just have different fields. Let's merge them.
-      return new ElasticField(name, type, indexing, formats, docValues, mergeFields(children, field.children));
+      return new ElasticField(name, type, indexing, formats, docValues, mergeFields(children, field.children, curr_mapping, other_mapping, curr_index, other_index));
     }
 
-    public static List<ElasticField> mergeFields(List<ElasticField> fieldsA, List<ElasticField> fieldsB){
+    public UserException throwDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
+      return UserException.dataReadError()
+      .message("Unable to merge two different definitions for Field: (%s) with Type: (%s) from (%s.%s) with Field: (%s) with Type: (%s) from (%s.%s) as they are different %s. The %s are %s and %s.", name, type, curr_index, curr_mapping, field.name, field.type, other_index, other_mapping, diff, diff, first, second)
+      .build(logger);
+    }
+
+    public static List<ElasticField> mergeFields(List<ElasticField> fieldsA, List<ElasticField> fieldsB, String mappingA, String mappingB, String indexA, String indexB){
       Map<String, ElasticField> fields = new LinkedHashMap<>();
       for(ElasticField f : fieldsA){
         fields.put(f.getName(), f);
@@ -335,7 +339,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       Map<String, ElasticField> replacements = new HashMap<>();
       for(ElasticField f : fieldsB){
         if(fields.containsKey(f.getName())){
-          replacements.put(f.getName(), fields.get(f.getName()).merge(f));
+          replacements.put(f.getName(), fields.get(f.getName()).merge(f, mappingA, mappingB, indexA, indexB));
         } else {
           fields.put(f.getName(), f);
         }
@@ -546,9 +550,9 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       return fields;
     }
 
-    public ElasticMapping merge(ElasticMapping mapping){
+    public ElasticMapping merge(ElasticMapping mapping, String curr_index, String other_index){
       String newName = name.equals(mapping.name) ? name : name + "," + mapping.name;
-      List<ElasticField> newFields = ElasticField.mergeFields(fields, mapping.fields);
+      List<ElasticField> newFields = ElasticField.mergeFields(fields, mapping.fields, name, mapping.name, curr_index, other_index);
       return new ElasticMapping(newName, newFields, true);
     }
 

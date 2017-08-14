@@ -22,6 +22,7 @@ import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import { replace } from 'react-router-redux';
 import DocumentTitle from 'react-document-title';
+import urlParse from 'url-parse';
 import { showProdError } from 'actions/prodError';
 import { boot } from 'actions/app';
 
@@ -47,21 +48,13 @@ function getError(e) {
   if (e instanceof Error) {
     return e;
   }
-  // if e is ErrorEvent and error is Error
-  if (e.error) {
-    return getError(e.error);
-  }
-  if (e.reason) {
-    return getError(e.reason);
-  }
   if (e.message) {
     return new Error(e.message + '\n\n' + e.stack + '\n\n(non-Error instance)');
   }
   return new Error(e); // error components expect objects
 }
 
-@DragDropContext(HTML5Backend)
-class App extends Component {
+export class App extends Component {
 
   static propTypes = {
     user: PropTypes.object,
@@ -98,7 +91,9 @@ class App extends Component {
       hasShownError: false,
       rsodError: undefined
     };
-    window.addEventListener('error', this.handleGlobalError);
+    // use window.onerror here instead of addEventListener('error') because ErrorEvent.error is
+    // experimental according to mdn. Can get both file url and error from either.
+    window.onerror = this.handleGlobalError;
     window.onunhandledrejection = this.handleUnhandledRejection;
 
     if (config.shouldEnableBugFiling || config.shouldEnableRSOD) {
@@ -119,14 +114,18 @@ class App extends Component {
     App.redirectForServerStatus(props);
   }
 
-  handleGlobalError = (e) => {
-    const error = getError(e);
-    console.error('Uncaught Error', error);
-    this.displayError(error);
+  handleGlobalError = (msg, url, lineNo, columnNo, error) => {
+    if (url && urlParse(url).origin !== this._getWindowOrigin()) return;
+
+    console.error('Uncaught Error', error || msg);
+    this.displayError(error || msg);
   };
 
-  handleUnhandledRejection = (e) => {
-    const error = getError(e);
+  handleUnhandledRejection = (rejectionEvent) => {
+    const error = rejectionEvent.reason;
+    if (!error) return;
+
+    if (error.stack && this._shouldIgnoreExternalStack(error.stack)) return;
 
     //By default, Raven.js does not capture unhandled promise rejections.
     sentryUtil.logException(error);
@@ -141,13 +140,47 @@ class App extends Component {
     if (this.state.hasShownError) return;
     this.setState({hasShownError: true});
 
-    if (config.shouldEnableRSOD) return this.setState({rsodError: error});
+    const errorObject = getError(error);
 
-    this.props.dispatch(showProdError(error));
+    if (config.shouldEnableRSOD) return this.setState({rsodError: errorObject});
+
+    this.props.dispatch(showProdError(errorObject));
   }
 
   handleDismissError = () => {
     this.setState({rsodError: undefined});
+  }
+
+  _getWindowOrigin() {
+    return window.location.origin;
+  }
+
+  _shouldIgnoreExternalStack(stack) {
+    const stackOrigin = this._getSourceOriginFromStack(stack);
+    if (stackOrigin && stackOrigin !== this._getWindowOrigin()) {
+      console.warn('Ignoring js error from origin: ' + stackOrigin);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Returns the top-most origin found in the stack. We assume we have correctly used remotely included scripts and any
+   * errors they throw are not our fault (or at least not catastrophic)
+   * @param stack string of stack trace
+   * @private
+   */
+  _getSourceOriginFromStack(stack) {
+    if (!stack) return;
+
+    // This works in Chrome, Firefox, IE and Edge.
+    const lines = stack.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/(https?:\/\/.*?)\//);
+      if (m) {
+        return m[1];
+      }
+    }
   }
 
   render() {
@@ -187,4 +220,5 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps)(App); // don't add mapDispatchToProps, because we require to have dispatch in component props
+// don't add mapDispatchToProps, because we require to have dispatch in component props
+export default connect(mapStateToProps)(DragDropContext(HTML5Backend)(App));

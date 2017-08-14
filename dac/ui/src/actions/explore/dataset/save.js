@@ -20,13 +20,12 @@ import invariant from 'invariant';
 import exploreUtils from 'utils/explore/exploreUtils';
 
 import fullDatasetSchema from 'schemas/v2/fullDataset';
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from 'utils/pathUtils';
 import apiUtils from 'utils/apiUtils/apiUtils';
 import { performNextAction } from 'actions/explore/nextAction';
 
 import { postDatasetOperation, navigateToNextDataset } from './common';
 import { navigateAfterReapply } from './reapply';
-
 
 export function saveDataset(dataset, viewId, nextAction) {
   return (dispatch) => {
@@ -75,7 +74,7 @@ export function submitSaveAsDataset(name, fullPath, location, reapply) {
     };
     const link = exploreUtils.getHrefForTransform(routeParams, location);
     const href = `${link}/${reapply ?
-      'reapplyAndSave' : 'save'}?as=${constructFullPath(fullPath.concat(name), false, true)}`;
+      'reapplyAndSave' : 'save'}?as=${constructFullPathAndEncode(fullPath.concat(name))}`;
     return dispatch(postDatasetOperation({
       href,
       schema: fullDatasetSchema,
@@ -93,7 +92,7 @@ export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
     };
 
     const link = exploreUtils.getHrefForTransform(routeParams, location);
-    const href = `${link}/reapplyAndSave?as=${constructFullPath(fullPath.concat(name), false, true)}`;
+    const href = `${link}/reapplyAndSave?as=${constructFullPathAndEncode(fullPath.concat(name))}`;
     return dispatch(postDatasetOperation({
       href,
       schema: fullDatasetSchema,

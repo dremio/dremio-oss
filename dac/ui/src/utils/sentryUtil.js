@@ -18,9 +18,11 @@ import config, { isProductionServer } from './config';
 
 class SentryUtil {
 
-  install() {
+  install(releaseId) {
     if (isProductionServer() && !config.outsideCommunicationDisabled) {
-      Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@app.getsentry.com/66750').install();
+      Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@app.getsentry.com/66750', {
+        release: releaseId
+      }).install();
       Raven.setUserContext({
         email: config.email // todo: this isn't set up by anything?
       });

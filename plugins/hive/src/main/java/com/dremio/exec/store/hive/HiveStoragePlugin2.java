@@ -91,12 +91,14 @@ public class HiveStoragePlugin2 implements StoragePlugin2 {
   private final boolean storageImpersonationEnabled;
   private final boolean metastoreImpersonationEnabled;
   private final HiveStoragePluginConfig config;
+  private final boolean isCoordinator;
 
-  public HiveStoragePlugin2(HiveStoragePluginConfig config, final String name, final HiveConf hiveConf, SabotConfig sabotConfig) throws ExecutionSetupException{
+  public HiveStoragePlugin2(HiveStoragePluginConfig config, final String name, final HiveConf hiveConf, SabotConfig sabotConfig, boolean isCoordinator) throws ExecutionSetupException{
     this.hiveConf = hiveConf;
     this.name = name;
     this.sabotConfig = sabotConfig;
     this.config = config;
+    this.isCoordinator = true;
     storageImpersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
 
     // Hive Metastore impersonation is enabled if:
@@ -109,29 +111,34 @@ public class HiveStoragePlugin2 implements StoragePlugin2 {
         hiveConf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI) ||
         hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL);
 
-    try {
-      processUserMetastoreClient = HiveClient.createClient(hiveConf);
-    } catch (MetaException e) {
-      throw new ExecutionSetupException("Failure setting up Hive metastore client.", e);
-    }
+    if (isCoordinator) {
+      try {
+        processUserMetastoreClient = HiveClient.createClient(hiveConf);
+      } catch (MetaException e) {
+        throw new ExecutionSetupException("Failure setting up Hive metastore client.", e);
+      }
 
-    clientsByUser = CacheBuilder
-      .newBuilder()
-      .expireAfterAccess(10, TimeUnit.MINUTES)
-      .maximumSize(5) // Up to 5 clients for impersonation-enabled.
-      .removalListener(new RemovalListener<String, HiveClient>() {
-        @Override
-        public void onRemoval(RemovalNotification<String, HiveClient> notification) {
-          HiveClient client = notification.getValue();
-          client.close();
-        }
-      })
-      .build(new CacheLoader<String, HiveClient>() {
-        @Override
-        public HiveClient load(String userName) throws Exception {
-          return HiveClient.createClientWithAuthz(processUserMetastoreClient, hiveConf, userName);
-        }
-      });
+      clientsByUser = CacheBuilder
+        .newBuilder()
+        .expireAfterAccess(10, TimeUnit.MINUTES)
+        .maximumSize(5) // Up to 5 clients for impersonation-enabled.
+        .removalListener(new RemovalListener<String, HiveClient>() {
+          @Override
+          public void onRemoval(RemovalNotification<String, HiveClient> notification) {
+            HiveClient client = notification.getValue();
+            client.close();
+          }
+        })
+        .build(new CacheLoader<String, HiveClient>() {
+          @Override
+          public HiveClient load(String userName) throws Exception {
+            return HiveClient.createClientWithAuthz(processUserMetastoreClient, hiveConf, userName);
+          }
+        });
+    } else {
+      processUserMetastoreClient = null;
+      clientsByUser = null;
+    }
   }
 
   @Override
@@ -216,7 +223,7 @@ public class HiveStoragePlugin2 implements StoragePlugin2 {
       Stopwatch stopwatch = Stopwatch.createStarted();
       final List<Boolean> accessPermissions = TimedRunnable.run("check access permission for " + key, logger, permissionCheckers, 16);
       stopwatch.stop();
-      logger.debug("Checking access permision for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      logger.debug("Checking access permission for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
       for (Boolean permission : accessPermissions) {
         if (!permission) {
           return false;
@@ -497,6 +504,7 @@ public class HiveStoragePlugin2 implements StoragePlugin2 {
   }
 
   private HiveClient getClient(String user) {
+    Preconditions.checkState(isCoordinator, "Hive client only available on coordinator nodes");
     if(!metastoreImpersonationEnabled || SystemUser.SYSTEM_USERNAME.equals(user)){
       return processUserMetastoreClient;
     } else {
@@ -541,6 +549,7 @@ public class HiveStoragePlugin2 implements StoragePlugin2 {
 
   @Override
   public SourceState getState() {
+    Preconditions.checkState(isCoordinator, "Hive state only available on coordinator nodes");
     try{
       processUserMetastoreClient.getDatabases(false);
     }catch(Exception ex){

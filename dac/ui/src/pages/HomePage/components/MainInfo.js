@@ -60,7 +60,7 @@ export default class MainInfo extends Component {
     const finalDataType = dataType || 'VIRTUAL_DATASET';
     switch (finalDataType) {
     case 'folder':
-      return <ActionWrap>{this.getFolderMenu(item)}</ActionWrap>;
+      return this.getFolderActions(item);
     case 'dataset':
       return <ActionWrap>
         {this.getSettingsBtnByType(<DatasetMenu entity={item} entityType='dataset'/>, item)}
@@ -87,13 +87,16 @@ export default class MainInfo extends Component {
     }
   }
 
-  getFolderMenu(folder) {
+  getFolderActions(folder) {
     if (folder.get('fileSystemFolder')) {
       if (folder.get('queryable')) {
-        return this.getSettingsBtnByType(<DatasetMenu entity={folder} entityType='folder'/>, folder);
+        return <ActionWrap>
+          {this.getSettingsBtnByType(<DatasetMenu entity={folder} entityType='folder'/>, folder)}
+          {this.renderQueryButton(folder)}
+        </ActionWrap>;
       }
       return (
-        <div style={{display: 'flex'}}>
+        <ActionWrap>
           {this.getSettingsBtnByType(<UnformattedEntityMenu entity={folder}/>, folder)}
           {this.renderConvertButton(folder, {
             icon: <FontIcon type='FolderConvert'/>,
@@ -105,11 +108,11 @@ export default class MainInfo extends Component {
               query: {then: 'query'}
             }}
           })}
-        </div>
+        </ActionWrap>
       );
     }
 
-    return this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder);
+    return <ActionWrap>{this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder)}</ActionWrap>;
   }
 
   getFileMenu(file, queryBtn) {

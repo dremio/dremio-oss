@@ -149,7 +149,7 @@ public class AttemptManager implements Runnable {
       .newChildAllocator("backward-compatibility", 0, Long.MAX_VALUE);
     this.observers = AttemptObservers.of(BackwardsCompatObserver.wrapIfOld(session, observer, backwardCompatAllocator));
     this.queryManager = new QueryManager(queryId, queryContext, new CompletionListenerImpl(), prepareId,
-      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE));
+      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), queryContext.getSchemaTreeProvider());
 
     final OptionManager optionManager = queryContext.getOptions();
     if(options != null){

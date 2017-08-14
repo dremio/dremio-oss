@@ -27,6 +27,7 @@ import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.OldScanPrel;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.SortPrel;
@@ -45,7 +46,11 @@ import com.dremio.exec.planner.physical.WindowPrel;
 public class SimpleLimitExchangeRemover {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SimpleLimitExchangeRemover.class);
 
-  public static Prel apply(Prel input){
+  public static Prel apply(PlannerSettings settings, Prel input){
+    if(!settings.isTrivialSingularOptimized() || settings.isLeafLimitsEnabled()) {
+      return input;
+    }
+
     if(input.accept(new Identifier(), false)){
       return input.accept(new AllExchangeRemover(), null);
     }
@@ -64,6 +69,8 @@ public class SimpleLimitExchangeRemover {
         if(!((LimitPrel) prel).isTrivial()){
           return false;
         }
+
+        isTrivial = true;
       }
 
       Boolean okay = true;

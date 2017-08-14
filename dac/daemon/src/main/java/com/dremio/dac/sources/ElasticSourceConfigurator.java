@@ -25,6 +25,7 @@ import com.dremio.dac.proto.model.source.ElasticConfig;
 import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
+import com.google.common.base.Preconditions;
 
 /**
  * generates a StoragePluginConfig from an Elastic Source
@@ -45,6 +46,10 @@ public class ElasticSourceConfigurator extends SingleSourceToStoragePluginConfig
       username = elastic.getUsername();
       password = elastic.getPassword();
     }
+
+    Preconditions.checkArgument(elastic.getScrollTimeoutMillis() > 0, "Scroll timeout must be greater than 0.");
+    Preconditions.checkArgument(elastic.getReadTimeoutMillis() > 0, "Read timeout must be greater than 0.");
+
     ElasticsearchStoragePluginConfig config = new ElasticsearchStoragePluginConfig(
       getHosts(checkNotNull(elastic.getHostList(), "missing hostList"), ','),
       ElasticsearchConstants.ES_CONFIG_DEFAULT_BATCH_SIZE,

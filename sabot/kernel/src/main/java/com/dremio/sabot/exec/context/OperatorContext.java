@@ -15,21 +15,16 @@
  */
 package com.dremio.sabot.exec.context;
 
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.expr.ClassProducer;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.service.namespace.NamespaceService;
 
@@ -50,8 +45,6 @@ public abstract class OperatorContext {
   public abstract OperatorStats getStats();
 
   public abstract ExecutionControls getExecutionControls();
-
-  public abstract FileSystemWrapper newFileSystem(Configuration conf) throws IOException;
 
   public abstract OptionManager getOptions();
 

@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
@@ -97,6 +98,9 @@ public class XlsRecordProcessor implements ExcelParser {
    */
   private Map<Integer, MergedCell> mergeCells;
 
+  /* lookup table to find if a particular column is to be projected or not */
+  private HashSet<String> columnsToProject;
+
   /**
    * Extracts the workbook stream for the byte array and instantiates a {@link RecordFactoryInputStream} that will
    * be used to process al Records of the stream.
@@ -109,7 +113,8 @@ public class XlsRecordProcessor implements ExcelParser {
    * @throws SheetNotFoundException if the sheet is not part of the workbook
    */
   public XlsRecordProcessor(final XlsInputStream is, final ExcelFormatPluginConfig pluginConfig,
-                            final VectorContainerWriter writer, final ArrowBuf managedBuf)
+                            final VectorContainerWriter writer, final ArrowBuf managedBuf,
+                            final HashSet<String> columnsToProject)
           throws IOException, SheetNotFoundException {
     this.writer = writer.rootAsMap();
     this.managedBuf = managedBuf;
@@ -129,6 +134,8 @@ public class XlsRecordProcessor implements ExcelParser {
     formatManager = new FormatManager();
 
     init(pluginConfig.sheet, pluginConfig.extractHeader, pluginConfig.hasMergedCells);
+
+    this.columnsToProject = columnsToProject;
   }
 
   /**
@@ -399,10 +406,10 @@ public class XlsRecordProcessor implements ExcelParser {
         final MergedCell mergedCell = mergeCells == null ? null : mergeCells.get(colId);
 
         if (mergedCell != null) {
-          mergedCell.setValue(value);
-          // don't write the cell value in the writer now, it will be done by handleMergeCells()
-        } else {
-          writeValue(column, value);
+            mergedCell.setValue(value);
+            // don't write the cell value in the writer now, it will be done by handleMergeCells()
+          } else {
+            writeValue(column, value);
         }
 
         nextCell = getNextCell();
@@ -500,6 +507,13 @@ public class XlsRecordProcessor implements ExcelParser {
   private void writeValue(final int column, final Object value) {
     final String columnName = columnNameHandler.getColumnName(column);
 
+    /* Project push-down. Nothing to do if this column is not
+     * in the set of columns to be projected.
+     */
+    if(columnsToProject != null && !columnsToProject.contains((columnName))) {
+      return;
+    }
+
     if (value != null) { // make sure we ignore blank cells
       if (value instanceof Boolean) {
         writeBoolean(columnName, (boolean) value);
@@ -558,7 +572,10 @@ public class XlsRecordProcessor implements ExcelParser {
 
     void writeValues() {
       for (int col = range.getFirstColumn(); col <= range.getLastColumn(); col++) {
-        XlsRecordProcessor.this.writeValue(col, value);
+        final String columnName = columnNameHandler.getColumnName(col);
+        if(columnsToProject == null || columnsToProject.contains((columnName))) {
+          XlsRecordProcessor.this.writeValue(col, value);
+        }
       }
     }
   }

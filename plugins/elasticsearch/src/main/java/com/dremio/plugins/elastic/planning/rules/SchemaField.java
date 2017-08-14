@@ -33,7 +33,6 @@ import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.commons.lang.StringEscapeUtils;
 
-import com.clearspring.analytics.util.Preconditions;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
@@ -52,6 +51,7 @@ import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel.Inde
 import com.dremio.service.Pointer;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 

@@ -156,6 +156,7 @@ export class ReplaceRangeForm extends Component {
           data={this.chartData}
           chartWidth={chartWidth}
           fields={fields}
+          isReplace={transformType === 'replace'}
           />
         <Tabs activeTab={transformType}>
           <ReplaceFooter

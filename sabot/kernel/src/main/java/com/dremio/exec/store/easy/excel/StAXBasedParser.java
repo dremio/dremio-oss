@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -101,6 +102,9 @@ public class StAXBasedParser implements ExcelParser {
 
   private final ColumnNameHandler columnNameHandler = new ColumnNameHandler();
 
+  /* lookup table to find if a particular column is to be projected or not */
+  private HashSet<String> columnsToProject;
+
   /**
    * Merge cell map. Key is the top-left cell in the merged region. Value is null if there is no merge cell
    * expansion needed or no merge cells found.
@@ -120,7 +124,8 @@ public class StAXBasedParser implements ExcelParser {
    * @param managedBuf Workspace buffer.
    */
   public StAXBasedParser(final InputStream inputStream, final ExcelFormatPluginConfig pluginConfig,
-                         final VectorContainerWriter writer, final ArrowBuf managedBuf) throws Exception {
+                         final VectorContainerWriter writer, final ArrowBuf managedBuf,
+                         final HashSet<String> columnsToProject) throws Exception {
     pkgInputStream = OPCPackage.open(inputStream);
     this.writer = writer.rootAsMap();
     this.managedBuf = managedBuf;
@@ -144,6 +149,8 @@ public class StAXBasedParser implements ExcelParser {
     styles = checkNotNull(xssfReader.getStylesTable(), "Expected a valid styles table instance");
 
     init(pluginConfig.extractHeader, pluginConfig.hasMergedCells);
+
+    this.columnsToProject = columnsToProject;
   }
 
   /**
@@ -301,8 +308,8 @@ public class StAXBasedParser implements ExcelParser {
 
           case CHARACTERS: {
             if (inValue) {
-              handleValue(xmlStreamReader.getText());
-            }
+                handleValue(xmlStreamReader.getText());
+              }
             break;
           }
 
@@ -398,12 +405,16 @@ public class StAXBasedParser implements ExcelParser {
 
       final String finalColumnName = columnNameHandler.getColumnName(currentColumnIndex);
 
+      final boolean isProjected = (columnsToProject == null) || (columnsToProject.contains(finalColumnName));
+
       final MergeCellRegion mergeCellRegion = mergeCells != null ? mergeCells.get(currentCellRef) : null;
 
       switch (valueTypeFromAttribute) {
         case BIT:
           final int toWrite = "1".equalsIgnoreCase(value) ? 1 : 0;
-          writer.bit(finalColumnName).writeBit(toWrite);
+          if(isProjected) {
+              writer.bit(finalColumnName).writeBit(toWrite);
+            }
           if (mergeCellRegion != null) {
             mergeCellRegion.setValue(MinorType.BIT, toWrite);
           }
@@ -413,12 +424,16 @@ public class StAXBasedParser implements ExcelParser {
           double dValue = Double.valueOf(value);
           if (valueTypeFromStyle == MinorType.TIMESTAMP && DateUtil.isValidExcelDate(dValue)) {
             final long dateMillis = DateUtil.getJavaDate(dValue, false, LocaleUtil.TIMEZONE_UTC).getTime();
-            writer.timeStampMilli(finalColumnName).writeTimeStampMilli(dateMillis);
+            if(isProjected){
+              writer.timeStampMilli(finalColumnName).writeTimeStampMilli(dateMillis);
+            }
             if (mergeCellRegion != null) {
               mergeCellRegion.setValue(MinorType.TIMESTAMP, dateMillis);
             }
           } else {
-            writer.float8(finalColumnName).writeFloat8(dValue);
+            if(isProjected) {
+              writer.float8(finalColumnName).writeFloat8(dValue);
+            }
             if (mergeCellRegion != null) {
               mergeCellRegion.setValue(MinorType.FLOAT8, dValue);
             }
@@ -429,7 +444,9 @@ public class StAXBasedParser implements ExcelParser {
           final byte[] b = value.getBytes(Charsets.UTF_8);
           managedBuf = managedBuf.reallocIfNeeded(b.length);
           managedBuf.setBytes(0, b);
-          writer.varChar(finalColumnName).writeVarChar(0, b.length, managedBuf);
+          if(isProjected) {
+            writer.varChar(finalColumnName).writeVarChar(0, b.length, managedBuf);
+          }
           if (mergeCellRegion != null) {
             mergeCellRegion.setValue(MinorType.VARCHAR, b);
           }
@@ -471,7 +488,9 @@ public class StAXBasedParser implements ExcelParser {
       if (mcr.hasValue() && mcr.containsRow(runningRecordCount)) {
         for(int colIndex = mcr.colStart; colIndex <= mcr.colEnd; colIndex++) {
           String colName = columnNameHandler.getColumnName(colIndex);
-          mcr.write(managedBuf, writer, colName);
+          if(columnsToProject == null || columnsToProject.contains(colName)) {
+            mcr.write(managedBuf, writer, colName);
+          }
         }
       }
 

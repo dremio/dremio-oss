@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 
+import static org.apache.arrow.vector.util.DateUtility.formatTimeStampMilli;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -331,6 +332,125 @@ public class TestNewDateFunctions extends BaseTestQuery {
     } catch (RpcException ex) {
       assertTrue("Failed to match exception message", ex.getMessage().contains("Input text cannot be formatted to date"));
     }
+  }
+
+  @Test
+  public void testCastVarCharToInterval() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT " +
+            "cast(cast('PT2095081.905S' as varchar(256)) as interval second) c1, " +
+            "cast(cast('PT2095082.905S' as varchar(256)) as interval second) c2, " +
+            "cast(cast('PT2196778.608S' as varchar(256)) as interval second) c3, " +
+            "cast(cast('P1DT2108681.905S' as varchar(256)) as interval second) c4, " +
+            "cast(cast('P25DT25H2778.608S' as varchar(256)) as interval second) c5, " +
+            "cast(cast('P25DT25H234M2778.608S' as varchar(256)) as interval second) c6, " +
+            "cast(cast('P200DT25H234M782778.608S' as varchar(256)) as interval second) c7, " +
+            "cast(cast('PT-2095081.905S' as varchar(256)) as interval second) c8, " +
+            "cast(cast('PT-2095082.905S' as varchar(256)) as interval second) c9, " +
+            "cast(cast('PT-2196778.608S' as varchar(256)) as interval second) c10, " +
+            "cast(cast('P1DT-2108681.905S' as varchar(256)) as interval second) c11, " +
+            "cast(cast('P25DT-25H2778.608S' as varchar(256)) as interval second) c12, " +
+            "cast(cast('P-25DT25H234M2778.608S' as varchar(256)) as interval second) c13, " +
+            "cast(cast('P200DT-25H234M782778.608S' as varchar(256)) as interval second) c14 " +
+            "FROM (values(1))"
+        ).unOrdered()
+        .baselineColumns("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14")
+        .baselineValues(
+            newPeriod(24, 21481905), // c1
+            newPeriod(24, 21482905), // c2
+            newPeriod(25, 36778608), // c3
+            newPeriod(25, 35081905), // c4
+            newPeriod(26, 6378608), // c5
+            newPeriod(26, 20418608), // c6
+            newPeriod(210, 22818608), // c7
+            newPeriod(-24, -21481905), // c8
+            newPeriod(-24, -21482905), // c9
+            newPeriod(-25, -36778608), // c10
+            newPeriod(-23, -35081905), // c11
+            newPeriod(24, -821392), // c12
+            newPeriod(-24, 20418608), // c13
+            newPeriod(208, 15618608) // c14
+        )
+        .go();
+  }
+
+  @Test
+  public void testDateAddFunction() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT " +
+        " date_add('2008-03-15', INTERVAL '10' DAY) AS VAL1," +
+        " date_add('2008-03-15', INTERVAL '20' DAY) AS VAL2," +
+        " date_add('2008-03-15', INTERVAL '20' MINUTE) AS VAL3," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '20' MINUTE) AS VAL4," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '2' HOUR) AS VAL5," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '40' SECOND) AS VAL6," +
+        " date_add('2008-03-15', INTERVAL '3' YEAR) AS VAL7," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '3' YEAR) AS VAL8," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '3-2' YEAR TO MONTH) AS VAL9," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '2-6' YEAR TO MONTH) AS VAL10," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '10:22' MINUTE TO SECOND) AS VAL11," +
+        " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '4 5:12:10' DAY TO SECOND) AS VAL12" +
+        " FROM sys.version"
+      ).unOrdered()
+      .baselineColumns("VAL1", "VAL2", "VAL3", "VAL4", "VAL5", "VAL6", "VAL7", "VAL8", "VAL9",
+        "VAL10", "VAL11", "VAL12")
+      .baselineValues(
+        formatTimeStampMilli.parseLocalDateTime("2008-03-25 00:00:00.000"), // VAL1
+        formatTimeStampMilli.parseLocalDateTime("2008-04-04 00:00:00.000"), // VAL2
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 00:20:00.000"), // VAL3
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 09:54:21.000"), // VAL4
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 11:34:21.000"), // VAL5
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 09:35:01.000"), // VAL6
+        formatTimeStampMilli.parseLocalDateTime("2011-03-15 00:00:00.000"), // VAL7
+        formatTimeStampMilli.parseLocalDateTime("2011-03-15 09:34:21.000"), // VAL8
+        formatTimeStampMilli.parseLocalDateTime("2011-05-15 09:34:21.000"), // VAL9
+        formatTimeStampMilli.parseLocalDateTime("2010-09-15 09:34:21.000"), // VAL10
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 09:44:43.000"), // VAL11
+        formatTimeStampMilli.parseLocalDateTime("2008-03-19 14:46:31.000")  // VAL12
+        )
+      .go();
+  }
+
+  @Test
+  public void testDateSubFunction() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT " +
+        " date_sub('2008-03-15', INTERVAL '10' DAY) AS VAL1," +
+        " date_sub('2008-03-15', INTERVAL '20' DAY) AS VAL2," +
+        " date_sub('2008-03-15', INTERVAL '20' MINUTE) AS VAL3," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '20' MINUTE) AS VAL4," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '2' HOUR) AS VAL5," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '40' SECOND) AS VAL6," +
+        " date_sub('2008-03-15', INTERVAL '3' YEAR) AS VAL7," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '3' YEAR) AS VAL8," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '3-2' YEAR TO MONTH) AS VAL9," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '2-6' YEAR TO MONTH) AS VAL10," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '10:22' MINUTE TO SECOND) AS VAL11," +
+        " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '4 5:12:10' DAY TO SECOND) AS VAL12" +
+        " FROM sys.version"
+      ).unOrdered()
+      .baselineColumns("VAL1", "VAL2", "VAL3", "VAL4", "VAL5", "VAL6", "VAL7", "VAL8", "VAL9",
+        "VAL10", "VAL11", "VAL12")
+      .baselineValues(
+        formatTimeStampMilli.parseLocalDateTime("2008-03-05 00:00:00.000"), // VAL1
+        formatTimeStampMilli.parseLocalDateTime("2008-02-24 00:00:00.000"), // VAL2
+        formatTimeStampMilli.parseLocalDateTime("2008-03-14 23:40:00.000"), // VAL3
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 09:14:21.000"), // VAL4
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 07:34:21.000"), // VAL5
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 09:33:41.000"), // VAL6
+        formatTimeStampMilli.parseLocalDateTime("2005-03-15 00:00:00.000"), // VAL7
+        formatTimeStampMilli.parseLocalDateTime("2005-03-15 09:34:21.000"), // VAL8
+        formatTimeStampMilli.parseLocalDateTime("2005-01-15 09:34:21.000"), // VAL9
+        formatTimeStampMilli.parseLocalDateTime("2005-09-15 09:34:21.000"), // VAL10
+        formatTimeStampMilli.parseLocalDateTime("2008-03-15 09:23:59.000"), // VAL11
+        formatTimeStampMilli.parseLocalDateTime("2008-03-11 04:22:11.000")  // VAL12
+      )
+      .go();
+  }
+
+
+  private static Period newPeriod(int days, int millis) {
+    return new Period(0, 0, 0, days, 0, 0, 0, millis);
   }
 
   private static LocalDateTime newDateTime(long instant) {

@@ -279,4 +279,33 @@ public class TestExtractList extends BaseTestQuery {
         null // r6
     ).go();
   }
+
+  @Test
+  public void testMultiFunctionsWithComplexReturnType() throws Exception {
+    testBuilder()
+      .unOrdered()
+      .sqlQuery("SELECT nested_1.\"time\" AS time_2, nested_1.\"time\"[0] AS time_1, business_id, type\n" +
+        "  FROM (\n" +
+        "    SELECT regexp_split(nested_0.\"time\", '\\Q-\\E', 'FIRST', -1) AS \"time\", business_id, type\n" +
+        "    FROM (\n" +
+        "      SELECT flatten(\"time\") AS \"time\", business_id, type\n" +
+        "      FROM cp.\"testfiles/yelp_checkin.json\"\n" +
+        "    ) nested_0\n" +
+        "  ) nested_1")
+      .baselineColumns("time_2", "time_1","business_id", "type")
+      .baselineValues(listOf("Fri", "0:2"), "Fri", "7KPBkxAOEtb3QeIL9PEErg", "checkin")
+      .baselineValues(listOf("Sat", "0:1"), "Sat", "7KPBkxAOEtb3QeIL9PEErg", "checkin")
+      .baselineValues(listOf("Sun", "0:1"), "Sun", "7KPBkxAOEtb3QeIL9PEErg", "checkin")
+      .baselineValues(listOf("Mon", "13:1"),"Mon", "kREVIrSBbtqBhIYkTccQUg", "checkin")
+      .baselineValues(listOf("Thu", "13:1"),"Thu", "kREVIrSBbtqBhIYkTccQUg", "checkin")
+      .baselineValues(listOf("Sat", "16:1"),"Sat", "kREVIrSBbtqBhIYkTccQUg", "checkin")
+      .baselineValues(listOf("Thu", "0:1"), "Thu", "tJRDll5yqpZwehenzE2cSg", "checkin")
+      .baselineValues(listOf("Mon", "1:1"), "Mon", "tJRDll5yqpZwehenzE2cSg", "checkin")
+      .baselineValues(listOf("Mon","12:1"), "Mon", "tJRDll5yqpZwehenzE2cSg", "checkin")
+      .baselineValues(listOf("Sat","16:1"), "Sat", "tJRDll5yqpZwehenzE2cSg", "checkin")
+      .baselineValues(listOf("Fri", "0:1"), "Fri", "nhZ1HGWD8lMErdn3FuWuTQ", "checkin")
+      .baselineValues(listOf("Sat", "0:1"), "Sat", "nhZ1HGWD8lMErdn3FuWuTQ", "checkin")
+      .baselineValues(listOf("Sun", "0:1"), "Sun", "nhZ1HGWD8lMErdn3FuWuTQ", "checkin")
+      .go();
+  }
 }

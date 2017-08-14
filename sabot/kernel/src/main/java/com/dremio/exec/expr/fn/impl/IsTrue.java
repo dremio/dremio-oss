@@ -16,6 +16,7 @@
 
 package com.dremio.exec.expr.fn.impl;
 
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 
@@ -45,7 +46,7 @@ public class IsTrue {
   }
 
   @FunctionTemplate(names = {"istrue", "is true"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
-  public static class OptionalLong implements SimpleFunction {
+  public static class OptionalInt implements SimpleFunction {
 
     @Param NullableIntHolder in;
     @Output NullableBitHolder out;
@@ -62,5 +63,22 @@ public class IsTrue {
     }
   }
 
+  @FunctionTemplate(names = {"istrue", "is true"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  public static class OptionalLong implements SimpleFunction {
+
+    @Param NullableBigIntHolder in;
+    @Output NullableBitHolder out;
+
+    public void setup() { }
+
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 1 && in.value != 0L) {
+        out.value = 1;
+      } else {
+        out.value = 0;
+      }
+    }
+  }
 
 }

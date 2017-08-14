@@ -38,6 +38,13 @@ public final class SourceCapabilities {
   public static final BooleanCapability REQUIRES_HARD_AFFINITY = new BooleanCapability("requires_hard_affinity", false);
   public static final BooleanCapability SUPPORTS_CONTAINS = new BooleanCapability("supports_contains_operation", false);
 
+  // Indicates that the plugin disallows ScanCrel nodes in plans produced for it. By making the cost infinite,
+  // the planner is forced to substitute a ScanCrel for a plugin-specific node.
+  public static final BooleanCapability TREAT_CALCITE_SCAN_COST_AS_INFINITE = new BooleanCapability("treat_calcite_scan_cost_as_infinite", false);
+
+  // Indicates that the plugin is capable of pushing down sub queries.
+  public static final BooleanCapability SUBQUERY_PUSHDOWNABLE = new BooleanCapability("subquery_pushdownable", false);
+
   private final ImmutableMap<Capability<?>, CapabilityValue<?,?>> values;
 
   @JsonCreator

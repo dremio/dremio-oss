@@ -20,6 +20,7 @@ import { arrayOf } from 'normalizr';
 import {makeUncachebleURL} from 'ie11.js';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import actionUtils from 'utils/actionUtils/actionUtils';
 import sourceSchema from 'dyn-load/schemas/source';
 
 import sourcesMapper from 'utils/mappers/sourcesMapper';
@@ -28,17 +29,18 @@ export const ADD_NEW_SOURCE_START = 'ADD_NEW_SOURCE_START';
 export const ADD_NEW_SOURCE_SUCCESS = 'ADD_NEW_SOURCE_SUCCESS';
 export const ADD_NEW_SOURCE_FAILURE = 'ADD_NEW_SOURCE_FAILURE';
 
-function postCreateSource(sourceModel) {
+function postCreateSource(sourceModel, _shouldShowFailureNotification = false) {
   const meta = {
     source: Immutable.fromJS(sourceModel).merge({resourcePath: `/source/${sourceModel.name}`}),
     invalidateViewIds: ['AllSources']
   };
+  const failureMeta = _shouldShowFailureNotification ? { ...meta, notification: true } : meta;
   return {
     [CALL_API]: {
       types: [
         { type: ADD_NEW_SOURCE_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(ADD_NEW_SOURCE_SUCCESS, sourceSchema, meta),
-        { type: ADD_NEW_SOURCE_FAILURE, meta}
+        { type: ADD_NEW_SOURCE_FAILURE, meta: failureMeta}
       ],
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
@@ -54,6 +56,42 @@ export function createSource(data, type) {
     return dispatch(postCreateSource(sourceModel));
   };
 }
+
+
+export function createSampleSource() {
+  const sourceModel = {
+    'config': {
+      'externalBucketList': [
+        'samples.dremio.com'
+      ],
+      'secure': false,
+      'propertyList': []
+    },
+    'name': la('Samples'),
+    'accelerationTTL': {
+      'unit': 'DAYS',
+      'duration': 1
+    },
+    'metadataPolicy': {
+      'updateMode': 'PREFETCH_QUERIED',
+      'namesRefreshMillis': 1800000,
+      'datasetDefinitionTTLMillis': 1800000,
+      'authTTLMillis': 1800000
+    },
+    'type': 'S3'
+  };
+  return (dispatch) => {
+    return dispatch(postCreateSource(sourceModel, true));
+  };
+}
+export function isSampleSource(source) {
+  if (!source) return false;
+  if (source.type !== 'S3') return false;
+  if (!source.config.externalBucketList || source.config.externalBucketList.length > 1) return false;
+  if (source.config.externalBucketList[0] !== 'samples.dremio.com') return false;
+  return true;
+}
+
 
 export const SOURCES_LIST_LOAD_START = 'SOURCES_LIST_LOAD_START';
 export const SOURCES_LIST_LOAD_SUCCESS = 'SOURCES_LIST_LOAD_SUCCESS';
@@ -90,6 +128,7 @@ function fetchRemoveSource(source) {
     name,
     invalidateViewIds: ['AllSources']
   };
+  const errorMessage = la('There was an error removing the source.');
   return {
     [CALL_API]: {
       types: [
@@ -101,7 +140,11 @@ function fetchRemoveSource(source) {
           meta: {...meta, success: true}
         },
         {
-          type: REMOVE_SOURCE_FAILURE, meta
+          type: REMOVE_SOURCE_FAILURE,
+          meta: {
+            ...meta,
+            notification: actionUtils.humanizeNotificationMessage(errorMessage)
+          }
         }
       ],
       method: 'DELETE',

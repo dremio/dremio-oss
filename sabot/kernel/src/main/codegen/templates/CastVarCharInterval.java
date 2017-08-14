@@ -61,23 +61,17 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
       // Parse the ISO format
       org.joda.time.Period period = org.joda.time.Period.parse(input);
 
-      <#if type.to == "Interval">
-      out.months       = (period.getYears() * org.apache.arrow.vector.util.DateUtility.yearsToMonths) + period.getMonths();
+      <#if type.to == "IntervalDay">
+      final long millis = ((long)period.getHours() * org.apache.arrow.vector.util.DateUtility.hoursToMillis) +
+                          ((long)period.getMinutes() * org.apache.arrow.vector.util.DateUtility.minutesToMillis) +
+                          ((long)period.getSeconds() * org.apache.arrow.vector.util.DateUtility.secondsToMillis) +
+                          ((long)period.getMillis());
 
-      out.days         = period.getDays();
+      out.days         = period.getDays() +
+                         org.joda.time.field.FieldUtils.safeToInt(millis / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);;
 
-      out.milliseconds = (period.getHours() * org.apache.arrow.vector.util.DateUtility.hoursToMillis) +
-                         (period.getMinutes() * org.apache.arrow.vector.util.DateUtility.minutesToMillis) +
-                         (period.getSeconds() * org.apache.arrow.vector.util.DateUtility.secondsToMillis) +
-                         (period.getMillis());
+      out.milliseconds = org.joda.time.field.FieldUtils.safeToInt(millis % org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
 
-      <#elseif type.to == "IntervalDay">
-      out.days         = period.getDays();
-
-      out.milliseconds = (period.getHours() * org.apache.arrow.vector.util.DateUtility.hoursToMillis) +
-                         (period.getMinutes() * org.apache.arrow.vector.util.DateUtility.minutesToMillis) +
-                         (period.getSeconds() * org.apache.arrow.vector.util.DateUtility.secondsToMillis) +
-                         (period.getMillis());
       <#elseif type.to == "IntervalYear">
       out.value = (period.getYears() * org.apache.arrow.vector.util.DateUtility.yearsToMonths) + period.getMonths();
       </#if>

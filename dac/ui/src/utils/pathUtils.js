@@ -19,13 +19,59 @@
 import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from 'constants/Constants';
 
 export function splitFullPath(fullPath, preserveQuoting) {
-  return fullPath.match(/(".*?"|[^".]+)/g).map((m) => {
+  const PATH_DELIMITER = '.';
+  const QUOTE = '"';
+
+  const result = [];
+  let buffer = '';
+  let isInQuote = false;
+
+  function addBufferToResult() {
     // home name will have " around it which we want to remove for paths
-    if (!preserveQuoting && m.length > 1 && m[0] === '"' && m[m.length - 1] === '"') {
-      return m.slice(1, -1);
+    if (!preserveQuoting && buffer.length > 1 && buffer[0] === '"' && buffer[buffer.length - 1] === '"') {
+      result.push(buffer.slice(1, -1));
+    } else {
+      result.push(buffer);
     }
-    return m;
-  });
+
+    buffer = '';
+  }
+
+  for (let i = 0; i < fullPath.length; i++) {
+    const char = fullPath.charAt(i);
+
+    if (char === QUOTE) {
+      if (isInQuote) {
+        // check for double QUOTE, which means its a escaped value
+        if (i < fullPath.length - 1 && fullPath[i + 1] === '"') {
+          buffer += QUOTE;
+          i++;
+        } else {
+          buffer += char;
+          isInQuote = false;
+        }
+      } else {
+        buffer += char;
+        isInQuote = true;
+      }
+    } else if (char === PATH_DELIMITER) {
+      if (isInQuote) {
+        buffer += char;
+      } else {
+        // delimiter hit
+        addBufferToResult();
+      }
+    } else {
+      buffer += char;
+    }
+  }
+
+  // TODO: what if we are still in a quote at this point?
+  if (buffer.length) {
+    addBufferToResult();
+  }
+
+  return result;
 }
 
 export function getEntityNameFromId(spaceId) {
@@ -120,11 +166,15 @@ export function constructFullPath(pathParts, preventQuoted, shouldEncode) {
     if (preventQuoted || part.match(/^[A-Z][A-Z0-9]*$/i) && !sql92words.has(part.toUpperCase())) {
       encodedPart = part;
     } else {
-      encodedPart = '"' + part.replace(/"/g, '\\"') + '"';
+      encodedPart = '"' + part.replace(/"/g, '""') + '"';
     }
     return shouldEncode ? encodeURIComponent(encodedPart) : encodedPart;
   });
   return quotedPathParts.join('.');
+}
+
+export function constructFullPathAndEncode(pathParts) {
+  return constructFullPath(pathParts, false, true);
 }
 
 export function constructResourcePath(fullPath, type = 'dataset') {

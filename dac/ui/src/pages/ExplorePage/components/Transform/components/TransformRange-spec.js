@@ -168,4 +168,18 @@ describe('TransformRange', () => {
       expect(instance.validateBound(true)(-10)).to.be.true;
     });
   });
+  describe('renderKeepNullCheckbox', () => {
+    it('should return nothing if transform type is replace', () => {
+      const replaceProps = {...commonProps, isReplace: true};
+      const wrapper = shallow(<TransformRange {...replaceProps}/>);
+      const instance = wrapper.instance();
+      expect(instance.renderKeepNullCheckbox()).to.be.undefined;
+    });
+    it('should return the keepnull checkbox and line if transform type is not replace', () => {
+      const replaceProps = {...commonProps, isReplace: false};
+      const wrapper = shallow(<TransformRange {...replaceProps}/>);
+      const instance = wrapper.instance();
+      expect(instance.renderKeepNullCheckbox()).to.not.be.undefined;
+    });
+  });
 });

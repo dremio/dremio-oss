@@ -21,6 +21,9 @@ import { ExplorePageControllerComponent, getNewDataset } from './ExplorePageCont
 describe('ExplorePageController', () => {
   let commonProps;
   let minimalProps;
+
+  let nextLocations;
+
   beforeEach(() => {
     const location = {
       pathname: '/space/resource/name'
@@ -33,7 +36,6 @@ describe('ExplorePageController', () => {
       performLoadDataset: sinon.spy(),
       setCurrentSql: sinon.spy(),
       resetViewState: sinon.spy(),
-      previewJobResults: sinon.spy(),
       exploreViewState: Immutable.Map(),
       rightTreeVisible: true,
       location,
@@ -59,6 +61,20 @@ describe('ExplorePageController', () => {
         push: sinon.spy(),
         setRouteLeaveHook: sinon.spy()
       }
+    };
+
+    nextLocations = {
+      home: {
+        pathname: '/'
+      },
+      backInHistory: {pathname: location.pathname, query: {
+        tipVersion: commonProps.history.get('tipVersion'),
+        version: '00'
+      }},
+      afterTransform: {pathname: location.pathname, query: {
+        tipVersion: '22',
+        version: '22'
+      }}
     };
   });
 
@@ -179,7 +195,7 @@ describe('ExplorePageController', () => {
     });
 
     it('should allow navigation when nothing changed', () => {
-      const nextLocation = { pathname: '/' };
+      const nextLocation = nextLocations.home;
       sinon.stub(instance, 'shouldShowUnsavedChangesPopup').returns(false);
       expect(instance.routeWillLeave(nextLocation)).to.be.true;
       expect(wrapper.state('isUnsavedChangesModalShowing')).to.be.false;
@@ -187,7 +203,7 @@ describe('ExplorePageController', () => {
     });
 
     it('should prevent navigation when dataset changed and store next location', () => {
-      const nextLocation = { pathname: '/' };
+      const nextLocation = nextLocations.home;
       sinon.stub(instance, 'shouldShowUnsavedChangesPopup').returns(true);
       expect(instance.routeWillLeave(nextLocation)).to.be.false;
       expect(wrapper.state('nextLocation')).to.be.eql(nextLocation);
@@ -196,7 +212,7 @@ describe('ExplorePageController', () => {
     });
 
     it('should allow navigation when dataset changed and modal confirmed', () => {
-      const nextLocation = { pathname: '/' };
+      const nextLocation = nextLocations.home;
       wrapper.setState({ isUnsavedChangesModalShowing: true });
       sinon.stub(instance, 'shouldShowUnsavedChangesPopup').returns(true);
       expect(instance.routeWillLeave(nextLocation)).to.be.true;
@@ -264,26 +280,32 @@ describe('ExplorePageController', () => {
     });
 
     it('should return false when already confirmed', () => {
-      const nextLocation = {pathname: '/', query: {tipVersion: commonProps.history.get('tipVersion')}};
+      const nextLocation = nextLocations.home;
       wrapper.setProps({currentSql: '123'});
       expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.true;
       instance.discardUnsavedChangesConfirmed = true;
       expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
     });
 
-    describe('when tipVersion is unchanged', () => {
+    describe('when tipVersion is unchanged (navigating history, or changing pageType)', () => {
       it('should return true only if sql changed', () => {
-        const nextLocation = {pathname: '/', query: {tipVersion: commonProps.history.get('tipVersion')}};
+        const nextLocation = nextLocations.backInHistory;
         expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
         wrapper.setProps({currentSql: '123'});
         expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.true;
       });
+
+      it('should return return false if datasetVersion is also unchanged (changing pageType)', () => {
+        const nextLocation = nextLocations.backInHistory;
+        nextLocation.query.version = commonProps.dataset.get('datasetVersion');
+        expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
+      });
     });
 
-    describe('when tipVersion is changed', () => {
-      const nextLocation = {pathname: '/', query: {tipVersion: 'newVersion'}};
+    describe('when tipVersion is changed (after transform, or different dataset)', () => {
       describe('and sql is changed', () => {
         it('should return true only if _areLocationsSameDataset is false', () => {
+          const nextLocation = nextLocations.afterTransform;
           wrapper.setProps({currentSql: '123'});
           sinon.stub(instance, '_areLocationsSameDataset').returns(true);
           expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
@@ -294,6 +316,8 @@ describe('ExplorePageController', () => {
 
       describe('and sql is not changed', () => {
         it('should return true only if history.isEdited', () => {
+          const nextLocation = nextLocations.afterTransform;
+          sinon.stub(instance, '_areLocationsSameDataset').returns(false);
           wrapper.setProps({history: undefined});
           expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
           wrapper.setProps({history: Immutable.Map({tipVersion: '123', isEdited: false})});

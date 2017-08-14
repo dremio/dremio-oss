@@ -87,14 +87,17 @@ public class GDateTimeTruncateFunctions {
     public void eval() {
       <#if type == "TimeMilli"> <#-- Start InputType -->
         <#if toUnit == "Hour"> <#-- Start UnitType -->
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().hourOfDay());
       out.value = (int) dateTime.getMillis();
         <#elseif toUnit == "Minute">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().minuteOfHour());
       out.value = (int) dateTime.getMillis();
         <#elseif toUnit == "Second">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().secondOfMinute());
       out.value = (int) dateTime.getMillis();
@@ -107,18 +110,22 @@ public class GDateTimeTruncateFunctions {
       // No truncation as there is no time part in date
       out.value = right.value;
         <#elseif toUnit == "Year">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().year());
       out.value = dateTime.getMillis();
         <#elseif toUnit == "Month">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().monthOfYear());
       out.value = dateTime.getMillis();
         <#elseif toUnit == "Week">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().weekOfWeekyear());
       out.value = dateTime.getMillis();
         <#elseif toUnit == "Quarter">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       int month = dateTime.getMonthOfYear();
       dateTime.setRounding(dateTime.getChronology().year());
@@ -126,6 +133,7 @@ public class GDateTimeTruncateFunctions {
       dateTime2.add(org.joda.time.DurationFieldType.months(), ((month-1)/3)*3);
       out.value = dateTime2.getMillis();
         <#elseif toUnit == "Decade">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       int year = dateTime.getYear();
       dateTime.setRounding(dateTime.getChronology().centuryOfEra());
@@ -133,6 +141,7 @@ public class GDateTimeTruncateFunctions {
       dateTime2.add(org.joda.time.DurationFieldType.years(), ((year%100)/10)*10);
       out.value = dateTime2.getMillis();
         <#elseif toUnit == "Century">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       dateTime.add(org.joda.time.DurationFieldType.years(), -1);
       dateTime.setRounding(dateTime.getChronology().centuryOfEra());
@@ -140,6 +149,7 @@ public class GDateTimeTruncateFunctions {
       dateTime2.add(org.joda.time.DurationFieldType.years(), 1);
       out.value = dateTime2.getMillis();
         <#elseif toUnit == "Millennium">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
       dateTime.setMillis(right.value);
       int year = dateTime.getYear();
       dateTime.setRounding(dateTime.getChronology().era());
@@ -148,6 +158,7 @@ public class GDateTimeTruncateFunctions {
       out.value = dateTime2.getMillis();
         </#if> <#-- End UnitType -->
       <#elseif type == "TimeStampMilli">
+      dateTime.setRounding(null, org.joda.time.MutableDateTime.ROUND_NONE);
         <#if toUnit == "Year"> <#--  Start UnitType -->
       dateTime.setMillis(right.value);
       dateTime.setRounding(dateTime.getChronology().year());

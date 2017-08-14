@@ -53,6 +53,7 @@ describe('ExploreTableCell', () => {
       preventNextRowsChunkLoad: false,
       isNextRowsChunkLoading: false
     };
+
     context = {
       router: { push: sinon.spy() }
     };
@@ -73,14 +74,31 @@ describe('ExploreTableCell', () => {
     it('should render blank if no cell data', () => {
       const data = commonProps.data.deleteIn([0, 'row', 0, 'v']);
       const wrapper = shallow(<ExploreTableCell {...commonProps} data={data}/>);
-      expect(wrapper.find('.cell-wrap').text()).to.eql('');
+      expect(wrapper.find('.cell-wrap').text()).to.eql('null');
+    });
+
+    it('should render properly if empty string data', () => {
+
+      const emptyStringProps = {
+        ...commonProps,
+        columnType: 'TEXT',
+        data: Immutable.fromJS([{
+          row: [{
+            v: '',
+            type: 'TEXT'
+          }]
+        }])
+      };
+
+      const wrapper = shallow(<ExploreTableCell {...emptyStringProps}/>);
+      expect(wrapper.find('.cell-wrap').text()).to.eql('empty text');
     });
   });
 
   it('should render blank if no cell data', () => {
     const data = commonProps.data.deleteIn([0, 'row', 0, 'v']);
     const wrapper = shallow(<ExploreTableCell {...commonProps} data={data}/>);
-    expect(wrapper.find('.cell-wrap').text()).to.eql('');
+    expect(wrapper.find('.cell-wrap').text()).to.eql('null');
   });
 
   describe('#shouldComponentUpdate', function() {

@@ -103,7 +103,6 @@ const styles = {
     overflowY: 'auto' // this overflow is needed for FF. "flex: 1" doesn't correct work with overflow in FF
   },
   datasetList: {
-    flex: 1,
     overflowY: 'auto'
   },
   location: {

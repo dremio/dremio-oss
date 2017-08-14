@@ -55,9 +55,9 @@ public class EnableMostRequestedAccelerationTask implements Runnable {
     }
   };
 
-  private final AccelerationServiceImpl accelerationService;
+  private final AccelerationService accelerationService;
 
-  public EnableMostRequestedAccelerationTask(final AccelerationServiceImpl accelerationService) {
+  public EnableMostRequestedAccelerationTask(final AccelerationService accelerationService) {
     this.accelerationService = accelerationService;
   }
 

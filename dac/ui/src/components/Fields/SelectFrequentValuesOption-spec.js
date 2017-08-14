@@ -93,4 +93,67 @@ describe('SelectFrequentValuesOption', () => {
       expect(instance.shouldComponentUpdate(nextProps, state)).to.be.false;
     });
   });
+
+  describe('#renderLabelValue', () => {
+    let testProps;
+    beforeEach(() => {
+      testProps = {
+        field: {
+          value: {
+            undefined : true
+          }
+        },
+        option: {
+          percent: 50,
+          value: undefined
+        },
+        maxPercent: 100
+      };
+    });
+
+    it('should render proper color and text for undefined values', () => {
+      const wrapper = shallow(<SelectFrequentValuesOption {...testProps}/>);
+      const instance = wrapper.instance();
+      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal('#aaa');
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal('null');
+    });
+    it('should render proper color and text for empty text values', () => {
+      const emptyProps = {
+        ...testProps,
+        option: {
+          percent: 50,
+          value: ''
+        }
+      };
+      const wrapper = shallow(<SelectFrequentValuesOption {...emptyProps}/>);
+      const instance = wrapper.instance();
+      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal('#aaa');
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal('empty text');
+    });
+    it('should render proper color and text for null values', () => {
+      const normalProps = {
+        ...testProps,
+        option: {
+          percent: 50,
+          value: null
+        }
+      };
+      const wrapper = shallow(<SelectFrequentValuesOption {...normalProps}/>);
+      const instance = wrapper.instance();
+      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal('#aaa');
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal('null');
+    });
+    it('should render correctly for normal values', () => {
+      const normalProps = {
+        ...testProps,
+        option: {
+          percent: 50,
+          value: 'foo'
+        }
+      };
+      const wrapper = shallow(<SelectFrequentValuesOption {...normalProps}/>);
+      const instance = wrapper.instance();
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal('foo');
+    });
+  });
 });

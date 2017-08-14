@@ -59,7 +59,7 @@ export class ReplaceValuesForm extends Component {
     // values to update matched/unmatched counts.
     const newValues = nextProps.values.replaceValues;
     const oldValues = this.props.values.replaceValues;
-    if (nextProps.dirty && !deepEqual(newValues, oldValues)
+    if (!deepEqual(newValues, oldValues)
       && isEmptyObject(newValues)) {
       this.runLoadTransformValues(newValues);
     }

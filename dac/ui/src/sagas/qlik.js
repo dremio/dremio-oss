@@ -26,7 +26,7 @@ import { showConfirmationDialog } from 'actions/confirmation';
 
 import { getUserName } from 'selectors/account';
 
-import { constructFullPath, getUniqueName } from 'utils/pathUtils';
+import { constructFullPath, constructFullPathAndEncode, getUniqueName } from 'utils/pathUtils';
 import { getLocationChangePredicate } from './utils';
 
 export const DSN = 'Dremio Connector';
@@ -44,7 +44,7 @@ export function* fetchQlikApp(dataset) {
 
   const headers = new Headers();
   const displayFullPath = dataset.get('displayFullPath') || dataset.get('fullPathList');
-  const href = `/qlik/${constructFullPath(displayFullPath)}`;
+  const href = `/qlik/${constructFullPathAndEncode(displayFullPath)}`;
 
   headers.append('Accept', 'text/plain+qlik-app');
   if (localStorageUtils) {
@@ -79,7 +79,7 @@ function doesDocumentExist(docName, docList) {
 
 export function santizeAppName(name) {
   // qlik app names cannot contain certain chars
-  return name.replace(/[\"\\\*\:\>\<]+/g, '_');
+  return name.replace(/[\/\"\\\*\:\>\<]+/g, '_');
 }
 
 export function getUniqueAppName(docName, docList) {

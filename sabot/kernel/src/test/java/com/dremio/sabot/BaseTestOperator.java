@@ -79,11 +79,11 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
 import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
 import com.dremio.exec.server.options.TypeValidators.LongValidator;
 import com.dremio.exec.server.options.TypeValidators.StringValidator;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.exec.testing.ExecutionControls;
@@ -107,6 +107,7 @@ import com.dremio.sabot.op.spi.Operator.MasterState;
 import com.dremio.sabot.op.spi.Operator.OperatorState;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.test.DremioTest;
 
@@ -306,7 +307,7 @@ public class BaseTestOperator extends ExecTest {
 
     protected OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
-      final NamespaceServiceImpl namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
+      final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
       final FragmentHandle handle = FragmentHandle.newBuilder()
         .setQueryId(new AttemptId().toQueryId())
         .setMinorFragmentId(0)

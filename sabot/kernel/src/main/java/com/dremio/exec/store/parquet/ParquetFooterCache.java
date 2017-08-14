@@ -16,11 +16,13 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.primitives.Longs;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -49,7 +51,7 @@ public class ParquetFooterCache {
   private static final int MAGIC_LENGTH = ParquetFileWriter.MAGIC.length;
   private static final int MIN_FILE_SIZE = ParquetFileWriter.MAGIC.length + FOOTER_METADATA_SIZE;
 
-  private final LoadingCache<FileStatus, ParquetMetadata> footers;
+  private final LoadingCache<ParquetFooterCacheKey, ParquetMetadata> footers;
   private final LoadingCache<BlockLocationKey, BlockLocation[]> blocks;
   private final FileSystem fs;
 
@@ -72,7 +74,7 @@ public class ParquetFooterCache {
 
   public ParquetMetadata getFooter(FileStatus status) {
     try{
-      return footers.get(status);
+      return footers.get(new ParquetFooterCacheKey(status));
     } catch(ExecutionException ex){
       throw UserException.dataReadError(ex.getCause())
         .message("Unable to read Parquet footer for file %s.", status.getPath())
@@ -105,21 +107,69 @@ public class ParquetFooterCache {
     }
   }
 
+  /**
+   * A wrapper class over FileStatus is used as a key to the footer cache.
+   * This is so that we can combine path with any other piece of information
+   * for the lookup key and accordingly implement hashCode() and equals()
+   * methods.
+   *
+   * Currently we have combined path with modification_time.
+   *
+   * Simply using FileStatus without the wrapper class doesn't let us enhance
+   * the lookup key and we are bound to use the hashCode() and equals() method
+   * implementations in FileStatus class which are based on path. This causes
+   * problems with recreation of datasets from a directory where a new
+   * Parquet file replaces an old one and thus path of both the files remains
+   * same and we end up using the cached footer of old file for new file. The
+   * dataset recreation step fails because of this.
+   */
+  private class ParquetFooterCacheKey {
 
-  private class SeekingLoader extends CacheLoader<FileStatus, ParquetMetadata> {
+    private FileStatus fileStatus;
+
+    public ParquetFooterCacheKey(FileStatus fileStatus) {
+      this.fileStatus = fileStatus;
+    }
+
+    public void setFileStatus(FileStatus fileStatus) {
+      this.fileStatus = fileStatus;
+    }
+
+    public FileStatus getFileStatus() { return fileStatus; }
 
     @Override
-    public ParquetMetadata load(FileStatus key) throws Exception {
+    public int hashCode() {
+      return fileStatus.getPath().hashCode() + Longs.hashCode(fileStatus.getModificationTime());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if(o == null) {
+        return false;
+      }
+      if(!(o instanceof ParquetFooterCacheKey)) {
+        return false;
+      }
+      ParquetFooterCacheKey otherKey = (ParquetFooterCacheKey)o;
+      return ((this.getFileStatus().getPath().equals(otherKey.getFileStatus().getPath())) &&
+              (this.getFileStatus().getModificationTime() == otherKey.getFileStatus().getModificationTime()));
+    }
+  }
+
+  private class SeekingLoader extends CacheLoader<ParquetFooterCacheKey, ParquetMetadata> {
+
+    @Override
+    public ParquetMetadata load(ParquetFooterCacheKey key) throws Exception {
 
       return readFooterWithSeek(fs, key, ParquetMetadataConverter.NO_FILTER);
     }
 
   }
 
-  private class NonSeekingLoader extends CacheLoader<FileStatus, ParquetMetadata> {
+  private class NonSeekingLoader extends CacheLoader<ParquetFooterCacheKey, ParquetMetadata> {
 
     @Override
-    public ParquetMetadata load(FileStatus key) throws Exception {
+    public ParquetMetadata load(ParquetFooterCacheKey key) throws Exception {
       return readFooterNoSeek(fs, key, ParquetMetadataConverter.NO_FILTER).getParquetMetadata();
     }
 
@@ -130,16 +180,17 @@ public class ParquetFooterCache {
    * bytes of file, then seek backwards and read data.
    *
    * @param fileSystem
-   * @param file
+   * @param footerCacheKey
    * @param filter
    * @return
    * @throws IOException
    */
   private static final ParquetMetadata readFooterWithSeek(
       final FileSystem fileSystem,
-      FileStatus file,
+      ParquetFooterCacheKey footerCacheKey,
       ParquetMetadataConverter.MetadataFilter filter) throws IOException {
 
+    FileStatus file = footerCacheKey.getFileStatus();
     FSDataInputStream f = fileSystem.open(file.getPath());
 
     try {
@@ -184,14 +235,15 @@ public class ParquetFooterCache {
    * An updated footer reader that tries to read the entire footer without knowing the length.
    * This should reduce the amount of seek/read roundtrips in most workloads.
    * @param fs
-   * @param status
+   * @param footerCacheKey
    * @return
    * @throws IOException
    */
   private static Footer readFooterNoSeek(
       final FileSystem fs,
-      final FileStatus status,
+      final ParquetFooterCacheKey footerCacheKey,
       ParquetMetadataConverter.MetadataFilter filter) throws IOException {
+    FileStatus status = footerCacheKey.getFileStatus();
     try(FSDataInputStream file = fs.open(status.getPath())) {
 
       final long fileLength = status.getLen();

@@ -18,7 +18,6 @@ package com.dremio.dac.daemon;
 import static com.dremio.config.DremioConfig.WEB_AUTH_TYPE;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -34,7 +33,6 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.homefiles.HomeFileConfig;
 import com.dremio.dac.homefiles.HomeFileTool;
-import com.dremio.dac.scratch.ScratchService;
 import com.dremio.dac.server.DacConfig;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
@@ -60,11 +58,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogServiceImpl;
 import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PDFSService;
 import com.dremio.exec.store.dfs.PDFSService.PDFSMode;
-import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
@@ -112,6 +108,7 @@ public class DACDaemonModule implements DACModule {
 
   public static final String ACCELERATOR_STORAGEPLUGIN_NAME = "__accelerator";
   public static final String JOBS_STORAGEPLUGIN_NAME = "__jobResultsStore";
+  public static final String SCRATCH_STORAGEPLUGIN_NAME = "$scratch";
 
   public DACDaemonModule() {
   }
@@ -151,7 +148,6 @@ public class DACDaemonModule implements DACModule {
         throw new RuntimeException("Cannot instantiate the ZooKeeper cluster coordinator", e);
       }
       bootstrapRegistry.bind(ClusterCoordinator.class, coord);
-      bootstrapRegistry.bind(ZKClusterCoordinator.class, coord);
     }
 
     // start master status listener
@@ -313,18 +309,17 @@ public class DACDaemonModule implements DACModule {
         isExecutor ? PDFSMode.DATA : PDFSMode.CLIENT
         ));
 
+    registry.bind(SchedulerService.class, new LocalSchedulerService());
+
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
+        registry.provider(SchedulerService.class),
         registry.getBindingCreator(),
         isMaster,
         isCoordinator));
 
 
     registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
-    registry.bind(SchedulerService.class, new LocalSchedulerService());
-
-    final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
-    final URI accelerationPath = config.getURI(DremioConfig.ACCELERATOR_PATH_STRING);
 
     registry.bind(JobsService.class,
         new LocalJobsService(
@@ -335,9 +330,8 @@ public class DACDaemonModule implements DACModule {
               @Override
               public FileSystemPlugin get() {
                 try {
-                  FileSystemConfig config = new FileSystemConfig(resultsPath, SchemaMutability.SYSTEM_TABLE);
                   StoragePluginRegistry storagePluginRegistry = registry.provider(StoragePluginRegistry.class).get();
-                  return (FileSystemPlugin) storagePluginRegistry.createOrUpdate(JOBS_STORAGEPLUGIN_NAME, config, true);
+                  return (FileSystemPlugin) storagePluginRegistry.getPlugin(JOBS_STORAGEPLUGIN_NAME);
                 } catch(ExecutionSetupException e) {
                   throw Throwables.propagate(e);
                 }
@@ -347,7 +341,8 @@ public class DACDaemonModule implements DACModule {
             registry.provider(CoordTunnelCreator.class),
             registry.provider(ForemenTool.class),
             registry.provider(SabotContext.class),
-            registry.provider(SchedulerService.class)
+            registry.provider(SchedulerService.class),
+            isMaster
             )
         );
 
@@ -380,11 +375,10 @@ public class DACDaemonModule implements DACModule {
     final Provider<FileSystemPlugin> acceleratorStoragePluginProvider = new Provider<FileSystemPlugin>() {
       @Override
       public FileSystemPlugin get() {
-        FileSystemConfig config = new FileSystemConfig(accelerationPath, SchemaMutability.SYSTEM_TABLE);
         StoragePluginRegistry storagePluginRegistry = registry.provider(StoragePluginRegistry.class).get();
 
         try {
-          return (FileSystemPlugin) storagePluginRegistry.createOrUpdate(ACCELERATOR_STORAGEPLUGIN_NAME, config, true);
+          return (FileSystemPlugin) storagePluginRegistry.getPlugin(ACCELERATOR_STORAGEPLUGIN_NAME);
         } catch(ExecutionSetupException e) {
           throw Throwables.propagate(e);
         }
@@ -481,7 +475,6 @@ public class DACDaemonModule implements DACModule {
           dacConfig));
     }
 
-    registry.bind(ScratchService.class, new ScratchService(registry.provider(StoragePluginRegistry.class), config));
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);

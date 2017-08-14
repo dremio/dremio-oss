@@ -54,10 +54,12 @@ export class S3 extends Component {
             <div className='external-buckets' style={section}>
               <h3 style={sectionTitle}>{la('External Buckets')}</h3>
               <div style={description}>
-                Note: All buckets associated with the AWS account will be added automatically.
+                {la(' Note: All buckets associated with the AWS account will be added automatically.')}
               </div>
               <FieldWithError {...fields.config.externalBucketList}>
-                <ValueList fieldList={fields.config.externalBucketList} emptyLabel='(No External Buckets Added)' />
+                <ValueList
+                  fieldList={fields.config.externalBucketList}
+                  emptyLabel={la('(No External Buckets Added)')} />
               </FieldWithError>
             </div>
             <div style={section}>

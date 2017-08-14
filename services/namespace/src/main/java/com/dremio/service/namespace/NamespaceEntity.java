@@ -36,12 +36,6 @@ final class NamespaceEntity {
     this.container = container;
   }
 
-  public NamespaceEntity(NamespaceKey key, DatasetConfig config){
-    this.pathKey = new NamespaceInternalKey(key);
-    this.container = new NameSpaceContainer();
-    container.setDataset(config);
-  }
-
   public NamespaceInternalKey getPathKey() {
     return pathKey;
   }
@@ -52,14 +46,10 @@ final class NamespaceEntity {
 
   /**
    * Helper method that converts the given object into a {@link NamespaceEntity}
-   * @param type
-   * @param path
-   * @param config
-   * @return
    */
-  static NamespaceEntity toEntity(Type type, NamespaceKey path, Object config) {
+  static NamespaceEntity toEntity(Type type, NamespaceKey path, Object config, boolean keyNormalization) {
     final NameSpaceContainer container = new NameSpaceContainer();
-    final NamespaceInternalKey namespaceInternalKey = new NamespaceInternalKey(path);
+    final NamespaceInternalKey namespaceInternalKey = new NamespaceInternalKey(path, keyNormalization);
     container.setType(type);
     switch (type) {
       case DATASET:

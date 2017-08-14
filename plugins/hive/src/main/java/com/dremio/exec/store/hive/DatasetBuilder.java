@@ -198,12 +198,7 @@ class DatasetBuilder implements SourceTableDefinition {
       canonicalDbName = table.getDbName();
     }
 
-    final List<String> canonicalDatasetPath;
-    if (noSourceSchemaPath.size() == 1) {
-      canonicalDatasetPath = Lists.newArrayList(datasetPath.getRoot(), canonicalTableName);
-    } else {
-      canonicalDatasetPath = Lists.newArrayList(datasetPath.getRoot(), canonicalDbName, canonicalTableName);
-    }
+    final List<String> canonicalDatasetPath = Lists.newArrayList(datasetPath.getRoot(), canonicalDbName, canonicalTableName);
     return new DatasetBuilder(client, user, new NamespaceKey(canonicalDatasetPath), ignoreAuthzErrors, hiveConf, canonicalDbName, canonicalTableName, table, oldConfig);
   }
 
@@ -516,10 +511,12 @@ class DatasetBuilder implements SourceTableDefinition {
       // set partition properties in table's xattr
       tableExtended.addAllPartitionProperties(partitionProps);
 
-      final List<HiveSplitWork> hiveSplitWorks = TimedRunnable.run("Get splits for hive table " + tableName, logger, splitsGenerators, 16);
-      for (HiveSplitWork splitWork:  hiveSplitWorks) {
-        splits.addAll(splitWork.getSplits());
-        observedStats.add(splitWork.getHiveStats());
+      if (!splitsGenerators.isEmpty()) {
+        final List<HiveSplitWork> hiveSplitWorks = TimedRunnable.run("Get splits for hive table " + tableName, logger, splitsGenerators, 16);
+        for (HiveSplitWork splitWork : hiveSplitWorks) {
+          splits.addAll(splitWork.getSplits());
+          observedStats.add(splitWork.getHiveStats());
+        }
       }
 
       // If all partitions had filesystem based partitions then set updatekey

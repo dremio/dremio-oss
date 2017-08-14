@@ -25,6 +25,7 @@ export const UPDATE_JOIN_DATASET_VERSION = 'UPDATE_JOIN_DATASET_VERSION';
 export const CLEAR_JOIN_DATASET = 'CLEAR_JOIN_DATASET';
 
 export const loadJoinDataset = (datasetPathList, viewId) => (dispatch, getStore) => {
+  // do not encode the path as getHrefForUntitledDatasetConfig will do that for us
   const fullPath = constructFullPath(datasetPathList);
   const newVersion = exploreUtils.getNewDatasetVersion();
   const href = exploreUtils.getHrefForUntitledDatasetConfig(fullPath, newVersion);

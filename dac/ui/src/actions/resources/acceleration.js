@@ -19,7 +19,7 @@ import { arrayOf } from 'normalizr';
 import { API_URL_V2 } from 'constants/Api';
 import accelerationSchema from 'schemas/acceleration';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from 'utils/pathUtils';
 import { getDatasetAccelerationRequest } from 'dyn-load/actions/resources/accelerationRequest';
 import {makeUncachebleURL} from 'ie11.js';
 
@@ -78,7 +78,7 @@ export function updateAcceleration(form, accelerationId) {
       if (!response.error) {
         const pathList = response.payload
           .getIn(['entities', 'acceleration', accelerationId, 'context', 'dataset', 'pathList']);
-        dispatch(getDatasetAccelerationRequest(constructFullPath(pathList)));
+        dispatch(getDatasetAccelerationRequest(constructFullPathAndEncode(pathList)));
       }
 
       return response;

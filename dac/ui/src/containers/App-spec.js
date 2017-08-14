@@ -15,22 +15,91 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-import configureMockStore from 'redux-mock-store';
-import thunk from 'redux-thunk';
 
-import App from './App';
+import NotificationContainer from 'containers/Notification';
+import ConfirmationContainer from 'containers/Confirmation';
+import ProdErrorContainer from 'containers/ProdError';
 
-const middlewares = [ thunk ];
-const mockStore = configureMockStore(middlewares);
-const store = mockStore({home: { config: Immutable.Map({}) }});
+
+import { App } from './App';
 
 describe('App-spec', () => {
+  let commonProps;
+  let wrapper;
+  let instance;
+  beforeEach(() => {
+
+    commonProps = {
+      user: {},
+      location: {},
+      params: {},
+      dispatch: sinon.spy(),
+      serverStatus: Immutable.Map()
+    };
+
+    wrapper = shallow(<App {...commonProps}/>);
+    instance = wrapper.instance();
+  });
+
   describe('render', () => {
-    it('should render empty app', () => {
-      const wrapper = shallow(<App store={store}/>);
+    it('should render containers', () => {
+      expect(wrapper.find(NotificationContainer)).to.have.length(1);
+      expect(wrapper.find(ConfirmationContainer)).to.have.length(1);
+      expect(wrapper.find(ProdErrorContainer)).to.have.length(1);
+    });
+  });
+
+  describe('#handleGlobalError()', () => {
+    it('should ignore when url origin is different than window.location.origin', () => {
+      sinon.stub(instance, 'displayError');
+      sinon.stub(instance, '_getWindowOrigin').returns('http://localhost:4000');
+      instance.handleGlobalError('message', 'https://foo');
+      expect(instance.displayError).to.not.be.called;
+      instance.handleGlobalError('message', null);
+      expect(instance.displayError).to.be.calledWith('message');
+      instance.handleGlobalError('message', instance._getWindowOrigin());
+      expect(instance.displayError).to.be.calledTwice;
+    });
+
+    it('should pass error || message to displayError', () => {
+      sinon.stub(instance, 'displayError');
+      instance.handleGlobalError('message', null, null, null, 'error');
+      expect(instance.displayError).to.be.calledWith('error');
+    });
+  });
+
+  describe('#_shouldIgnoreExternalStack()', () => {
+    it('returns true when stackOrigin is not current origin', () => {
+      expect(instance._shouldIgnoreExternalStack()).to.be.false;
       expect(
-        wrapper.children().first().text()
-      ).to.eql('');
+        instance._shouldIgnoreExternalStack(`aaa\n at a (${window.location.origin}/foo)`)
+      ).to.be.false;
+      expect(
+        instance._shouldIgnoreExternalStack('aaa\n at a (http://test.example.com:4000/foo)')
+      ).to.be.true;
+    });
+  });
+
+  describe('#_getSourceOriginFromStack()', () => {
+    it('should return undefined if no stack or no match', () => {
+      expect(instance._getSourceOriginFromStack()).to.be.undefined;
+      expect(instance._getSourceOriginFromStack('')).to.be.undefined;
+      expect(instance._getSourceOriginFromStack('aaa\nbbb')).to.be.undefined;
+    });
+
+    it('should return origin from stack', () => {
+      // Chrome
+      expect(
+        instance._getSourceOriginFromStack('aaa\n at a (http://test.example.com:4000/foo)')
+      ).to.equal('http://test.example.com:4000');
+
+      // Firefox
+      expect(
+        instance._getSourceOriginFromStack(
+          'ColumnHeader/_this.handleFocus/</<@http://localhost:3005/bundle.js line 12292 > eval:211:15\n' +
+          'notify/</run@http://localhost:3005/bundle.js line 17434 > eval:87:22'
+        )
+      ).to.equal('http://localhost:3005');
     });
   });
 });

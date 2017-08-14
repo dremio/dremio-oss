@@ -16,15 +16,16 @@
 import { CALL_API } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 
-import {makeUncachebleURL} from 'ie11.js';
+import { makeUncachebleURL } from 'ie11.js';
 
 import spaceSchema from 'dyn-load/schemas/space';
 import folderSchema from 'schemas/folder';
 import datasetSchema from 'schemas/dataset';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import actionUtils from 'utils/actionUtils/actionUtils';
 
 import * as resourcePathUtils from 'utils/resourcePathUtils';
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
 
@@ -179,6 +180,7 @@ function fetchRemoveFile(file) {
     resourcePath,
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
   };
+  const errorMessage = la('There was an error removing the file.');
   return {
     [CALL_API]: {
       types: [
@@ -192,7 +194,10 @@ function fetchRemoveFile(file) {
         },
         {
           type: REMOVE_FILE_FAILURE,
-          meta
+          meta: {
+            ...meta,
+            notification: actionUtils.humanizeNotificationMessage(errorMessage)
+          }
         }
       ],
       method: 'DELETE',
@@ -215,13 +220,20 @@ function fetchRemoveFileFormat(file) {
   const meta = {
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
   };
+  const errorMessage = la('There was an error removing format of the file.');
   const entityRemovePaths = [['fileFormat', file.getIn(['fileFormat', 'id'])]];
   return {
     [CALL_API]: {
       types: [
         { type: REMOVE_FILE_FORMAT_START, meta},
         { type: REMOVE_FILE_FORMAT_SUCCESS, meta: {...meta, success: true, entityRemovePaths}},
-        { type: REMOVE_FILE_FORMAT_FAILURE, meta: {...meta, notification: true}}
+        {
+          type: REMOVE_FILE_FORMAT_FAILURE,
+          meta: {
+            ...meta,
+            notification: actionUtils.humanizeNotificationMessage(errorMessage)
+          }
+        }
       ],
       method: 'DELETE',
       endpoint: `${API_URL_V2}${file.getIn(['links', 'delete_format'])}`
@@ -241,7 +253,7 @@ export const RENAME_SPACE_DATASET_SUCCESS = 'RENAME_SPACE_DATASET_SUCCESS';
 export const RENAME_SPACE_DATASET_FAILURE = 'RENAME_SPACE_DATASET_FAILURE';
 
 function fetchRenameDataset(dataset, newName) {
-  const href = constructFullPath(dataset.get('fullPathList'), true, true);
+  const href = constructFullPathAndEncode(dataset.get('fullPathList'));
   const encodedNewName = encodeURIComponent(newName);
   const meta = { newName, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
   return {
@@ -299,8 +311,7 @@ export const REMOVE_DATASET_SUCCESS = 'REMOVE_DATASET_SUCCESS';
 export const REMOVE_DATASET_FAILURE = 'REMOVE_DATASET_FAILURE';
 
 function fetchRemoveDataset(dataset) {
-  // eslint override can go away with DX-8053
-  const href = encodeURI(dataset.get('resourcePath')); // eslint-disable-line no-restricted-globals
+  const href = dataset.get('resourcePath');
   const meta = {
     name: dataset.get('name'),
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
@@ -309,6 +320,7 @@ function fetchRemoveDataset(dataset) {
     message: la('Successfully removed.'),
     level: 'success'
   };
+  const errorMessage = la('There was an error removing the dataset.');
   return {
     [CALL_API]: {
       types: [
@@ -322,10 +334,7 @@ function fetchRemoveDataset(dataset) {
           type: REMOVE_DATASET_FAILURE,
           meta: {
             ...meta,
-            notification: {
-              message: la('There was an error removing the dataset.'),
-              level: 'error'
-            }
+            notification: actionUtils.humanizeNotificationMessage(errorMessage)
           }
         }
       ],
@@ -379,7 +388,7 @@ export const LOAD_DEPENDENT_DATASETS_SUCCESS = 'LOAD_DEPENDENT_DATASETS_SUCCESS'
 export const LOAD_DEPENDENT_DATASETS_FAILURE = 'LOAD_DEPENDENT_DATASETS_FAILURE';
 
 function fetchDependentDatasets(fullPath) {
-  const href = constructFullPath(fullPath, false, true);
+  const href = constructFullPathAndEncode(fullPath);
   return {
     [CALL_API]: {
       types: [LOAD_DEPENDENT_DATASETS_STARTED, LOAD_DEPENDENT_DATASETS_SUCCESS, LOAD_DEPENDENT_DATASETS_FAILURE],
@@ -401,7 +410,7 @@ export const LOAD_PARENTS_SUCCESS = 'LOAD_PARENTS_SUCCESS';
 export const LOAD_PARENTS_FAILURE = 'LOAD_PARENTS_FAILURE';
 
 function fetchParents(fullPath, version, viewId) {
-  const href = constructFullPath(fullPath, false, true);
+  const href = constructFullPathAndEncode(fullPath);
   const meta = {viewId};
   return {
     [CALL_API]: {

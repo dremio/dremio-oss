@@ -183,6 +183,14 @@ public final class DacConfig {
     return with(DremioConfig.DEBUG_FORCE_REMOTE_BOOL, isRemote);
   }
 
+  public boolean isAutoUpgrade() {
+    return config.getBoolean(DremioConfig.AUTOUPGRADE);
+  }
+
+  public DacConfig autoUpgrade(boolean value) {
+    return with(DremioConfig.AUTOUPGRADE, value);
+  }
+
   public ClusterMode getClusterMode() {
     return this.clusterMode;
   }

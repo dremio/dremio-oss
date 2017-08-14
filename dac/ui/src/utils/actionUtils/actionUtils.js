@@ -28,6 +28,24 @@ class ActionUtils {
     clearTimeout(this.autoPreviewTimer);
     this.autoPreviewTimer = setTimeout(submitForm, AUTO_PREVIEW_DELAY);
   }
+
+  humanizeNotificationMessage = (errorMessage) => (payload) => {
+    const defaultMessage = payload && payload.status === 409
+      ? la('The data has been changed since you last accessed it. Please refresh the page')
+      : la('Something went wrong');
+    const _errorMessage = errorMessage ||
+      payload && payload.errorMessage ||
+      payload && payload.response && payload.response.errorMessage ||
+      defaultMessage;
+    const moreInfo = payload && payload.response && payload.response.moreInfo || defaultMessage;
+    const message = _errorMessage === moreInfo
+      ? Immutable.Map({ message: _errorMessage })
+      : Immutable.Map({ message: _errorMessage, moreInfo });
+    return {
+      message,
+      level: 'error'
+    };
+  }
 }
 
 const actionUtils = new ActionUtils();

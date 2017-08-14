@@ -21,8 +21,13 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.File;
+import java.io.PrintWriter;
+
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -32,6 +37,9 @@ import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
 
 public class TestNewTextReader extends BaseTestQuery {
 
+  @ClassRule
+  public static final TemporaryFolder tempDir = new TemporaryFolder();
+
   @Test
   public void fieldDelimiterWithinQuotes() throws Exception {
     testBuilder()
@@ -40,6 +48,31 @@ public class TestNewTextReader extends BaseTestQuery {
         .baselineColumns("col1")
         .baselineValues("foo,bar")
         .go();
+  }
+
+  @Test
+  public void testEmptyFileInFolder() throws Exception {
+    File testFolder = tempDir.newFolder("testemptyfolder");
+    File testEmptyPath1 = new File(testFolder, "testempty1.csv");
+    testEmptyPath1.createNewFile();
+    File testEmptyPath2 = new File(testFolder, "testempty2.csv");
+    testEmptyPath2.createNewFile();
+    PrintWriter pw = new PrintWriter(testEmptyPath2);
+    // insert empty line
+    pw.println();
+    pw.println("VTS,2009-01-29 21:55:00");
+    pw.println("VTS,2009-01-30 07:44:00");
+    pw.close();
+
+    testBuilder()
+      .sqlQuery(String.format("select * from table(dfs.`%s` (type => 'text', fieldDelimiter => ',', " +
+        "autoGenerateColumnNames => true))", testFolder.getAbsolutePath()))
+      .unOrdered()
+      .baselineColumns("A","B")
+      .baselineValues(null, null)
+      .baselineValues("VTS","2009-01-29 21:55:00")
+      .baselineValues("VTS","2009-01-30 07:44:00")
+      .go();
   }
 
   @Ignore ("Not needed any more. (DRILL-3178)")

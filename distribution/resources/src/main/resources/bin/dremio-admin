@@ -68,6 +68,7 @@ case "$action" in
 
     *)
         echo "Unknown action $action." >&2
+        exit_with_usage 1
         ;;
 esac
 

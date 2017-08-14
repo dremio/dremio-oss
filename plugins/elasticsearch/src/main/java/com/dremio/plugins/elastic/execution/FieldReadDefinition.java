@@ -122,11 +122,15 @@ public class FieldReadDefinition {
   }
 
   public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
-    holder.writeList(writer, token, parser);
+    if(parser.getValueAsString().length() != 0 || holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
+      holder.writeList(writer, token, parser);
+    }
   }
 
   public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException {
-    holder.writeMap(writer, token, parser);
+    if(parser.getValueAsString().length() != 0 || holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
+      holder.writeMap(writer, token, parser);
+    }
   }
 
   public static FieldReadDefinition getTree(

@@ -122,7 +122,16 @@ class WriteHolders {
       if (token == JsonToken.VALUE_NUMBER_INT) {
         writer.writeInt(parser.getIntValue());
       } else {
-        writer.writeInt(Integer.parseInt(parser.getValueAsString()));
+        try {
+          writer.writeInt(Integer.parseInt(parser.getValueAsString()));
+        } catch (Exception ex1){
+          try {
+            // it is possible that we need to coerce a float to an integer.
+            writer.writeInt((int) Double.parseDouble(parser.getValueAsString()));
+          } catch (Exception ex2){
+            throw ex1;
+          }
+        }
       }
     }
   }
@@ -149,8 +158,18 @@ class WriteHolders {
       if (token == JsonToken.VALUE_NUMBER_INT) {
         writer.writeBigInt(parser.getLongValue());
       } else {
-        writer.writeBigInt(Long.parseLong(parser.getValueAsString()));
+        try {
+          writer.writeBigInt(Long.parseLong(parser.getValueAsString()));
+        } catch (Exception ex1){
+          try {
+            // it is possible that we need to coerce a float to an integer.
+            writer.writeBigInt((long) Double.parseDouble(parser.getValueAsString()));
+          } catch (Exception ex2){
+            throw ex1;
+          }
+        }
       }
+
     }
   }
 

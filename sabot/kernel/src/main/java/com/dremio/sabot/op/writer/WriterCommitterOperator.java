@@ -104,7 +104,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
     try {
       if (!success) {
         Path temp = new Path(config.getTempLocation());
-        if (fs.exists(temp)) {
+        if (fs != null && fs.exists(temp)) {
           fs.delete(temp, true);
         }
       }

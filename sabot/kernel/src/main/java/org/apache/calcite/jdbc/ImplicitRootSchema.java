@@ -18,6 +18,7 @@ package org.apache.calcite.jdbc;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RootSchema;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.SchemaTreeProvider.MetadataStatsCollector;
 import com.dremio.service.namespace.NamespaceService;
 
 /**
@@ -27,7 +28,8 @@ import com.dremio.service.namespace.NamespaceService;
  * {@link SimpleCalciteSchema} class and its constructor.
  */
 public class ImplicitRootSchema extends SimpleCalciteSchema {
-  public ImplicitRootSchema(final NamespaceService ns, final SabotContext sabotContext, final SchemaConfig schemaConfig) {
-    super(null, new RootSchema(ns, sabotContext, schemaConfig), "");
+  public ImplicitRootSchema(final NamespaceService ns, final SabotContext sabotContext, final SchemaConfig schemaConfig,
+                            MetadataStatsCollector metadataStatsCollector) {
+    super(null, new RootSchema(ns, sabotContext, schemaConfig, metadataStatsCollector), "");
   }
 }

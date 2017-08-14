@@ -66,6 +66,8 @@ import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.SettableFuture;
+
 import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
@@ -127,6 +129,8 @@ public class FragmentExecutor {
 
   private final FragmentWorkQueue workQueue;
 
+  private final SettableFuture<Boolean> cancelled;
+
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
       SabotConfig config,
@@ -170,6 +174,7 @@ public class FragmentExecutor {
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
     this.buffers = new IncomingBuffers(deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider, fragment, allocator, config);
     this.eventProvider = eventProvider;
+    this.cancelled = SettableFuture.create();
   }
 
   /**
@@ -201,7 +206,7 @@ public class FragmentExecutor {
       }
 
       // if cancellation is requested, that is always the top priority.
-      if (eventProvider.isCanceled()) {
+      if (eventProvider.isCancelled()) {
         transitionToCancelled();
         taskState = State.DONE;
         return;
@@ -253,8 +258,12 @@ public class FragmentExecutor {
     } catch (Throwable e) {
       transitionToFailed(e);
     } finally {
-      finishRun(originalName);
-      stats.runEnded();
+
+      try {
+        finishRun(originalName);
+      } finally {
+        stats.runEnded();
+      }
     }
 
   }
@@ -309,7 +318,7 @@ public class FragmentExecutor {
 
     final OperatorCreator operatorCreator = new UserDelegatingOperatorCreator(contextInfo.getQueryUser(), opCreator);
     pipeline = PipelineCreator.get(
-        new FragmentExecutionContext(fragment.getForeman(), updater, storagePluginRegistry),
+        new FragmentExecutionContext(fragment.getForeman(), updater, storagePluginRegistry, cancelled),
         buffers,
         operatorCreator,
         contextCreator,
@@ -353,6 +362,7 @@ public class FragmentExecutor {
    * Entered by something other than the execution thread. Ensures this fragment gets rescheduled as soon as possible.
    */
   private void requestCancellation(){
+    this.cancelled.set(true);
     this.sharedResources.getGroup(PIPELINE_RES_GRP).markAllAvailable();
   }
 

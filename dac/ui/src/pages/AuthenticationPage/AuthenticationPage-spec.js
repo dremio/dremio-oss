@@ -46,7 +46,7 @@ describe('AuthenticationPage', () => {
     wrapper.setState({showLoginForm: true});
     expect(wrapper.find(LoginForm)).to.have.length(1);
     wrapper.setState({showLoginForm: false});
-    expect(wrapper.find('UnsupportedBrowserForm')).to.have.length(1);
+    expect(wrapper.name()).to.equal('UnsupportedBrowserForm');
 
   });
 

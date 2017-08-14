@@ -43,6 +43,7 @@ import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.accelerator.proto.LayoutId;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -168,6 +169,8 @@ public class CachedMaterializationProvider implements MaterializationDescriptorP
           }
         } catch (KryoDeserializationException e) {
           //DX-7858: we should only replan once in a single cache update
+          logger.warn("Need to replan. MaterializationId = {}, LayoutId = {}",
+              descriptor.getMaterializationId(), descriptor.getLayoutId(), e);
           accel.replan(new LayoutId(descriptor.getLayoutId()));
         } catch (Throwable e) {
           logger.warn("Unable to cache materialization {}", descriptor.getMaterializationId(), e);
@@ -207,5 +210,10 @@ public class CachedMaterializationProvider implements MaterializationDescriptorP
         scheduler.awaitTermination(30, TimeUnit.SECONDS);
       }
     }, queryContext);
+  }
+
+  @Override
+  public Optional<MaterializationDescriptor> get(String materializationId) {
+    return Optional.fromNullable(cached.get(materializationId));
   }
 }

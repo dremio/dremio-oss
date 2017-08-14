@@ -19,6 +19,7 @@ import { API_URL_V2 } from 'constants/Api';
 
 import folderSchema from 'schemas/folder';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import actionUtils from 'utils/actionUtils/actionUtils';
 
 export const CONVERT_FOLDER_TO_DATASET_START = 'CONVERT_FOLDER_TO_DATASET_START';
 export const CONVERT_FOLDER_TO_DATASET_SUCCESS = 'CONVERT_FOLDER_TO_DATASET_SUCCESS';
@@ -54,12 +55,19 @@ export const CONVERT_DATASET_TO_FOLDER_FAILURE = 'CONVERT_DATASET_TO_FOLDER_FAIL
 
 function fetchConvertDataset(entity, viewId) {
   const meta = {viewId, folderId: entity.get('id')};
+  const errorMessage = la('There was an error removing format of the folder.');
   return {
     [CALL_API]: {
       types: [
         {type:CONVERT_DATASET_TO_FOLDER_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(CONVERT_DATASET_TO_FOLDER_SUCCESS, folderSchema, meta),
-        CONVERT_DATASET_TO_FOLDER_FAILURE
+        {
+          type: CONVERT_DATASET_TO_FOLDER_FAILURE,
+          meta: {
+            ...meta,
+            notification: actionUtils.humanizeNotificationMessage(errorMessage)
+          }
+        }
       ],
       method: 'DELETE',
       headers: {'Content-Type': 'application/json'},

@@ -18,6 +18,7 @@ import { Component, PropTypes } from 'react';
 import General from 'components/Forms/General';
 import SingleHost from 'components/Forms/SingleHost';
 import Credentials from 'components/Forms/Credentials';
+import JDBCOptions from 'components/Forms/JDBCOptions';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 
 
@@ -35,7 +36,7 @@ class InstanceSection {
   }
 }
 
-const SECTIONS = [General, SingleHost, InstanceSection, Credentials, MetadataRefresh];
+const SECTIONS = [General, SingleHost, InstanceSection, Credentials, JDBCOptions, MetadataRefresh];
 const DEFAULT_PORT = 1521;
 
 export class Oracle extends Component {
@@ -65,6 +66,7 @@ export class Oracle extends Component {
             <div style={{...section}}>
               <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
               <AdvancedOptionsExpandable>
+                <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>
               </AdvancedOptionsExpandable>
             </div>

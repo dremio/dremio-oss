@@ -35,7 +35,19 @@ export default function jobs(state = initialState, action) {
   case ActionTypes.UPDATE_JOB_STATE: {
     const index = state.get('jobs').findIndex(job => job.get('id') === action.jobId);
     if (index !== -1) {
-      return state.setIn(['jobs', index], Immutable.Map(action.payload));
+      const oldJob = state.getIn(['jobs', index]);
+      if (!oldJob) return state;
+
+      return state.setIn(['jobs', index], Immutable.Map(
+        {
+          // For performance, job-progress websocket message does not include these.
+          // Can't just merge because jackson omits null fields
+          // (there would be no way to override a null value)
+          datasetPathList: oldJob.get('datasetPathList'),
+          datasetType: oldJob.get('datasetType'),
+          ...action.payload
+        }
+      ));
     }
     return state;
   }

@@ -256,6 +256,8 @@ message SystemSettingsApiDescriptor {
   required bool accelerateAggregation = 2;
   // whether system should auto approve raw layouts
   required bool accelerateRaw = 3;
+  // interval within which orphaned accelerations needs to be cleaned up
+  required uint64 orphanCleanupInterval = 4;
 }
 
 // represents an individual acceleration vote

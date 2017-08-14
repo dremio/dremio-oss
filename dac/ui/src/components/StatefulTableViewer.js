@@ -36,7 +36,7 @@ export default class StatefulTableViewer extends Component {
   static defaultProps = { // todo: loc
     virtualized: false,
     className: '',
-    noDataText: 'No Data'
+    noDataText: 'No Items'
   };
 
   renderTableContent() {

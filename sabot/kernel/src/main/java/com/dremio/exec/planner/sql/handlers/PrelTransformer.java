@@ -504,9 +504,7 @@ public class PrelTransformer {
      *   The limit is 10k or less
      *   All scans are soft affinity
      */
-    if(config.getContext().getPlannerSettings().isTrivialSingularOptimized()){
-      phyRelNode = SimpleLimitExchangeRemover.apply(phyRelNode);
-    }
+    phyRelNode = SimpleLimitExchangeRemover.apply(config.getContext().getPlannerSettings(), phyRelNode);
 
     /*
      * 3.)
@@ -656,7 +654,7 @@ public class PrelTransformer {
     // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
     // rel node with RexSubQuery have the same JDBC convention.
     final RelNode convertedNodeNotExpanded = convertScans(convertible.rel, config);
-    RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker();
+    RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(null);
     checker.visit(convertedNodeNotExpanded);
 
     final RelNode convertedNodeWithoutRexSubquery;
@@ -668,7 +666,7 @@ public class PrelTransformer {
     } else {
       // If there is a rexSubQuery, then get the ones without (don't pass in SqlHandlerConfig here since we don't want to record it twice)
       convertedNodeWithoutRexSubquery = convertScans(toConvertibleRelRoot(config, node, true).rel, config);
-      if (checker.cannotPushdownRexSubQuery()) {
+      if (!checker.canPushdownRexSubQuery()) {
         // if there are RexSubQuery nodes with none-jdbc convention, abandon and expand the entire tree
         convertedNode = convertedNodeWithoutRexSubquery;
       } else {

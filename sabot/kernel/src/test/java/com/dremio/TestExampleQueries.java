@@ -75,6 +75,15 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void subQueryNotInWhereNotNull() throws Exception {
+    test("SELECT l_returnflag, l_linestatus, sum(l_extendedprice)\n" +
+      "FROM cp.`tpch/lineitem.parquet` as lineitem\n" +
+      "where l_quantity not in\n" +
+      "(select l_linenumber from cp.`tpch/lineitem.parquet` as lineitem where (l_linenumber is not null) group by l_linenumber)\n" +
+      "group by l_returnflag, l_linestatus");
+  }
+
+  @Test
   public void testMinVarCharWithGroupBy() throws Exception {
     String sql = "select l_linenumber, min(l_shipmode) as min_ship_mode from cp.`tpch/lineitem.parquet` group by l_linenumber";
     testBuilder()

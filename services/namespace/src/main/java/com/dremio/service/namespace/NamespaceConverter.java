@@ -24,6 +24,7 @@ import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_OWNER;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_PARENTS;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SOURCES;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SQL;
+import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_UUID;
 
 import java.util.List;
 import java.util.Set;
@@ -61,6 +62,7 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
 
     final DatasetConfig datasetConfig = container.getDataset();
     writer.write(DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
+    writer.write(DATASET_UUID, datasetConfig.getId().getId());
     if (datasetConfig.getOwner() != null) {
       writer.write(DATASET_OWNER, datasetConfig.getOwner());
     }

@@ -90,7 +90,6 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    * Performs the initial setup required for the record reader.
    * Initializes the input stream, handling of the output record batch
    * and the actual reader to be used.
-   * @param context  operator context from which buffer's will be allocated and managed
    * @param outputMutator  Used to create the schema in the output record batch
    * @throws ExecutionSetupException
    */
@@ -131,13 +130,17 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
       // setup Input using InputStream
       stream = dfs.openPossiblyCompressedStream(split.getPath());
-      input = new TextInput(settings,  stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
+      input = new TextInput(settings, stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
 
       // setup Reader using Input and Output
       reader = new TextReader(settings, input, output, whitespaceBuffer);
       reader.start();
-
-    } catch (SchemaChangeException | IOException e) {
+    } catch(IOException e) {
+      if (e.getCause() instanceof StreamFinishedPseudoException) {
+        return;
+      }
+      throw new ExecutionSetupException(String.format("Failure while setting up text reader for file %s", split.getPath()), e);
+    } catch (SchemaChangeException e) {
       throw new ExecutionSetupException(String.format("Failure while setting up text reader for file %s", split.getPath()), e);
     } catch (IllegalArgumentException e) {
       throw UserException.dataReadError(e).addContext("File Path", split.getPath().toString()).build(logger);
@@ -160,23 +163,31 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     this.reader = new TextReader(settings, hInput, hOutput, context.getManagedBuffer(WHITE_SPACE_BUFFER));
     reader.start();
 
-    // extract first row only
-    reader.parseNext();
+    String[] fieldNames;
+    try {
+      // extract first non-empty row
+      do {
+        boolean isAnyData = reader.parseNext();
+        if (!isAnyData) {
+          // end of file most likely
+          throw new IOException(StreamFinishedPseudoException.INSTANCE);
+        }
 
-    // grab the field names from output
-    String [] fieldNames = ((RepeatedVarCharOutput)hOutput).getTextOutput();
+        // grab the field names from output
+        fieldNames = ((RepeatedVarCharOutput) hOutput).getTextOutput();
+      } while(fieldNames == null);
 
-    // cleanup and set to skip the first line next time we read input
-    reader.close();
-    hOutputMutator.close();
-
-    if (settings.isTrimHeader()) {
-      for (int i = 0; i < fieldNames.length; i++) {
-        fieldNames[i] = fieldNames[i].trim();
+      if (settings.isTrimHeader()) {
+        for (int i = 0; i < fieldNames.length; i++) {
+          fieldNames[i] = fieldNames[i].trim();
+        }
       }
+      return fieldNames;
+    } finally {
+      // cleanup and set to skip the first line next time we read input
+      reader.close();
+      hOutputMutator.close();
     }
-
-    return fieldNames;
   }
 
   /**

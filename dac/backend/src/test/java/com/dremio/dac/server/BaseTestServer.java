@@ -31,6 +31,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.nio.file.Files;
 import java.security.Principal;
 import java.util.List;
 import java.util.Properties;
@@ -333,6 +334,11 @@ public abstract class BaseTestServer extends BaseClientUtils {
       // problems as it uses static variables so resolution doesn't work in a
       // single ClassLoader
       final String distpath = "file://" + folder0.getRoot().getAbsolutePath();
+      // jobsResultsStore stored in <distpath>/results and accelerator store in <distpath>/accelerator, both of which
+      // need to exist
+      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/results").toPath());
+      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/accelerator").toPath());
+      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/scratch").toPath());
 
       // create master node.
       masterDremioDaemon = DACDaemon.newDremioDaemon(
@@ -582,6 +588,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
           .deleteEverything(SimpleUserService.USER_STORE);
     }
     currentDremioDaemon.getBindingProvider().lookup(StoragePluginRegistry.class).updateNamespace(Sets.newHashSet("cp", "__datasetDownload", "__home", "__jobResultsStore", "$scratch"), CatalogService.REFRESH_EVERYTHING_NOW);
+    currentDremioDaemon.getBindingProvider().lookup(CatalogService.class).testTrimBackgroundTasks();
   }
 
   protected void setSpace() throws NamespaceException, IOException {

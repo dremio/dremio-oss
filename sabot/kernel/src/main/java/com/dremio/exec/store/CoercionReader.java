@@ -21,7 +21,6 @@ import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.FixedWidthVector;
-import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -30,7 +29,6 @@ import org.apache.arrow.vector.util.TransferPair;
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
@@ -49,7 +47,6 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.util.BatchPrinter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.ProjectOperator;
@@ -65,18 +62,18 @@ public class CoercionReader extends AbstractRecordReader {
   private VectorContainer incoming;
   private final List<ValueVector> allocationVectors = Lists.newArrayList();
   private final SampleMutator mutator;
-  private final AbstractRecordReader inner;
+  private final RecordReader inner;
   private Projector projector;
   private final BatchSchema targetSchema;
   private final List<NamedExpression> exprs;
 
-  private BatchSchema originalSchema;
+  private OutputMutator outputMutator;
 
   private static final boolean DEBUG_PRINT = false;
 
   public CoercionReader(OperatorContext context,
                         List<SchemaPath> columns,
-                        AbstractRecordReader inner,
+                        RecordReader inner,
                         BatchSchema targetSchema) {
     super(context, columns);
     this.mutator = new SampleMutator(context.getAllocator());
@@ -108,13 +105,15 @@ public class CoercionReader extends AbstractRecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
+    this.outputMutator = output;
     inner.setup(mutator);
+    newSchema();
+  }
+
+  public void newSchema() {
     incoming.buildSchema();
-
-    originalSchema = incoming.getSchema();
-
     for (Field field : targetSchema.getFields()) {
-      ValueVector vector = output.getVector(field.getName());
+      ValueVector vector = outputMutator.getVector(field.getName());
       if (vector == null) {
         continue;
       }
@@ -154,54 +153,53 @@ public class CoercionReader extends AbstractRecordReader {
 
       switch(ProjectOperator.getEvalMode(incoming, expr, transferFieldIds)){
 
-        case COMPLEX: {
-          assert false : "Should not see complex expression in coercion reader";
-          break;
+      case COMPLEX: {
+        assert false : "Should not see complex expression in coercion reader";
+        break;
+      }
+      case DIRECT: {
+        final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) expr;
+        final TypedFieldId id = vectorRead.getFieldId();
+        final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
+        final FieldReference ref = namedExpression.getRef();
+        final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
+        final TransferPair tp = vvIn.makeTransferPair(vvOut);
+        transfers.add(tp);
+        transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
+        break;
+      }
+      case EVAL: {
+        final ValueVector vector = outgoing.addOrGet(outputField);
+        allocationVectors.add(vector);
+        final TypedFieldId fid = outgoing.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
+        final boolean useSetSafe = !(vector instanceof FixedWidthVector);
+        final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
+        final HoldingContainer hc = cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE);
+        if (expr instanceof ValueVectorReadExpression) {
+          assert false : "Should not have value vector read expressions in coercion reader";
         }
-        case DIRECT: {
-          final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) expr;
-          final TypedFieldId id = vectorRead.getFieldId();
-          final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
-          final FieldReference ref = namedExpression.getRef();
-          final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
-          final TransferPair tp = vvIn.makeTransferPair(vvOut);
-          transfers.add(tp);
-          transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
-          break;
-        }
-        case EVAL: {
-          final ValueVector vector = outgoing.addOrGet(outputField);
-          allocationVectors.add(vector);
-          final TypedFieldId fid = outgoing.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
-          final boolean useSetSafe = !(vector instanceof FixedWidthVector);
-          final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
-          final HoldingContainer hc = cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE);
-          if (expr instanceof ValueVectorReadExpression) {
-            assert false : "Should not have value vector read expressions in coercion reader";
-          }
-          break;
-        }
-        default:
-          assert false : "Unsupported eval mode, " + ProjectOperator.getEvalMode(incoming, expr, transferFieldIds);
-          throw new UnsupportedOperationException();
+        break;
+      }
+      default:
+        assert false : "Unsupported eval mode, " + ProjectOperator.getEvalMode(incoming, expr, transferFieldIds);
+        throw new UnsupportedOperationException();
       }
     }
 
     this.projector = cg.getCodeGenerator().getImplementationClass();
     this.projector.setup(
-        context.getFunctionContext(),
-        incoming,
-        outgoing,
-        transfers,
-        new ComplexWriterCreator(){
-          @Override
-          public ComplexWriter addComplexWriter(String name) {
-            return null;
-          }
+      context.getFunctionContext(),
+      incoming,
+      outgoing,
+      transfers,
+      new ComplexWriterCreator(){
+        @Override
+        public ComplexWriter addComplexWriter(String name) {
+          return null;
         }
+      }
     );
   }
-
 
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
@@ -213,8 +211,7 @@ public class CoercionReader extends AbstractRecordReader {
   public int next() {
     int recordCount = inner.next();
     if (mutator.isSchemaChanged()) {
-      incoming.buildSchema();
-      throw UserException.schemaChangeError().message("Schema change detected but unable to learn schema. A full table scan may be necessary to fully learn the schema. Original: %s, New: %s.", originalSchema, incoming.getSchema()).build(logger);
+      newSchema();
     }
     incoming.setAllCount(recordCount);
     if (DEBUG_PRINT) {

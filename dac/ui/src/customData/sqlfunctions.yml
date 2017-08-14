@@ -838,6 +838,14 @@ description: >
 example: >
   REGEXP_LIKE('catatonic','cat\S+') -> true
 ---
+name: REGEXP_MATCHES
+args: ([string] {giventext}, [string literal] {matching})
+return_type: boolean
+description: >
+  Returns true if the regular expression in {{matching}} matches the string in {{giventext}}.
+example: >
+  REGEXP_MATCHES('catatonic','cat\S+') -> true
+---
 name: REVERSE
 args: ([string] {giventext})
 return_type: string

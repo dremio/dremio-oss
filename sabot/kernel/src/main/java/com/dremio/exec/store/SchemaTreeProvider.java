@@ -17,15 +17,19 @@ package com.dremio.exec.store;
 
 import static com.dremio.common.perf.Timer.time;
 
+import java.util.List;
+
 import org.apache.calcite.jdbc.ImplicitRootSchema;
 import org.apache.calcite.schema.SchemaPlus;
 
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig.SchemaInfoProvider;
 import com.dremio.exec.store.ischema.InfoSchemaStoragePlugin;
 import com.dremio.exec.store.sys.SystemTablePlugin;
 import com.dremio.service.namespace.NamespaceService;
+import com.google.common.collect.Lists;
 
 /**
  * Class which creates new schema trees.
@@ -34,9 +38,15 @@ public class SchemaTreeProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SchemaTreeProvider.class);
 
   private final SabotContext dContext;
+  private final MetadataStatsCollector metadataStatsCollector;
 
   public SchemaTreeProvider(final SabotContext dContext) {
     this.dContext = dContext;
+    this.metadataStatsCollector = new MetadataStatsCollector();
+  }
+
+  public MetadataStatsCollector getMetadataStatsCollector() {
+    return metadataStatsCollector;
   }
 
   /**
@@ -60,7 +70,7 @@ public class SchemaTreeProvider {
   public SchemaPlus getRootSchema(SchemaConfig schemaConfig) {
     try (TimedBlock b = time("Create schema tree")) {
       final NamespaceService ns = dContext.getNamespaceService(schemaConfig.getUserName());
-      final SchemaPlus rootSchemaPlus = new ImplicitRootSchema(ns, dContext, schemaConfig).plus();
+      final SchemaPlus rootSchemaPlus = new ImplicitRootSchema(ns, dContext, schemaConfig, metadataStatsCollector).plus();
       ((InfoSchemaStoragePlugin)dContext.getStorage().getPlugin(StoragePluginRegistry.INFORMATION_SCHEMA_PLUGIN)).registerSchemas(schemaConfig, rootSchemaPlus);
       ((SystemTablePlugin)dContext.getStorage().getPlugin(StoragePluginRegistry.SYS_PLUGIN)).registerSchemas(schemaConfig, rootSchemaPlus);
 
@@ -80,5 +90,20 @@ public class SchemaTreeProvider {
 
   public enum SchemaType {
     SOURCE, SPACE, HOME
+  }
+
+  public static class MetadataStatsCollector {
+    private final List<PlanPhaseProfile> planPhaseProfiles = Lists.newArrayList();
+
+    void addDatasetStat(String datasetPath, String type, long millisTaken) {
+      planPhaseProfiles.add(PlanPhaseProfile.newBuilder()
+        .setPhaseName(String.format("%s: %s", datasetPath, type))
+        .setDurationMillis(millisTaken)
+        .build());
+    }
+
+    public List<PlanPhaseProfile> getPlanPhaseProfiles() {
+      return planPhaseProfiles;
+    }
   }
 }

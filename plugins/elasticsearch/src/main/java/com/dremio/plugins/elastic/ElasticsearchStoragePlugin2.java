@@ -1,5 +1,17 @@
 /*
- * Copyright 2016 Dremio Corporation
+ * Copyright (C) 2017 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.dremio.plugins.elastic;
 
@@ -76,14 +88,14 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
   private final String name;
   private final SabotContext context;
   private final ElasticsearchStoragePluginConfig config;
-  private final ElasticConnectionPool connection;
+  private final ElasticConnectionPool connectionPool;
   private Version minVersionInCluster;
 
   public ElasticsearchStoragePlugin2(ElasticsearchStoragePluginConfig config, SabotContext context, String name) {
     this.config = config;
     this.context = context;
     this.name = name;
-    this.connection = new ElasticConnectionPool(
+    this.connectionPool = new ElasticConnectionPool(
         config.getHosts(),
         config.isEnableSSL(),
         config.getUsername(),
@@ -101,7 +113,7 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
   }
 
   ElasticConnection getRandomConnection(){
-    return connection.getRandomConnection();
+    return connectionPool.getRandomConnection();
   }
 
   public ElasticConnection getConnection(Iterable<String> hostsIter){
@@ -113,14 +125,14 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
       final String localAddress = context.getEndpoint().getAddress();
       // If there is a local elastic, use that.
       if(hostSet.contains(localAddress)){
-        return connection.getConnection(ImmutableList.of(localAddress));
+        return connectionPool.getConnection(ImmutableList.of(localAddress));
       }
-      return connection.getConnection(hosts);
+      return connectionPool.getConnection(hosts);
     }
   }
 
   public StoragePluginId getId(){
-    return new StoragePluginId(name, config, connection.getCapabilities(), elasticType);
+    return new StoragePluginId(name, config, connectionPool.getCapabilities(), elasticType);
   }
 
   @Override
@@ -133,7 +145,7 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
       return null;
     }
 
-    final ElasticConnection connection = this.connection.getRandomConnection();
+    final ElasticConnection connection = this.connectionPool.getRandomConnection();
     try {
       final String schema = datasetPath.getPathComponents().get(1);
       final String type = datasetPath.getPathComponents().get(2);
@@ -183,7 +195,7 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
       return null;
     }
 
-    final ElasticConnection connection = this.connection.getRandomConnection();
+    final ElasticConnection connection = this.connectionPool.getRandomConnection();
     try {
       final String schema = datasetPath.getPathComponents().get(1);
       final String type = datasetPath.getPathComponents().get(2);
@@ -220,13 +232,13 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
   @Override
   public SourceState getState() {
     try {
-      final Result result = (connection.getRandomConnection()
+      final Result result = (connectionPool.getRandomConnection()
           .executeAndHandleResponseCode(new Health(), true, "Cannot get cluster health information.  Please make sure that the user has [cluster:monitor/health] privilege."));
       if (result.success()) {
         String clusterHealth = result.getAsJsonObject().get("status").getAsString();
         switch (clusterHealth) {
           case "green":
-            if (connection.getCapabilities().getCapability(SUPPORTS_NEW_FEATURES)) {
+            if (connectionPool.getCapabilities().getCapability(SUPPORTS_NEW_FEATURES)) {
               return SourceState.goodState(String.format("Elastic version %s.", minVersionInCluster));
             } else {
               return SourceState.warnState(String.format("Detected Elastic version %s. Full query pushdown in Dremio requires version %s or above.", minVersionInCluster, ElasticConnectionPool.MIN_VERSION_TO_ENABLE_NEW_FEATURES));
@@ -277,7 +289,7 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
 
   @Override
   public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
-    final ElasticConnection connection = this.connection.getRandomConnection();
+    final ElasticConnection connection = this.connectionPool.getRandomConnection();
     final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata());
     final ImmutableList.Builder<SourceTableDefinition> builder = ImmutableList.builder();
     boolean failures = false;
@@ -287,7 +299,7 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
         for(ElasticIndex index : clusterMetadata.getIndices()){
       for(ElasticMapping mapping : index.getMappings()){
         try {
-          if(!includeHiddenSchemas || !index.getName().startsWith(".")){
+          if(includeHiddenSchemas || !index.getName().startsWith(".")){
             NamespaceKey key = new NamespaceKey(ImmutableList.of(name, index.getName(), mapping.getName()));
             builder.add(new ElasticTableBuilder(connection, key, null, context.getAllocator(), context.getConfig(), config, context.getOptionManager(), mapping, ImmutableList.<String>of(), false));
           }
@@ -404,11 +416,11 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
   }
 
   public void start() throws IOException {
-    connection.connect();
+    connectionPool.connect();
   }
 
   public void close() throws Exception {
     logger.debug("Closing elasticsearch storage plugin");
-    AutoCloseables.close(connection);
+    AutoCloseables.close(connectionPool);
   }
 }

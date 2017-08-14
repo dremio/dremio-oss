@@ -214,13 +214,14 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     saveAcceleration(completed.getId(), completed);
 
     waitForMaterialization(completed.getId(), false);
+    waitForCachedMaterialization(completed.getId());
 
     AccelerationApiDescriptor updatedApiDescriptor = pollAcceleration(completed.getId());
 
     LayoutApiDescriptor rawLayout = updatedApiDescriptor.getRawLayouts().getLayoutList().get(0);
     assertTrue(rawLayout.getHasValidMaterialization());
     assertEquals(MaterializationState.DONE, rawLayout.getLatestMaterializationState());
-    assertTrue( rawLayout.getCurrentByteSize()>0);
+    assertTrue(rawLayout.getCurrentByteSize() > 0);
     assertEquals(rawLayout.getCurrentByteSize(), rawLayout.getTotalByteSize());
   }
 
@@ -462,6 +463,7 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     assertEquals(descriptor, response);
   }
 
+  @Ignore("DX-8716")
   @Test
   public void testMissingLogicalDimensionOrMeasureInApiDescriptor() throws Exception {
     final DatasetPath path = EMPLOYEES_VIRTUAL;

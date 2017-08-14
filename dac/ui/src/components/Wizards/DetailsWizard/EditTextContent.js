@@ -23,7 +23,6 @@ import TrimWhiteSpaceOptions from 'components/Forms/TrimWhiteSpaceOptions';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import TransformForm, { formWrapperProps } from 'pages/ExplorePage/components/forms/TransformForm';
 import { transformProps } from 'pages/ExplorePage/components/forms/TransformationPropTypes';
-import * as previewUtils from 'utils/previewUtils';
 
 const SECTIONS = [NewFieldSection, ConvertCaseOptions, TrimWhiteSpaceOptions];
 
@@ -72,10 +71,18 @@ const style = {
   }
 };
 
+export function getEditTextInitialValues(detailType, columnName) {
+  return {
+    newFieldName: columnName,
+    action: detailType !== 'TRIM_WHITE_SPACES' ? 'UPPERCASE' : 'BOTH',
+    dropSourceField: true
+  };
+}
+
 function mapToFormState(state, props) {
   const { type } = state.routing.locationBeforeTransitions.query;
   return {
-    initialValues: previewUtils.getEditTextInitialValues(type, props.columnName)
+    initialValues: getEditTextInitialValues(type, props.columnName)
   };
 }
 

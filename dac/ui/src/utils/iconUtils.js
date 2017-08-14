@@ -44,8 +44,8 @@ export function getIconDataTypeFromDatasetType(datasetType) {
 
 const DATABASE_STATUSES_TO_ICON_TYPES = {
   good: 'Database',
-  bad: 'Connection-Bad',
-  degraded: 'Connection-Degraded'
+  bad: 'Database-Bad',
+  degraded: 'Database-Degraded'
 };
 export function getIconStatusDatabase(status) {
   return DATABASE_STATUSES_TO_ICON_TYPES[status] || 'Database';

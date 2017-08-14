@@ -110,7 +110,7 @@ public class FragmentHandler implements EventProvider {
   }
 
   @Override
-  public boolean isCanceled() {
+  public boolean isCancelled() {
     return canceled.get();
   }
 
@@ -148,7 +148,7 @@ public class FragmentHandler implements EventProvider {
   void checkStateAndLogIfNecessary() {
     if (!fragmentStarted) {
       final DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
-      if (isCanceled()) {
+      if (isCancelled()) {
         logger.warn("Received cancel request at {} for fragment {} that was never started",
           formatter.print(cancellationTime),
           QueryIdHelper.getQueryIdentifier(handle));

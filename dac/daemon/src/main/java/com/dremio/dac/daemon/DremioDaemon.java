@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.daemon;
 
+import java.net.UnknownHostException;
 import java.util.logging.LogManager;
 
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -23,6 +24,8 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.dac.cmd.upgrade.Upgrade;
+import com.dremio.dac.cmd.upgrade.UpgradeStats;
 import com.dremio.dac.server.DacConfig;
 import com.dremio.dac.server.NASSourceConfigurator;
 import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
@@ -67,9 +70,25 @@ public class DremioDaemon {
 
   public static final String DAEMON_MODULE_CLASS = "dremio.daemon.module.class";
 
+
+  private static boolean isMaster(DacConfig config) {
+    try {
+      return !config.isRemote && NetworkUtil.addressResolvesToThisNode(config.masterNode);
+    } catch (UnknownHostException e) {
+      return false;
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
       DacConfig config = DacConfig.newConfig();
+
+      // Check if autoupgrade is enabled
+      if (config.isAutoUpgrade() && isMaster(config)) {
+        UpgradeStats upgradeStats = Upgrade.upgrade(config);
+        System.out.println(upgradeStats);
+      }
+
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
       final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
       final SourceToStoragePluginConfig sourceConfig = SingleSourceToStoragePluginConfig.of(

@@ -18,9 +18,11 @@ import { Link } from 'react-router';
 import classNames from 'classnames';
 import Radium from 'radium';
 
-import ResourcePin from 'components/ResourcePin';
-import FontIcon from 'components/Icon/FontIcon';
 import { getIconStatusDatabase } from 'utils/iconUtils';
+
+import ResourcePin from './ResourcePin';
+import FontIcon from './Icon/FontIcon';
+import EllipsedText from './EllipsedText';
 import './FinderNavItem.less';
 
 @Radium
@@ -47,9 +49,7 @@ export default class FinderNavItem extends Component {
     const itemClass = classNames('finder-nav-item',
       { readonly },
       { active }
-      );
-    const MAX_CHART = 19;
-    const linkText = name && name.length > MAX_CHART ? name.slice(0, MAX_CHART) + '...' : name;
+    );
     let count;
     if (numberOfDatasets !== undefined) {
       count = numberOfDatasets;
@@ -60,24 +60,18 @@ export default class FinderNavItem extends Component {
 
     return (
       <li className={itemClass} style={[disabled && styles.disabled, style]}>
-        <Link to={links.self} activeClassName='active' onlyActiveOnIndex>
-          <span className='finder-nav-item-link'>
-            <FontIcon
-              type={typeIcon}
-              theme={styles.iconStyle}/>
-            {linkText}
-          </span>
-          <div className='count-wrap'>
-            {count !== undefined ? <span className='count'>{count}</span> : null}
-            {toggleActivePin
-              ? (
-                <ResourcePin
-                  name={name}
-                  isActivePin={isActivePin || false}
-                  toggleActivePin={toggleActivePin} />
-              )
-              : null }
-          </div>
+        <Link onlyActiveOnIndex to={links.self} activeClassName='active' className='finder-nav-item-link'>
+          <FontIcon
+            type={typeIcon}
+            theme={styles.iconStyle}/>
+          <EllipsedText text={name} style={{marginRight: 5}} />
+          {typeof count === 'number' && <span className='count'>{count}</span>}
+          {toggleActivePin && (
+            <ResourcePin
+              name={name}
+              isActivePin={isActivePin || false}
+              toggleActivePin={toggleActivePin} />
+          )}
         </Link>
       </li>
     );
@@ -87,6 +81,7 @@ export default class FinderNavItem extends Component {
 const styles = {
   iconStyle: {
     Container: {
+      height: 24,
       display: 'inline-block',
       verticalAlign: 'middle',
       marginRight: 5

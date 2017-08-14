@@ -46,7 +46,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
@@ -65,6 +64,8 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
+import org.threeten.bp.Instant;
+import org.threeten.bp.temporal.ChronoUnit;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
@@ -183,6 +184,10 @@ import io.protostuff.ProtobufIOUtil;
  * Submit and monitor jobs from DAC.
  */
 public class LocalJobsService implements JobsService {
+  private static final int DISABLE_CLEANUP_VALUE = -1;
+
+  private static final int DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES = 120;
+
   private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalJobsService.class);
@@ -213,6 +218,7 @@ public class LocalJobsService implements JobsService {
   private KVStore<AttemptId, QueryProfile> profileStore;
   private NodeEndpoint identity;
   private String storageName;
+  private final boolean isMaster;
 
   private JobResultsStore jobResultsStore;
 
@@ -225,7 +231,8 @@ public class LocalJobsService implements JobsService {
       final Provider<CoordTunnelCreator> coordTunnelCreator,
       final Provider<ForemenTool> foremenTool,
       final Provider<SabotContext> contextProvider,
-      final Provider<SchedulerService> schedulerService
+      final Provider<SchedulerService> schedulerService,
+      final boolean isMaster
       ) {
     this.kvStoreProvider = kvStoreProvider;
     this.allocator = checkNotNull(allocator).newChildAllocator("jobs-service", 0, Long.MAX_VALUE);
@@ -237,6 +244,7 @@ public class LocalJobsService implements JobsService {
     this.foremenTool = foremenTool;
     this.coordTunnelCreator = coordTunnelCreator;
     this.schedulerService = schedulerService;
+    this.isMaster = isMaster;
   }
 
   @Override
@@ -277,15 +285,20 @@ public class LocalJobsService implements JobsService {
     long maxAgeInDays = contextProvider.get().getOptionManager().getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
     long jobResultsMaxAgeInMillis = (maxAgeInDays* ONE_DAY_IN_MILLIS) + maxAgeInMillis;
 
-    Schedule schedule = null;
+    if (isMaster) {
 
-    //Schedule cleanup to run every day unless the max age is less than a day
-    if (jobResultsMaxAgeInMillis < ONE_DAY_IN_MILLIS) {
-      schedule = Schedule.Builder.everyMillis(jobResultsMaxAgeInMillis).build();
-    } else {
-      schedule = Schedule.Builder.everyDays(1).build();
+      Schedule schedule = null;
+
+      //Schedule cleanup to run every day unless the max age is less than a day
+      if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
+        if (jobResultsMaxAgeInMillis < ONE_DAY_IN_MILLIS) {
+          schedule = Schedule.Builder.everyMillis(jobResultsMaxAgeInMillis).startingAt(Instant.now().plus(DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES, ChronoUnit.MINUTES)).build();
+        } else {
+          schedule = Schedule.Builder.everyDays(1).startingAt(Instant.now().plus(DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES, ChronoUnit.MINUTES)).build();
+        }
+        schedulerService.get().schedule(schedule, new CleanupTask());
+      }
     }
-    schedulerService.get().schedule(schedule, new CleanupTask());
 
     // grab tools for cancellation and remote active query profile retrieval.
     logger.info("JobsService is up");
@@ -1437,24 +1450,43 @@ public class LocalJobsService implements JobsService {
 
   class CleanupTask implements Runnable {
 
+    private static final int MAX_NUMBER_JOBS_TO_FETCH = 10;
+    private long lastCutOffTime = 0;
+
     @Override
     public void run() {
+      cleanup();
+    }
+
+    public void cleanup() {
       //obtain the max age values during each cleanup as the values could change.
       long maxAgeInMillis = contextProvider.get().getOptionManager().getOption(ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS);
       long maxAgeInDays = contextProvider.get().getOptionManager().getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
       long jobResultsMaxAgeInMillis = (maxAgeInDays* ONE_DAY_IN_MILLIS) + maxAgeInMillis;
       long cutOffTime = System.currentTimeMillis() - jobResultsMaxAgeInMillis;
-
-      //iterate through the results and remove directories if they are older
-      for (Map.Entry<JobId, JobResult> entry : store.find()) {
-        JobId jobId = entry.getKey();
-        JobResult jobResult = entry.getValue();
-        JobInfo jobInfo = jobResult.getAttemptsList().get(jobResult.getAttemptsList().size() - 1).getInfo();
-        if (jobInfo != null // TODO: skip cleanup for now, but maybe delete instead (for unknown finish time)?
-            && jobInfo.getFinishTime() < cutOffTime) {
-          jobResultsStore.cleanup(jobId);
-        }
+      if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
+        cleanupJobs(cutOffTime);
       }
+    }
+
+    private void cleanupJobs(long cutOffTime) {
+      //iterate through the job results and cleanup.
+      SearchQuery searchQuery = SearchQueryUtils.or(
+          SearchQueryUtils.and(
+              SearchQueryUtils.newExistsQuery(JobIndexKeys.END_TIME.getIndexFieldName()),
+              SearchQueryUtils.newRangeLong(JobIndexKeys.END_TIME.getIndexFieldName(), lastCutOffTime, cutOffTime, true, true)),
+          SearchQueryUtils.and(
+              SearchQueryUtils.newDoesNotExistQuery(JobIndexKeys.END_TIME.getIndexFieldName()),
+              SearchQueryUtils.newRangeLong(JobIndexKeys.START_TIME.getIndexFieldName(), lastCutOffTime, cutOffTime, true, true)));
+
+      FindByCondition condition = new FindByCondition()
+          .setCondition(searchQuery)
+          .setPageSize(MAX_NUMBER_JOBS_TO_FETCH);
+
+      for (Entry<JobId, JobResult> entry : store.find(condition)) {
+        jobResultsStore.cleanup(entry.getKey());
+      }
+      lastCutOffTime = cutOffTime;
     }
   }
 }

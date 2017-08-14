@@ -42,7 +42,8 @@ public class PathUtils {
   private static final char PATH_DELIMITER = '.'; // dot separated path
   private static final Joiner KEY_JOINER = Joiner.on(PATH_DELIMITER).useForNull("");
   private static final String SLASH = Path.SEPARATOR;
-  private static final Joiner PATH_JOINER = Joiner.on(SLASH.charAt(0)).useForNull("");
+  private static final char SLASH_CHAR = Path.SEPARATOR_CHAR;
+  private static final Joiner PATH_JOINER = Joiner.on(SLASH_CHAR).useForNull("");
   private static final Path ROOT_PATH = new Path(SLASH);
   private static final List<String> EMPTY_SCHEMA_PATHS = Collections.emptyList();
 
@@ -149,7 +150,9 @@ public class PathUtils {
     if (fsPath == null ) {
       return EMPTY_SCHEMA_PATHS;
     }
-    return Splitter.on(SLASH).omitEmptyStrings().splitToList(fsPath);
+
+    final StrTokenizer tokenizer = new StrTokenizer(fsPath, SLASH_CHAR, SqlUtils.QUOTE).setIgnoreEmptyTokens(true);
+    return tokenizer.getTokenList();
   }
 
   /**

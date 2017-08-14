@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>1.0.8-201707190805180330-27f36e1</version>
+    <version>1.1.0-201708121825170680-436784e</version>
   </parent>
 
   <artifactId>dremio-dac-ui</artifactId>
@@ -48,7 +48,10 @@
             <include>**</include>
           </includes>
           <excludes combine.children="append">
-            <exclude>target/**</exclude>
+            <exclude>target/**</exclude> <!-- todo: ${project.build.directory} not working, unsure why -->
+            <exclude>build/**</exclude>
+            <exclude>coverage/**</exclude>
+            <exclude>.nyc_output/**</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -67,7 +70,7 @@
                     <exclude>build/**</exclude>
                     <exclude>node_modules/**</exclude>
                     <exclude>src/main/resources/**</exclude>
-                    <exclude>target/**</exclude>
+                    <exclude>${project.build.directory}/**</exclude>
                   </excludes>
                   <filtering>false</filtering>
                 </resource>

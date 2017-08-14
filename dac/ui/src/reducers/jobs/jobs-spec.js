@@ -27,7 +27,13 @@ describe('jobs reducer', () => {
       outputRecords: 10
     },
     jobs: [
-      { id: 'a-b-c-d', datasetVersion: '123', state: 'RUNNING' }
+      {
+        id: 'a-b-c-d',
+        datasetVersion: '123',
+        state: 'RUNNING',
+        datasetPathList: ['myspace', 'foo'],
+        datasetType: 'VIRTUAL_DATASET'
+      }
     ]
   });
 
@@ -37,7 +43,7 @@ describe('jobs reducer', () => {
   });
 
   describe('UPDATE_JOB_STATE', () => {
-    it('should job state in jobs list', () => {
+    it('should job state in jobs list, but keep datasetPathList and datasetType', () => {
       const result = jobsReducer(initialState, {
         type: UPDATE_JOB_STATE,
         jobId: 'a-b-c-d',
@@ -49,6 +55,8 @@ describe('jobs reducer', () => {
       });
       expect(result.getIn(['jobs', 0, 'state'])).to.eql('COMPLETED');
       expect(result.getIn(['jobs', 0, 'isComplete'])).to.eql(false);
+      expect(result.getIn(['jobs', 0, 'datasetPathList'])).to.eql(initialState.getIn(['jobs', 0, 'datasetPathList']));
+      expect(result.getIn(['jobs', 0, 'datasetType'])).to.eql(initialState.getIn(['jobs', 0, 'datasetType']));
     });
   });
 });

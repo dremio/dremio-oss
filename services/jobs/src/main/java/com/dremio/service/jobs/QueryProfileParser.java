@@ -428,6 +428,7 @@ class QueryProfileParser {
     } // end of for loop for major fragments
 
     // finalize output stats
+
     if (jobStats.getOutputRecords() == null) {
       jobStats.setOutputRecords(queryOutputRecords);
     }
@@ -439,8 +440,11 @@ class QueryProfileParser {
     jobDetails.setFsDatasetProfilesList(new ArrayList<>(fileSystemDatasetProfileMap.values()));
     jobDetails.setTableDatasetProfilesList(new ArrayList<>(tableDatasetProfileMap.values()));
     final List<TopOperation> topOperations = Lists.newArrayList();
-    for (Map.Entry<OperationType, Long> entry: topOperationsMap.entrySet()) {
-      topOperations.add(new TopOperation(entry.getKey(), entry.getValue()*100.0f/totalTimeInMillis));
+    if (totalTimeInMillis > 0) {
+      float factor = 100.0f / totalTimeInMillis;
+      for (Map.Entry<OperationType, Long> entry : topOperationsMap.entrySet()) {
+        topOperations.add(new TopOperation(entry.getKey(), entry.getValue() * factor));
+      }
     }
     Collections.sort(topOperations, new Comparator<TopOperation>() {
       @Override

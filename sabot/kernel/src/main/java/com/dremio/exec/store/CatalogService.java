@@ -53,6 +53,12 @@ public interface CatalogService extends AutoCloseable, Service {
   void registerSource(NamespaceKey source, StoragePlugin2 sourceRegistry);
 
   /**
+   * Unregister a source from a catalog service
+   * @param source source name
+   */
+  void unregisterSource(NamespaceKey source);
+
+  /**
    * Refresh metadata cached for given source
    * @param source source name
    * @return true if cached metadata has changed
@@ -89,4 +95,9 @@ public interface CatalogService extends AutoCloseable, Service {
 
   @Deprecated
   StoragePluginRegistry getOldRegistry();
+
+  /**
+   * Test-only interface: trim away any background metadata update tasks that point to sources that no longer exist
+   */
+  void testTrimBackgroundTasks();
 }

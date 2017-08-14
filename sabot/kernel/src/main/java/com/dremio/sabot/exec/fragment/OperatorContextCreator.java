@@ -72,6 +72,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.contextInformation = contextInformation;
   }
 
+  @Override
   public OperatorContext newOperatorContext(PhysicalOperator popConfig) {
 
     final String allocatorName = String.format("op:%s:%d:%s",

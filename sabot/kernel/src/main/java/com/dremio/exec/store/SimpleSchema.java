@@ -24,6 +24,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
@@ -43,6 +44,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
+import com.dremio.exec.store.SchemaTreeProvider.MetadataStatsCollector;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
@@ -67,17 +69,20 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+
 public class SimpleSchema extends AbstractSchema {
 
-
   private static final CharMatcher PATH_SEPARATOR_MATCHER = CharMatcher.is(Path.SEPARATOR_CHAR);
+  private static final PermissionCheckCache permissionsCache = new PermissionCheckCache(10_000L);
 
   private final SabotContext dContext;
+  private final MetadataStatsCollector metadataStatsCollector;
   protected final SchemaConfig schemaConfig;
   protected final SchemaType type;
   protected final NamespaceService ns;
@@ -88,9 +93,16 @@ public class SimpleSchema extends AbstractSchema {
   private Map<String,SimpleSchema> subSchemas;
   private Set<String> tableNames;
 
+  public enum MetadataAccessType {
+    CACHED_METADATA,
+    PARTIAL_METADATA,
+    SOURCE_METADATA
+  }
+
   public SimpleSchema(
       SabotContext dContext,
       NamespaceService ns,
+      MetadataStatsCollector metadataStatsCollector,
       List<String> parentSchemaPath,
       String name,
       SchemaConfig schemaConfig,
@@ -101,6 +113,7 @@ public class SimpleSchema extends AbstractSchema {
     this.dContext = dContext;
     this.ns = ns;
     this.schemaConfig = schemaConfig;
+    this.metadataStatsCollector = metadataStatsCollector;
     this.type = type;
     this.metadataPolicy = metadataPolicy;
     this.schemaMutability = Preconditions.checkNotNull(schemaMutability);
@@ -118,7 +131,7 @@ public class SimpleSchema extends AbstractSchema {
     if (areEntitiesListed) {
       subSchema = subSchemas.get(name);
     } else if(ns.exists(new NamespaceKey(getChildPath(name)), Type.FOLDER)) {
-      subSchema = new SimpleSchema(dContext, ns, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
+      subSchema = new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
     }
 
     if (subSchema != null) {
@@ -131,11 +144,11 @@ public class SimpleSchema extends AbstractSchema {
         StoragePlugin2 plugin2 = plugin.getStoragePlugin2();
         if(plugin2 != null){
           if(plugin2.containerExists(new NamespaceKey(getChildPath(name)))){
-            return new SimpleSchema(dContext, ns, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
+            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
           }
         }else{
           if(plugin.folderExists(schemaConfig, getChildPath(name))){
-            return new SimpleSchema(dContext, ns, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
+            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
           }
         }
       }
@@ -189,7 +202,7 @@ public class SimpleSchema extends AbstractSchema {
             final String folderName = container.getFolder().getName();
             subSchemas.put(
                 folderName,
-                new SimpleSchema(dContext, ns, schemaPath, folderName, schemaConfig, type, metadataPolicy, schemaMutability)
+                new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, folderName, schemaConfig, type, metadataPolicy, schemaMutability)
             );
             break;
           default:
@@ -255,19 +268,25 @@ public class SimpleSchema extends AbstractSchema {
   }
 
   private Table getTableFromDataset(StoragePlugin2 registry, DatasetConfig datasetConfig) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+
     // we assume for now that the passed dataset was retrieved from the namespace, so it must have
     // a canonized datasetPath (or the source is case sensitive and doesn't really do any special handling
     // to canonize the keys)
     final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
 
-    if (!registry.hasAccessPermission(schemaConfig.getUserName(), canonicalKey, datasetConfig)) {
+    if (!permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey,
+        datasetConfig, metadataPolicy, metadataStatsCollector)) {
       throw UserException.permissionError()
         .message("Access denied reading dataset %s.", canonicalKey.toString())
         .build(logger);
     }
 
     if (!isPartialState(datasetConfig)) {
-      return new NamespaceTable(new TableMetadataImpl(registry.getId(), datasetConfig, schemaConfig.getUserName(), new SplitsPointerImpl(datasetConfig, ns)));
+      final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), datasetConfig, schemaConfig.getUserName(), new SplitsPointerImpl(datasetConfig, ns)));
+      stopwatch.stop();
+      metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      return namespaceTable;
     }
 
     try {
@@ -285,18 +304,22 @@ public class SimpleSchema extends AbstractSchema {
       List<DatasetSplit> splits = datasetAccessor.getSplits();
       ns.addOrUpdateDataset(datasetAccessor.getName(), newDatasetConfig, splits);
       // check permission again.
-      if(registry.hasAccessPermission(schemaConfig.getUserName(), canonicalKey, newDatasetConfig)) {
+      if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey,
+          newDatasetConfig, metadataPolicy, metadataStatsCollector)) {
         TableMetadata metadata = new TableMetadataImpl(registry.getId(), newDatasetConfig, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size()));
+        stopwatch.stop();
+        metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.PARTIAL_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
         return new NamespaceTable(metadata);
       } else {
         throw UserException.permissionError().message("Access denied reading dataset %s.", canonicalKey.toString()).build(logger);
       }
     } catch (Exception e) {
-      throw UserException.dataReadError(e).message("Failure while attempting to read metadata for table %s.",  canonicalKey.getName()).build(logger);
+      throw UserException.dataReadError(e).message("Failure while attempting to read metadata for %s.%s.",  getFullSchemaName(), canonicalKey.getName()).build(logger);
     }
   }
 
   private Table getTableFromSource(StoragePlugin2 registry, NamespaceKey key) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       // TODO: move views to namespace and out of filesystem.
       ViewTable view = registry.getView(key.getPathComponents(), schemaConfig);
@@ -310,9 +333,15 @@ public class SimpleSchema extends AbstractSchema {
         return null;
       }
 
-      DatasetConfig config = accessor.getDataset();
       final NamespaceKey canonicalKey = accessor.getName(); // retrieve the canonical key returned by the source
-      List<DatasetSplit> splits = accessor.getSplits();
+
+      if (ns.exists(canonicalKey, Type.DATASET)) {
+        // Some other thread may have added this dataset, so return from namespace with the canonical path
+        return getTableWithRegistry(registry, canonicalKey);
+      }
+
+      final DatasetConfig config = accessor.getDataset();
+      final List<DatasetSplit> splits = accessor.getSplits();
       if(accessor.isSaveable()){
         try {
           ns.addOrUpdateDataset(canonicalKey, config, splits);
@@ -325,8 +354,11 @@ public class SimpleSchema extends AbstractSchema {
           throw ue;
         }
       }
-      if(registry.hasAccessPermission(schemaConfig.getUserName(), canonicalKey, config)){
-        return new NamespaceTable(new TableMetadataImpl(registry.getId(), config, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size())));
+      if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey, config, metadataPolicy, metadataStatsCollector)) {
+        final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), config, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size())));
+        stopwatch.stop();
+        metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.SOURCE_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        return namespaceTable;
       } else {
         throw UserException.permissionError().message("Access denied reading dataset %s.", canonicalKey.toString()).build(logger);
       }

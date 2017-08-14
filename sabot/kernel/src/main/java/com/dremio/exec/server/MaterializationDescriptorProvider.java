@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -31,6 +32,11 @@ public interface MaterializationDescriptorProvider {
    * @return a list of {@code Materialization} instances. Might be empty.
    */
   List<MaterializationDescriptor> get();
+
+  /**
+   * returns materialization for a given id
+   */
+   Optional<MaterializationDescriptor> get(String materializationId);
 
   @VisibleForTesting
   /**
@@ -50,5 +56,10 @@ public interface MaterializationDescriptorProvider {
 
     @Override
     public void setDebug(boolean debug) {}
+
+    @Override
+    public Optional<MaterializationDescriptor> get(String materializationId) {
+      return Optional.absent();
+    }
   };
 }

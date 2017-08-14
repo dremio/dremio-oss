@@ -32,6 +32,8 @@ import javax.ws.rs.client.Entity;
 import org.junit.Assert;
 
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.model.folder.FolderPath;
+import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.SpacePath;
@@ -55,6 +57,8 @@ import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -62,6 +66,8 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.TimePeriod;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -80,17 +86,26 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   public static final String HOME_NAME = HomeName.getUserHomePath(SampleDataPopulator.DEFAULT_USER_NAME).getName();
   public static final String TEST_SOURCE = "src";
   public static final String TEST_SPACE = "accel_test";
+  public static final String TEST_FOLDER = "test_folder";
   public static final String WORKING_PATH = Paths.get("").toAbsolutePath().toString();
   public static final String[] STRUCTURE = {"src", "test", "resources", "acceleration"};
   public static final String PATH_SEPARATOR = System.getProperty("file.separator");
   public static final String EMPLOYEES_FILE = "employees.json";
   public static final String EMPLOYEES_WITH_NULL_FILE = "employees_with_null.json";
+  public static final String EMPLOYEES_VIRTUAL_DATASET_NAME = "ds_emp";
 
   // Available Datasets
-  public static final DatasetPath EMPLOYEES = new DatasetPath(Arrays.asList(TEST_SOURCE, "employees.json"));
-  public static final DatasetPath EMPLOYEES_VIRTUAL = new DatasetPath(Arrays.asList(TEST_SPACE, "ds_emp"));
+  public static final DatasetPath EMPLOYEES = new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_FILE));
+  public static final DatasetPath EMPLOYEES_VIRTUAL = new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME));
+
+  public static final FolderPath TEST_FOLDER_PATH = new FolderPath(Arrays.asList(TEST_SPACE, TEST_FOLDER));
+  public static final DatasetPath EMPLOYEES_UNDER_FOLDER = new DatasetPath(Arrays.asList(TEST_SPACE, TEST_FOLDER, EMPLOYEES_VIRTUAL_DATASET_NAME));
 
   public void addCPSource() throws Exception {
+    addCPSource(false);
+  }
+
+  public void addCPSource(boolean createFolder) throws Exception {
     final ClassPathConfig nas = new ClassPathConfig();
     nas.setPath("/acceleration");
     SourceUI source = new SourceUI();
@@ -102,23 +117,98 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     final NamespaceService nsService = getNamespaceService();
     final SpaceConfig config = new SpaceConfig().setName(TEST_SPACE);
     nsService.addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
+
+    if (createFolder) {
+      final FolderConfig folderConfig = new FolderConfig().setName(TEST_FOLDER);
+      nsService.addOrUpdateFolder(TEST_FOLDER_PATH.toNamespaceKey(), folderConfig);
+    }
+  }
+
+  public void moveDataset(DatasetPath dataset1, DatasetPath dataset2) throws NamespaceException {
+    getNamespaceService().renameDataset(dataset1.toNamespaceKey(), dataset2.toNamespaceKey());
+  }
+
+  public boolean isSourcePresent() {
+    try {
+      return (getNamespaceService().getSource(new SourcePath(TEST_SPACE).toNamespaceKey()) != null);
+    } catch (NamespaceException e) {
+      return false;
+    }
+  }
+
+  public void deleteSource() {
+    NamespaceKey key = new SourcePath(TEST_SOURCE).toNamespaceKey();
+    SourceConfig config;
+    try {
+      config = getNamespaceService().getSource(key);
+      if (config != null) {
+        getNamespaceService().deleteSource(key, config.getVersion());
+      }
+    } catch (NamespaceException e) {
+
+    }
+  }
+
+  public void deleteSpace() {
+    NamespaceKey key = new SpacePath(TEST_SPACE).toNamespaceKey();
+    SpaceConfig config;
+    try {
+      config = getNamespaceService().getSpace(key);
+      if (config != null) {
+        getNamespaceService().deleteSpace(key, config.getVersion());
+      }
+    }catch (NamespaceException e) {
+    }
+  }
+
+  public void deleteFolder() {
+    NamespaceKey key = TEST_FOLDER_PATH.toNamespaceKey();
+    FolderConfig config;
+    try {
+      config = getNamespaceService().getFolder(key);
+      if (config != null) {
+        getNamespaceService().deleteFolder(key, config.getVersion());
+      }
+    }catch (NamespaceException e) {
+    }
   }
 
   public void addEmployeesJson() throws Exception {
     addJson(EMPLOYEES, EMPLOYEES_VIRTUAL);
   }
 
+
+  public void deleteDataset(DatasetPath ds) {
+    NamespaceKey key = ds.toNamespaceKey();
+    DatasetConfig config;
+    try {
+      config = getNamespaceService().getDataset(key);
+      if (config != null) {
+        getNamespaceService().deleteDataset(key, config.getVersion());
+      }
+    }catch (NamespaceException e) {
+    }
+  }
+
+  public boolean isDatasetPresent(DatasetPath ds) {
+    try {
+      return (getNamespaceService().getDataset(ds.toNamespaceKey()) != null);
+    } catch (NamespaceException e) {
+      return false;
+    }
+  }
+
   public void addJson(DatasetPath path, DatasetPath vdsPath) throws Exception {
     final DatasetConfig dataset = new DatasetConfig()
-      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-      .setFullPathList(path.toPathList())
-      .setName(path.getLeaf().getName())
-      .setCreatedAt(System.currentTimeMillis())
-      .setVersion(null)
-      .setOwner(DEFAULT_USERNAME)
-      .setPhysicalDataset(new PhysicalDataset()
-        .setFormatSettings(new FileConfig().setType(FileType.JSON))
-      );
+        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+        .setFullPathList(path.toPathList())
+        .setName(path.getLeaf().getName())
+        .setCreatedAt(System.currentTimeMillis())
+        .setVersion(null)
+        .setOwner(DEFAULT_USERNAME)
+        .setPhysicalDataset(new PhysicalDataset()
+            .setFormatSettings(new FileConfig().setType(FileType.JSON))
+            );
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
     createDatasetFromParentAndSave(vdsPath, path.toPathString());
@@ -185,21 +275,21 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
 
   protected AccelerationApiDescriptor createNewAcceleration(DatasetPath path) {
     return expectSuccess(
-      getBuilder(getAPIv2().path("/accelerations")).buildPost(Entity.entity(path.toPathList(), JSON)),
-      AccelerationApiDescriptor.class
-    );
+        getBuilder(getAPIv2().path("/accelerations")).buildPost(Entity.entity(path.toPathList(), JSON)),
+        AccelerationApiDescriptor.class
+        );
   }
 
   protected AccelerationApiDescriptor saveAcceleration(AccelerationId id, AccelerationApiDescriptor descriptor) {
     return expectSuccess(getBuilder(
-      getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildPut(Entity.entity(MAPPER.toIntentMessage(descriptor), JSON)),
-      AccelerationApiDescriptor.class);
+        getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildPut(Entity.entity(MAPPER.toIntentMessage(descriptor), JSON)),
+        AccelerationApiDescriptor.class);
   }
 
   protected GenericErrorMessage saveAccelerationFailure(AccelerationId id, AccelerationApiDescriptor descriptor) {
     return expectError(FamilyExpectation.SERVER_ERROR, getBuilder(
-      getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildPut(Entity.entity(MAPPER.toIntentMessage(descriptor), JSON)),
-      GenericErrorMessage.class);
+        getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildPut(Entity.entity(MAPPER.toIntentMessage(descriptor), JSON)),
+        GenericErrorMessage.class);
   }
 
   protected AccelerationApiDescriptor pollAcceleration(AccelerationId id) {
@@ -282,6 +372,27 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     }
 
     Assert.fail("Timed out waiting for materializations");
+  }
+
+  public void waitForCachedMaterialization(final AccelerationId id) throws Exception {
+
+    for (int i = 0; i < 60; i++) {
+      Thread.sleep(500);
+      final List<Materialization> materializations = getMaterializations(id);
+
+      final boolean allDone = Iterables.all(materializations, new Predicate<Materialization>() {
+        @Override
+        public boolean apply(@Nullable final Materialization input) {
+          return getAccelerationService().isMaterializationCached(input.getId());
+        }
+      });
+
+      if (allDone) {
+        return ;
+      }
+    }
+
+    Assert.fail("Timed out waiting for cached materializations");
   }
 
   private static <T> T getOrFailChecked(final Optional<T> entry, final String message) throws AccelerationNotFoundException {

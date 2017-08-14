@@ -21,6 +21,7 @@ import { RUN_DATASET_START } from 'actions/explore/dataset/run';
 import { expandExploreSql } from 'actions/explore/ui';
 
 import { getNewDataset } from 'pages/ExplorePage/ExplorePageController';
+import apiUtils from 'utils/apiUtils/apiUtils';
 
 import { unwrapAction } from './utils';
 import { performWatchedTransform } from './transformWatcher';
@@ -64,26 +65,41 @@ describe('performTransform saga', () => {
 
   describe('performTransform', () => {
     it('should call doRun when isRun', () => {
-      const payload = { dataset, currentSql: dataset.get('sql'), transformData, isRun: true };
+      const params = { dataset, currentSql: dataset.get('sql'), transformData, isRun: true };
 
-      gen = performTransform(payload);
+      gen = performTransform(params);
       next = gen.next();
       next = gen.next(transformData);
       expect(next.value.CALL.fn).to.equal(doRun);
     });
 
-    it('should call callback if transform request succeeds', () => {
-      const payload = { dataset, currentSql: dataset.get('sql'), transformData, callback: sinon.spy() };
+    it('should call callback with true if transform request succeeds', () => {
+      const params = { dataset, currentSql: dataset.get('sql'), transformData, callback: sinon.spy() };
 
-      gen = performTransform(payload);
+      gen = performTransform(params);
       next = gen.next();
       next = gen.next(transformData);
       expect(next.value.CALL).to.not.be.undefined; // run transform
       next = gen.next(datasetResponse);
-      expect(next.value.CALL.fn).to.eql(payload.callback);
+      const nextDataset = apiUtils.getEntityFromResponse('datasetUI', datasetResponse);
+      expect(next.value.CALL.fn).to.equal(params.callback);
+      expect(next.value.CALL.args).to.eql([true, nextDataset]);
       next = gen.next();
       expect(next.done).to.be.true;
     });
+
+    it('should call callback with false if no transform necessary', () => {
+      const params = { dataset, currentSql: dataset.get('sql'), callback: sinon.spy() };
+
+      gen = performTransform(params);
+      next = gen.next();
+      next = gen.next(null); // no transformData
+      expect(next.value.CALL.fn).to.equal(params.callback);
+      expect(next.value.CALL.args).to.eql([false, dataset]);
+      next = gen.next();
+      expect(next.done).to.be.true;
+    });
+
 
     it('should not call callback if transform request fails', () => {
       const payload = { dataset, currentSql: dataset.get('sql'), transformData, callback: sinon.spy() };

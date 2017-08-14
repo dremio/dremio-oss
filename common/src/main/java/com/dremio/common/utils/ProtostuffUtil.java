@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import com.dremio.common.exceptions.UserException;
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 
 import io.protostuff.GraphIOUtil;
@@ -108,7 +110,10 @@ public final class ProtostuffUtil {
    */
   public static <T> void toJSON(OutputStream out, T message, Schema<T> schema,
           boolean numeric) throws IOException {
-    JsonIOUtil.writeTo(out, message, schema, numeric);
+    try (JsonGenerator jsonGenerator =
+           JsonIOUtil.DEFAULT_JSON_FACTORY.createGenerator(out, JsonEncoding.UTF8).disable(JsonGenerator.Feature.QUOTE_NON_NUMERIC_NUMBERS)) {
+      JsonIOUtil.writeTo(jsonGenerator, message, schema, numeric);
+    }
   }
 
   /**

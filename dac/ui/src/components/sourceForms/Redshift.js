@@ -17,6 +17,7 @@ import { Component, PropTypes } from 'react';
 
 import General from 'components/Forms/General';
 import Credentials from 'components/Forms/Credentials';
+import JDBCOptions from 'components/Forms/JDBCOptions';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
@@ -33,7 +34,7 @@ class JDBCSection {
   }
 }
 
-const SECTIONS = [General, Credentials, JDBCSection, MetadataRefresh];
+const SECTIONS = [General, Credentials, JDBCSection, JDBCOptions, MetadataRefresh];
 
 export class Redshift extends Component {
 
@@ -65,6 +66,7 @@ export class Redshift extends Component {
             <div style={section}>
               <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
               <AdvancedOptionsExpandable>
+                <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>
               </AdvancedOptionsExpandable>
             </div>

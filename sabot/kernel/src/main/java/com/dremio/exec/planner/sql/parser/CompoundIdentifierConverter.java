@@ -160,7 +160,6 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlJoin.class, R(D, D, D, D, D, E));
     rules.put(SqlOrderBy.class, R(D, E, D, D));
     rules.put(SqlDropTable.class, R(D, D));
-    rules.put(SqlRefreshMetadata.class, R(D));
     rules.put(SqlSetOption.class, R(D, D, D));
     rules.put(SqlAccelEnable.class, R(D));
     rules.put(SqlAccelDisable.class, R(D));

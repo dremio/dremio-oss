@@ -66,6 +66,17 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   }
 
   @Override
+  public int reIndex() {
+    Iterable<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iter = find();
+    int elementCount = 0;
+    for (Entry<KVStoreTuple<K>, KVStoreTuple<V>> entry:iter) {
+      index(entry.getKey(), entry.getValue());
+      elementCount++;
+    }
+    return elementCount;
+  }
+
+  @Override
   public KVStoreTuple<K> newKey() {
     return base.newKey();
   }
@@ -88,6 +99,10 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   @Override
   public void put(KVStoreTuple<K> key, KVStoreTuple<V> v) {
     base.put(key, v);
+    index(key, v);
+  }
+
+  private void index(KVStoreTuple<K> key, KVStoreTuple<V> v) {
     final Document document = toDoc(key, v);
     if (document != null) {
       index.update(keyAsTerm(key), document);

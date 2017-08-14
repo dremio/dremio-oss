@@ -17,11 +17,12 @@ package com.dremio.sabot.exec.fragment;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.store.StoragePlugin2;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePlugin2;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
 import com.dremio.service.namespace.StoragePluginId;
+import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * Information required for some specialized scan purposes.
@@ -31,12 +32,14 @@ public class FragmentExecutionContext {
   private final NodeEndpoint foreman;
   private final SchemaChangeListener schemaUpdater;
   private final StoragePluginRegistry registry;
+  private final ListenableFuture<Boolean> cancelled;
 
-  public FragmentExecutionContext(NodeEndpoint foreman, SchemaChangeListener schemaUpdater, StoragePluginRegistry registry) {
+  public FragmentExecutionContext(NodeEndpoint foreman, SchemaChangeListener schemaUpdater, StoragePluginRegistry registry, ListenableFuture<Boolean> cancelled) {
     super();
     this.foreman = foreman;
     this.schemaUpdater = schemaUpdater;
     this.registry = registry;
+    this.cancelled = cancelled;
   }
 
   public NodeEndpoint getForemanEndpoint(){
@@ -45,6 +48,10 @@ public class FragmentExecutionContext {
 
   public SchemaChangeListener getSchemaUpdater(){
     return schemaUpdater;
+  }
+
+  public ListenableFuture<Boolean> cancelled() {
+    return cancelled;
   }
 
   @Deprecated

@@ -260,7 +260,7 @@ class RepeatedVarCharOutput extends TextOutput {
 
     try {
       ListVector.Accessor v = output.addField(new Field(COL_NAME, true, MinorType.LIST.getType(), null), ListVector.class).getAccessor();
-      List outputlist = (List) v.getObject(0);
+      List outputlist = (List) v.getObject((int)(recordCount-1));
 
       for (int i=0; i<retSize; i++){
         out[i] = ((Text) outputlist.get(i)).toString();

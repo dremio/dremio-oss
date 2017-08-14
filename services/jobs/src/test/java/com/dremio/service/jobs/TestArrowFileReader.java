@@ -35,10 +35,12 @@ import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
@@ -107,15 +109,37 @@ public class TestArrowFileReader {
     try {
       // generate a test file with just the empty record batch
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
+
       batchData = createBatch(0,
-          new NullableBitVector("colBit", ALLOCATOR), new NullableVarCharVector("colVarChar", ALLOCATOR));
+          new NullableBitVector("colBit", ALLOCATOR),
+          new NullableVarCharVector("colVarChar", ALLOCATOR),
+          testEmptyListVector(),
+          testEmptyUnionVector());
       ArrowFileMetadata metadata = writeArrowFile(batchData);
       try(ArrowFileReader reader = new ArrowFileReader(FileSystem.get(FS_CONF), basePath, metadata, ALLOCATOR)) {
         {
           List<RecordBatchHolder> batchHolders = reader.read(0, 0);
           assertEquals(1, batchHolders.size());
 
-          verifyBatchHolder(batchHolders.get(0), 0, 0);
+          //verifyBatchHolder(batchHolders.get(0), 0, 0);
+
+          BatchSchema schema = batchHolders.get(0).getData().getContainer().getSchema();
+          assertEquals(4, schema.getFieldCount());
+
+          assertEquals("colBit", schema.getColumn(0).getName());
+          assertEquals(MinorType.BIT, Types.getMinorTypeForArrowType(schema.getColumn(0).getType()));
+
+          assertEquals("colVarChar", schema.getColumn(1).getName());
+          assertEquals(MinorType.VARCHAR, Types.getMinorTypeForArrowType(schema.getColumn(1).getType()));
+
+          assertEquals("emptyListVector", schema.getColumn(2).getName());
+          assertEquals(MinorType.LIST, Types.getMinorTypeForArrowType(schema.getColumn(2).getType()));
+
+          assertEquals("unionVector", schema.getColumn(3).getName());
+          assertEquals(MinorType.UNION, Types.getMinorTypeForArrowType(schema.getColumn(3).getType()));
+          assertEquals(MinorType.INT, Types.getMinorTypeForArrowType(schema.getColumn(3).getChildren().get(0).getType()));
+          assertEquals(MinorType.DECIMAL, Types.getMinorTypeForArrowType(schema.getColumn(3).getChildren().get(1).getType()));
+
           releaseBatches(batchHolders);
         }
         {
@@ -376,6 +400,19 @@ public class TestArrowFileReader {
         new ListVector("emptyListVector", ALLOCATOR, FieldType.nullable(ArrowType.Null.INSTANCE), null);
     vector.allocateNew();
     return vector;
+  }
+
+  /** Helper method which creates a union vector with no data */
+  private static UnionVector testEmptyUnionVector() {
+    final UnionVector unionVector = new UnionVector("unionVector", ALLOCATOR, null);
+    unionVector.initializeChildrenFromFields(
+        asList(
+            Field.nullable("intType", new ArrowType.Int(32, true)),
+            Field.nullable("decimalType", new ArrowType.Decimal(4, 10))
+        )
+    );
+
+    return unionVector;
   }
 
   /** Helper method to get the values in given range in colBit vector used in this test class. */

@@ -66,6 +66,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.TableInstance;
 import com.dremio.service.namespace.TableInstance.TableParamDef;
@@ -137,7 +138,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
         .build(new CacheLoader<StoragePluginConfig, StoragePlugin<?>>() {
           @Override
           public StoragePlugin<?> load(StoragePluginConfig config) throws Exception {
-            return create(null, config);
+            return create(null, config, true);
           }
         });
   }
@@ -202,7 +203,8 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
       activePlugins.put(SYS_PLUGIN, sysPlugin);
       manuallyAddedPlugins.put(SYS_PLUGIN, 0);
 
-      StoragePluginStarter starter = new StoragePluginStarter(pluginSystemTable, STORAGE_PLUGIN_STARTUP_WAIT_MILLIS, new Creator());
+      StoragePluginStarter starter = new StoragePluginStarter(pluginSystemTable, STORAGE_PLUGIN_STARTUP_WAIT_MILLIS,
+              new InitTimeCreator());
       for (Map.Entry<String, StoragePluginConfig> entry : Lists.newArrayList(pluginSystemTable.getAll())) {
         starter.add(entry.getKey(), entry.getValue());
       }
@@ -218,10 +220,10 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     }
   }
 
-  private class Creator implements StoragePluginStarter.StoragePluginCreator {
+  private class InitTimeCreator implements StoragePluginStarter.StoragePluginCreator {
     @Override
     public StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig) throws Exception {
-      return StoragePluginRegistryImpl.this.create(name, pluginConfig);
+        return StoragePluginRegistryImpl.this.create(name, pluginConfig, true);
     }
 
     @Override
@@ -243,6 +245,9 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     pluginSourceTypes.remove(name);
     if(manuallyAddedPlugins.remove(name) == null){
       pluginSystemTable.delete(name);
+    }
+    if (catalog != null) {
+      catalog.unregisterSource(new NamespaceKey(name));
     }
   }
 
@@ -278,7 +283,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     }
     for (;;) {
       final StoragePlugin<?> oldPlugin = plugins.get(name);
-      final StoragePlugin<?> newPlugin = create(name, config, sourceConfig);
+      final StoragePlugin<?> newPlugin = create(name, config, sourceConfig, false);
       boolean done = false;
       try {
         if (oldPlugin != null) {
@@ -390,11 +395,11 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     return name.startsWith("__") || name.startsWith("$");
   }
 
-  private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig) throws ExecutionSetupException {
-    return create(name, pluginConfig, null);
+  private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig, boolean atRestart) throws ExecutionSetupException {
+    return create(name, pluginConfig, null, atRestart);
   }
 
-  private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig, SourceConfig sourceConfig) throws ExecutionSetupException {
+  private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig, SourceConfig sourceConfig, boolean atRestart) throws ExecutionSetupException {
     // name could be null if this is a ephemeral storage plugin.
 
     StoragePlugin<?> plugin = null;
@@ -413,6 +418,14 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     try {
       plugin = c.newInstance(pluginConfig, context, name);
       plugin.start();
+      if (plugin.getState().getStatus() != SourceState.SourceStatus.good
+          && context.getOptionManager().getOption(ExecConstants.STORAGE_PLUGIN_CHECK_STATE)
+          && !atRestart) {
+        // Unable to start the plugin
+        throw UserException.dataReadError()
+          .message("Unable to connect to source %s", name)
+          .build(logger);
+      }
       try {
         if (name != null) {
           final NamespaceService ns = context.getNamespaceService(SYSTEM_USERNAME);

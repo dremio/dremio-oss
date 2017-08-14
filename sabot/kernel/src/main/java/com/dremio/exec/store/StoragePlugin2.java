@@ -43,7 +43,7 @@ public interface StoragePlugin2 {
   /**
    * Get dataset for given path and user.
    * @param datasetPath
-   * @param physical dataset information (currently used for format settings)
+   * @param oldDataset dataset information (currently used for format settings)
    * @param ignoreAuthErrors
    * @return The Source table definition associated with this key. If doesn't exist, return null.
    */

@@ -17,7 +17,7 @@ import { CALL_API } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
 
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 export const CREATE_DATASET_START = 'CREATE_DATASET_START';
 export const CREATE_DATASET_SUCCESS = 'CREATE_DATASET_SUCCESS';
@@ -47,8 +47,8 @@ export const CREATE_DATASET_FROM_EXISTING_FAILURE = 'CREATE_DATASET_FAILURE';
 
 function putDatasetFromExisting(fullPathFrom, fullPathTo, datasetConfig) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
-  const encodedPathFrom = constructFullPath(fullPathFrom, true, true);
-  const encodedPathTo = constructFullPath(fullPathTo, true, true);
+  const encodedPathFrom = constructFullPathAndEncode(fullPathFrom);
+  const encodedPathTo = constructFullPathAndEncode(fullPathTo);
 
   return {
     [CALL_API]: {
@@ -76,8 +76,8 @@ export const MOVE_DATASET_FAILURE = 'MOVE_DATASET_FAILURE';
 
 function fetchDataSetMove(fullPathFrom, fullPathTo) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
-  const encodedPathFrom = constructFullPath(fullPathFrom, true, true);
-  const encodedPathTo = constructFullPath(fullPathTo, true, true);
+  const encodedPathFrom = constructFullPathAndEncode(fullPathFrom);
+  const encodedPathTo = constructFullPathAndEncode(fullPathTo);
   return {
     [CALL_API]: {
       types: [

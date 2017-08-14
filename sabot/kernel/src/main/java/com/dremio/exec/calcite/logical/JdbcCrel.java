@@ -17,6 +17,9 @@ package com.dremio.exec.calcite.logical;
 
 import java.util.List;
 
+import com.dremio.common.logical.data.LogicalOperator;
+import com.dremio.exec.planner.logical.LogicalPlanImplementor;
+import com.dremio.exec.planner.logical.Rel;
 import com.dremio.service.namespace.StoragePluginId;
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
@@ -33,7 +36,7 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 /**
  * Jdbc rel node on top of jdbc subtree during calcite's planning (convention NONE).
  */
-public class JdbcCrel extends SingleRel implements CopyToCluster {
+public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
 
   private StoragePluginId pluginId;
 
@@ -77,6 +80,11 @@ public class JdbcCrel extends SingleRel implements CopyToCluster {
       input,
       pluginId
     );
+  }
+
+  @Override
+  public LogicalOperator implement(LogicalPlanImplementor implementor) {
+    throw new UnsupportedOperationException();
   }
 
   public StoragePluginId getPluginId() {

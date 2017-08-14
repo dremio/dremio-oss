@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>1.0.8-201707190805180330-27f36e1</version>
+    <version>1.1.0-201708121825170680-436784e</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -304,16 +304,14 @@
                   <group>Other</group>
                   <packager>Dremio</packager>
                   <repackJars>false</repackJars>
-                  <defaultFileMode>0444</defaultFileMode>
-                  <defaultDirMode>0755</defaultDirMode>
-                  <defaultUsername>dremio</defaultUsername>
-                  <defaultGroupname>dremio</defaultGroupname>
+                  <defaultFilemode>644</defaultFilemode>
+                  <defaultDirmode>755</defaultDirmode>
+                  <defaultUsername>root</defaultUsername>
+                  <defaultGroupname>wheel</defaultGroupname>
                   <mappings>
                     <mapping>
                       <directory>/opt/dremio/bin</directory>
-                      <filemode>0555</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
+                      <filemode>755</filemode>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/bin</location>
@@ -326,16 +324,15 @@
                       </sources>
                     </mapping>
                     <mapping>
-                      <directory>/opt/dremio/jars</directory>
-                      <filemode>0755</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
+                      <directory>/opt/dremio/conf</directory>
+                      <sources>
+                        <softlinkSource>
+                          <location>/etc/dremio</location>
+                        </softlinkSource>
+                      </sources>
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/jars</directory>
-                      <filemode>0644</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
                       <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
@@ -345,15 +342,6 @@
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/licenses/dremio-${dremio.rpm.version}</directory>
-                      <filemode>0755</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
-                    </mapping>
-                    <mapping>
-                      <directory>/opt/dremio/licenses/dremio-${dremio.rpm.version}</directory>
-                      <filemode>0644</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
                       <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
@@ -363,15 +351,6 @@
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/share/dremio</directory>
-                      <filemode>0755</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
-                    </mapping>
-                    <mapping>
-                      <directory>/opt/dremio/share/dremio</directory>
-                      <filemode>0644</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
                       <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
@@ -381,16 +360,7 @@
                     </mapping>
                     <mapping>
                       <directory>/etc/dremio</directory>
-                      <filemode>0755</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
-                    </mapping>
-                    <mapping>
-                      <directory>/etc/dremio</directory>
                       <directoryIncluded>false</directoryIncluded>
-                      <filemode>0644</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/conf/logback.xml</location>
@@ -411,9 +381,6 @@
                     <mapping>
                       <directory>/etc/sysconfig</directory>
                       <directoryIncluded>false</directoryIncluded>
-                      <filemode>0644</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
                       <sources>
                         <source>
                           <location>${dremio.distribution.resources.directory}/rpm/sysconfig/dremio</location>
@@ -425,22 +392,23 @@
                       <directory>/var/lib/dremio</directory>
                       <username>dremio</username>
                       <groupname>dremio</groupname>
+                      <filemode>755</filemode>
                     </mapping>
                     <mapping>
                       <directory>/var/run/dremio</directory>
                       <username>dremio</username>
                       <groupname>dremio</groupname>
+                      <filemode>755</filemode>
                     </mapping>
                     <mapping>
                       <directory>/var/log/dremio</directory>
                       <username>dremio</username>
                       <groupname>dremio</groupname>
+                      <filemode>755</filemode>
                     </mapping>
                     <mapping>
-                      <directory>/etc/init.d/</directory>
-                      <filemode>0555</filemode>
-                      <username>root</username>
-                      <groupname>wheel</groupname>
+                      <directory>/etc/init.d</directory>
+                      <filemode>555</filemode>
                       <sources>
                         <source>
                           <location>${dremio.distribution.resources.directory}/share/dremio.rc</location>
@@ -452,11 +420,11 @@
                   </mappings>
                   <preinstallScriptlet>
                     <script>
-                      getent group dremio >/dev/null || groupadd -r dremio
-                      getent passwd dremio >/dev/null || \
-                        useradd -r -g dremio -d /var/lib/dremio -s /sbin/nologin \
-                        -c "Dremio DAC daemon user" dremio
-                      exit 0
+getent group dremio >/dev/null || groupadd -r dremio
+getent passwd dremio >/dev/null || \
+  useradd -r -g dremio -d /var/lib/dremio -s /sbin/nologin \
+  -c "Dremio DAC daemon user" dremio
+exit 0
                     </script>
                   </preinstallScriptlet>
                 </configuration>

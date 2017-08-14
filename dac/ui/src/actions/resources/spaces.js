@@ -23,6 +23,7 @@ import spaceSchema from 'dyn-load/schemas/space';
 import { API_URL_V2 } from 'constants/Api';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import actionUtils from 'utils/actionUtils/actionUtils';
 
 export const SPACES_LIST_LOAD_START = 'SPACES_LIST_LOAD_START';
 export const SPACES_LIST_LOAD_SUCCESS = 'SPACES_LIST_LOAD_SUCCESS';
@@ -108,6 +109,7 @@ export const REMOVE_SPACE_FAILURE = 'REMOVE_SPACE_FAILURE';
 
 function fetchRemoveSpace(space) {
   const meta = { name, invalidateViewIds: ['AllSpaces'] };
+  const errorMessage = la('There was an error removing the space.');
   return {
     [CALL_API]: {
       types: [
@@ -118,7 +120,11 @@ function fetchRemoveSpace(space) {
           type: REMOVE_SPACE_SUCCESS, meta: {...meta, success: true}
         },
         {
-          type: REMOVE_SPACE_FAILURE, meta
+          type: REMOVE_SPACE_FAILURE,
+          meta: {
+            ...meta,
+            notification: actionUtils.humanizeNotificationMessage(errorMessage)
+          }
         }
       ],
       method: 'DELETE',

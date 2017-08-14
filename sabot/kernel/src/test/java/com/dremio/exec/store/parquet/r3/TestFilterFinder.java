@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.store.parquet.r3;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 
@@ -180,5 +182,44 @@ public class TestFilterFinder {
     assertEquals(SqlKind.EQUALS, conditions.get(0).getKind());
     assertEquals(SqlKind.EQUALS, conditions.get(1).getKind());
     assertFalse(holder.hasRemainingExpression());
+  }
+
+  @Test
+  public void castANY(){
+  final RexNode node =
+      builder.makeCast(
+          factory.createSqlType(SqlTypeName.ANY),
+          builder.makeBigintLiteral(BigDecimal.ONE)
+      );
+
+    FindSimpleFilters finder = new FindSimpleFilters(builder);
+    StateHolder holder = node.accept(finder);
+    ImmutableList<RexCall> conditions = holder.getConditions();
+
+    assertEquals(0, conditions.size());
+    assertEquals(builder.makeBigintLiteral(BigDecimal.ONE), holder.getNode());
+  }
+
+  @Test
+  public void equalityWithCast(){
+
+    final RexNode node = builder.makeCall(SqlStdOperatorTable.EQUALS,
+        builder.makeCast(
+            factory.createSqlType(SqlTypeName.ANY),
+            builder.makeBigintLiteral(BigDecimal.ONE)
+        ),
+        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0)
+    );
+
+    FindSimpleFilters finder = new FindSimpleFilters(builder);
+    StateHolder holder = node.accept(finder);
+    ImmutableList<RexCall> conditions = holder.getConditions();
+
+    assertEquals(1, conditions.size());
+    assertEquals(SqlKind.EQUALS, conditions.get(0).getKind());
+    // Make sure CAST was removed
+    assertEquals(SqlKind.LITERAL, conditions.get(0).getOperands().get(0).getKind());
+    assertFalse(holder.hasRemainingExpression());
+
   }
 }

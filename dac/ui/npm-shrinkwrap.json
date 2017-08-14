@@ -1,6 +1,6 @@
 {
   "name": "dremio-ui",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "dependencies": {
     "abab": {
       "version": "1.0.3",
@@ -3584,7 +3584,7 @@
       "dev": true
     },
     "raven-js": {
-      "version": "3.13.1"
+      "version": "3.17.0"
     },
     "raw-loader": {
       "version": "0.5.1",

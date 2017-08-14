@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.sabot.op.scan.ScanOperator;
-import com.google.common.base.Stopwatch;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
@@ -53,7 +51,9 @@ import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.filter.Filterer;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.ScanMutator;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Maps;
 
 /**

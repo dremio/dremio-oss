@@ -16,6 +16,8 @@
 import { Component, PropTypes } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import browserUtils from 'utils/browserUtils';
+import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
 
 import SignupForm from './components/SignupForm';
 
@@ -24,17 +26,33 @@ import SignupForm from './components/SignupForm';
 export default class SignupPage extends Component {
   static propTypes = {
     style: PropTypes.object,
-    location: PropTypes.object.isRequird
+    location: PropTypes.object.isRequired
+  }
+  state = {
+    showSignupForm: browserUtils.hasSupportedBrowserVersion() || browserUtils.isApprovedUnsupportedBrowser()
   }
 
-  render() {
+  approveBrowser = () => {
+    browserUtils.approveUnsupportedBrowser();
+    this.setState({
+      showSignupForm: true
+    });
+  }
+  renderSignupForm() {
     return (
       <div id='signup-page' style={[this.props.style, styles.base]}>
         <div className='explore-header' style={{width: '100%'}}/>
         <div style={[styles.form]}>
-          <SignupForm location={location}/>
+          <SignupForm location={this.props.location}/>
         </div>
       </div>
+    );
+  }
+
+  render() {
+    return (
+      this.state.showSignupForm ? this.renderSignupForm()
+        : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} style={this.props.style}/>
     );
   }
 }

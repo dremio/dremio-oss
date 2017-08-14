@@ -100,18 +100,15 @@ public class JobResultsStore implements Service {
   public boolean cleanup(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      dfs.delete(jobOutputDir, true);
-      logger.info("Deleted job output directory : " + jobOutputDir);
+      if (dfs.exists(jobOutputDir)) {
+        dfs.delete(jobOutputDir, true);
+        logger.info("Deleted job output directory : " + jobOutputDir);
+      }
       return true;
     } catch (IOException e) {
       logger.warn("Could not delete job output directory : " + jobOutputDir, e);
       return false;
     }
-  }
-
-  public boolean isOld(JobResult jobResult, long cutOffTime) {
-    JobInfo jobInfo = getLastAttempt(jobResult);
-    return jobInfo.getFinishTime() < cutOffTime;
   }
 
   @VisibleForTesting

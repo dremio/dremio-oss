@@ -40,6 +40,7 @@ import com.dremio.dac.server.WebServer;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
@@ -74,7 +75,11 @@ public class QlikAppMessageBodyGenerator implements MessageBodyWriter<DatasetCon
   private static final Function<ViewFieldType, String> FIELD_TO_NAME = new Function<ViewFieldType, String>() {
     @Override
     public String apply(ViewFieldType input) {
-      return input.getName();
+      String name = input.getName();
+
+      // Qlik needs field names that contain spaces to be surrounded by " so we surround all field names.
+      // If the field name contains a ", we escape it with "" (per http://help.qlik.com/en-US/sense/3.1/Subsystems/Hub/Content/Scripting/use-quotes-in-script.htm)
+      return "\"" + CharMatcher.is('"').replaceFrom(name, "\"\"") + "\"";
     }
   };
 

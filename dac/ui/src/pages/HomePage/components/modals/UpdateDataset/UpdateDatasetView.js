@@ -34,7 +34,7 @@ function validate(values) {
 
 export class UpdateDatasetView extends Component {
   static propTypes = {
-    path: PropTypes.string,
+    initialPath: PropTypes.string,
     buttons: PropTypes.arrayOf(
       PropTypes.shape({
         key: PropTypes.string.isRequired,
@@ -95,22 +95,18 @@ export class UpdateDatasetView extends Component {
   }
 
   render() {
-    const { hidePath, fields, path, handleSubmit, submit } = this.props;
+    const { hidePath, fields, initialPath, handleSubmit, submit } = this.props;
     const locationBlock = hidePath
       ? null
       : <div className='property location'>
         <label style={formLabel}>{la('Location')}</label>
         <ResourceTreeController
+          preselectedNodeId={initialPath}
           hideSources
           hideDatasets
           onChange={fields.selectedEntity.onChange}
           />
       </div>;
-    const selectedLocationBlock = path
-      ? <div className='selected-location'>
-        {la('Selected location')}: {path}
-      </div>
-      : null;
     const buttons = this.props.buttons.map((button, index) => {
       return <Button
         style={{marginLeft: 5}}
@@ -136,7 +132,6 @@ export class UpdateDatasetView extends Component {
             </FieldWithError>
           </div>
           {locationBlock}
-          {selectedLocationBlock}
         </div>
         <ModalFooter styles={style.footerStyle}>{buttons}</ModalFooter>
       </div>

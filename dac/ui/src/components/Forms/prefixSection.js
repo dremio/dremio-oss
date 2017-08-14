@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import React, { Component, PropTypes } from 'react';
-import hoistStatics from 'hoist-non-react-statics';
+import hoistNonReactStatic from 'hoist-non-react-statics';
 
 export default function prefixSection(prefix) {
   return function(target) {
@@ -33,7 +33,7 @@ export default function prefixSection(prefix) {
       }
     }
 
-    hoistStatics(WrappedSection, target);
+    hoistNonReactStatic(WrappedSection, target);
     WrappedSection.getFields = () => {
       return target.getFields().map((field) => `${prefix}.${field}`);
     };

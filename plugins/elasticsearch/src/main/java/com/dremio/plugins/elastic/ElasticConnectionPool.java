@@ -47,6 +47,8 @@ import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserException.Builder;
 import com.dremio.plugins.Version;
@@ -95,7 +97,7 @@ public class ElasticConnectionPool implements AutoCloseable {
   // Version 5x or higher
   private static final Version ELASTICSEARCH_VERSION_5X = new Version(5, 0, 0);
 
-  private ImmutableMap<String, WebTarget> clients;
+  private volatile ImmutableMap<String, WebTarget> clients;
   private Client client;
   private final String delimitedHosts;
   private final String protocol;
@@ -140,6 +142,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     this.username = username;
     this.password = password;
     this.readTimeoutMillis = readTimeoutMillis;
+
   }
 
   public void connect() throws IOException {
@@ -166,24 +169,73 @@ public class ElasticConnectionPool implements AutoCloseable {
       client.register(HttpAuthenticationFeature.basic(username, password));
     }
 
+    updateClients();
+  }
+
+  private void updateClients(){
     final ImmutableMap.Builder<String, WebTarget> builder = ImmutableMap.builder();
 
-    // use the first host provided to get a complete list of hosts.
-    final String firstHost = delimitedHosts.split(",")[0];
-    final List<HostAndAddress> hosts = getHostList(firstHost);
-    final Set<String> hostSet = new HashSet<>();
+    @SuppressWarnings("resource")
+    final DeferredException ex = new DeferredException();
+    for(String seed :  delimitedHosts.split(",")){
+      try {
+        final List<HostAndAddress> hosts = getHostList(seed);
+        final Set<String> hostSet = new HashSet<>();
 
-    // for each host, create a separate jest client factory.
-    for (HostAndAddress host : hosts) {
 
-      // avoid adding duplicate addresses if on same machine.
-      if (!hostSet.add(host.getHost())) {
-        continue;
+
+        // for each host, create a separate jest client factory.
+        for (HostAndAddress host : hosts) {
+
+            // avoid adding duplicate addresses if on same machine.
+            if (!hostSet.add(host.getHost())) {
+              continue;
+            }
+            final String connection = protocol + "://" + host.getHttpAddress();
+            builder.put(host.getHost(), client.target(connection));
+        }
+
+        this.clients = builder.build();
+
+        if(ex.hasException()){
+          StringBuilder sb = new StringBuilder();
+          sb.append("One or more failures trying to get host list from a defined seed host. Update was ultimately succesful connecting to ");
+          sb.append(seed);
+          sb.append(":\n\n");
+          sb.append(getAvailableHosts());
+          logger.info(sb.toString(), ex.getAndClear());
+        } else {
+          StringBuilder sb = new StringBuilder();
+          sb.append("Retrieved Elastic host list from ");
+          sb.append(seed);
+          sb.append(":\n\n");
+          sb.append(getAvailableHosts());
+          logger.info(sb.toString());
+        }
+        return;
+      }catch (Exception e){
+        ex.addException(new RuntimeException(String.format("Failure getting server list from seed host ", seed), e));
       }
-      builder.put(host.getHost(), client.target(protocol + "://" + host.getHttpAddress()));
     }
 
-    this.clients = builder.build();
+    throw new RuntimeException("Unable to get host lists from any host seed.", ex.getAndClear());
+  }
+
+  private String getAvailableHosts(){
+
+    if(clients == null){
+      return "";
+    }
+
+    StringBuilder sb = new StringBuilder();
+    for(Entry<String, WebTarget> e : clients.entrySet()){
+      sb.append('\t');
+      sb.append(e.getKey());
+      sb.append(" => ");
+      sb.append(e.getValue());
+      sb.append('\n');
+    }
+    return sb.toString();
   }
 
   public ElasticConnection getRandomConnection(){
@@ -195,7 +247,27 @@ public class ElasticConnectionPool implements AutoCloseable {
   public ElasticConnection getConnection(List<String> hosts) {
     final int index = ThreadLocalRandom.current().nextInt(hosts.size());
     final String host = hosts.get(index);
+    WebTarget target = clients.get(host);
+    if(target == null){
+      missingHost(host);
+      target = clients.get(host);
+      if(target == null){
+        throw UserException.connectionError()
+          .message("Unable to find defined host [%s] in cluster. Available hosts: \n", host, getAvailableHosts())
+          .build(logger);
+      }
+    }
     return new ElasticConnection(Preconditions.checkNotNull(clients.get(host), String.format("The host specified [%s] was not among the list of connected nodes.", host)));
+  }
+
+  private synchronized void missingHost(String host){
+    // double checked to avoid duplicate updates.
+    if(clients.containsKey(host)){
+      return;
+    }
+
+    logger.info("Shard was located on {}, an Elastic host that is not yet known to Dremio. Updating known hosts.", host);
+    updateClients();
   }
 
   public SourceCapabilities getCapabilities(){
