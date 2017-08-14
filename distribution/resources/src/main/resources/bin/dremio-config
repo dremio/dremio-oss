@@ -176,7 +176,7 @@ if [ ! -e "$JAVA" ]; then
 fi
 # Ensure that Java version is at least 1.7
 JAVA_VERSION_STRING=`"$JAVA" -version 2>&1 | grep "version"`
-echo "$JAVA_VERSION_STRING" | egrep -e "1.4|1.5|1.6" > /dev/null
+echo "$JAVA_VERSION_STRING" | egrep -e "1\.[4|5|6]" > /dev/null
 if [ $? -eq 0 ]; then
   echo "Java 1.7 or later is required to run Apache Dremio."
   exit 1
