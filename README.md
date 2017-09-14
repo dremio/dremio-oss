@@ -62,3 +62,7 @@ connecting to databases that rely on these drivers).
 To build dremio with only OSS dependencies, you can add the following option to your Maven commandline: `-Ddremio.oss-only=true`
 
 The distribution directory will be `distribution/server/target/dremio-oss-{DREMIO_VERSION}/dremio-oss-{DREMIO_VERSION}`
+
+## Questions?
+
+If you have questions, please post them on https://community.dremio.com.
