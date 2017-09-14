@@ -2,6 +2,10 @@
 
 Dremio enables organizations to unlock the value of their data.
 
+## Documentation
+
+Documentation is available at https://docs.dremio.com. 
+
 ## Quickstart: How to build and run Dremio
 
 ### (a) Prerequisites
