@@ -27,6 +27,23 @@
   <name>Sabot - Kernel</name>
 
   <dependencies>
+  
+    <dependency>
+      <groupId>com.koloboke</groupId>
+      <artifactId>koloboke-api-jdk6-7</artifactId>
+      <version>RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>com.koloboke</groupId>
+      <artifactId>koloboke-impl-common-jdk6-7</artifactId>
+      <version>RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>com.clearspring.analytics</groupId>
+      <artifactId>stream</artifactId>
+      <version>2.9.5</version>
+    </dependency>
+   
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>

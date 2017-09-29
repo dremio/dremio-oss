@@ -56,6 +56,7 @@ public class FieldReadDefinition {
   private final boolean isList;
   private final CompleteType type;
   private final boolean geo;
+  private final boolean geoPoint;
   private final ImmutableMap<String, FieldReadDefinition> children;
   private final WriteHolder holder;
   private final FieldReadDefinition noList;
@@ -71,6 +72,7 @@ public class FieldReadDefinition {
     this.name = name;
     this.isList = false;
     this.geo = false;
+    this.geoPoint = false;
     this.holder = null;
     this.children = null;
     this.hidden = true;
@@ -83,6 +85,7 @@ public class FieldReadDefinition {
       CompleteType type,
       boolean isList,
       boolean geo,
+      boolean geoPoint,
       WriteHolder holder,
       ImmutableMap<String, FieldReadDefinition> children
       ) {
@@ -91,11 +94,12 @@ public class FieldReadDefinition {
     this.name = name;
     this.isList = isList;
     this.geo = geo;
+    this.geoPoint = geoPoint;
     this.holder = holder;
     this.children = children;
     this.hidden = false;
     if(isList){
-      noList = new FieldReadDefinition(path, name, type, false, geo, holder, children);
+      noList = new FieldReadDefinition(path, name, type, false, geo, geoPoint, holder, children);
     } else {
       noList = null;
     }
@@ -111,6 +115,10 @@ public class FieldReadDefinition {
 
   public boolean isGeo(){
     return geo;
+  }
+
+  public boolean isGeoPoint() {
+    return geoPoint;
   }
 
   public boolean isArray(){
@@ -154,13 +162,13 @@ public class FieldReadDefinition {
     final ImmutableListMultimap<SchemaPath, String> hiddenFields = hiddenFieldsB.build();
     final ImmutableList<String> topLevelHiddenFields = topLevelHiddenFieldsB.build();
 
-    return new FieldReadDefinition(null, null, null, false, false, new WriteHolders.InvalidWriteHolder(),
+    return new FieldReadDefinition(null, null, null, false, false, false, new WriteHolders.InvalidWriteHolder(),
         FluentIterable.from(schema.getFields())
 
         .transform(new Function<Field, FieldReadDefinition>() {
           @Override
           public FieldReadDefinition apply(Field input) {
-            return getDefinition(null, input, annotationMap, hiddenFields, buffer, false);
+            return getDefinition(null, input, annotationMap, hiddenFields, buffer, false, false);
           }
         })
 
@@ -183,7 +191,7 @@ public class FieldReadDefinition {
       }});
   }
 
-  private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields, final WorkingBuffer buffer, boolean incomingIsGeoShape){
+  private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields, final WorkingBuffer buffer, boolean incomingIsGeoShape, boolean incomingIsGeoPoint){
 
     CompleteType type = CompleteType.fromField(field);
     final boolean isList = type.isList();
@@ -194,18 +202,22 @@ public class FieldReadDefinition {
     final SchemaPath path = parent == null ? SchemaPath.getSimplePath(field.getName()) : parent.getChild(field.getName());
     FieldAnnotation annotation = annotations.get(path);
     final boolean isGeoShape = incomingIsGeoShape || (annotation == null ? false : annotation.isGeoShape());
+
+    // siren: adds geo_point support
+    final boolean isGeoPoint = incomingIsGeoPoint || (annotation == null ? false : annotation.isGeoPoint());
+
     final List<String> formats = annotation == null ? ImmutableList.<String>of() : annotation.getDateFormats();
-    final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape);
+    final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape, isGeoPoint);
 
     if(isGeoShape && type.isUnion() && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())){
-      return new FieldReadDefinition(path, field.getName(), type, true, isGeoShape, holder, ImmutableMap.<String, FieldReadDefinition>of());
+      return new FieldReadDefinition(path, field.getName(), type, true, isGeoShape, false, holder, ImmutableMap.<String, FieldReadDefinition>of());
     }
 
-    return new FieldReadDefinition(path, field.getName(), type, isList, isGeoShape, holder,
+    return new FieldReadDefinition(path, field.getName(), type, isList, isGeoShape, isGeoPoint, holder,
         FluentIterable.from(type.getChildren()).transform(new Function<Field, FieldReadDefinition>() {
           @Override
           public FieldReadDefinition apply(Field input) {
-            return getDefinition(path, input, annotations, hiddenFields, buffer, isGeoShape);
+            return getDefinition(path, input, annotations, hiddenFields, buffer, isGeoShape, isGeoPoint);
           }
         }).append(getHiddenFields(hiddenFields.get(path)))
         .uniqueIndex(new Function<FieldReadDefinition, String>() {
@@ -216,7 +228,7 @@ public class FieldReadDefinition {
         }));
   }
 
-  private static WriteHolder getWriteHolder(String name, boolean isList, MinorType type, List<String> formats, SchemaPath path, WorkingBuffer buffer, boolean isGeoShape){
+  private static WriteHolder getWriteHolder(String name, boolean isList, MinorType type, List<String> formats, SchemaPath path, WorkingBuffer buffer, boolean isGeoShape, boolean isGeoPoint){
     final FormatterAndType[] formatterAndType;
     if(formats != null && !formats.isEmpty()){
       formatterAndType = FluentIterable.from(formats).transform(new Function<String, FormatterAndType>(){
