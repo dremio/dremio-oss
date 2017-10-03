@@ -22,8 +22,6 @@ import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceler
 import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
 
 import App from './containers/App';
-import SetupPage from './pages/SetupPage/SetupPage';
-import SelectDbPage from './pages/SelectDbPage/SelectDbPage';
 
 import HomePage from './pages/HomePage/HomePage';
 import HomeModals from './pages/HomePage/HomeModals';
@@ -78,7 +76,7 @@ export function getLoginUrl() {
 
 export default (
   <Route path='/' component={App}>
-    /* TODO conflict with (/:resources), need to change resources for all components */
+    {/* TODO conflict with (/:resources), need to change resources for all components */}
     <Redirect from='/home' to='/'/>
     <Redirect from='/*/**/' to='/*/**'/>
     <Route component={UserIsAuthenticated(JobModals)}>
@@ -123,8 +121,6 @@ export default (
       <Route path={LOGIN_PATH} component={AuthenticationPage} />
       <Route path={SIGNUP_PATH} component={SignupPage} />
       <Route path='/status' component={ServerStatusPage} />
-      <Route path='/setup' component={SetupPage} />
-      <Route path='/setup/selectdb(/:dbtype)' component={SelectDbPage} />
     </Route>
     <Route component={UserIsAuthenticated(HomeModals)}>
       <Route component={Page}>

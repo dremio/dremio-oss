@@ -20,6 +20,7 @@ import ConfirmCancelFooter from 'components/Modals/ConfirmCancelFooter';
 import FormProgressWrapper from 'components/FormProgressWrapper';
 
 import { modalForm, modalFormBody, modalFormWrapper } from 'uiTheme/radium/forms';
+import Keys from 'constants/Keys.json';
 
 export function modalFormProps(props) {
   return {
@@ -36,7 +37,7 @@ export default class ModalForm extends Component {
     confirmText: PropTypes.string,
     cancelText: PropTypes.string,
     onSubmit: PropTypes.func.isRequired,
-    onCancel: PropTypes.func.isRequired,
+    onCancel: PropTypes.func,
     error: PropTypes.object,
     submitting: PropTypes.bool,
     canSubmit: PropTypes.bool,
@@ -46,19 +47,19 @@ export default class ModalForm extends Component {
     confirmStyle: PropTypes.object,
     wrapperStyle: PropTypes.object,
     footerChildren: PropTypes.node,
-    formBodyStyle: PropTypes.object
+    formBodyStyle: PropTypes.object,
+    isNestedForm: PropTypes.bool.isRequired // <form> not allowed in <form> in html
   };
 
   static defaultProps = { // todo: loc
     canSubmit: true,
     confirmText: 'Save',
-    cancelText: 'Cancel'
+    cancelText: 'Cancel',
+    isNestedForm: false
   };
 
-  constructor(props) {
-    super(props);
-    this.handleDismissMessage = this.handleDismissMessage.bind(this);
-    this.state = { messageDismissed: false };
+  state = {
+    messageDismissed: false
   }
 
   componentWillReceiveProps(nextProps) {
@@ -67,46 +68,67 @@ export default class ModalForm extends Component {
     }
   }
 
-  handleDismissMessage() {
+  handleDismissMessage = () =>  {
     this.setState({ messageDismissed: true });
+  }
+
+  handleSubmissionEvent = (evt) => {
+    if (evt) {
+      if (evt.type === 'keydown' && evt.keyCode !== Keys.ENTER) { // todo: switch to KeyboardEvent.code or key (w/ polyfill) depends on what React supports
+        return;
+      }
+      evt.preventDefault();
+    }
+
+    if (this.props.canSubmit) this.props.onSubmit();
   }
 
   render() {
     const {
-      confirmText, cancelText, onSubmit, onCancel, error, submitting, canSubmit, style, wrapperStyle, children,
-      footerChildren
+      confirmText, cancelText, onCancel, error, submitting, canSubmit, style, wrapperStyle, children,
+      footerChildren, isNestedForm
     } = this.props;
 
-    return (
-      <form onSubmit={onSubmit} style={{...modalForm, ...style}}>
-        {error && <Message
-          messageType='error'
-          message={error.message}
-          messageId={error.id}
-          onDismiss={this.handleDismissMessage}
-          dismissed={this.state.messageDismissed}
-          detailsStyle={{maxHeight: 100}}
-          style={styles.message}
-        />}
-        <div style={[modalFormBody, this.props.formBodyStyle]}>
-          <FormProgressWrapper submitting={submitting}>
-            <div className='modal-form-wrapper' style={{ ...modalFormWrapper, ...wrapperStyle }}>
-              {children}
-            </div>
-          </FormProgressWrapper>
-        </div>
-        <ConfirmCancelFooter
-          style={this.props.confirmStyle}
-          submitForm
-          footerChildren={footerChildren}
-          confirmText={confirmText}
-          cancelText={cancelText}
-          cancel={onCancel}
-          submitting={submitting}
-          canSubmit={canSubmit}
-        />
-      </form>
-    );
+    const internalChildren = [
+      error && <Message
+        messageType='error'
+        message={error.message}
+        messageId={error.id}
+        onDismiss={this.handleDismissMessage}
+        dismissed={this.state.messageDismissed}
+        detailsStyle={{maxHeight: 100}}
+        style={styles.message}
+      />,
+      <div style={[modalFormBody, this.props.formBodyStyle]}>
+        <FormProgressWrapper submitting={submitting}>
+          <div className='modal-form-wrapper' style={{ ...modalFormWrapper, ...wrapperStyle }}>
+            {children}
+          </div>
+        </FormProgressWrapper>
+      </div>,
+      <ConfirmCancelFooter
+        style={this.props.confirmStyle}
+        footerChildren={footerChildren}
+        confirmText={confirmText}
+        cancelText={cancelText}
+        cancel={onCancel}
+        submitting={submitting}
+        canSubmit={canSubmit}
+        confirm={this.handleSubmissionEvent}
+      />
+    ];
+
+    const sharedProps = {
+      style: {...modalForm, ...style},
+      children: internalChildren
+    };
+
+    if (isNestedForm) {
+      // can't wrap in <form> as it would be a nested <form>, so do own key listening
+      return <div onKeyDown={this.handleSubmissionEvent} {...sharedProps} />;
+    }
+    return <form onSubmit={this.handleSubmissionEvent} {...sharedProps} />;
+
   }
 }
 
@@ -114,6 +136,7 @@ const styles = {
   message: {
     zIndex: 1000,
     flexShrink: 0,
-    minHeight: 0
+    minHeight: 0,
+    position: 'absolute'
   }
 };

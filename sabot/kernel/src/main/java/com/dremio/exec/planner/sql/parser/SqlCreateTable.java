@@ -34,21 +34,29 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class SqlCreateTable extends SqlCall {
+
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_TABLE", SqlKind.CREATE_TABLE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 10, "SqlCreateTable.createCall() has to get 9 operands!");
-      return new SqlCreateTable(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1], (SqlNodeList) operands[2],
-        ((SqlLiteral) operands[3]).booleanValue(), ((SqlLiteral) operands[4]).booleanValue(),
-        (SqlNodeList) operands[5], (SqlLiteral) operands[6], operands[7], (SqlNodeList) operands[8], (SqlNodeList) operands[9]);
+      Preconditions.checkArgument(operands.length == 9, "SqlCreateTable.createCall() has to get 9 operands!");
+      return new SqlCreateTable(
+          pos,
+          (SqlIdentifier) operands[0],
+          (SqlNodeList) operands[1],
+          ((SqlLiteral) operands[2]).symbolValue(PartitionDistributionStrategy.class),
+          (SqlNodeList) operands[3],
+          (SqlNodeList) operands[4],
+          (SqlLiteral) operands[5],
+          operands[6],
+          (SqlNodeList) operands[7],
+          (SqlNodeList) operands[8]);
     }
   };
 
   private final SqlIdentifier tblName;
   private final SqlNodeList fieldList;
+  private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final SqlNodeList partitionColumns;
-  private final boolean hashPartition;
-  private final boolean roundRobinPartition;
   private final SqlNodeList sortColumns;
   private final SqlNodeList distributionColumns;
   private final SqlNodeList formatOptions;
@@ -59,9 +67,8 @@ public class SqlCreateTable extends SqlCall {
       SqlParserPos pos,
       SqlIdentifier tblName,
       SqlNodeList fieldList,
+      PartitionDistributionStrategy partitionDistributionStrategy,
       SqlNodeList partitionColumns,
-      boolean hashPartition,
-      boolean roundRobinPartition,
       SqlNodeList formatOptions,
       SqlLiteral singleWriter,
       SqlNode query,
@@ -70,14 +77,13 @@ public class SqlCreateTable extends SqlCall {
     super(pos);
     this.tblName = tblName;
     this.fieldList = fieldList;
+    this.partitionDistributionStrategy = partitionDistributionStrategy;
     this.partitionColumns = partitionColumns;
     this.formatOptions = formatOptions;
     this.singleWriter = singleWriter;
     this.query = query;
     this.sortColumns = sortFieldList;
     this.distributionColumns = distributionColumns;
-    this.hashPartition = hashPartition;
-    this.roundRobinPartition = roundRobinPartition;
   }
 
   @Override
@@ -90,9 +96,8 @@ public class SqlCreateTable extends SqlCall {
     List<SqlNode> ops = Lists.newArrayList();
     ops.add(tblName);
     ops.add(fieldList);
+    ops.add(SqlLiteral.createSymbol(partitionDistributionStrategy, SqlParserPos.ZERO));
     ops.add(partitionColumns);
-    ops.add(SqlLiteral.createBoolean(hashPartition, SqlParserPos.ZERO));
-    ops.add(SqlLiteral.createBoolean(roundRobinPartition, SqlParserPos.ZERO));
     ops.add(formatOptions);
     ops.add(singleWriter);
     ops.add(query);
@@ -110,10 +115,18 @@ public class SqlCreateTable extends SqlCall {
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, fieldList);
     }
     if (partitionColumns.size() > 0) {
-      if (hashPartition) {
+      switch (partitionDistributionStrategy) {
+      case UNSPECIFIED:
+        break;
+      case HASH:
         writer.keyword("HASH");
-      } else if (roundRobinPartition) {
+        break;
+      case ROUND_ROBIN:
         writer.keyword("ROUNDROBIN");
+        break;
+      case STRIPED:
+        writer.keyword("STRIPED");
+        break;
       }
       writer.keyword("PARTITION");
       writer.keyword("BY");
@@ -175,14 +188,6 @@ public class SqlCreateTable extends SqlCall {
     return columnNames;
   }
 
-  public boolean isHashPartition() {
-    return hashPartition;
-  }
-
-  public boolean isRoundRobinPartition() {
-    return roundRobinPartition;
-  }
-
   public List<String> getDistributionColumns() {
     List<String> columnNames = Lists.newArrayList();
     for(SqlNode node : distributionColumns.getList()) {
@@ -209,5 +214,9 @@ public class SqlCreateTable extends SqlCall {
 
   public SqlNode getQuery() {
     return query;
+  }
+
+  public PartitionDistributionStrategy getPartitionDistributionStrategy() {
+    return partitionDistributionStrategy;
   }
 }

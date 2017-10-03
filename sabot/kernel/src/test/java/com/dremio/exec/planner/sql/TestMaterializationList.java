@@ -28,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import com.dremio.exec.server.MaterializationDescriptorProvider;
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.ImmutableList;
 
@@ -66,8 +67,10 @@ public class TestMaterializationList {
     when(included.getMaterializationFor(converter)).thenReturn(relOptMat2);
     when(included.getAccelerationId()).thenReturn("rid-2");
 
-    when(session.getExclusions()).thenReturn(ImmutableList.of("rid-1"));
-    when(provider.get()).thenReturn(ImmutableList.of(excluded, included));
+    SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of("rid-1"), false);
+
+    when(session.getMaterializationSettings()).thenReturn(materializationSettings);
+    when(provider.get(false)).thenReturn(ImmutableList.of(excluded, included));
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);
     // we do not need to check the result here as making sure that convert method is hit once is enough

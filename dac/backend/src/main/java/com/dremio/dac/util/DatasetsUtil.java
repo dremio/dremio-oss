@@ -217,7 +217,8 @@ public class DatasetsUtil {
     physicalDatasetConfig.setId(datasetConfig.getId().getId());
     final AccelerationSettings settings = physicalDataset.getAccelerationSettings();
     physicalDatasetConfig.setAccelerationSettings(new AccelerationSettingsDescriptor()
-        .setAccelerationTTL(settings.getAccelerationTTL())
+        .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
+        .setAccelerationGracePeriod(settings.getGracePeriod())
         .setMethod(settings.getMethod())
         .setRefreshField(settings.getRefreshField())
     );

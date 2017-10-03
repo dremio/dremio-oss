@@ -42,6 +42,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionList;
@@ -217,6 +218,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     final SchemaConfig schemaConfig = SchemaConfig.newBuilder(username)
         .setProvider(getSchemaInfoProvider())
         .exposeSubSchemasAsTopLevelSchemas(exposeSubSchemasAsTopLevelSchemas)
+        .exposeInternalSources(session.exposeInternalSources())
         .build();
     return schemaTreeProvider.getRootSchema(schemaConfig);
   }
@@ -260,6 +262,10 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
 
   public Collection<NodeEndpoint> getActiveEndpoints() {
     return sabotContext.getExecutors();
+  }
+
+  public ClusterResourceInformation getClusterResourceInformation() {
+    return sabotContext.getClusterResourceInformation();
   }
 
   public SabotConfig getConfig() {

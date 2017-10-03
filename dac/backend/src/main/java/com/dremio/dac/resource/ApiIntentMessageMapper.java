@@ -90,7 +90,7 @@ public class ApiIntentMessageMapper {
     return mappings.build();
   }
 
-  public AccelerationApiDescriptor toApiMessage(final AccelerationDescriptor intent) {
+  public AccelerationApiDescriptor toApiMessage(final AccelerationDescriptor intent, List<String> datasetPath) {
     final AccelerationContextDescriptor context = Optional.fromNullable(intent.getContext()).or(new AccelerationContextDescriptor());
     final LogicalAggregationDescriptor logicalAggregation = Optional.fromNullable(context.getLogicalAggregation()).or(new LogicalAggregationDescriptor());
     final DatasetConfigDescriptor config = Optional.fromNullable(context.getDataset()).or(new DatasetConfigDescriptor());
@@ -115,7 +115,7 @@ public class ApiIntentMessageMapper {
                 .setCreatedAt(config.getCreatedAt())
                 .setVersion(config.getVersion())
                 .setType(config.getType())
-                .setPathList(config.getPathList())
+                .setPathList(datasetPath)
                 .setVirtualDataset(virtualDataset == null ? null : toApiVirtualDatasetMessage(virtualDataset))
             )
         )
@@ -183,6 +183,7 @@ public class ApiIntentMessageMapper {
                         .setPartitionFieldList(toApiFields(details.getPartitionFieldList()))
                         .setSortFieldList(toApiFields(details.getSortFieldList()))
                         .setDistributionFieldList(toApiFields(details.getDistributionFieldList()))
+                        .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy())
                     );
               }
             })
@@ -316,6 +317,7 @@ public class ApiIntentMessageMapper {
                         .setPartitionFieldList(toIntentFields(details.getPartitionFieldList()))
                         .setSortFieldList(toIntentFields(details.getSortFieldList()))
                         .setDistributionFieldList(toIntentFields(details.getDistributionFieldList()))
+                        .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy())
                     );
               }
             })

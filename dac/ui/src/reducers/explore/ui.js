@@ -18,11 +18,12 @@ import Immutable  from 'immutable';
 import * as ActionTypes from 'actions/explore/ui';
 import * as QlikActions from 'actions/qlik';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import {hashHeightTopSplitter} from 'constants/explorePage/heightTopSplitter';
 
 function getInitialState() {
   return Immutable.fromJS({
     sqlState: localStorageUtils.getDefaultSqlState(),
-    sqlSize: 171,
+    sqlSize: hashHeightTopSplitter.default,
     isResizeInProgress: false,
     isUnsavedChangesModalShowing: false,
     initialDatasetVersion: null,
@@ -52,6 +53,7 @@ export default function grid(state = getInitialState(), action) {
     return updateExploreSql(state, true);
   }
   case ActionTypes.SET_SQL_EDITOR_SIZE:
+    localStorageUtils.setDefaultSqlHeight(action.size);
     return state.set('sqlSize', action.size);
   case ActionTypes.SHOW_QLIK_MODAL:
     return state.set('qlikDialogVisible', true).set('qlikShowDialogDataset', action.dataset)

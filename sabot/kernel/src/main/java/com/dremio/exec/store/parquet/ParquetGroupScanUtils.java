@@ -18,20 +18,15 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
@@ -48,13 +43,10 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.dfs.DefaultPathFilter;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.dfs.ReadEntryFromHDFS;
-import com.dremio.exec.store.dfs.ReadEntryWithPath;
-import com.dremio.exec.store.dfs.easy.FileWork;
+import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.parquet.Metadata.ColumnMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetFileMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetTableMetadata;
@@ -73,36 +65,27 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 public class ParquetGroupScanUtils {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetGroupScanUtils.class);
 
-  private final FileSystemPlugin plugin;  // Just the config (not the actual plugin)
+  private final FileSystemPlugin plugin;
   private final ParquetFormatPlugin formatPlugin;
   private String selectionRoot;
   private List<SchemaPath> columns;
   private List<RowGroupInfo> rowGroupInfos;
   private List<FilterCondition> conditions;
-
-  private final List<ReadEntryWithPath> entries;  // rowGroupInfos should be sufficient for equals() and hashCode()
-  private Map<String,FileStatus> fileStatusMap;
+  private final List<FileStatus> entries;
   private final FileSystemWrapper fs;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns;
-
-  /**
-   * The parquet table metadata may have already been read
-   * from a metadata cache file earlier; we can re-use during
-   * the ParquetGroupScanUtils and avoid extra loading time.
-   */
   private ParquetTableMetadata parquetTableMetadata = null;
+
   /*
    * total number of non-null value for each column in each parquet file.
    */
   private Map<SchemaPath, Long> columnValueCounts;
   // Map from file names to maps of column name to partition value mappings
-  private Map<String, Map<SchemaPath, Object>> partitionValueMap = Maps.newHashMap();
-  private Set<String> fileSet;
+  private Map<FileStatus, Map<SchemaPath, Object>> partitionValueMap = Maps.newHashMap();
   private Map<SchemaPath, MajorType> columnTypeMap = Maps.newHashMap();
 
   private final BatchSchema schema;
@@ -130,25 +113,13 @@ public class ParquetGroupScanUtils {
     this.fs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf());
     this.plugin = plugin;
     this.selectionRoot = selectionRoot;
-
-    this.entries = Lists.newArrayList();
-    final List<FileStatus> files = selection.getStatuses(fs);
-    for (FileStatus file : files) {
-      entries.add(new ReadEntryWithPath(file.getPath().toString()));
-    }
-    fileStatusMap = FluentIterable.from(files).uniqueIndex(new Function<FileStatus, String>() {
-      @Nullable
-      @Override
-      public String apply(@Nullable FileStatus input) {
-        return Path.getPathWithoutSchemeAndAuthority(input.getPath()).toString();
-      }
-    });
+    this.entries = selection.getStatuses();
 
     this.globalDictionaryColumns = (globalDictionaryColumns == null)? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
     init();
   }
 
-  public List<ReadEntryWithPath> getEntries() {
+  public List<FileStatus> getEntries() {
     return entries;
   }
 
@@ -164,20 +135,12 @@ public class ParquetGroupScanUtils {
     return selectionRoot;
   }
 
-  public Map<String, FileStatus> getFileStatusMap() {
-    return fileStatusMap;
-  }
-
-  public Map<String, Map<SchemaPath, Object>> getPartitionValueMap() {
+  public Map<FileStatus, Map<SchemaPath, Object>> getPartitionValueMap() {
     return partitionValueMap;
   }
 
   public Map<SchemaPath, MajorType> getColumnTypeMap() {
     return columnTypeMap;
-  }
-
-  public Collection<String> getFiles() {
-    return fileSet;
   }
 
   public Configuration getFsConf() {
@@ -284,7 +247,7 @@ public class ParquetGroupScanUtils {
         (columnChunkMetaData.getNulls() != null && rowCount == columnChunkMetaData.getNulls())));
   }
 
-  public static class RowGroupInfo extends ReadEntryFromHDFS implements CompleteWork, FileWork {
+  public static class RowGroupInfo extends FileWorkImpl implements CompleteWork {
 
     private EndpointByteMap byteMap;
     private int rowGroupIndex;
@@ -292,15 +255,11 @@ public class ParquetGroupScanUtils {
     private List<EndpointAffinity> affinities;
     private Map<SchemaPath, Long> columnValueCounts;
 
-    public RowGroupInfo(String path, long start, long length, int rowGroupIndex, long rowCount, Map<SchemaPath, Long> columnValueCounts) {
-      super(path, start, length);
+    public RowGroupInfo(FileStatus status, long start, long length, int rowGroupIndex, long rowCount, Map<SchemaPath, Long> columnValueCounts) {
+      super(start, length, status);
       this.rowGroupIndex = rowGroupIndex;
       this.rowCount = rowCount;
       this.columnValueCounts = columnValueCounts == null? Collections.<SchemaPath, Long>emptyMap() : columnValueCounts;
-    }
-
-    public RowGroupReadEntry getRowGroupReadEntry() {
-      return new RowGroupReadEntry(this.getPath(), this.getStart(), this.getLength(), this.rowGroupIndex);
     }
 
     public int getRowGroupIndex() {
@@ -367,21 +326,12 @@ public class ParquetGroupScanUtils {
   private void init() throws IOException {
     final Stopwatch watch = Stopwatch.createStarted();
     columnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
-    if (entries.size() == 1) {
-      // TODO: do we need this code path?
-      Path p = Path.getPathWithoutSchemeAndAuthority(new Path(entries.get(0).getPath()));
-      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), fs, p.toString(), formatPlugin.getConfig(), plugin.getFsConf());
-    } else {
-      final List<FileStatus> fileStatuses = Lists.newArrayList();
-      for (ReadEntryWithPath entry : entries) {
-        getFiles(entry.getPath(), fileStatuses);
-      }
-      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), fileStatuses, formatPlugin.getConfig(), plugin.getFsConf());
-    }
 
-    fileSet = Sets.newHashSet();
-    for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
-      fileSet.add(file.getPath());
+    // TODO: do we need this code path?
+    if (entries.size() == 1) {
+      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), entries.get(0), fs, formatPlugin.getConfig(), plugin.getFsConf());
+    } else {
+      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), entries, formatPlugin.getConfig(), plugin.getFsConf());
     }
 
     ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getExecutors())
@@ -405,8 +355,7 @@ public class ParquetGroupScanUtils {
             rowGroupColumnValueCounts.put(schemaPath, rowCount - column.getNulls());
           }
         }
-        RowGroupInfo rowGroupInfo =
-          new RowGroupInfo(file.getPath(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
+        RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getStatus(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
 
         EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
         for (String host : rg.getHostAffinity().keySet()) {
@@ -433,8 +382,11 @@ public class ParquetGroupScanUtils {
           if (previousCount != null) {
             if (previousCount != GroupScan.NO_COLUMN_STATS) {
               if (column.getNulls() != null) {
-                Long newCount = rowCount - column.getNulls();
-                columnValueCounts.put(schemaPath, columnValueCounts.get(schemaPath) + newCount);
+                long newCount = rowCount - column.getNulls();
+                // Update the count only when there are any non-zero non-nulls
+                if (newCount != 0) {
+                  columnValueCounts.put(schemaPath, columnValueCounts.get(schemaPath) + newCount);
+                }
               }
             }
           } else {
@@ -447,13 +399,20 @@ public class ParquetGroupScanUtils {
           }
           boolean partitionColumn = checkForPartitionColumn(file, column, first, rowCount);
           if (partitionColumn) {
-            Map<SchemaPath, Object> map = partitionValueMap.get(file.getPath());
+            Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
             if (map == null) {
               map = Maps.newHashMap();
-              partitionValueMap.put(file.getPath(), map);
+              partitionValueMap.put(file.getStatus(), map);
             }
             Object value = map.get(schemaPath);
-            Object currentValue = column.getMaxValue();
+            Object currentValue;
+            // If all the values are null, then consider the partition value as null, otherwise get the partition value
+            // from max.
+            if (column.getNulls() == rowCount) {
+              currentValue = null;
+            } else {
+              currentValue = column.getMaxValue();
+            }
             if (value != null) {
               if (value != currentValue) {
                 columnTypeMap.remove(schemaPath);
@@ -468,13 +427,13 @@ public class ParquetGroupScanUtils {
         this.rowCount += rowGroup.getRowCount();
         first = false;
       }
-      partitionValueMap.get(file.getPath());
-      Map<SchemaPath, Object> map = partitionValueMap.get(file.getPath());
+
+      Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
       if (map == null) {
         map = Maps.newHashMap();
-        partitionValueMap.put(file.getPath(), map);
+        partitionValueMap.put(file.getStatus(), map);
       }
-      map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), fileStatusMap.get(file.getPath()).getModificationTime());
+      map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), file.getStatus().getModificationTime());
 
     }
     logger.debug("Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
@@ -485,18 +444,6 @@ public class ParquetGroupScanUtils {
       return null;
     }
     return list.get(ThreadLocalRandom.current().nextInt(0, list.size()));
-  }
-
-  private void getFiles(String path, List<FileStatus> fileStatuses) throws IOException {
-    Path p = Path.getPathWithoutSchemeAndAuthority(new Path(path));
-    FileStatus fileStatus = fs.getFileStatus(p);
-    if (fileStatus.isDirectory()) {
-      for (FileStatus f : fs.listStatus(p, new DefaultPathFilter())) {
-        getFiles(f.getPath().toString(), fileStatuses);
-      }
-    } else {
-      fileStatuses.add(fileStatus);
-    }
   }
 
   public int getMaxParallelizationWidth() {

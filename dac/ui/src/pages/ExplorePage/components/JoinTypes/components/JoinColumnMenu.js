@@ -19,6 +19,7 @@ import Radium from 'radium';
 
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import { formLabel } from 'uiTheme/radium/typography';
+import EllipsedText from 'components/EllipsedText';
 
 @Radium
 export default class JoinColumnMenu extends PureComponent {
@@ -36,12 +37,10 @@ export default class JoinColumnMenu extends PureComponent {
 
   render() {
     const { columns, disabledColumnNames, handleDragStart, onDragEnd, type } = this.props;
-    return (
+    return ( // todo: loc
       <div style={[styles.base]}>
-        <div style={styles.titleWrap}>
-          <span style={[formLabel, styles.titleText]}>
-            Select Fields From {this.props.path}&nbsp;{type === 'default' ? '(Current)' : null}
-          </span>
+        <div style={{...styles.titleWrap, ...formLabel}}>
+          <EllipsedText text={`Select fields from “${this.props.path}”${type === 'default' ? ' (current)' : ''}:`}/>
         </div>
         <DragColumnMenu
           style={styles.menu}
@@ -52,7 +51,7 @@ export default class JoinColumnMenu extends PureComponent {
           handleDragStart={handleDragStart && handleDragStart.bind(this, this.props.type)}
           onDragEnd={onDragEnd}
           dragType={this.props.dragType}
-          name={this.props.path + ' (Current)'}/>
+          name={this.props.path + ' <current>'}/>
       </div>
     );
   }
@@ -71,11 +70,6 @@ const styles = {
     backgroundColor: '#f3f3f3',
     height: 30,
     alignItems: 'center'
-  },
-  titleText: {
-    overflow: 'hidden',
-    textOverflow: 'ellipsis', //can be applied only to block containers https://drafts.csswg.org/css-ui-3/#text-overflow
-    whiteSpace: 'nowrap'
   },
   menu: {
     backgroundColor: '#FFFFFF',

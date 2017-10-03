@@ -53,18 +53,24 @@ describe('App-spec', () => {
     it('should ignore when url origin is different than window.location.origin', () => {
       sinon.stub(instance, 'displayError');
       sinon.stub(instance, '_getWindowOrigin').returns('http://localhost:4000');
-      instance.handleGlobalError('message', 'https://foo');
+      instance.handleGlobalError(undefined, 'message', 'https://foo');
       expect(instance.displayError).to.not.be.called;
-      instance.handleGlobalError('message', null);
+      instance.handleGlobalError(undefined, 'message', null);
       expect(instance.displayError).to.be.calledWith('message');
-      instance.handleGlobalError('message', instance._getWindowOrigin());
+      instance.handleGlobalError(undefined, 'message', instance._getWindowOrigin());
       expect(instance.displayError).to.be.calledTwice;
     });
 
     it('should pass error || message to displayError', () => {
       sinon.stub(instance, 'displayError');
-      instance.handleGlobalError('message', null, null, null, 'error');
+      instance.handleGlobalError(undefined, 'message', null, null, null, 'error');
       expect(instance.displayError).to.be.calledWith('error');
+    });
+
+    it('should call previous onerror if defined', () => {
+      const prevOnerror = sinon.stub();
+      instance.handleGlobalError(prevOnerror, 'message', 1, 2, 3, 'error');
+      expect(prevOnerror).to.be.calledWith('message', 1, 2, 3, 'error');
     });
   });
 

@@ -50,7 +50,7 @@ public class UnionAll extends AbstractMultiple {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     List<PhysicalOperator> children = getChildren();
     BatchSchema left = children.get(0).getSchema(context);
     BatchSchema right = children.get(1).getSchema(context);

@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -23,9 +22,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor;
-import com.dremio.dac.proto.model.acceleration.AccelerationStateApiDescriptor;
 import com.dremio.service.accelerator.AccelerationTestUtil;
 import com.dremio.service.accelerator.proto.SystemSettings;
 
@@ -277,22 +274,6 @@ public class TestOrphanedAcceleration extends AccelerationTestUtil {
 
     //make sure that the acceleration is removed
     assertFalse(getAccelerationService().getAccelerationById(newApiDescriptor.getId()).isPresent());
-  }
-
-  private AccelerationApiDescriptor createAcceleration(DatasetPath dataset) throws Exception {
-    final AccelerationApiDescriptor newApiDescriptor = createNewAcceleration(dataset);
-    final AccelerationApiDescriptor existingApiDescriptor = pollAcceleration(newApiDescriptor.getId());
-
-    assertEquals(newApiDescriptor.getId(), existingApiDescriptor.getId());
-    assertEquals(newApiDescriptor.getType(), existingApiDescriptor.getType());
-
-    final AccelerationApiDescriptor finalApiDescriptor = waitForLayoutGeneration(newApiDescriptor.getId());
-    assertEquals(newApiDescriptor.getId(), finalApiDescriptor.getId());
-    assertEquals(AccelerationStateApiDescriptor.DISABLED, finalApiDescriptor.getState());
-    assertFalse("aggregation layout generation failed", finalApiDescriptor.getAggregationLayouts().getLayoutList().isEmpty());
-    assertFalse("raw layout generation failed", finalApiDescriptor.getRawLayouts().getLayoutList().isEmpty());
-    assertFalse("dataset schema is required", finalApiDescriptor.getContext().getDatasetSchema().getFieldList().isEmpty());
-    return newApiDescriptor;
   }
 
 }

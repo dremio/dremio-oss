@@ -17,7 +17,6 @@ package com.dremio.common.config;
 
 import java.util.Set;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfigBase;
@@ -29,6 +28,7 @@ import com.fasterxml.jackson.core.JsonParser.Feature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
 
 public class LogicalPlanPersistence {
@@ -45,6 +45,7 @@ public class LogicalPlanPersistence {
         .addDeserializer(LogicalExpression.class, new LogicalExpression.De(conf))
         .addDeserializer(SchemaPath.class, new SchemaPath.De());
 
+    mapper.registerModule(new AfterburnerModule());
     mapper.registerModule(deserModule);
     mapper.enable(SerializationFeature.INDENT_OUTPUT);
     mapper.configure(Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);

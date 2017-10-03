@@ -44,7 +44,6 @@ import io.netty.buffer.ArrowBuf;
 
 public class JsonReader extends BaseJsonProcessor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JsonReader.class);
-  public final static int MAX_RECORD_SIZE = 128 * 1024;
 
   private final WorkingBuffer workingBuffer;
   private final List<SchemaPath> columns;
@@ -53,6 +52,8 @@ public class JsonReader extends BaseJsonProcessor {
   private final ListVectorOutput listOutput;
   private final boolean extended = true;
   private final boolean readNumbersAsDouble;
+
+  private long dataSizeReadSoFar;
 
   /**
    * Describes whether or not this reader can unwrap a single root array record and treat it like a set of distinct records.
@@ -85,6 +86,17 @@ public class JsonReader extends BaseJsonProcessor {
     this.listOutput = new ListVectorOutput(workingBuffer);
     this.currentFieldName="<none>";
     this.readNumbersAsDouble = readNumbersAsDouble;
+    this.dataSizeReadSoFar = 0;
+  }
+
+  @Override
+  public void resetDataSizeCounter() {
+    dataSizeReadSoFar = 0;
+  }
+
+  @Override
+  public long getDataSizeCounter() {
+    return dataSizeReadSoFar;
   }
 
   @Override
@@ -488,12 +500,15 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void handleString(JsonParser parser, MapWriter writer, String fieldName) throws IOException {
-    writer.varChar(fieldName).writeVarChar(0, workingBuffer.prepareVarCharHolder(parser.getText()),
-        workingBuffer.getBuf());
+    final int size = workingBuffer.prepareVarCharHolder(parser.getText());
+    writer.varChar(fieldName).writeVarChar(0, size, workingBuffer.getBuf());
+    dataSizeReadSoFar += size;
   }
 
   private void handleString(JsonParser parser, ListWriter writer) throws IOException {
-    writer.varChar().writeVarChar(0, workingBuffer.prepareVarCharHolder(parser.getText()), workingBuffer.getBuf());
+    final int size = workingBuffer.prepareVarCharHolder(parser.getText());
+    writer.varChar().writeVarChar(0, size, workingBuffer.getBuf());
+    dataSizeReadSoFar += size;
   }
 
   private void writeData(ListWriter list, FieldSelection selection) throws IOException {
@@ -516,10 +531,12 @@ public class JsonReader extends BaseJsonProcessor {
       case VALUE_EMBEDDED_OBJECT:
       case VALUE_FALSE: {
         list.bit().writeBit(0);
+        // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
         break;
       }
       case VALUE_TRUE: {
         list.bit().writeBit(1);
+        // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
         break;
       }
       case VALUE_NULL:
@@ -530,12 +547,13 @@ public class JsonReader extends BaseJsonProcessor {
           .build(logger);
       case VALUE_NUMBER_FLOAT:
         list.float8().writeFloat8(parser.getDoubleValue());
+        dataSizeReadSoFar += 8;
         break;
       case VALUE_NUMBER_INT:
+        dataSizeReadSoFar += 8;
         if (this.readNumbersAsDouble) {
           list.float8().writeFloat8(parser.getDoubleValue());
-        }
-        else {
+        } else {
           list.bigInt().writeBigInt(parser.getLongValue());
         }
         break;
@@ -592,9 +610,4 @@ public class JsonReader extends BaseJsonProcessor {
     list.endList();
 
   }
-
-  public ArrowBuf getWorkBuf() {
-    return workingBuffer.getBuf();
-  }
-
 }

@@ -88,6 +88,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   private final Provider<SabotContext> dbContext;
   private final InboundImpersonationManager impersonationManager;
   private final BufferAllocator allocator;
+
   UserRPCServer(
       BootStrapContext context,
       Provider<SabotContext> dbContext,
@@ -414,12 +415,11 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
       @Override
       public void operationComplete(ChannelFuture future) throws Exception {
-        try{
+        try {
           delegate.operationComplete(future);
-        }finally{
-          CONNECTION_LOGGER.info("[{}] Connection Closed", clientConnection.uuid.toString());
+        } finally {
+            CONNECTION_LOGGER.info("[{}] Connection Closed", clientConnection.uuid.toString());
         }
-
       }};
   }
 
@@ -483,6 +483,19 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
           }
 
           connection.setUser(inbound);
+
+          if(connection.session.getRecordBatchFormat() == RecordBatchFormat.DRILL_1_0) {
+            // This allocator is used for backward compatibility encoding. Note that the encoder is responsible for
+            // closing the allocator during it's removal; this ensures any outstanding buffers in Netty pipeline
+            // are released BEFORE the allocator is closed. See BackwardsCompatibilityEncoder#handlerRemoved
+            final BufferAllocator bcAllocator = allocator.newChildAllocator(connection.uuid.toString()
+                    + "-backward-compatibility-allocator", 0, Long.MAX_VALUE);
+            logger.debug("Adding backwards compatibility encoder");
+            connection.getChannel()
+                .pipeline()
+                .addAfter(PROTOCOL_ENCODER, "backward-compatibility-encoder",
+                    new BackwardsCompatibilityEncoder(bcAllocator));
+          }
 
           return respBuilder
               .setStatus(HandshakeStatus.SUCCESS)

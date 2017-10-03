@@ -111,9 +111,11 @@ public class HomeFileSystemStoragePlugin2 extends FileSystemStoragePlugin2 {
   }
 
   private SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, FormatPlugin formatPlugin, FileSystemWrapper fs, FileConfig fileConfig) throws IOException {
-    final FileSelection fileSelection = FileSelection.create(fs, "/", fileConfig.getLocation());
+
     final List<FileSystemCachedEntity> cachedEntities = Lists.newArrayList();
     final FileStatus rootStatus = fs.getFileStatus(new Path(fileConfig.getLocation()));
+    final Path combined = new Path("/", FileSelection.removeLeadingSlash(fileConfig.getLocation()));
+    final FileSelection fileSelection = FileSelection.create(fs, combined);
 
     if (fileSelection == null) {
       return null;
@@ -124,7 +126,7 @@ public class HomeFileSystemStoragePlugin2 extends FileSystemStoragePlugin2 {
       cachedEntities.add(fromFileStatus(rootStatus));
     }
 
-    for (FileStatus dirStatus: fileSelection.getAllDirectories(fs)) {
+    for (FileStatus dirStatus: fileSelection.getAllDirectories()) {
       cachedEntities.add(fromFileStatus(dirStatus));
     }
 
@@ -133,9 +135,9 @@ public class HomeFileSystemStoragePlugin2 extends FileSystemStoragePlugin2 {
       cachedEntities.add(fromFileStatus(rootStatus));
     }
     final FileUpdateKey updateKey = new FileUpdateKey().setCachedEntitiesList(cachedEntities);
-    final boolean hasDirectories = fileSelection.containsDirectories(fs);
+    final boolean hasDirectories = fileSelection.containsDirectories();
     // Expand selection by copying it first used to check extensions of files in directory.
-    final FileSelection fileSelectionWithoutDir =  hasDirectories? fileSelection.minusDirectories(fs): fileSelection;
+    final FileSelection fileSelectionWithoutDir =  hasDirectories? fileSelection.minusDirectories(): fileSelection;
 
     if(fileSelectionWithoutDir == null){
       // no files in the found directory, not a table.

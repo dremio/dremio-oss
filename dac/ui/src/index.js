@@ -19,7 +19,6 @@ import { render } from 'react-dom';
 import $          from  'jquery';
 import Immutable  from 'immutable';
 import reactTapEvent from 'react-tap-event-plugin';
-import config from 'utils/config';
 
 import './vendor/chat';
 import './vendor/gtm';
@@ -42,7 +41,7 @@ import './main.less';
 import 'font-awesome/css/font-awesome.css';
 
 import sentryUtil from 'utils/sentryUtil';
-sentryUtil.install(config.commit);
+sentryUtil.install();
 
 import Root           from './containers/Root';
 import configureStore from './store/configureStore';

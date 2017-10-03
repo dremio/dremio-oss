@@ -82,6 +82,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.outgoing = new VectorContainer(context.getAllocator());
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
 
     final Map<String, ConversionColumn> cMap = new HashMap<>();
     for(ConversionColumn c : config.getColumns()){

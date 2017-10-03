@@ -29,7 +29,7 @@ import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.test.DremioTest;
 
@@ -38,7 +38,7 @@ import com.dremio.test.DremioTest;
  */
 public class TestResetPassword extends BaseTestServer {
 
-  private static DacConfig dacConfig =  DacConfig
+  private static DACConfig dacConfig =  DACConfig
     .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
     .autoPort(true)
     .allowTestApis(true)
@@ -72,7 +72,7 @@ public class TestResetPassword extends BaseTestServer {
   @Test
   public void testResetPassword() throws Exception {
     getCurrentDremioDaemon().close();
-    SetPassword.resetPassword(getCurrentDremioDaemon().getDacConfig(), DEFAULT_USERNAME, "tshiran123456");
+    SetPassword.resetPassword(getCurrentDremioDaemon().getDACConfig(), DEFAULT_USERNAME, "tshiran123456");
     startDaemon();
 
     UserLogin userLogin = new UserLogin(DEFAULT_USERNAME, DEFAULT_PASSWORD);

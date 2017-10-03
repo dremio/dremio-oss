@@ -30,12 +30,12 @@ describe('MultiplierField', () => {
   let minimalProps, commonProps;
   beforeEach(() => {
     minimalProps = {
-      unitMultipliers: MULTIPLIERS
+      unitMultipliers: MULTIPLIERS,
+      onChange: sinon.spy()
     };
     commonProps = {
       ...minimalProps,
-      value: 1024,
-      onChange: sinon.spy()
+      value: 1024
     };
   });
 
@@ -79,11 +79,45 @@ describe('MultiplierField', () => {
     expect(wrapper.find('Select').props().value).to.equal('KB');
   });
 
-  it('#handleSelectChange() should update state.unit', () => {
-    const wrapper = shallow(<MultiplierField {...commonProps} />);
-    wrapper.instance().handleSelectChange('B');
-    expect(commonProps.onChange).to.not.have.been.called;
-    expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('' + 1024);
-    expect(wrapper.find('Select').props().value).to.equal('B');
+  it('#handleSelectChange() should update state.unit and keep the same *displayed* numerical value', () => {
+    const wrapper = shallow(<MultiplierField {...commonProps} />); // KB 1
+    wrapper.instance().handleSelectChange('GB');
+    expect(commonProps.onChange).to.have.been.calledWith(1024 ** 3);
+    wrapper.setProps({...commonProps, value: 1024 ** 3});
+    expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('' + 1);
+    expect(wrapper.find('Select').props().value).to.equal('GB');
+  });
+
+  describe('min value', () => {
+    it('0', () => {
+      const wrapper = shallow(<MultiplierField {...commonProps} min={0} />);
+      expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('' + 1);
+      expect(wrapper.find('Select').props().value).to.equal('KB');
+      expect(wrapper.find('Select').props().items.map(e => e.label)).to.eql([...MULTIPLIERS.keys()]);
+    });
+    it('1', () => {
+      const wrapper = shallow(<MultiplierField {...commonProps} min={1} />);
+      expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('' + 1);
+      expect(wrapper.find('Select').props().value).to.equal('KB');
+      expect(wrapper.find('Select').props().items.map(e => e.label)).to.eql([...MULTIPLIERS.keys()]);
+    });
+    it('Infinity', () => {
+      const wrapper = shallow(<MultiplierField {...commonProps} min={Infinity} />);
+      expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('0.00000000093132257462');
+      expect(wrapper.find('Select').props().value).to.equal('TB');
+      expect(wrapper.find('Select').props().items.map(e => e.label)).to.eql([...MULTIPLIERS.keys()].slice(-1));
+    });
+    it('an exact multiplier', () => {
+      const wrapper = shallow(<MultiplierField {...commonProps} min={[...MULTIPLIERS.values()][1]} />);
+      expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('' + 1);
+      expect(wrapper.find('Select').props().value).to.equal('KB');
+      expect(wrapper.find('Select').props().items.map(e => e.label)).to.eql([...MULTIPLIERS.keys()].slice(1));
+    });
+    it('between two multipliers', () => {
+      const wrapper = shallow(<MultiplierField {...commonProps} min={[...MULTIPLIERS.values()][1] + 1} />);
+      expect(wrapper.find('PrevalidatedTextField').props().value).to.equal('' + 1);
+      expect(wrapper.find('Select').props().value).to.equal('KB');
+      expect(wrapper.find('Select').props().items.map(e => e.label)).to.eql([...MULTIPLIERS.keys()].slice(1));
+    });
   });
 });

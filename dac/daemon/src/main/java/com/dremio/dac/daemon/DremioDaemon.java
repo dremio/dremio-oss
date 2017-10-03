@@ -26,7 +26,7 @@ import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.dac.cmd.upgrade.Upgrade;
 import com.dremio.dac.cmd.upgrade.UpgradeStats;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.NASSourceConfigurator;
 import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
@@ -71,7 +71,7 @@ public class DremioDaemon {
   public static final String DAEMON_MODULE_CLASS = "dremio.daemon.module.class";
 
 
-  private static boolean isMaster(DacConfig config) {
+  private static boolean isMaster(DACConfig config) {
     try {
       return !config.isRemote && NetworkUtil.addressResolvesToThisNode(config.masterNode);
     } catch (UnknownHostException e) {
@@ -81,7 +81,7 @@ public class DremioDaemon {
 
   public static void main(String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
-      DacConfig config = DacConfig.newConfig();
+      DACConfig config = DACConfig.newConfig();
 
       // Check if autoupgrade is enabled
       if (config.isAutoUpgrade() && isMaster(config)) {

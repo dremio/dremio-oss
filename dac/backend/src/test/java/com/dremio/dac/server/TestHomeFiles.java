@@ -132,8 +132,10 @@ public class TestHomeFiles extends BaseTestServer {
     FormDataMultiPart form = new FormDataMultiPart();
     FormDataBodyPart fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
+    FormDataBodyPart fileNameBody = new FormDataBodyPart("fileName", "file1");
+    form.bodyPart(fileNameBody);
     doc("upload file to staging");
-    File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/file1").queryParam("extension", "json")).buildPost(
+    File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
       Entity.entity(form, form.getMediaType())), File.class);
     FileFormat file1StagedFormat = file1Staged.getFileFormat().getFileFormat();
     assertEquals("file1", file1StagedFormat.getName());
@@ -175,9 +177,10 @@ public class TestHomeFiles extends BaseTestServer {
     form = new FormDataMultiPart();
     fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
+    form.bodyPart(new FormDataBodyPart("fileName", "file2"));
 
     doc("upload second file to staging");
-    File file2Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/file2").queryParam("extension", "json")).buildPost(
+    File file2Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
       Entity.entity(form, form.getMediaType())), File.class);
     FileFormat file2StagedFormat = file2Staged.getFileFormat().getFileFormat();
 
@@ -246,9 +249,10 @@ public class TestHomeFiles extends BaseTestServer {
     FormDataMultiPart form = new FormDataMultiPart();
     FormDataBodyPart fileBody = new FormDataBodyPart("file", FileUtils.getResourceAsFile("/datasets/csv/pipe.csv"), MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
+    form.bodyPart(new FormDataBodyPart("fileName", "pipe"));
 
     doc("uploading a text file");
-    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/pipe").queryParam("extension", "csv"))
+    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "csv"))
         .buildPost(Entity.entity(form, form.getMediaType())), File.class);
     file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/pipe"))
         .buildPost(Entity.json(file1.getFileFormat().getFileFormat())), File.class);
@@ -284,9 +288,10 @@ public class TestHomeFiles extends BaseTestServer {
     FormDataMultiPart form = new FormDataMultiPart();
     FormDataBodyPart fileBody = new FormDataBodyPart("file", FileUtils.getResourceAsFile("/testfiles/excel." + extension), MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
+    form.bodyPart(new FormDataBodyPart("fileName", "excel"));
 
     doc("uploading excel file");
-    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/excel").queryParam("extension", extension)).buildPost(
+    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", extension)).buildPost(
       Entity.entity(form, form.getMediaType())), File.class);
     file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel")).buildPost(
         Entity.json(file1.getFileFormat().getFileFormat())), File.class);

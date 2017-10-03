@@ -45,10 +45,11 @@ describe('SpaceModalMixin', () => {
       const wrapper = shallow(<SpaceModal {...commonProps}/>);
       instance = wrapper.instance();
     });
-    it('should remove accelerationTTL to formValues', () => {
-      const formValues = {name: 'someName', accelerationTTL: {}};
+    it('should remove refreshPeriod, gracePeriod from formValues', () => {
+      const formValues = {name: 'someName', accelerationRefreshPeriod: {}, accelerationGracePeriod: {}};
       instance.mutateFormValues(formValues);
-      expect(formValues.accelerationTTL).to.be.undefined;
+      expect(formValues.accelerationRefreshPeriod).to.be.undefined;
+      expect(formValues.accelerationGracePeriod).to.be.undefined;
     });
   });
 });

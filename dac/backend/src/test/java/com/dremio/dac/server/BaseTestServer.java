@@ -342,7 +342,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
       // create master node.
       masterDremioDaemon = DACDaemon.newDremioDaemon(
-          DacConfig
+          DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .masterNode(hostname)
               .autoPort(true)
@@ -361,7 +361,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       // remote coordinator node
       int zkPort = masterDremioDaemon.getBindingProvider().lookup(ZkServer.class).getPort();
       currentDremioDaemon = DACDaemon.newDremioDaemon(
-          DacConfig
+          DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .masterNode(hostname)
               .autoPort(true)
@@ -383,7 +383,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
       // remote executor node
       executorDaemon = DACDaemon.newDremioDaemon(
-          DacConfig
+          DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .masterNode(hostname)
               .autoPort(true)
@@ -407,7 +407,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
     } else {
       logger.info("Running tests in local mode");
       currentDremioDaemon = DACDaemon.newDremioDaemon(
-          DacConfig
+          DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .masterNode(hostname)
               .autoPort(true)

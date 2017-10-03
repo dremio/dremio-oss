@@ -66,7 +66,7 @@ export default class UserForm extends Component { // todo: rename, make proper "
             style={styles.inlineBlock}>
             <TextField {...fields.userName} disabled={this.getIsEdit() || isReadMode}/>
           </FieldWithError>
-          <FieldWithError label={la('Email')} errorPlacement='right' labelStyle={styles.label} {...fields.email}>
+          <FieldWithError label={la('Email')} errorPlacement='top' labelStyle={styles.label} {...fields.email}>
             <TextField {...fields.email} disabled={isReadMode}/>
           </FieldWithError>
         </div>

@@ -32,9 +32,9 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin.JSONFormatConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
@@ -53,8 +53,8 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, FileWork fileWork, List<SchemaPath> columns) throws ExecutionSetupException {
-    return new JSONRecordReader(context, fileWork.getPath(), dfs, columns);
+  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
+    return new JSONRecordReader(context, splitAttributes.getPath(), dfs, columns);
   }
 
   @Override

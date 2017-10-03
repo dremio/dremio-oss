@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {summarizeState, summarizeByteSize} from './accelerationUtils';
+import {summarizeState, summarizeByteSize, syntheticLayoutState} from './accelerationUtils';
 
 describe('accelerationUtils', () => {
   describe('summarizeState (in reverse order of precedence...)', () => {
@@ -54,9 +54,14 @@ describe('accelerationUtils', () => {
       expect(summarizeState(acceleration)).to.equal('EXPIRED');
     });
 
-    it('any layouts FAILED', () => {
-      acceleration.rawLayouts.layoutList.push({latestMaterializationState: 'FAILED', hasValidMaterialization: true});
-      expect(summarizeState(acceleration)).to.equal('FAILED');
+    it('any layouts FAILED_NONFINAL', () => {
+      acceleration.rawLayouts.layoutList.push({latestMaterializationState: 'FAILED', state: 'ACTIVE'});
+      expect(summarizeState(acceleration)).to.equal('FAILED_NONFINAL');
+    });
+
+    it('any layouts FAILED_FINAL', () => {
+      acceleration.rawLayouts.layoutList.push({latestMaterializationState: 'FAILED', state: 'FAILED'});
+      expect(summarizeState(acceleration)).to.equal('FAILED_FINAL');
     });
 
     it('all layout types disabled', () => {
@@ -72,6 +77,21 @@ describe('accelerationUtils', () => {
     it('when there are top-level Acceleration errors', () => {
       acceleration.errorList = [{}];
       expect(summarizeState(acceleration)).to.equal('FAILED');
+    });
+  });
+
+  describe('syntheticLayoutState', () => {
+    it('default pass thru of latestMaterializationState', () => {
+      expect(syntheticLayoutState({latestMaterializationState: 'CANARY'})).to.equal('CANARY');
+    });
+    it('FAILED_FINAL', () => {
+      expect(syntheticLayoutState({latestMaterializationState: 'FAILED', state: 'FAILED'})).to.equal('FAILED_FINAL');
+    });
+    it('FAILED_NONFINAL', () => {
+      expect(syntheticLayoutState({latestMaterializationState: 'FAILED', state: 'ACTIVE'})).to.equal('FAILED_NONFINAL');
+    });
+    it('EXPIRED', () => {
+      expect(syntheticLayoutState({latestMaterializationState: 'DONE', hasValidMaterialization: false})).to.equal('EXPIRED');
     });
   });
 

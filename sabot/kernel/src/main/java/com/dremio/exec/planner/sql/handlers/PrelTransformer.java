@@ -251,7 +251,8 @@ public class PrelTransformer {
     // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
     convertedRelNode = addRenamedProject(config, convertedRelNode, validatedRowType);
 
-    convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(), config.getContext(), config.getConverter().getRootSchema(), convertedRelNode);
+    convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
+        config.getContext(), convertedRelNode);
 
     return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
   }
@@ -327,6 +328,7 @@ public class PrelTransformer {
     final RuleSet rules = config.getRules(phase);
     final PlannerCallback callback = config.getPlannerCallback(phase);
     final RelTraitSet toTraits = targetTraits.simplify();
+    final RelOptPlanner logPlanner;
 
     CALCITE_LOGGER.trace("Starting Planning for phase {} with target traits {}.", phase, targetTraits);
     final RelNode output;
@@ -342,6 +344,7 @@ public class PrelTransformer {
       }
       final HepPlanner planner = new DremioHepPlanner(
           hepPgmBldr.build(), config.getContext().getPlannerSettings(), config.getConverter().getCostFactory());
+      logPlanner = planner;
       callback.initializePlanner(planner);
 
       final List<RelMetadataProvider> list = Lists.newArrayList();
@@ -366,6 +369,7 @@ public class PrelTransformer {
           "Cluster is expected to be constructed using VolcanoPlanner. Was actually of type %s.",
           input.getCluster().getPlanner().getClass().getName());
       final DremioVolcanoPlanner planner = (DremioVolcanoPlanner) input.getCluster().getPlanner();
+      logPlanner = planner;
       planner.setNoneConventionHaveInfiniteCost(phase != PlannerPhase.JDBC_PUSHDOWN);
       planner.setCancelFlag(new CancelFlag(60, TimeUnit.SECONDS, phase));
       final Program program = Programs.of(rules);
@@ -395,7 +399,7 @@ public class PrelTransformer {
 
     if (log) {
       log(plannerType, phase, output, logger, watch);
-      config.getObserver().planRelTransform(phase, input, output, watch.elapsed(TimeUnit.MILLISECONDS));
+      config.getObserver().planRelTransform(phase, logPlanner, input, output, watch.elapsed(TimeUnit.MILLISECONDS));
     }
 
     CALCITE_LOGGER.trace("Completed Phase: {}.", phase);
@@ -701,7 +705,7 @@ public class PrelTransformer {
     } else {
       finalConvertedNode = jdbcPushed.accept(new ConvertJdbcLogicalToJdbcRel());
     }
-    config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, volcanoPlanner, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
     return finalConvertedNode;
   }

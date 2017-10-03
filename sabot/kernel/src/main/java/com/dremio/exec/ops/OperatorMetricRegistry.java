@@ -16,6 +16,7 @@
 package com.dremio.exec.ops;
 
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import com.dremio.sabot.op.receiver.merging.MergingReceiverOperator;
@@ -50,6 +51,7 @@ public class OperatorMetricRegistry {
     register(CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortOperator.Metric.class);
     register(CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     register(CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
+    register(CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
   }
 
   private static void register(final int operatorType, final Class<? extends MetricDef> metricDef) {

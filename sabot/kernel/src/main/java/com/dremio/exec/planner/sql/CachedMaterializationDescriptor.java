@@ -38,7 +38,8 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
           descriptor.getPlan(),
           descriptor.getPath(),
           descriptor.getOriginalCost(),
-          descriptor.getIncrementalUpdateSettings());
+          descriptor.getIncrementalUpdateSettings(),
+          descriptor.isComplete());
     this.materialization = Preconditions.checkNotNull(materialization, "materialization is required");
   }
 
@@ -48,5 +49,9 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
     final DremioRelOptMaterialization copied = materialization.accept(copier);
     copier.validate();
     return copied;
+  }
+
+  public DremioRelOptMaterialization getMaterialization() {
+    return materialization;
   }
 }

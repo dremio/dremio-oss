@@ -1,10 +1,10 @@
 Dremio
 Copyright 2015-2017 Dremio Corporation
 
-This product includes software developed at 
+This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
-This product incorporates and/or depends on software that falls under the following 
+This product incorporates and/or depends on software that falls under the following
 notices and/or trademarks:
 
 # List of contributors  Red Hat Inc. Akira Kawauchi Davide D'Alto Dhanji R. Prasanna Emmanuel Bernard Gavin King Gerhard Petracek Guillaume Smet Gunnar Morling Hardy Ferentschik Hendrik Ebbers Kevin Pollet Sebastian Thomschke
@@ -111,13 +111,15 @@ Copyright (c) 2007 Mockito contributors
 
 Copyright (c) 2008, Nathan Sweet All rights reserved.
 
-Copyright (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative  Reporters & Editors
+Copyright (c) 2009-2011, Mozilla Foundation and contributors All rights reserved.
+
+Copyright (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 
 Copyright (c) 2010 - 2014 jsPlumb, http://jsplumbtoolkit.com/
 
-Copyright (c) 2010-2012 Robert Kieffer  MIT License - http://opensource.org/licenses/mit-license.php
+Copyright (c) 2010-2012 Robert Kieffer MIT License - http://opensource.org/licenses/mit-license.php
 
-Copyright (c) 2010-2016, Michael Bostock  All rights reserved.
+Copyright (c) 2010-2016, Michael Bostock All rights reserved.
 
 Copyright (c) 2011 Alexander Shtuchkin
 
@@ -137,13 +139,13 @@ Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, and Domenic Denicola
 
 Copyright (c) 2012 Einar Otto Stangvik &lt;einaros@gmail.com&gt;
 
-Copyright (c) 2012-2013 James Coglan
-
 Copyright (c) 2012-2014 Andris Reinman
+
+Copyright (c) 2012-2017 James Coglan
 
 Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
 
-Copyright (c) 2013 Julian Gruber &lt;julian@juliangruber.com&gt;
+Copyright (c) 2013 Braveg1rl
 
 Copyright (c) 2013 Masayuki Tanaka
 
@@ -153,11 +155,11 @@ Copyright (c) 2013 Mikola Lysenko
 
 Copyright (c) 2013-2015 Oracle and/or its affiliates. All rights reserved.
 
-Copyright (c) 2013-2015, Facebook, Inc.  All rights reserved.
+Copyright (c) 2013-2015, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2013-2017 James Coglan
 
-Copyright (c) 2013-present, Facebook, Inc.  All rights reserved.
+Copyright (c) 2013-present, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2014
 
@@ -169,7 +171,7 @@ Copyright (c) 2014 Forbes Lindesay
 
 Copyright (c) 2014 Griffin Smith and other contributors
 
-Copyright (c) 2014 Matt Robenolt and other contributors  All rights reserved.
+Copyright (c) 2014 Matt Robenolt and other contributors All rights reserved.
 
 Copyright (c) 2014 Param Aggarwal
 
@@ -179,7 +181,7 @@ Copyright (c) 2014 Tim Oxley
 
 Copyright (c) 2014, 2015, 2016, 2017 Simon Lydell
 
-Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+Copyright (c) 2014, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2014-2015 Sebastian McKenzie <sebmck@gmail.com>
 
@@ -233,7 +235,7 @@ Copyright (c) 2015 KNOWLEDGECODE
 
 Copyright (c) 2015 Matt Andrews
 
-Copyright (c) 2015 Nick Williams  Copyright (c) 2011 Heather Arthur <fayearthur@gmail.com>
+Copyright (c) 2015 Nick Williams Copyright (c) 2011 Heather Arthur <fayearthur@gmail.com>
 
 Copyright (c) 2015 React Motion authors
 
@@ -241,15 +243,15 @@ Copyright (c) 2015 Robin Frischmann
 
 Copyright (c) 2015 Shusaku Uesugi
 
-Copyright (c) 2015 Unshift.io, Arnout Kazemier, the Contributors.
+Copyright (c) 2015 Shusaku Uesugi, (c) 2016-present Alexander Kuznetsov
+
+Copyright (c) 2015 Unshift.io, Arnout Kazemier,  the Contributors.
 
 Copyright (c) 2015 Yassine Elouafi
 
 Copyright (c) 2015 react-bootstrap
 
-Copyright (c) 2015 yjcxy12
-
-Copyright (c) 2015, Espen Hovlandsdal  All rights reserved.
+Copyright (c) 2015, Espen Hovlandsdal All rights reserved.
 
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 
@@ -281,13 +283,21 @@ Copyright (c) 2016 Matthew Russell
 
 Copyright (c) 2016 Nik Butenko
 
-Copyright (c) 2016, Andres Suarez  All rights reserved.
+Copyright (c) 2016, Andres Suarez All rights reserved.
+
+Copyright (c) 2016, James Salter All rights reserved.
+
+Copyright (c) 2016, React Community Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2016, Schrodinger, Inc. All rights reserved.
 
+Copyright (c) 2017 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
+
+Copyright (c) 2017 Jed Watson
+
 Copyright (c) JS Foundation and other contributors
 
-Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.  Microsoft Open Technologies would like to thank its contributors, a list  of whom are at http://rx.codeplex.com/wikipage?title=Contributors.
+Copyright (c) Microsoft Open Technologies, Inc.  All rights reserved. Microsoft Open Technologies would like to thank its contributors, a list of whom are at http://rx.codeplex.com/wikipage?title=Contributors.
 
 Copyright 2003-2005, Ernst de Haan <wfe.dehaan@gmail.com> All rights reserved.
 
@@ -311,17 +321,17 @@ Copyright 2010-2013, Carrot Search s.c., Boznicza 11/56, Poznan, Poland
 
 Copyright 2011 Clearspring Technologies Copyright 2016 AddThis
 
-Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>  Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas,  DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
+Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/> Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
 
-Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/>  Based on Underscore.js, copyright 2009-2016 Jeremy Ashkenas,  DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
+Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/> Based on Underscore.js, copyright 2009-2016 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
 
 Copyright 2013 Thorsten Lorenz.  All rights reserved.
 
 Copyright 2014 Google Inc.
 
-Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/>  Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
+Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/> Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
 
-Copyright 2015, Dustin Diaz (the Original Author)  All rights reserved.
+Copyright 2015, Dustin Diaz (the Original Author) All rights reserved.
 
 Copyright JS Foundation and other contributors <https://js.foundation/>
 
@@ -335,7 +345,7 @@ Copyright © 2008-2017 MongoDB, Inc.
 
 Copyright © 2011–2016. All rights reserved
 
-Copyright © 2012-2016 Faisal Salman <fyzlman@gmail.com>
+Copyright © 2012-2016 Faisal Salman <<fyzlman@gmail.com>>
 
 Copyright © 2016 [Eli Grey][1].
 
@@ -359,7 +369,7 @@ NOTICE file corresponding to section 4d of the Apache License Version 2.0 = ====
 
 Notices and attributions required by libraries that the project depends on   ==    ===================================================================================   The JUnit depends on Java Hamcrest (http://hamcrest.org/JavaHamcrest/).
 
-The MIT License (MIT)  Copyright (c) 2015-2016 Adphorus
+The MIT License (MIT) Copyright (c) 2015-2016 Adphorus
 
 The Xerces-J 2.11.0 release is available in source code and precompiled binary (JAR files) form. Both Xerces-J packages are made available under the Apache Software License.
 
@@ -378,5 +388,3 @@ foodmart-data-json Foodmart data set in JSON format Copyright (C) 2013-2013 Pent
 protostuff  Copyright 2009 David Yu dyuproject@gmail.com
 
 © 2014 Kohsuke Kawaguchi and other contributors
-
-

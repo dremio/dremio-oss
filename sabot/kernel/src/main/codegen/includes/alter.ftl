@@ -32,12 +32,12 @@
       |
       <DROP> <ACCELERATION> {return new SqlAccelDisable(pos, tblName);}
       |
-      <DROP> <LAYOUT> {return SqlDropLayout(pos, tblName);}
+      <DROP> (<LAYOUT> | <REFLECTION>) {return SqlDropLayout(pos, tblName);}
       |
       <ADD> (
-        <AGGREGATE> <LAYOUT> {return SqlAddAggLayout(pos, tblName);}
+        <AGGREGATE> (<LAYOUT> | <REFLECTION>) {return SqlAddAggLayout(pos, tblName);}
         |
-        <RAW> <LAYOUT> {return SqlAddRawLayout(pos, tblName);}
+        <RAW> (<LAYOUT> | <REFLECTION>) {return SqlAddRawLayout(pos, tblName);}
       )
       |
       <FORGET> <METADATA> {return new SqlForgetTable(pos, tblName);}
@@ -54,8 +54,11 @@
    DIMENSIONS (field1, field2)
    MEASURES (field1, field2)
    [ DISTRIBUTE BY (field1, field2, ..) ]
+   [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
+   [ LOCALSORT BY (field1, field2, ..) ]
    [ PARTITION BY (field1, field2, ..) ]
    [ LOCALSORT BY (field1, field2, ..) ] 
+   [ AS (name) ]
  */
 SqlNode SqlAddAggLayout(SqlParserPos pos, SqlIdentifier tblName) :
 {
@@ -64,6 +67,8 @@ SqlNode SqlAddAggLayout(SqlParserPos pos, SqlIdentifier tblName) :
     SqlNodeList partitionList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
+    PartitionDistributionStrategy partitionDistributionStrategy;
+    SqlIdentifier identifier = null;
 }
 {
     {
@@ -72,6 +77,7 @@ SqlNode SqlAddAggLayout(SqlParserPos pos, SqlIdentifier tblName) :
         distributionList = SqlNodeList.EMPTY;
         partitionList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
+        partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <DIMENSIONS>
     dimensionList = ParseRequiredFieldListWithGranularity("Dimensions")
@@ -81,14 +87,30 @@ SqlNode SqlAddAggLayout(SqlParserPos pos, SqlIdentifier tblName) :
     (   <DISTRIBUTE> <BY>
         distributionList = ParseRequiredFieldList("Distribution")
     )?
-    (   <PARTITION> <BY>
+    (
+        (
+            <STRIPED> {
+                partitionDistributionStrategy = PartitionDistributionStrategy.STRIPED;
+            }
+        |
+            <CONSOLIDATED> {
+                // system makes a choice
+                partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
+            }
+        )?
+        <PARTITION> <BY>
         partitionList = ParseRequiredFieldList("Partition")
     )?
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
-    )?    
+    )?  
+    (
+        <AS> 
+        identifier = SimpleIdentifier() 
+    )?  
     {
-        return SqlAddLayout.createAggregation(pos, tblName, dimensionList, measureList, distributionList, partitionList, sortList);
+        return SqlAddLayout.createAggregation(pos, tblName, dimensionList, measureList, distributionList,
+           partitionList, sortList, partitionDistributionStrategy, identifier);
     }
 }
 
@@ -134,9 +156,10 @@ void SimpleIdentifierCommaListWithGranularity(List<SqlNode> list) :
    ALTER TABLE tblname 
    ADD RAW LAYOUT 
    DISPLAY (field1, field2)
-   [ PARTITION BY (field1, field2, ..) ]
+   [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ DISTRIBUTE BY (field1, field2, ..) ]
-   [ LOCALSORT BY (field1, field2, ..) ] 
+   [ LOCALSORT BY (field1, field2, ..) ]
+   AS name
  */
 SqlNode SqlAddRawLayout(SqlParserPos pos, SqlIdentifier tblName) :
 {
@@ -144,6 +167,8 @@ SqlNode SqlAddRawLayout(SqlParserPos pos, SqlIdentifier tblName) :
     SqlNodeList partitionList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
+    PartitionDistributionStrategy partitionDistributionStrategy;
+    SqlIdentifier identifier = null;
 }
 {
     {
@@ -151,6 +176,7 @@ SqlNode SqlAddRawLayout(SqlParserPos pos, SqlIdentifier tblName) :
         distributionList = SqlNodeList.EMPTY;
         partitionList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
+        partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <DISPLAY>
     displayList = ParseOptionalFieldList("Display")
@@ -158,14 +184,30 @@ SqlNode SqlAddRawLayout(SqlParserPos pos, SqlIdentifier tblName) :
     (   <DISTRIBUTE> <BY>
         distributionList = ParseRequiredFieldList("Distribution")
     )?
-    (   <PARTITION> <BY>
+    (
+        (
+            <STRIPED> {
+                partitionDistributionStrategy = PartitionDistributionStrategy.STRIPED;
+            }
+        |
+            <CONSOLIDATED> {
+                // system makes a choice
+                partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
+            }
+        )?
+        <PARTITION> <BY>
         partitionList = ParseRequiredFieldList("Partition")
     )?
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
-    )?    
+    )?
+    (
+        <AS> 
+        identifier = SimpleIdentifier() 
+    )? 
     {
-        return SqlAddLayout.createRaw(pos, tblName, displayList, distributionList, partitionList, sortList);
+        return SqlAddLayout.createRaw(pos, tblName, displayList, distributionList, partitionList, sortList,
+          partitionDistributionStrategy, identifier);
     }
 }
 

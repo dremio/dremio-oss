@@ -314,7 +314,7 @@ public class FragmentExecutor {
   private void setupExecution() throws Exception{
     logger.debug("Starting fragment {}:{} on {}:{}", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId(), fragment.getAssignment().getAddress(), fragment.getAssignment().getUserPort());
 
-    final PhysicalOperator rootOperator = reader.readFragmentOperator(fragment.getFragmentJson());
+    final PhysicalOperator rootOperator = reader.readFragmentOperator(fragment.getFragmentJson(), fragment.getFragmentCodec());
 
     final OperatorCreator operatorCreator = new UserDelegatingOperatorCreator(contextInfo.getQueryUser(), opCreator);
     pipeline = PipelineCreator.get(

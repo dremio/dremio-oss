@@ -16,6 +16,7 @@
 package com.dremio.exec.physical.impl.writer;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -90,6 +91,8 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/null_date_cols_with_corruption_4203.parquet";
   private static final String CORRECTED_PARTITIONED_DATES_1_9_PATH =
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/1_9_0_partitioned_no_corruption";
+  private static final String CORRECTED_PARTITIONED_DATES_1_10_PATH =
+      "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/1_10_0_partitioned_no_corruption";
   private static final String VARCHAR_PARTITIONED =
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/fewtypes_varcharpartition";
   private static final String DATE_PARTITIONED =
@@ -126,28 +129,30 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   @Test
   public void testReadPartitionedOnCorrectedDates() throws Exception {
     try {
-      for (String selection : new String[]{"*", "date_col"}) {
-        // for sanity, try reading all partitions without a filter
-        TestBuilder builder = testBuilder()
-            .sqlQuery("select " + selection + " from table(dfs.`" + CORRECTED_PARTITIONED_DATES_1_9_PATH + "`" +
-                "(type => 'parquet', autoCorrectCorruptDates => false))")
-            .unOrdered()
-            .baselineColumns("date_col");
-        addDateBaselineVals(builder);
-        builder.go();
+      for(String testPath : Arrays.asList(CORRECTED_PARTITIONED_DATES_1_9_PATH, CORRECTED_PARTITIONED_DATES_1_10_PATH)) {
+        for (String selection : new String[]{"*", "date_col"}) {
+          // for sanity, try reading all partitions without a filter
+          TestBuilder builder = testBuilder()
+              .sqlQuery("select " + selection + " from table(dfs.`" + testPath + "`" +
+                  "(type => 'parquet', autoCorrectCorruptDates => false))")
+              .unOrdered()
+              .baselineColumns("date_col");
+          addDateBaselineVals(builder);
+          builder.go();
 
-        String query = "select " + selection + " from table(dfs.`" + CORRECTED_PARTITIONED_DATES_1_9_PATH + "` " +
-            "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col = date '1970-01-01'";
-        // verify that pruning is actually taking place
-        testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
+          String query = "select " + selection + " from table(dfs.`" + testPath + "` " +
+              "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col = date '1970-01-01'";
+          // verify that pruning is actually taking place
+          testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
 
-        // read with a filter on the partition column
-        testBuilder()
-            .sqlQuery(query)
-            .unOrdered()
-            .baselineColumns("date_col")
-            .baselineValues(new LocalDateTime(1970, 1, 1, 0, 0))
-            .go();
+          // read with a filter on the partition column
+          testBuilder()
+              .sqlQuery(query)
+              .unOrdered()
+              .baselineColumns("date_col")
+              .baselineValues(new LocalDateTime(1970, 1, 1, 0, 0))
+              .go();
+        }
       }
     } finally {
       test("alter session reset all");

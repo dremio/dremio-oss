@@ -422,7 +422,8 @@ public class TestLocalExchange extends PlanTestBase {
     // number of SabotNodes in cluster
     ArrayListMultimap<Integer, NodeEndpoint> partitionSenderMap = ArrayListMultimap.create();
     for(PlanFragment planFragment : fragments) {
-      if (planFragment.getFragmentJson().contains("hash-partition-sender")) {
+      // Our parallelizer doesn't compress fragments
+      if (planFragment.getFragmentJson().toStringUtf8().contains("hash-partition-sender")) {
         int majorFragmentId = planFragment.getHandle().getMajorFragmentId();
         NodeEndpoint assignedEndpoint = planFragment.getAssignment();
         partitionSenderMap.get(majorFragmentId).add(assignedEndpoint);

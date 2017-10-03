@@ -45,6 +45,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
 import com.google.common.collect.ImmutableSet;
 
@@ -107,7 +108,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   public abstract RecordReader getRecordReader(
       OperatorContext context,
       FileSystemWrapper dfs,
-      FileWork fileWork,
+      EasyDatasetSplitXAttr splitAttributes,
       List<SchemaPath> columns) throws ExecutionSetupException;
 
   public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException{
@@ -134,7 +135,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
     FileSystemPlugin plugin,
     FileSelection selection,
     List<SchemaPath> columns) throws IOException {
-    return new EasyGroupScanUtils(userName, selection, plugin, this, columns, selection.selectionRoot, false);
+    return new EasyGroupScanUtils(userName, selection, plugin, this, columns, selection.getSelectionRoot(), false);
   }
 
   @Override
@@ -177,7 +178,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
 
   @Override
   public FileSystemDatasetAccessor getDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey) {
-    return new EasyFormatDatasetAccessor(fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, this);
+    return new EasyFormatDatasetAccessor(fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, this, oldConfig);
   }
 
   protected ScanStats getScanStats(final EasyGroupScanUtils scan) {

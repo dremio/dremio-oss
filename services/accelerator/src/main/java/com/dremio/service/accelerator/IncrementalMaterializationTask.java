@@ -16,15 +16,11 @@
 package com.dremio.service.accelerator;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.JobDetails;
 import com.dremio.service.accelerator.proto.Layout;
@@ -33,12 +29,8 @@ import com.dremio.service.accelerator.proto.MaterializationId;
 import com.dremio.service.accelerator.proto.MaterializationMetrics;
 import com.dremio.service.accelerator.proto.MaterializationUpdate;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
-import com.dremio.service.accelerator.store.MaterializationStore;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobData;
 import com.dremio.service.jobs.JobDataFragment;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -52,11 +44,8 @@ public class IncrementalMaterializationTask extends MaterializationTask {
   private long timeStamp;
   private boolean fullRefresh;
 
-  public IncrementalMaterializationTask(final String acceleratorStorageName, MaterializationStore materializationStore, JobsService jobsService,
-                                        NamespaceService namespaceService, CatalogService catalogService, Layout layout,
-                                        ExecutorService executorService, Acceleration acceleration,
-                                        final FileSystemPlugin accelerationStoragePlugin) {
-    super(acceleratorStorageName, materializationStore, jobsService, namespaceService, catalogService, layout, executorService, acceleration, accelerationStoragePlugin);
+  public IncrementalMaterializationTask(MaterializationContext materializationContext, Layout layout, Acceleration acceleration, long gracePeriod) {
+    super(materializationContext, layout, acceleration, gracePeriod);
   }
 
   /**
@@ -76,7 +65,7 @@ public class IncrementalMaterializationTask extends MaterializationTask {
     final String viewSql = String.format("SELECT * FROM %s", SqlUtils.quotedCompound(source));
 
     final List<String> ctasDest = ImmutableList.of(
-        getAcceleratorStorageName(),
+        getContext().getAcceleratorStorageName(),
         String.format("%s/%s/%s", getLayout().getId().getId(), id.getId(), timeStamp)
         );
 
@@ -87,7 +76,7 @@ public class IncrementalMaterializationTask extends MaterializationTask {
 
 
     final List<String> destination = ImmutableList.of(
-        getAcceleratorStorageName(),
+        getContext().getAcceleratorStorageName(),
         getLayout().getId().getId(),
         id.getId());
 
@@ -100,55 +89,44 @@ public class IncrementalMaterializationTask extends MaterializationTask {
   /**
    * For incremental updates, we need to get the latest max $updateId, which is returned as the result of the CTAS query
    * So we submit a task to wait for the result and then update the materialization
-   *
-   * @param materialization
-   * @param jobRef
    */
   @Override
-  protected void handleJobComplete(final Materialization materialization, final AtomicReference<Job> jobRef) {
-    final AsyncTask handler = new AsyncTask() {
-      @Override
-      protected void doRun() {
-        long maxValue = Long.MIN_VALUE;
-        JobData completeJobData = jobRef.get().getData();
-        long outputRecords = jobRef.get().getJobAttempt().getStats().getOutputRecords();
-        logger.debug("Materialization wrote {} records", outputRecords);
-        int offset = 0;
-        JobDataFragment data = completeJobData.range(offset, 1000);
-        while (data.getReturnedRowCount() > 0) {
-          for (int i = 0; i < data.getReturnedRowCount(); i++) {
-            byte[] b = (byte[]) data.extractValue("Metadata", i);
-            long val = Long.parseLong(new String(b));
-            maxValue = Math.max(maxValue, val);
-          }
-          offset += data.getReturnedRowCount();
-          data = completeJobData.range(offset, 1000);
-        }
+  public void updateMetadataAndSave() {
+    final Materialization materialization = getMaterialization();
 
-        // update the update id if new records were written.
-        if (outputRecords > 0) {
-          materialization.setUpdateId(maxValue);
-        }
-        List<MaterializationUpdate> updates = FluentIterable.from(materialization.getUpdatesList())
-            .append(new MaterializationUpdate().setJobId(jobRef.get().getJobId()).setTimestamp(timeStamp))
-            .toList();
-        materialization.setUpdatesList(updates);
-        save(materialization);
-
-        if (outputRecords > 0) {
-          if (fullRefresh) {
-            IncrementalMaterializationTask.this.createMetadata(materialization);
-          } else {
-            IncrementalMaterializationTask.this.refreshMetadata(materialization);
-          }
-        }
-
-        if (getNext() != null) {
-          getExecutorService().submit(getNext());
-        }
+    long maxValue = Long.MIN_VALUE;
+    JobData completeJobData = getJob().getData();
+    long outputRecords = getJob().getJobAttempt().getStats().getOutputRecords();
+    logger.debug("Materialization wrote {} records", outputRecords);
+    int offset = 0;
+    JobDataFragment data = completeJobData.range(offset, 1000);
+    while (data.getReturnedRowCount() > 0) {
+      for (int i = 0; i < data.getReturnedRowCount(); i++) {
+        byte[] b = (byte[]) data.extractValue("Metadata", i);
+        long val = Long.parseLong(new String(b));
+        maxValue = Math.max(maxValue, val);
       }
-    };
-    getExecutorService().execute(handler);
+      offset += data.getReturnedRowCount();
+      data = completeJobData.range(offset, 1000);
+    }
+
+    // update the update id if new records were written.
+    if (outputRecords > 0) {
+      materialization.setUpdateId(maxValue);
+    }
+    List<MaterializationUpdate> updates = FluentIterable.from(materialization.getUpdatesList())
+      .append(new MaterializationUpdate().setJobId(getJob().getJobId()).setTimestamp(timeStamp))
+      .toList();
+    materialization.setUpdatesList(updates);
+    save(materialization);
+
+    if (outputRecords > 0) {
+      if (fullRefresh) {
+        createMetadata(materialization);
+      } else {
+        refreshMetadata(materialization);
+      }
+    }
   }
 
   /**
@@ -157,8 +135,8 @@ public class IncrementalMaterializationTask extends MaterializationTask {
    * @return
    */
   @Override
-  protected Materialization getMaterialization() {
-    final Optional<MaterializedLayout> materializedLayout = getMaterializationStore().get(getLayout().getId());
+  protected Materialization getOrCreateMaterialization() {
+    final Optional<MaterializedLayout> materializedLayout = getContext().getMaterializationStore().get(getLayout().getId());
     final List<Materialization> materializations = AccelerationUtils.selfOrEmpty(AccelerationUtils.getAllMaterializations(materializedLayout));
     if (!materializations.isEmpty()) {
       final Materialization materialization = materializations.get(0);

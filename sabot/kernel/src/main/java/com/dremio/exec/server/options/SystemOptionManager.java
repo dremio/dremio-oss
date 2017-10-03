@@ -54,7 +54,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemOptionManager.class);
 
   private static final String SYSTEM_OPTION_PREFIX = "dremio.debug.sysopt.";
-  private static final String STORE_NAME = "sys.options";
+  public static final String STORE_NAME = "sys.options";
 
   private static final Function<Entry<String, OptionValue>, OptionValue> EXTRACT_OPTIONS = new Function<Entry<String, OptionValue>, OptionValue>() {
     @Override

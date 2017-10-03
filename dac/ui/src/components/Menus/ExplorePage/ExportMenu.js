@@ -39,10 +39,6 @@ export default class ExportMenu extends Component {
     name: 'JSON'
   }
 
-  constructor(props) {
-    super(props);
-  }
-
   renderMenuItems() {
     const datasetColumns = new Set(this.props.datasetColumns);
     const isTypesIntersected = (types) => !![...types].filter(type => datasetColumns.has(type)).length;

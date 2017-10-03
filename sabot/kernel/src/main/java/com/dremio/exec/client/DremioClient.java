@@ -41,9 +41,11 @@ import org.apache.arrow.memory.RootAllocatorFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.Version;
+import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -77,10 +79,9 @@ import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
 import com.dremio.exec.rpc.ChannelClosedException;
 import com.dremio.exec.rpc.ConnectionFailedException;
 import com.dremio.exec.rpc.ConnectionThrottle;
-import com.dremio.exec.rpc.RpcFuture;
-import com.dremio.exec.rpc.NamedThreadFactory;
 import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.TransportCheck;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserClient;
@@ -504,7 +505,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     ArrayNode jsonArray = objectMapper.createArrayNode();
     for (PlanFragment fragment : planFragments) {
       try {
-        jsonArray.add(objectMapper.readTree(fragment.getFragmentJson()));
+        jsonArray.add(objectMapper.readTree(PhysicalPlanReader.toInputStream(fragment.getFragmentJson(), fragment.getFragmentCodec())));
       } catch (IOException e) {
         logger.error("Exception while trying to read PlanFragment JSON for %s", fragment.getHandle().getQueryId(), e);
         throw new RpcException(e);

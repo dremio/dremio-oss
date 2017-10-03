@@ -18,7 +18,6 @@ package com.dremio.exec.store;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,15 +36,14 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.StoragePlugin2.CheckResult;
 import com.dremio.exec.store.StoragePlugin2.UpdateStatus;
+import com.dremio.exec.store.sys.SystemTablePluginProvider;
 import com.dremio.service.BindingCreator;
-import com.dremio.service.scheduler.Cancellable;
-import com.dremio.service.scheduler.Schedule;
-import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.SourceTableDefinition;
@@ -57,8 +55,12 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -72,7 +74,6 @@ public class CatalogServiceImpl implements CatalogService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogServiceImpl.class);
 
   private final Map<NamespaceKey, StoragePlugin2> sourceRegistryMap = Maps.newConcurrentMap();
-  private final Map<NamespaceKey, SourceState> sourceStateMap = Maps.newConcurrentMap();
   private final Map<NamespaceKey, Cancellable> updateTasks = Maps.newConcurrentMap();
 
   private final BindingCreator bindingCreator;
@@ -80,18 +81,25 @@ public class CatalogServiceImpl implements CatalogService {
   private final Provider<SchedulerService> scheduler;
   private final boolean isMaster;
   private final boolean isCoordinator;
+  private final Provider<SystemTablePluginProvider> sysPluginProvider;
 
   private OptionManager options;
 
   private NamespaceService systemUserNamespaceService;
   private StoragePluginRegistryImpl registry;
 
-  public CatalogServiceImpl(Provider<SabotContext> context, Provider<SchedulerService> scheduler, BindingCreator bindingCreator, boolean isMaster, boolean isCoordinator) {
+  public CatalogServiceImpl(Provider<SabotContext> context,
+                            Provider<SchedulerService> scheduler,
+                            BindingCreator bindingCreator,
+                            boolean isMaster,
+                            boolean isCoordinator,
+                            Provider<SystemTablePluginProvider> sysPluginProvider) {
     this.context = context;
     this.scheduler = scheduler;
     this.isMaster = isMaster;
     this.isCoordinator = isCoordinator;
     this.bindingCreator = bindingCreator;
+    this.sysPluginProvider = sysPluginProvider;
   }
 
   public StoragePlugin2 getStoragePlugin(String name){
@@ -110,7 +118,7 @@ public class CatalogServiceImpl implements CatalogService {
     SabotContext context = this.context.get();
     this.options = context.getOptionManager();
     this.systemUserNamespaceService = context.getNamespaceService(SYSTEM_USERNAME);
-    this.registry = new StoragePluginRegistryImpl(context, this, context.getStoreProvider());
+    this.registry = new StoragePluginRegistryImpl(context, this, context.getStoreProvider(), sysPluginProvider.get());
     registry.init();
     bindingCreator.bind(StoragePluginRegistry.class, registry);
   }
@@ -283,7 +291,7 @@ public class CatalogServiceImpl implements CatalogService {
 
     SourceTableDefinition definition;
     try {
-      if(config != null){
+      if(config != null && config.getReadDefinition() != null){
         final CheckResult result = plugin.checkReadSignature(config.getReadDefinition().getReadSignature(), config);
 
         switch(result.getStatus()){
@@ -301,7 +309,7 @@ public class CatalogServiceImpl implements CatalogService {
         }
 
       } else {
-        definition = plugin.getDataset(key, null, false);
+        definition = plugin.getDataset(key, config, false);
       }
     } catch (Exception ex){
       throw UserException.dataReadError(ex).message("Failure while attempting to read metadata for table %s from source.", key).build(logger);
@@ -322,16 +330,16 @@ public class CatalogServiceImpl implements CatalogService {
      * Assume everything in the namespace is deleted. As we discover the datasets from source, remove found entries
      * from these sets.
      */
-
     final StoragePlugin2 sourceRegistry = sourceRegistryMap.get(source);
 
     if(sourceRegistry == null){
+      // V1 plugin support
       registry.refreshSourceMetadataInNamespace(source.getRoot(), policy);
       return true;
     }
 
+    Stopwatch stopwatch = Stopwatch.createStarted();
     try{
-
       final Set<NamespaceKey> foundKeys = Sets.newHashSet(systemUserNamespaceService.getAllDatasets(source));
 
       final Set<NamespaceKey> orphanedFolders = Sets.newHashSet();
@@ -340,8 +348,9 @@ public class CatalogServiceImpl implements CatalogService {
       }
 
       final Set<NamespaceKey> knownKeys = new HashSet<>();
-      for(NamespaceKey foundKey : foundKeys){
+      for(NamespaceKey foundKey : foundKeys) {
 
+        Stopwatch stopwatchForDataset = Stopwatch.createStarted();
         // for each known dataset, update things.
         try {
           DatasetConfig config = systemUserNamespaceService.getDataset(foundKey);
@@ -388,6 +397,12 @@ public class CatalogServiceImpl implements CatalogService {
         } catch(Exception ex) {
           logger.warn("Failure while attempting to update metadata for table {}.", foundKey, ex);
         }
+        finally {
+          stopwatchForDataset.stop();
+          if (logger.isDebugEnabled()) {
+            logger.debug("Metadata refresh for dataset : {} took {} milliseconds.", foundKey, stopwatchForDataset.elapsed(TimeUnit.MILLISECONDS));
+          }
+        }
       }
 
       for(SourceTableDefinition accessor : sourceRegistry.getDatasets(SYSTEM_USERNAME, false)){
@@ -421,6 +436,16 @@ public class CatalogServiceImpl implements CatalogService {
     } catch (Exception ex){
       logger.warn("Failure while attempting to update metadata for source {}. Terminating update of this source.", source, ex);
     }
+    finally {
+       stopwatch.stop();
+       if (logger.isDebugEnabled()) {
+         logger.debug("Metadata refresh for source : {} took {} milliseconds.", source, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+       }
+    }
+
+    // Note: only lastRefreshDate updated, and not the metadata policy -- the metadata policy might be a fake one ('update now') passed in by tests, for example
+    SourceConfig sourceConfig = systemUserNamespaceService.getSource(source);
+    systemUserNamespaceService.addOrUpdateSource(source, sourceConfig.setLastRefreshDate(System.currentTimeMillis()));
 
     return refreshResult;
   }
@@ -459,27 +484,13 @@ public class CatalogServiceImpl implements CatalogService {
     }
   }
 
-  /**
-   * Carry over few properties from old dataset config to new one
-   * @param oldConfig old dataset config from namespace
-   * @param newConfig new dataset config thats about to be saved in namespace
-   */
-  public static void copyFromOldConfig(DatasetConfig oldConfig, DatasetConfig newConfig) {
-    newConfig.setId(oldConfig.getId());
-    newConfig.setVersion(oldConfig.getVersion());
-    newConfig.setCreatedAt(oldConfig.getCreatedAt());
-    newConfig.setType(oldConfig.getType());
-    newConfig.setFullPathList(oldConfig.getFullPathList());
-    newConfig.setOwner(oldConfig.getOwner());
-  }
-
   private void completeSave(NamespaceService namespaceService , SourceTableDefinition accessor, DatasetConfig oldConfig){
     try{
       NamespaceKey key = accessor.getName();
 
       DatasetConfig config = accessor.getDataset();
       if (oldConfig != null) {
-        copyFromOldConfig(oldConfig, config);
+        NamespaceUtils.copyFromOldConfig(oldConfig, config);
       }
       List<DatasetSplit> splits = accessor.getSplits();
       namespaceService.addOrUpdateDataset(key, config, splits);
@@ -533,10 +544,9 @@ public class CatalogServiceImpl implements CatalogService {
             policy = DEFAULT_METADATA_POLICY;
           }
           long lastRefresh = config.getLastRefreshDate() == null ? 0 : config.getLastRefreshDate();
-          final long refreshMs = Math.min(policy.getNamesRefreshMs(), policy.getDatasetDefinitionTtlMs());
+          final long refreshMs = Math.min(policy.getNamesRefreshMs(), policy.getDatasetDefinitionRefreshAfterMs());
           if (System.currentTimeMillis() > (refreshMs + lastRefresh)) {
             refreshSource(sourceKey, policy);
-            systemUserNamespaceService.addOrUpdateSource(sourceKey, config.setLastRefreshDate(System.currentTimeMillis()));
           }
         } else {
           // V1 plugin: update always

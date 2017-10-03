@@ -24,14 +24,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class CommitInfo {
   private final String hash;
   private final String builder;
-  private final String time;
+  private final long time;
   private final String message;
 
   @JsonCreator
   public CommitInfo(
       @JsonProperty("hash") String hash,
       @JsonProperty("builder") String builder,
-      @JsonProperty("time") String time,
+      @JsonProperty("time") long time,
       @JsonProperty("message") String message) {
     super();
     this.hash = hash;
@@ -45,7 +45,7 @@ public class CommitInfo {
   public String getBuilder() {
     return builder;
   }
-  public String getTime() {
+  public long getTime() {
     return time;
   }
   public String getMessage() {

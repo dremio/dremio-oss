@@ -42,10 +42,13 @@ import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializatonFailure;
+import com.dremio.service.accelerator.proto.MaterializedLayout;
+import com.dremio.service.accelerator.proto.MaterializedLayoutState;
 import com.dremio.service.accelerator.proto.pipeline.AccelerationPipeline;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -109,15 +112,26 @@ public class BaseAccelerationResource {
   }
 
   private void calculateAndSetSummaryInfo(Acceleration acceleration, AccelerationApiDescriptor descriptor) {
+
     for (LayoutApiDescriptor layoutDescriptor : getAllLayouts(descriptor)) {
+      Optional<MaterializedLayout> materializedLayout = accelerationService.getMaterializedLayout(layoutDescriptor.getId());
+      Iterable<Materialization> materializations = AccelerationUtils.getAllMaterializations(materializedLayout);
       LayoutId layoutId = layoutDescriptor.getId();
+      layoutDescriptor.setState(materializedLayout
+          .transform(new Function<MaterializedLayout, MaterializedLayoutState>() {
+            @Override
+            public MaterializedLayoutState apply(@Nullable final MaterializedLayout input) {
+              return input.getState()!=null?input.getState():MaterializedLayoutState.ACTIVE;
+            }
+          })
+          .or(MaterializedLayoutState.ACTIVE));
       final long currentTime = System.currentTimeMillis();
       Optional<Layout> layoutOpt = getLayout(acceleration, layoutId);
       if (!layoutOpt.isPresent()) {
         return;
       }
       final Layout layout = layoutOpt.get();
-      Optional<Materialization> validMaterialization = getValidMaterialization(acceleration, layout, currentTime);
+      Optional<Materialization> validMaterialization = getValidMaterialization(layout, materializations, currentTime);
       if (validMaterialization.isPresent()) {
         layoutDescriptor.setHasValidMaterialization(true);
         layoutDescriptor.setCurrentByteSize(validMaterialization.get().getMetrics().getFootprint());
@@ -125,7 +139,7 @@ public class BaseAccelerationResource {
         layoutDescriptor.setHasValidMaterialization(false);
         layoutDescriptor.setCurrentByteSize(0L);
       }
-      Optional<Materialization> latestMaterializationOpt = getLatestMaterialization(layoutId);
+      Optional<Materialization> latestMaterializationOpt = getLatestMaterialization(layoutId, materializations);
       if (latestMaterializationOpt.isPresent()) {
         Materialization latestMaterialization = latestMaterializationOpt.get();
         MaterializationState state = latestMaterialization.getState();
@@ -138,7 +152,7 @@ public class BaseAccelerationResource {
          layoutDescriptor.setLatestMaterializationState(state);
         }
       }
-      layoutDescriptor.setTotalByteSize(getTotalSize(layoutId));
+      layoutDescriptor.setTotalByteSize(getTotalSize(layoutId, materializations));
     }
   }
 
@@ -151,10 +165,11 @@ public class BaseAccelerationResource {
     return Optional.absent();
   }
 
-  public Optional<Materialization> getValidMaterialization(final Acceleration acceleration, final Layout layout, final long currentTime) {
+  public Optional<Materialization> getValidMaterialization(final Layout layout,
+      final Iterable<Materialization> materializations, final long currentTime) {
     List<Materialization> result = AccelerationServiceImpl.COMPLETION_ORDERING
         .greatestOf(FluentIterable
-            .from(accelerationService.getMaterializations(layout.getId()))
+            .from(materializations)
             .filter(new Predicate<Materialization>() {
               @Override
               public boolean apply(@Nullable final Materialization materialization) {
@@ -181,8 +196,7 @@ public class BaseAccelerationResource {
     return( materialization.getExpiration() == null || currentTime > materialization.getExpiration());
   }
 
-  private long getTotalSize(LayoutId id) {
-    Iterable<Materialization> materializations = accelerationService.getMaterializations(id);
+  private long getTotalSize(LayoutId id, Iterable<Materialization> materializations) {
     long totalSize = 0;
     for (Materialization materialization : materializations) {
       if (materialization.getState().equals(MaterializationState.DONE)) {
@@ -199,7 +213,8 @@ public class BaseAccelerationResource {
    */
   private void writeMaterializationFailuresIfAny(final AccelerationApiDescriptor descriptor) {
     for (LayoutApiDescriptor layout : getAllLayouts(descriptor)) {
-      Optional<Materialization> materialization = getLatestMaterialization(layout.getId());
+      Iterable<Materialization> materializations = accelerationService.getMaterializations(layout.getId());
+      Optional<Materialization> materialization = getLatestMaterialization(layout.getId(), materializations);
 
       if (!materialization.isPresent() || materialization.get().getState() != MaterializationState.FAILED) {
         continue;
@@ -218,8 +233,7 @@ public class BaseAccelerationResource {
     }
   }
 
-  private Optional<Materialization> getLatestMaterialization(LayoutId layoutId) {
-    Iterable<Materialization> materializations = accelerationService.getMaterializations(layoutId);
+  private Optional<Materialization> getLatestMaterialization(LayoutId layoutId, Iterable<Materialization> materializations) {
     return Optional.fromNullable(Iterables.getLast(materializations, null));
   }
 
@@ -248,6 +262,10 @@ public class BaseAccelerationResource {
    */
   protected void checkForDatasetOutOfDate(final Acceleration acceleration,
       final AccelerationDescriptor accelerationDescriptor) {
+    if (accelerationDescriptor.getState() == AccelerationStateDescriptor.NEW ||
+      accelerationDescriptor.getState() == AccelerationStateDescriptor.REQUESTED) {
+      return;
+    }
     if (acceleration.getContext() == null) {
       return;
     }

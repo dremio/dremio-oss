@@ -69,6 +69,7 @@ public class S3FileSystem extends FileSystem {
   private static final String S3_URI_SCHEMA = "s3a://";
 
   private Map<String,FileSystem> bucketFileSystemMap = Maps.newConcurrentMap();
+  private AmazonS3 s3;
 
   private static final LoadingCache<S3ClientKey, AmazonS3Client> clientCache = CacheBuilder
           .newBuilder()
@@ -92,13 +93,20 @@ public class S3FileSystem extends FileSystem {
   @Override
   public void initialize(URI name, Configuration conf) throws IOException {
     super.initialize(name, conf);
+    final Map<String,FileSystem> bucketFileSystemMapTemp = Maps.newHashMap();
     try {
-      AmazonS3 s3 = clientCache.get(S3ClientKey.create(conf));
+      s3 = clientCache.get(S3ClientKey.create(conf));
 
       if(conf.get(ACCESS_KEY) != null){
         List<Bucket> buckets = s3.listBuckets();
         for (Bucket b : buckets) {
-          addBucketFSEntry(s3, conf, b.getName());
+          try {
+            bucketFileSystemMapTemp.put(b.getName(), addBucketFSEntry(s3, conf, b.getName()));
+          } catch (AmazonS3Exception as3ex) {
+            logger.info("Unable to process bucket: {} with error: {}", b.getName(), as3ex.getLocalizedMessage());
+          } catch (Exception ex) {
+            logger.info("Unable to process bucket: {} with error: {}", b.getName(), ex);
+          }
         }
       }
 
@@ -109,9 +117,16 @@ public class S3FileSystem extends FileSystem {
           if (Strings.isEmpty(trimmedBucket)) {
             continue;
           }
-          addBucketFSEntry(s3, conf, trimmedBucket);
+          try {
+            bucketFileSystemMapTemp.put(trimmedBucket, addBucketFSEntry(s3, conf, trimmedBucket));
+          } catch (AmazonS3Exception as3ex) {
+            logger.info("Unable to process bucket: {} with error: {}", trimmedBucket, as3ex.getLocalizedMessage());
+          } catch (Exception ex) {
+            logger.info("Unable to process bucket: {} with error: {}", trimmedBucket, ex);
+          }
         }
       }
+      bucketFileSystemMap = bucketFileSystemMapTemp;
     } catch (final Exception e) {
       throw new RuntimeException("Failed to create workspaces for buckets owned by the account.", e);
     }
@@ -124,39 +139,33 @@ public class S3FileSystem extends FileSystem {
    * @param bucketName
    * @throws IOException
    */
-  private void addBucketFSEntry(AmazonS3 s3, Configuration parentConf, String bucketName) throws IOException {
+  private FileSystem addBucketFSEntry(AmazonS3 s3, Configuration parentConf, String bucketName) throws AmazonS3Exception, IOException {
+    final String bucketRegion = s3.getBucketLocation(bucketName);
+    final String projectedBucketEndPoint = "s3." + bucketRegion + ".amazonaws.com";
+    String regionEndPoint = projectedBucketEndPoint;
     try {
-      final String bucketRegion = s3.getBucketLocation(bucketName);
-      final String projectedBucketEndPoint = "s3." + bucketRegion + ".amazonaws.com";
-      String regionEndPoint = projectedBucketEndPoint;
-      try {
-        Region region = Region.fromValue(bucketRegion);
-        com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
-        if (awsRegion != null) {
-          regionEndPoint = awsRegion.getServiceEndpoint("s3");
-        }
-      } catch (IllegalArgumentException iae) {
-        // try heuristic mapping if not found
-        regionEndPoint = projectedBucketEndPoint;
-        logger.warn("Unknown or unmapped region {} for bucket {}. Will use following fs.s3a.endpoint: {}",
-          bucketRegion, bucketName, regionEndPoint);
+      Region region = Region.fromValue(bucketRegion);
+      com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
+      if (awsRegion != null) {
+        regionEndPoint = awsRegion.getServiceEndpoint("s3");
       }
-      // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
-      // not sure if latter is possible
-      if (regionEndPoint == null) {
-        logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
-          bucketName, projectedBucketEndPoint);
-      }
-      String location = S3_URI_SCHEMA + bucketName + "/";
-      Configuration bucketConf = new Configuration(parentConf);
-      bucketConf.set(ENDPOINT, (regionEndPoint != null) ? regionEndPoint : projectedBucketEndPoint);
-      FileSystem.setDefaultUri(bucketConf, new Path(location).toUri());
-      bucketFileSystemMap.put(bucketName, FileSystem.get(bucketConf));
-    } catch (AmazonS3Exception as3ex) {
-      logger.info("Unable to process bucket: {} with error: {}", bucketName, as3ex.getLocalizedMessage());
-    } catch (Exception ex) {
-      logger.error("Unable to process bucket: " + bucketName, ex);
+    } catch (IllegalArgumentException iae) {
+      // try heuristic mapping if not found
+      regionEndPoint = projectedBucketEndPoint;
+      logger.warn("Unknown or unmapped region {} for bucket {}. Will use following fs.s3a.endpoint: {}",
+        bucketRegion, bucketName, regionEndPoint);
     }
+    // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
+    // not sure if latter is possible
+    if (regionEndPoint == null) {
+      logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
+        bucketName, projectedBucketEndPoint);
+    }
+    String location = S3_URI_SCHEMA + bucketName + "/";
+    Configuration bucketConf = new Configuration(parentConf);
+    bucketConf.set(ENDPOINT, (regionEndPoint != null) ? regionEndPoint : projectedBucketEndPoint);
+    FileSystem.setDefaultUri(bucketConf, new Path(location).toUri());
+    return FileSystem.get(bucketConf);
   }
 
   private boolean isRoot(Path path) {
@@ -182,9 +191,20 @@ public class S3FileSystem extends FileSystem {
     return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
   }
 
-  private FileSystem getFileSystemForPath(Path path) {
+  private FileSystem getFileSystemForPath(Path path) throws IOException {
     String bucket = getBucket(path);
-    return bucketFileSystemMap.get(bucket);
+    FileSystem fs = bucketFileSystemMap.get(bucket);
+    if (fs == null) {
+      try {
+        fs = addBucketFSEntry(s3, getConf(), bucket);
+      } catch (AmazonS3Exception as3ex) {
+        throw new IOException(as3ex.getLocalizedMessage(), as3ex);
+      } catch (Exception ex) {
+        throw new FileNotFoundException(String.format("%s not found", path));
+      }
+      bucketFileSystemMap.put(bucket, fs);
+    }
+    return fs;
   }
 
   /**
@@ -338,13 +358,8 @@ public class S3FileSystem extends FileSystem {
     if (isRoot(f)) {
       return new FileStatus(0, true, 0, 0, 0, f);
     }
-    FileSystem fs = getFileSystemForPath(f);
-    if (fs == null) {
-      throw new FileNotFoundException(String.format("%s not found", f));
-    }
     FileStatus fileStatus = getFileSystemForPath(f).getFileStatus(pathWithoutBucket(f));
-    String bucket = getBucket(f);
-    return transform(fileStatus, bucket);
+    return transform(fileStatus, getBucket(f));
   }
 
   @Override

@@ -21,12 +21,11 @@ import java.io.InputStream;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.UserBitShared;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public interface JsonProcessor {
 
-  public static enum ReadState {
+  enum ReadState {
     END_OF_STREAM,
     WRITE_SUCCEED
   }
@@ -38,14 +37,19 @@ public interface JsonProcessor {
 
   void ensureAtLeastOneField(BaseWriter.ComplexWriter writer);
 
-  public UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder,
-                                                       String field,
-                                                       String msg,
-                                                       Object... args);
+  UserException.Builder getExceptionWithContext(UserException.Builder exceptionBuilder, String field, String msg,
+      Object... args);
 
-  public UserException.Builder getExceptionWithContext(Throwable exception,
-                                                       String field,
-                                                       String msg,
-                                                       Object... args);
+  UserException.Builder getExceptionWithContext(Throwable exception, String field, String msg, Object... args);
 
+  /**
+   * Reset the data size counter.
+   */
+  void resetDataSizeCounter();
+
+  /**
+   * Get the approximate size of data read since the start or last {@link #resetDataSizeCounter()} (in bytes).
+   * @return
+   */
+  long getDataSizeCounter();
 }

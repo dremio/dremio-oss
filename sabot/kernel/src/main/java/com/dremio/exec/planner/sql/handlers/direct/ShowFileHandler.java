@@ -91,7 +91,7 @@ public class ShowFileHandler implements SqlDirectHandler<ShowFilesCommandResult>
     // Get the default path
     defaultLocation = schema.getDefaultLocation();
 
-    for (FileStatus fileStatus : fs.list(false, new Path(defaultLocation, fromDir))) {
+    for (FileStatus fileStatus : fs.list(new Path(defaultLocation, fromDir), false)) {
       ShowFilesCommandResult result = new ShowFilesCommandResult(fileStatus.getPath().getName(), fileStatus.isDir(),
           !fileStatus.isDirectory(), fileStatus.getLen(),
           fileStatus.getOwner(), fileStatus.getGroup(),

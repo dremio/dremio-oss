@@ -129,6 +129,7 @@ public class CopyingFilteringReader implements RecordReader {
     // generate a copier that takes as input the reader output (along with the filtered SV2) and copies the data to the copyOutput
     final VectorAccessible copyInput = new ContainerAndSV2(readerOutput, filteredSV2);
     copyOutput = VectorContainer.create(context.getAllocator(), readerOutput.getSchema());
+    copyOutput.setInitialCapacity(context.getTargetBatchSize());
     copier = CopierOperator.getGenerated2Copier(context.getClassProducer(), copyInput, copyOutput);
 
     // prepare the transfer pairs that will be used to transfer buffers from the copy container to the output mutator

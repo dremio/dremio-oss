@@ -100,7 +100,8 @@ public class ElasticsearchStoragePlugin2 implements StoragePlugin2 {
         config.isEnableSSL(),
         config.getUsername(),
         config.getPassword(),
-        config.getReadTimeoutMillis());
+        config.getReadTimeoutMillis(),
+        config.isEnableWhitelist());
     this.elasticType = new StoragePluginType("elastic", context.getConfig().getClass("dremio.plugins.elastic.rulesfactory", StoragePluginTypeRulesFactory.class, ElasticRulesFactory.class));
   }
 

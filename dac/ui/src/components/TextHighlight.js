@@ -13,52 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
-import ReactDOM from 'react-dom';
-import pureRender from 'pure-render-decorator';
+import { PureComponent, PropTypes } from 'react';
 
-@pureRender
-export default class TextHighlight extends Component {
+export default class TextHighlight extends PureComponent {
 
   static propTypes = {
     text: PropTypes.string,
     inputValue: PropTypes.string
   };
 
-  componentDidMount() {
-    this.updateData();
-  }
+  render() {
+    const inputValue = this.props.inputValue || '';
+    const text = this.props.text || '';
 
-  componentDidUpdate() {
-    this.updateData();
-  }
-
-  getMarkStr() {
-    const val = this.props.inputValue || '';
-    const str = this.props.text || '';
-    const escape = val.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&');
-    const tagStr = `<{tag} style="${styleString}">$&</{tag}>`;
-
-    if (val.length === 0) {
-      return str;
+    const nodes = [];
+    if (!inputValue) {
+      nodes.push(text);
+    } else {
+      let lastNodeIsString = false;
+      for (let i = 0; i < text.length; i++) {
+        const sub = text.substr(i, inputValue.length);
+        if (sub.toLowerCase() === inputValue.toLowerCase()) {
+          i += inputValue.length - 1;
+          nodes.push(<b key={i}>{sub}</b>);
+          lastNodeIsString = false;
+        } else if (lastNodeIsString) {
+          nodes[nodes.length - 1] += text[i];
+        } else {
+          nodes.push(text[i]);
+          lastNodeIsString = true;
+        }
+      }
     }
 
-    return str && str.replace(
-      RegExp(escape, 'gi'),
-      tagStr.replace(/{tag}/gi, 'b')
-    );
-  }
-
-  updateData() {
-    const el = ReactDOM.findDOMNode(this.refs.text);
-    el.innerHTML = this.getMarkStr();
-  }
-
-  render() {
-    return (
-      <span className='textHighlighting' ref='text'></span>
-    );
+    return <span className='TextHighlight'>{nodes}</span>;
   }
 }
-
-const styleString = 'font-weight: bold;';

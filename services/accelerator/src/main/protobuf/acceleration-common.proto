@@ -59,6 +59,12 @@ enum MaterializationState {
     DELETED = 5;
 }
 
+// state to see if layout failed as part of materializations
+enum MaterializedLayoutState {
+    ACTIVE = 1;
+    FAILED = 2;
+}
+
 // unique id
 message AccelerationId {
   required string id = 1;
@@ -94,4 +100,10 @@ enum FieldSortOrder {
 enum DimensionGranularity {
   DATE = 1;
   NORMAL = 2;
+}
+
+// distribution strategy for data within a partition
+enum PartitionDistributionStrategy {
+  CONSOLIDATED = 1;
+  STRIPED = 2;
 }

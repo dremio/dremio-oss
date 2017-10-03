@@ -26,11 +26,17 @@ export default class AccelerationSection extends Component {
     return DataFreshnessSection.getFields();
   }
 
+  static validate(values) {
+    return {
+      ...DataFreshnessSection.validate(values)
+    };
+  }
+
   render() {
     const { fields } = this.props;
     return (
       <div>
-        <h3 style={sectionTitle}>{la('Refresh Policy')}</h3>
+        <h3 style={sectionTitle}>{la('Acceleration')}</h3>
         <DataFreshnessSection
           fields={fields}
           entityType='source'

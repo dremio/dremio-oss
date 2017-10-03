@@ -50,8 +50,8 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     Prel newChild = ((Prel) prel.getInput()).accept(this, newFrag);
 
     if (newFrag.isSingular() && parent.isSingular() &&
-        // if one of them has strict distribution or none, we can remove the exchange
-        (!newFrag.isDistributionStrict() || !parent.isDistributionStrict())) {
+        // if both of them have soft distribution, we can remove the exchange
+        (!newFrag.isDistributionStrict() && !parent.isDistributionStrict())) {
       parent.merge(newFrag);
       return newChild;
     } else {

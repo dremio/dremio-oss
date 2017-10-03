@@ -27,11 +27,11 @@ import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -39,7 +39,6 @@ import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
@@ -58,8 +57,8 @@ import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class VectorizedHashJoinOperator implements DualInputOperator {
-  public static final long ALLOCATOR_INITIAL_RESERVATION = 1 * 1024 * 1024;
-  public static final long ALLOCATOR_MAX_RESERVATION = 20L * 1000 * 1000 * 1000;
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashJoinOperator.class);
 
   private static enum Mode {
     UNKNOWN,
@@ -85,7 +84,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private final Stopwatch linkWatch = Stopwatch.createUnstarted();
 
   // A structure that parallels the
-  private final List<SelectionVector4> startIndices = new ArrayList<>();
+  private final List<ArrowBuf> startIndices = new ArrayList<>();
 
   // List of BuildInfo structures. Used to maintain auxiliary information about the build batches
   // There is one of these for each incoming batch of records
@@ -133,6 +132,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     outgoing.addSchema(right.getSchema());
     outgoing.addSchema(left.getSchema());
     outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
 
     final List<FieldVectorPair> buildFields = new ArrayList<>();
     final List<FieldVectorPair> probeFields = new ArrayList<>();
@@ -248,15 +248,15 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       VariableLengthValidator.validateVariable(v, records);
     }
 
-    final List<SelectionVector4> startIndices = this.startIndices;
+    final List<ArrowBuf> startIndices = this.startIndices;
     final List<BuildInfo> buildInfoList = this.buildInfoList;
 
-    BuildInfo info = new BuildInfo(getNewSV4(records), new BitSet(records), records);
-    buildInfoList.add(info);;
+    BuildInfo info = new BuildInfo(newLinksBuffer(records), new BitSet(records), records);
+    buildInfoList.add(info);
 
     // ensure we have enough start indices space.
     while(table.size() + records > startIndices.size() * HashTable.BATCH_SIZE){
-      startIndices.add(getNewSV4(HashTable.BATCH_SIZE));
+      startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
     }
 
     try(ArrowBuf offsets = context.getAllocator().buffer(records * 4)){
@@ -274,7 +274,15 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
      */
     hyperContainer.addBatch(VectorContainer.getTransferClone(right, context.getAllocator()));
     // completed processing a batch, increment batch index
+
     buildBatchIndex++;
+
+    if (buildBatchIndex < 0) {
+      throw UserException.unsupportedError()
+          .message("HashJoin doesn't support more than %d (Integer.MAX_VALUE) number of batches on build side",
+              Integer.MAX_VALUE)
+          .build(logger);
+    }
 
     updateStats();
   }
@@ -301,35 +309,45 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       int hashTableBatch  = hashTableIndex >>> 16;
       int hashTableOffset = hashTableIndex & BATCH_MASK;
 
-      final SelectionVector4 startIndex = startIndices.get(hashTableBatch);
-      int linkIndex;
+      final ArrowBuf startIndex = startIndices.get(hashTableBatch);
+      final long startIndexMemStart = startIndex.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
 
       // If head of the list is empty, insert current index at this position
-      if ((linkIndex = (startIndex.get(hashTableOffset))) == INDEX_EMPTY) {
-        startIndex.set(hashTableOffset, buildBatch, incomingRecordIndex);
+      final int linkBatch = PlatformDependent.getInt(startIndexMemStart);
+      if (linkBatch == INDEX_EMPTY) {
+        PlatformDependent.putInt(startIndexMemStart, buildBatch);
+        PlatformDependent.putShort(startIndexMemStart + 4, (short) incomingRecordIndex);
       } else {
         /* Head of this list is not empty, if the first link
          * is empty insert there
          */
-        hashTableBatch = linkIndex >>> SHIFT_SIZE;
-        hashTableOffset = linkIndex & Character.MAX_VALUE;
+        hashTableBatch = linkBatch;
+        hashTableOffset = PlatformDependent.getShort(startIndexMemStart + 4);
 
-        SelectionVector4 link = buildInfoList.get(hashTableBatch).getLinks();
-        int firstLink = link.get(hashTableOffset);
+        final ArrowBuf firstLink = buildInfoList.get(hashTableBatch).getLinks();
+        final long firstLinkMemStart = firstLink.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
 
-        if (firstLink == INDEX_EMPTY) {
-          link.set(hashTableOffset, buildBatch, incomingRecordIndex);
+        final int firstLinkBatch = PlatformDependent.getInt(firstLinkMemStart);
+
+        if (firstLinkBatch == INDEX_EMPTY) {
+          PlatformDependent.putInt(firstLinkMemStart, buildBatch);
+          PlatformDependent.putShort(firstLinkMemStart + 4, (short) incomingRecordIndex);
         } else {
           /* Insert the current value as the first link and
            * make the current first link as its next
            */
-          int firstLinkBatchIdx  = firstLink >>> SHIFT_SIZE;
-          int firstLinkOffsetIDx = firstLink & Character.MAX_VALUE;
+          final short firstLinkOffset = PlatformDependent.getShort(firstLinkMemStart + 4);
 
-          SelectionVector4 nextLink = buildInfoList.get(buildBatch).getLinks();
-          nextLink.set(incomingRecordIndex, firstLinkBatchIdx, firstLinkOffsetIDx);
+          final ArrowBuf nextLink = buildInfoList.get(buildBatch).getLinks();
+          final long nextLinkMemStart = nextLink.memoryAddress() + incomingRecordIndex * HashTable.BUILD_RECORD_LINK_SIZE;
 
-          link.set(hashTableOffset, buildBatch, incomingRecordIndex);
+          PlatformDependent.putInt(nextLinkMemStart, firstLinkBatch);
+          PlatformDependent.putShort(nextLinkMemStart + 4, firstLinkOffset);
+
+          // As the existing (batch, offset) pair is moved out of firstLink into nextLink,
+          // now put the new (batch, offset) in the firstLink
+          PlatformDependent.putInt(firstLinkMemStart, buildBatch);
+          PlatformDependent.putShort(firstLinkMemStart + 4, (short) incomingRecordIndex);
         }
       }
     }
@@ -442,18 +460,20 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     }
   }
 
-  public SelectionVector4 getNewSV4(int recordCount) throws SchemaChangeException {
 
-    final ArrowBuf vector = context.getAllocator().buffer((recordCount * 4));
+  public ArrowBuf newLinksBuffer(int recordCount) {
+    // Each link is 6 bytes.
+    // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
+    final ArrowBuf linkBuf = context.getAllocator().buffer(recordCount * HashTable.BUILD_RECORD_LINK_SIZE);
 
-    SelectionVector4 sv4 = new SelectionVector4(vector, recordCount, recordCount);
-
-    // Initialize the vector
-    for (int i = 0; i < recordCount; i++) {
-      sv4.set(i, INDEX_EMPTY);
+    // Initialize the buffer. Write -1 (int) in the first four bytes.
+    long bufOffset = linkBuf.memoryAddress();
+    final long maxBufOffset = bufOffset + recordCount * HashTable.BUILD_RECORD_LINK_SIZE;
+    for(; bufOffset < maxBufOffset; bufOffset += HashTable.BUILD_RECORD_LINK_SIZE) {
+      PlatformDependent.putInt(bufOffset, INDEX_EMPTY);
     }
 
-    return sv4;
+    return linkBuf;
   }
 
   @Override

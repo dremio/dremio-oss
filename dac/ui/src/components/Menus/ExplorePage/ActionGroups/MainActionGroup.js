@@ -16,7 +16,6 @@
 import { Component, PropTypes } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
-import Divider from 'material-ui/Divider';
 
 import { MIXED } from 'constants/DataTypes';
 import { ALL_TYPES, CONVERTIBLE_TYPES, NOT_LIST_AND_MAP_TYPES } from 'constants/columnTypeGroups';
@@ -28,10 +27,10 @@ export default class MainActionGroup extends Component {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
     columnType: PropTypes.string,
-    columnsNumber: PropTypes.number
+    columnsCount: PropTypes.number
   }
   render() {
-    const { columnType, columnsNumber } = this.props;
+    const { columnType, columnsCount } = this.props;
     return (
       <div>
         <ColumnMenuItem
@@ -44,7 +43,7 @@ export default class MainActionGroup extends Component {
           actionType='DROP'
           columnType={columnType}
           title={la('Drop')}
-          disabled={columnsNumber === 1}
+          disabled={columnsCount === 1}
           availableTypes={ALL_TYPES}
           onClick={this.props.makeTransform}/>
         <ColumnMenuItem
@@ -71,7 +70,6 @@ export default class MainActionGroup extends Component {
           title={la('Split by Data Type...')}
           availableTypes={[MIXED]}
           onClick={this.props.makeTransform}/>
-        <Divider style={{marginTop: 5, marginBottom: 5}}/>
       </div>
     );
   }

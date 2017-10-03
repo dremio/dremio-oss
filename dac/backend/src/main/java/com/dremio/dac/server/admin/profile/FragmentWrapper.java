@@ -71,7 +71,10 @@ public class FragmentWrapper {
   private final long start;
   private final boolean includeDebugColumns;
 
-  public FragmentWrapper(final MajorFragmentProfile major, final long start, boolean includeDebugColumns) {
+  public FragmentWrapper(
+    final MajorFragmentProfile major,
+    final long start,
+    boolean includeDebugColumns) {
     this.major = Preconditions.checkNotNull(major);
     this.start = start;
     this.includeDebugColumns = includeDebugColumns;

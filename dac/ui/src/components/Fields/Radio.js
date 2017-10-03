@@ -54,7 +54,8 @@ const styles = {
     padding: '5px 2px',
     border: '1px solid #bbb',
     borderRadius: '50%',
-    background: '#fff'
+    background: '#fff',
+    alignSelf: 'center' // DX-8124 needed for FF<=50 checkbox style issue
   },
   dot: {
     background: BLUE,

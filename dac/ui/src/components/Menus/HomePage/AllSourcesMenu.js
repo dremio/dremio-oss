@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component, PropTypes } from 'react';
-import { connect }   from 'react-redux';
+import { connect } from 'react-redux';
 import Immutable from 'immutable';
 
 import { removeSource } from 'actions/resources/sources';

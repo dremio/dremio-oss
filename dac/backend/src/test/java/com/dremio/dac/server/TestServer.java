@@ -122,8 +122,8 @@ public class TestServer extends BaseTestServer {
 
     doc("update source 1 based on previous version");
     ((NASConfig) putSource1.getConfig()).setPath(v2.getAbsolutePath());
-    GenericErrorMessage errorPut = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), GenericErrorMessage.class);
-    assertErrorMessage(errorPut, "tried to update version 0, found previous version 1");
+    final UserExceptionMapper.ErrorMessageWithContext errorPut = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), UserExceptionMapper.ErrorMessageWithContext.class);
+    assertEquals(errorPut.getErrorMessage(), "Source updated concurrently either by another user, or by a background refresh. Please refresh and try again.");
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete = expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path(sourceResource)).buildDelete(), GenericErrorMessage.class);
@@ -131,7 +131,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with bad version");
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 1");
+    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 3");
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getVersion())).buildDelete());

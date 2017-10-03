@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.server.socket;
 
-import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.PartialJobListItem;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.Job;
@@ -97,17 +96,17 @@ public class SocketMessage {
    */
   @JsonTypeName("job-details")
   public static class JobDetailsUpdate extends Payload {
-    private final JobDetailsUI details;
+    private final JobId jobId;
 
     @JsonCreator
     public JobDetailsUpdate(
-        @JsonProperty("details") JobDetailsUI details) {
+        @JsonProperty("jobId") JobId jobId) {
       super();
-      this.details = details;
+      this.jobId = jobId;
     }
 
-    public JobDetailsUI getDetails() {
-      return details;
+    public JobId getJobId() {
+      return jobId;
     }
   }
 

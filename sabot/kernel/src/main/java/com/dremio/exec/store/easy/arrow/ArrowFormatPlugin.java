@@ -32,8 +32,8 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 
 /**
  * {@link FormatPlugin} implementation for reading and writing Arrow format files in queries. Arrow buffers are
@@ -73,9 +73,8 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
   }
 
   @Override
-  public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs,
-      final FileWork fileWork, final List<SchemaPath> columns) throws ExecutionSetupException {
-    final Path path = dfs.makeQualified(new Path(fileWork.getPath()));
+  public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes, final List<SchemaPath> columns) throws ExecutionSetupException {
+    final Path path = dfs.makeQualified(new Path(splitAttributes.getPath()));
     return new ArrowRecordReader(context, dfs, path, columns);
   }
 

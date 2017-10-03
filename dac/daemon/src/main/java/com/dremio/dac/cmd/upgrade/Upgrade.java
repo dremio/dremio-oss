@@ -18,7 +18,7 @@ package com.dremio.dac.cmd.upgrade;
 import static com.dremio.dac.util.ClusterVersionUtils.fromClusterVersion;
 import static com.dremio.dac.util.ClusterVersionUtils.toClusterVersion;
 
-import java.net.URI;
+import java.io.File;
 
 import javax.inject.Provider;
 
@@ -32,7 +32,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.cmd.upgrade.namespace_canonicalize_keys.NormalizeNamespace;
 import com.dremio.dac.cmd.upgrade.namespace_canonicalize_keys.ValidateNamespace;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.SupportService.SupportStoreCreator;
 import com.dremio.datastore.KVStore;
@@ -59,6 +59,9 @@ public class Upgrade {
     new FixMySqlSourceConfig(),
     new ReplanAllAccelerations(),
     new FixAccelerationVersion(),
+    new SetDatasetExpiry(),
+    new SetAccelerationRefreshGrace(),
+    new ReplanHomeBasedAccelerations()
   };
 
   private static Version retrieveStoreVersion(ClusterIdentity identity) {
@@ -85,12 +88,18 @@ public class Upgrade {
     }
   }
 
-  public static UpgradeStats upgrade(DacConfig dacConfig) throws Exception {
-    final URI dbDir = dacConfig.getConfig().getURI(DremioConfig.DB_PATH_STRING);
+  public static UpgradeStats upgrade(DACConfig dacConfig) throws Exception {
+    final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
+    final File dbFile = new File(dbDir);
+
+    if (!dbFile.exists()) {
+      System.out.println("No database found. Skipping upgrade");
+      return new UpgradeStats();
+    }
 
     final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
-    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir.getPath(), false, true, false, true)) {
+    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true, false, true)) {
       storeProvider.start();
 
       final KVStore<String, ClusterIdentity> supportStore = storeProvider.getStore(SupportStoreCreator.class);
@@ -125,7 +134,7 @@ public class Upgrade {
   }
 
   public static void main(String[] args) {
-    final DacConfig dacConfig = DacConfig.newConfig();
+    final DACConfig dacConfig = DACConfig.newConfig();
     try {
       UpgradeStats upgradeStats = upgrade(dacConfig);
       System.out.println(upgradeStats);

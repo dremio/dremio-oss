@@ -46,7 +46,7 @@ import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.proto.model.source.HdfsConfig;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.sources.HDFSSourceConfigurator;
@@ -101,7 +101,7 @@ public class TestHdfs extends BaseTestMiniDFS {
     fs.setPermission(new Path("/dir1/json/users.json"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     try (Timer.TimedBlock b = Timer.time("TestHdfs.@BeforeClass")) {
       dremioDaemon = DACDaemon.newDremioDaemon(
-        DacConfig
+        DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .autoPort(true)
           .allowTestApis(true)

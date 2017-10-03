@@ -50,7 +50,7 @@ export default class ColumnHeader extends Component {
     pathname: PropTypes.string,
     query: PropTypes.object,
     isDumbTable: PropTypes.bool,
-    columnsNumber: PropTypes.number,
+    columnsCount: PropTypes.number,
 
     updateColumnName: PropTypes.func.isRequired,
     makeTransform: PropTypes.func.isRequired,
@@ -195,6 +195,12 @@ export default class ColumnHeader extends Component {
     }
   }
 
+  handleRenameAction = () => {
+    if (this.input) {
+      this.input.focus();
+    }
+  }
+
   renderEditableColumnName(column, label, cellWidth) {
     const style = {
       width: !this.isActionsPrevented()
@@ -282,10 +288,11 @@ export default class ColumnHeader extends Component {
             columnType={column.type}
             columnName={column.name}
             hideDropdown={this.handleRequestClose}
-            columnsNumber={this.props.columnsNumber}
+            columnsCount={this.props.columnsCount}
             openDetailsWizard={this.props.openDetailsWizard}
             makeTransform={this.props.makeTransform}
             disabledButtons={[]}
+            onRename={this.handleRenameAction}
           />
         </div>
       </Popover>

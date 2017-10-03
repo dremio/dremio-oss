@@ -65,7 +65,7 @@ import com.dremio.dac.proto.model.source.SoftwareVersion;
 import com.dremio.dac.proto.model.source.Source;
 import com.dremio.dac.proto.model.source.Submission;
 import com.dremio.dac.proto.model.source.SupportHeader;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
@@ -142,7 +142,7 @@ public class SupportService implements Service {
   // Avoid constant so we can test.
   private final String logPath = System.getProperty(DREMIO_ENV_LOG_PATH, "/var/log/dremio");
 
-  private final DacConfig config;
+  private final DACConfig config;
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final Provider<SabotContext> executionContextProvider;
   private final Provider<JobsService> jobsService;
@@ -153,7 +153,7 @@ public class SupportService implements Service {
   private ClusterIdentity identity;
 
   public SupportService(
-      DacConfig config,
+      DACConfig config,
       Provider<KVStoreProvider> kvStoreProvider,
       Provider<JobsService> jobsService,
       Provider<UserService> userService,

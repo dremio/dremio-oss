@@ -16,7 +16,6 @@
 import { Component, PropTypes } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
-import Divider from 'material-ui/Divider';
 
 import { TEXT } from 'constants/DataTypes';
 import { REPLACEABLE_TYPES } from 'constants/columnTypeGroups';
@@ -28,51 +27,48 @@ import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 export default class ReplaceGroup extends Component {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    isAvailable: PropTypes.func.isRequired,
     columnType: PropTypes.string
   }
 
-  renderMenuItems(columnType) {
+  static renderMenuItems(columnType, onClick) {
     return [
       <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_TEXT'
         title={la('Extract Text...')}
         availableTypes={[TEXT]}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='REPLACE_TEXT'
         title={la('Replace Text...')}
         availableTypes={[TEXT]}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='REPLACE'
         title={la('Replace...')}
         availableTypes={REPLACEABLE_TYPES}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='SPLIT'
         title={la('Split...')}
         availableTypes={[TEXT]}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />
     ];
   }
 
   render() {
-    const { columnType, isAvailable } = this.props;
-    const menuItems = this.renderMenuItems(columnType);
-    const shouldShowDivider = isAvailable(menuItems, columnType);
+    const { columnType, makeTransform } = this.props;
+    const menuItems = ReplaceGroup.renderMenuItems(columnType, makeTransform);
     return (
       <div>
         {menuItems}
-        {shouldShowDivider && <Divider style={{marginTop: 5, marginBottom: 5}}/>}
       </div>
     );
   }

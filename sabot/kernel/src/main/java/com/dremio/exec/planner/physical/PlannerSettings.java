@@ -138,6 +138,10 @@ public class PlannerSettings implements Context{
     return options;
   }
 
+  public boolean isPlannerVerbose() {
+    return options.getOption(VERBOSE_PROFILE);
+  }
+
   public boolean isLeafLimitsEnabled(){
     return options.getOption(ENABLE_LEAF_LIMITS);
   }

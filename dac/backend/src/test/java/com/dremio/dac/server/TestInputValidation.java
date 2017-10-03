@@ -21,6 +21,7 @@ import org.junit.Test;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.file.FileName;
 
 /**
  * Test input validation
@@ -28,55 +29,45 @@ import com.dremio.dac.service.errors.ClientErrorException;
 public class TestInputValidation {
   @Test
   public void testSpaceValidation() {
-    try {
-      new InputValidation().validate(new Space(null, "\"", null, null, null, 0, null));
-      Assert.fail("expected exception");
-    } catch (ClientErrorException e) {
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("Space name can not contain periods or double quotes"));
-    }
-
-    try {
-      new InputValidation().validate(new Space(null, ".", null, null, null, 0, null));
-      Assert.fail("expected exception");
-    } catch (ClientErrorException e) {
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("Space name can not contain periods or double quotes"));
-    }
-
-    try {
-      new InputValidation().validate(new Space(null, "longer \" test", null, null, null, 0, null));
-      Assert.fail("expected exception");
-    } catch (ClientErrorException e) {
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("Space name can not contain periods or double quotes"));
-    }
+    Assert.assertTrue(didThrowValidationError(new Space(null, "\"", null, null, null, 0, null), "Space name can not contain periods or double quotes"));
+    Assert.assertTrue(didThrowValidationError(new Space(null, ".", null, null, null, 0, null), "Space name can not contain periods or double quotes"));
+    Assert.assertTrue(didThrowValidationError(new Space(null, "longer \" test", null, null, null, 0, null), "Space name can not contain periods or double quotes"));
   }
 
   @Test
   public void testSourceValidation() {
+    SourceUI config = new SourceUI();
+    config.setName("\"");
+    Assert.assertTrue(didThrowValidationError(config, "Source name can not contain periods or double quotes"));
+
+    config.setName(".");
+    Assert.assertTrue(didThrowValidationError(config, "Source name can not contain periods or double quotes"));
+
+    config.setName("longer \" test");
+    Assert.assertTrue(didThrowValidationError(config, "Source name can not contain periods or double quotes"));
+  }
+
+  @Test
+  public void testGeneralValidation() {
+    Assert.assertTrue(didThrowValidationError(new FileName("afaf:dadad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
+    Assert.assertTrue(didThrowValidationError(new FileName(":"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
+    Assert.assertTrue(didThrowValidationError(new FileName("/"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
+    Assert.assertTrue(didThrowValidationError(new FileName("ada/adadad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
+    Assert.assertTrue(didThrowValidationError(new FileName("adad@adad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
+    Assert.assertTrue(didThrowValidationError(new FileName("adad{adad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
+    Assert.assertTrue(didThrowValidationError(new FileName("."), "File name cannot start with period"));
+    Assert.assertTrue(didThrowValidationError(new FileName(".adadd"), "File name cannot start with period"));
+    Assert.assertFalse(didThrowValidationError(new FileName("ad.add"), "File name cannot start with period"));
+  }
+
+  private boolean didThrowValidationError(Object o, String expectedMessage) {
     try {
-      SourceUI config = new SourceUI();
-      config.setName("\"");
-      new InputValidation().validate(config);
-      Assert.fail("expected exception");
+      new InputValidation().validate(o);
     } catch (ClientErrorException e) {
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("Source name can not contain periods or double quotes"));
+      return (e.getMessage().contains(expectedMessage));
     }
 
-    try {
-      SourceUI config = new SourceUI();
-      config.setName(".");
-      new InputValidation().validate(config);
-      Assert.fail("expected exception");
-    } catch (ClientErrorException e) {
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("Source name can not contain periods or double quotes"));
-    }
-
-    try {
-      SourceUI config = new SourceUI();
-      config.setName("longer \" test");
-      new InputValidation().validate(config);
-      Assert.fail("expected exception");
-    } catch (ClientErrorException e) {
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("Source name can not contain periods or double quotes"));
-    }
+    return false;
   }
 }
+

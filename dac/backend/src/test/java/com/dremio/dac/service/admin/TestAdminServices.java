@@ -21,7 +21,6 @@ import javax.ws.rs.client.Entity;
 
 import org.junit.Test;
 
-import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.Setting.TextSetting;
 import com.dremio.dac.service.admin.SettingsResource.SettingsWrapperObject;
@@ -46,12 +45,5 @@ public class TestAdminServices extends BaseTestServer {
     TextSetting updatedSetting = expectSuccess(getBuilder(getAPIv2().path("settings").path(ExecConstants.OUTPUT_FORMAT_OPTION)).buildPut(Entity.entity(update, JSON)), Setting.TextSetting.class);
     assertEquals(update.getValue(), updatedSetting.getValue());
     expectSuccess(getBuilder(getAPIv2().path("settings").path(ExecConstants.OUTPUT_FORMAT_OPTION)).buildPut(Entity.entity(setting, JSON)), Setting.TextSetting.class);
-  }
-
-
-  @Test
-  public void getVersion(){
-    VersionInfo actual = expectSuccess(getBuilder(getAPIv2().path("version")).buildGet(), VersionInfo.class);
-    assertEquals(DremioVersionInfo.getVersion(), actual.getVersion());
   }
 }

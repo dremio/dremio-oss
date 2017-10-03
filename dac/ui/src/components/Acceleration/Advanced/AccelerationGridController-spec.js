@@ -371,8 +371,7 @@ describe('AccelerationGridController', () => {
       sinon.stub(instance, 'addFieldByIndex');
     });
 
-    it('should remove sortFieldList, partitionFieldList and distributionFieldList ' +
-    'when dimensionFieldList and measureFieldList unselected', () => {
+    it('should remove sortFieldList, partitionFieldList and distributionFieldList when dimensionFieldList and measureFieldList unselected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns(undefined);
       instance.applyAggregationConstraints('dimensionFieldList', 0, 0);
 
@@ -398,7 +397,7 @@ describe('AccelerationGridController', () => {
       ).to.have.been.calledWith(currentRow, 'sortFieldList', 0);
     });
 
-    it('should remove measureFieldList and add dimensionFieldList when sortFieldList selected', () => {
+    it('should leave measureFieldList and add dimensionFieldList when sortFieldList selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
         .withArgs('dimensionFieldList', 0, 0).returns(undefined)
         .withArgs('measureFieldList', 0, 0).returns({})
@@ -407,13 +406,13 @@ describe('AccelerationGridController', () => {
 
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'measureFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'measureFieldList', 0);
       expect(
         instance.addFieldByIndex
       ).to.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
     });
 
-    it('should add dimensionFieldList when distributionFieldList or partitionFieldList or sortFieldList selected', () => {
+    it('should add dimensionFieldList when distributionFieldList or partitionFieldList or sortFieldList selected (leaving measureFieldList)', () => {
       const findCurrentColumnStub = sinon.stub(instance, 'findCurrentColumnInLayouts')
         .withArgs('partitionFieldList', 0, 0).returns({});
       const resetFieldsStub = () => {
@@ -426,7 +425,7 @@ describe('AccelerationGridController', () => {
         ).to.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
         expect(
           instance.removeFieldByIndex
-        ).to.have.been.calledWith(currentRow, 'measureFieldList', 0);
+        ).to.not.have.been.calledWith(currentRow, 'measureFieldList', 0);
       };
 
       instance.applyAggregationConstraints('partitionFieldList', 0, 0);
@@ -445,27 +444,27 @@ describe('AccelerationGridController', () => {
       verify();
     });
 
-    it('should remove dimensionFieldList and sortFieldList when measureFieldList is selected', () => {
+    it('should leave dimensionFieldList and sortFieldList when measureFieldList is selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
         .withArgs('dimensionFieldList', 0, 0).returns({})
         .withArgs('measureFieldList', 0, 0).returns({});
       instance.applyAggregationConstraints('measureFieldList', 0, 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'sortFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'sortFieldList', 0);
     });
 
-    it('should remove measureFieldList when dimensionFieldList is selected', () => {
+    it('should leave measureFieldList when dimensionFieldList is selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
         .withArgs('dimensionFieldList', 0, 0).returns({})
         .withArgs('measureFieldList', 0, 0).returns({});
       instance.applyAggregationConstraints('dimensionFieldList', 0, 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'measureFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'measureFieldList', 0);
     });
   });
 

@@ -28,6 +28,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.internal.SystemPropertyUtil;
 
+import com.dremio.common.concurrent.NamedThreadFactory;
 
 /**
  * TransportCheck decides whether or not to use the native EPOLL mechanism for communication.

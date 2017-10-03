@@ -15,7 +15,7 @@
  */
 import { fork } from 'redux-saga/effects';
 
-import entitie from './entitie';
+import wsEvents from './wsEvents';
 import qlik from './qlik';
 import serverStatus from './serverStatus';
 import autoPeek from './autoPeek';
@@ -30,7 +30,7 @@ import transformCardPreview from './transformCardPreview';
 
 export default function* rootSaga() {
   yield [
-    fork(entitie),
+    fork(wsEvents),
     fork(qlik),
     fork(serverStatus),
     fork(autoPeek),

@@ -34,6 +34,8 @@ message MaterializedLayout {
   optional uint64 version = 2;
   // list of available materializations
   repeated Materialization materialization = 3;
+  //state
+  optional MaterializedLayoutState state = 4 [state = ACTIVE];
 }
 
 message MaterializationId {

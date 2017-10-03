@@ -31,6 +31,7 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.UnionVectorHelper;
@@ -66,6 +67,7 @@ import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Type.Repetition;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.DremioVersionInfo;
@@ -81,25 +83,45 @@ import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetRecordWriter.class);
 
+  public enum Metric implements MetricDef {
+    NUM_FILES_WRITTEN, // number of files written by the writer
+    MIN_FILE_SIZE, // Minimum size of files written
+    MAX_FILE_SIZE, // Maximum size of files written
+    AVG_FILE_SIZE, // Average size of files written
+    MIN_RECORD_COUNT_IN_FILE, // Minimum number of records written in a file
+    MAX_RECORD_COUNT_IN_FILE, // Maximum number of records written in a file
+    ;
+
+    @Override
+    public int metricId() {
+      return ordinal();
+    }
+  }
+
   public static final String DREMIO_ARROW_SCHEMA = "dremio.arrow.schema";
 
-  private static final int MINIMUM_BUFFER_SIZE = 64 * 1024;
   private static final int MINIMUM_RECORD_COUNT_FOR_CHECK = 100;
   private static final int MAXIMUM_RECORD_COUNT_FOR_CHECK = 10000;
 
   public static final String DRILL_VERSION_PROPERTY = "drill.version";
   public static final String DREMIO_VERSION_PROPERTY = "dremio.version";
   public static final String IS_DATE_CORRECT_PROPERTY = "is.date.correct";
+  public static final String WRITER_VERSION_PROPERTY = "drill-writer.version";
 
   private final Configuration conf;
   private final UserGroupInformation proxyUserUGI;
+
+  private final BufferAllocator codecAllocator;
+  private final BufferAllocator columnEncoderAllocator;
 
   private ParquetFileWriter parquetFileWriter;
   private MessageType schema;
@@ -131,12 +153,24 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private final OperatorContext context;
   private WritePartition partition;
   private final int memoryThreshold;
+  private final long maxPartitions;
+  private final long minRecordsForFlush;
+
+  // metrics workspace variables
+  int numFilesWritten = 0;
+  long minFileSize = Long.MAX_VALUE;
+  long maxFileSize = Long.MIN_VALUE;
+  long avgFileSize = 0;
+  long minRecordCountInFile = Long.MAX_VALUE;
+  long maxRecordCountInFile = Long.MIN_VALUE;
 
   public ParquetRecordWriter(OperatorContext context, ParquetWriter writer, ParquetFormatConfig config) throws OutOfMemoryException{
     this.conf = new Configuration(writer.getFsConf());
     this.context = context;
+    this.codecAllocator = context.getAllocator().newChildAllocator("ParquetCodecFactory", 0, Long.MAX_VALUE);
+    this.columnEncoderAllocator = context.getAllocator().newChildAllocator("ParquetColEncoder", 0, Long.MAX_VALUE);
     this.codecFactory = CodecFactory.createDirectCodecFactory(this.conf,
-        new ParquetDirectByteBufferAllocator(context.getAllocator()), pageSize);
+        new ParquetDirectByteBufferAllocator(codecAllocator), pageSize);
     this.extraMetaData.put(DREMIO_VERSION_PROPERTY, DremioVersionInfo.getVersion());
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
     this.proxyUserUGI = ImpersonationUtil.createProxyUgi(writer.getUserName());
@@ -172,6 +206,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
     enableDictionary = context.getOptions().getOption(ExecConstants.PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_VALIDATOR);
     enableDictionaryForBinary = context.getOptions().getOption(ExecConstants.PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE_VALIDATOR);
+    maxPartitions = context.getOptions().getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR);
+    minRecordsForFlush = context.getOptions().getOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR);
   }
 
   @Override
@@ -211,6 +247,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   }
 
   private void newSchema() throws IOException {
+    // Reset it to half of current number and bound it within the limits
+    recordCountForNextMemCheck = min(max(MINIMUM_RECORD_COUNT_FOR_CHECK, recordCountForNextMemCheck / 2), MAXIMUM_RECORD_COUNT_FOR_CHECK);
+
     String json = new Schema(batchSchema).toJson();
     extraMetaData.put(DREMIO_ARROW_SCHEMA, json);
     List<Type> types = Lists.newArrayList();
@@ -228,7 +267,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
     int dictionarySize = (int)context.getOptions().getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR);
     final ParquetProperties parquetProperties = new ParquetProperties(dictionarySize, writerVersion, enableDictionary,
-      new ParquetDirectByteBufferAllocator(context.getAllocator()), pageSize, true, enableDictionaryForBinary);
+      new ParquetDirectByteBufferAllocator(columnEncoderAllocator), pageSize, true, enableDictionaryForBinary);
     pageStore = ColumnChunkPageWriteStoreExposer.newColumnChunkPageWriteStore(codecFactory.getCompressor(codec), schema, parquetProperties);
     store = new ColumnWriteStoreV1(pageStore, pageSize, parquetProperties);
     MessageColumnIO columnIO = new ColumnIOFactory(false).getColumnIO(this.schema);
@@ -334,19 +373,23 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     if (recordCount > 0) {
+      long memSize = store.getBufferedSize();
       parquetFileWriter.startBlock(recordCount);
       consumer.flush();
       store.flush();
       ColumnChunkPageWriteStoreExposer.flushPageStore(pageStore, parquetFileWriter);
       parquetFileWriter.endBlock();
       long recordsWritten = recordCount;
-      recordCount = 0;
 
       // we are writing one single block per file
       parquetFileWriter.end(extraMetaData);
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
       listener.recordsWritten(recordsWritten, path.toString(), metadata /** TODO: add parquet footer **/, partition.getBucketNumber());
       parquetFileWriter = null;
+
+      updateStats(memSize, recordCount);
+
+      recordCount = 0;
     }
 
     if(store != null){
@@ -449,27 +492,37 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public void startPartition(WritePartition partition) throws Exception {
+    if (index >= maxPartitions) {
+      throw UserException.dataWriteError()
+        .message("Materialization cancelled due to excessive partition creation. A single thread can only generate %d partitions. " +
+          "Typically, this is a problem if you configure a partition or distribution column that has high cardinality. " +
+          "If you want to increase this limit, you can change the \"store.max_partitions\" system option.", maxPartitions)
+        .build(logger);
+    }
+
     flushAndClose();
     this.partition = partition;
     newSchema();
   }
 
   private void checkBlockSizeReached() throws IOException {
-    if (recordCount >= recordCountForNextMemCheck) { // checking the memory size is relatively expensive, so let's not do it for every record.
+    if (recordCount >= recordCountForNextMemCheck && recordCount >= minRecordsForFlush) { // checking the memory size is relatively expensive, so let's not do it for every record.
       long memSize = store.getBufferedSize();
-      if (context.getAllocator().getHeadroom() < memoryThreshold ||
-        context.getAllocator().getAllocatedMemory() > blockSize ||
-        memSize > blockSize) {
+      if (context.getAllocator().getHeadroom() < memoryThreshold || memSize >= blockSize) {
         logger.debug("Reached block size " + blockSize);
         flushAndClose();
         newSchema();
-        recordCountForNextMemCheck = min(max(MINIMUM_RECORD_COUNT_FOR_CHECK, recordCount / 2), MAXIMUM_RECORD_COUNT_FOR_CHECK);
       } else {
-        float recordSize = (float) memSize / recordCount;
-        recordCountForNextMemCheck = min(
-                max(MINIMUM_RECORD_COUNT_FOR_CHECK, (recordCount + (long)(blockSize / recordSize)) / 2), // will check halfway
-                recordCount + MAXIMUM_RECORD_COUNT_FOR_CHECK // will not look more than max records ahead
-        );
+        // Find the average record size for encoded records so far
+        float recordSize = ((float) memSize) / recordCount;
+
+        final long recordsCouldFitInRemainingSpace = (long)((blockSize - memSize)/recordSize);
+
+        // try to check again when reached half of the number of records that could potentially fit in remaining space.
+        recordCountForNextMemCheck = recordCount +
+            // Upper bound by the max count check. There is no lower bound, as it could cause files bigger than
+            // blockSize if the remaining records that could fit is very few (usually when we are close to the goal).
+            min(MAXIMUM_RECORD_COUNT_FOR_CHECK, recordsCouldFitInRemainingSpace/2);
       }
     }
   }
@@ -603,6 +656,23 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   public void abort() throws IOException {
   }
 
+  private void updateStats(long memSize, long recordCount) {
+    minFileSize = min(minFileSize, memSize);
+    maxFileSize = max(maxFileSize, memSize);
+    avgFileSize = (avgFileSize * numFilesWritten + memSize) / (numFilesWritten + 1);
+    minRecordCountInFile = min(minRecordCountInFile, recordCount);
+    maxRecordCountInFile = max(maxRecordCountInFile, recordCount);
+    numFilesWritten++;
+
+    final OperatorStats stats = context.getStats();
+    stats.setLongStat(Metric.NUM_FILES_WRITTEN, numFilesWritten);
+    stats.setLongStat(Metric.MIN_FILE_SIZE, minFileSize);
+    stats.setLongStat(Metric.MAX_FILE_SIZE, maxFileSize);
+    stats.setLongStat(Metric.AVG_FILE_SIZE, avgFileSize);
+    stats.setLongStat(Metric.MIN_RECORD_COUNT_IN_FILE, minRecordCountInFile);
+    stats.setLongStat(Metric.MAX_RECORD_COUNT_IN_FILE, maxRecordCountInFile);
+  }
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(new AutoCloseable() {
@@ -615,6 +685,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       public void close() throws Exception {
         codecFactory.release();
       }
-    });
+    },
+    codecAllocator, columnEncoderAllocator);
   }
 }

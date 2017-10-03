@@ -38,6 +38,7 @@ public abstract class ClusterCoordinator implements Service {
     public static final String ZK_RETRY_MAX_DELAY = "dremio.exec.zk.retry.delay.max";
     public static final String ZK_ROOT = "dremio.exec.zk.root";
     public static final String ZK_TIMEOUT = "dremio.exec.zk.timeout";
+    public static final String ZK_SESSION_TIMEOUT = "dremio.exec.zk.session.timeout";
 
   }
 

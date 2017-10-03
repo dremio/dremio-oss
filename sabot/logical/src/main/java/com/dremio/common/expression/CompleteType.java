@@ -652,10 +652,7 @@ public class CompleteType {
 
     // both fields are unions.
     if (type1.getType().getTypeID() == ArrowTypeID.Union && type2.getType().getTypeID() == ArrowTypeID.Union) {
-      Set<Field> subTypeSet = new LinkedHashSet<>();
-      subTypeSet.addAll(type1.getChildren());
-      subTypeSet.addAll(type2.getChildren());
-      ImmutableList<Field> subTypes = ImmutableList.copyOf(subTypeSet);
+      List<Field> subTypes = mergeFieldLists(type1.getChildren(), type2.getChildren());
       int[] typeIds = getTypeIds(subTypes);
       return new CompleteType(new Union(UnionMode.Sparse, typeIds), subTypes);
     }

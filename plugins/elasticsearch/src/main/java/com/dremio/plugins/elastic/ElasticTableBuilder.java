@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -114,7 +115,13 @@ class ElasticTableBuilder implements SourceTableDefinition {
     this.connection = connection;
     this.name = name;
     this.indexOrAlias = name.getPathComponents().get(1);
-    this.typeName = name.getPathComponents().get(2);
+    //encode the typeName incase it has a slash or other special characters
+    String temp = name.getPathComponents().get(2);
+    try {
+      temp = URLEncoder.encode(name.getPathComponents().get(2), "UTF-8");
+    } catch(Exception E) {
+    }
+    this.typeName = temp;
     this.oldConfig = oldConfig;
     this.config = config;
     this.pluginConfig = pluginConfig;
@@ -306,9 +313,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
           connection,
           GroupScan.ALL_COLUMNS,
           readDefinition,
-          pluginConfig,
-          buffer,
-          schema);
+          pluginConfig);
       final SampleMutator mutator = new SampleMutator(allocator)
       ) {
 

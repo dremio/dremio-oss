@@ -18,6 +18,7 @@ package com.dremio.exec.planner.observer;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
@@ -76,11 +77,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+  public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
     serializedExec.execute(new DeferredRunnable() {
       @Override
       public void doRun() {
-        innerObserver.planRelTransform(phase, before, after, millisTaken);
+        innerObserver.planRelTransform(phase, planner, before, after, millisTaken);
       }
     });
   }

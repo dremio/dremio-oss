@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.plan.RelOptCluster;
@@ -29,17 +28,18 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.acceleration.IncrementallyUpdateable;
 import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.RelOptNamespaceTable;
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 public class ScanCrel extends ScanRelBase implements CopyToCluster, IncrementallyUpdateable {
 
@@ -78,6 +78,10 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       observedRowcountAdjustment,
       isDirectNamespaceDescendent
     );
+  }
+
+  public ScanCrel applyRowDiscount(double additionalAdjustment) {
+    return new ScanCrel(getCluster(), traitSet, pluginId, getTableMetadata(), projectedColumns, observedRowcountAdjustment * additionalAdjustment, isDirectNamespaceDescendent);
   }
 
   @Override

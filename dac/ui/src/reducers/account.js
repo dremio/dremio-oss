@@ -43,24 +43,6 @@ function getInitialState() {
   });
 }
 
-/*
- @TODO Mock users. Need to change after creation api call
-*/
-const MOCKED_USERS = Immutable.fromJS(
-  [
-    {
-      email: 'myemail@some.com', username: 'Bill'
-    },
-    {
-      email: 'myemail2@some.com', username: 'Alex'
-    },
-    {
-      email: 'myemail3@some.com', username: 'Alisha'
-    }
-  ]
-);
-
-
 export default function users(state = getInitialState(), action) {
   switch (action.type) {
   case ActionTypes.SOURCE_CREDENTIAL_START:
@@ -131,24 +113,6 @@ export default function users(state = getInitialState(), action) {
     return objectUtils.merge({}, state, {
       apiKey: ''
     });
-  case ActionTypes.LOAD_USERS_START:
-    return state.set('allUsers', Immutable.fromJS({
-      users: [],
-      isInProgress: true,
-      isFailed: false
-    }));
-  case ActionTypes.LOAD_USERS_SUCCESS:
-    return state.set('allUsers', Immutable.fromJS({
-      users: accountMapper.mapAllUsers(),
-      isInProgress: false,
-      isFailed: false
-    }));
-  case ActionTypes.LOAD_USERS_FAILURE:
-    return state.set('allUsers', Immutable.fromJS({
-      users: MOCKED_USERS,
-      isInProgress: false,
-      isFailed: true
-    }));
 
   case ActionTypes.LOGIN_USER_START: {
     return state.setIn(['user', 'isInProgress'], !action.error)

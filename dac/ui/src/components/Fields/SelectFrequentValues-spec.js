@@ -19,7 +19,12 @@ describe('SelectFrequentValues', () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {};
+    minimalProps = {
+      field: {
+        value: [],
+        onChange: sinon.spy((obj) => minimalProps.field.value = obj)
+      }
+    };
     commonProps = {
       ...minimalProps,
       options: [
@@ -27,11 +32,7 @@ describe('SelectFrequentValues', () => {
         { percent: 25, value: 'bar' },
         { percent: 25, value: 'baz' },
         { percent: 25, value: '' }
-      ],
-      field: {
-        value: {},
-        onChange: sinon.spy((obj) => commonProps.field.value = obj)
-      }
+      ]
     };
   });
   it('should render with minimal props without exploding', () => {
@@ -49,15 +50,13 @@ describe('SelectFrequentValues', () => {
     });
     expect(wrapper.find('ExploreCellLargeOverlay')).to.have.length(1);
   });
-  describe('#onCheck', () => {
+  describe('#handleCheck', () => {
     it('should return call onChange with checked values', () => {
       const instance = shallow(<SelectFrequentValues {...commonProps}/>).instance();
-      instance.onCheck('foo');
-      expect(commonProps.field.onChange).to.be.calledWith({ 'foo': true });
-      instance.onCheck('foo');
-      expect(commonProps.field.onChange).to.be.calledWith({ 'foo': false });
-      instance.onCheck('bar');
-      expect(commonProps.field.onChange).to.be.calledWith({ 'foo': false, 'bar': true });
+      instance.handleCheck('foo', true);
+      expect(commonProps.field.onChange).to.be.calledWith(['foo']);
+      instance.handleCheck('foo', false);
+      expect(commonProps.field.onChange).to.be.calledWith([]);
     });
   });
 });

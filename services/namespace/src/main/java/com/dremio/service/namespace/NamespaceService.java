@@ -34,6 +34,9 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
  * Namespace operations from DAC
  */
 public interface NamespaceService {
+
+  // never expire  = Monday, September 1, 3017 9:38:18 PM
+  long INFINITE_REFRESH_PERIOD = 33061210698000L ;
   /**
    * Factory to create namespace service for a given user
    */

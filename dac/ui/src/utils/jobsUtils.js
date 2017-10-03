@@ -95,11 +95,6 @@ class JobsUtils {
     return timeUtils.durationWithZero(moment.duration(duration, 'ms'));
   }
 
-  formatJobTime(time, invalidDateString = 'Invalid date') {
-    const t = moment(time, 'x');
-    return t.isValid() ? t.format('MM/DD/YYYY HH:mm:ss') : invalidDateString;
-  }
-
   getRunning(jobState) {
     return jobState === JOB_STATE_RUNNING || jobState === JOB_STATE_PENDING;
   }
@@ -111,7 +106,7 @@ class JobsUtils {
     if (this.getRunning(jobState)) {
       return 'In progress';
     }
-    return this.formatJobTime(jobEndTime, 'In progress');
+    return timeUtils.formatTime(jobEndTime, 'In progress');
   }
 
   getFormattedRecords(records) {

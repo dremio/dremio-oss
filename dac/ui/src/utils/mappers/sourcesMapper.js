@@ -13,30 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 class SourcesMapper {
-  newSource(type, data) {
+  newSource(sourceType, data) {
     const info = data;
     delete info.credentials;
-    const hash = {
-      'HDFS': 'HDFS',
-      'MongoDB': 'MONGO',
-      'S3': 'S3',
-      'HBase': 'HBASE',
-      'LinuxCluster': 'LinuxCluster',
-      'MapRFS': 'MAPRFS',
-      'MySQL': 'MYSQL',
-      'NAS': 'NAS',
-      'GoogleAnalytics': 'GoogleAnalytics',
-      'Oracle': 'ORACLE',
-      'Saleforce': 'Saleforce',
-      'Elastic': 'ELASTIC',
-      'Kudu': 'KUDU',
-      'Redshift': 'REDSHIFT',
-      'PostgreSQL': 'POSTGRES',
-      'Hive' : 'HIVE',
-      'SQLserver' : 'MSSQL',
-      'DB2' : 'DB2'
-    };
     if (info.config.hostList) {
       for (const host of info.config.hostList) {
         delete host.id;
@@ -53,7 +34,7 @@ class SourcesMapper {
     if (info.config.subpartitionSize) {
       info.config.subpartitionSize = Number(info.config.subpartitionSize);
     }
-    return {...info, type: hash[type] || type};
+    return {...info, type: sourceType};
   }
 }
 

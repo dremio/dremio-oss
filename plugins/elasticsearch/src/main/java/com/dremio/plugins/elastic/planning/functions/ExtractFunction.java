@@ -58,6 +58,8 @@ public class ExtractFunction extends ElasticFunction {
         return scriptFieldRef + ".year";
       case "month":
         return scriptFieldRef + ".monthOfYear";
+      case "dow":
+        return scriptFieldRef + ".dayOfWeek";
       case "day":
         return scriptFieldRef + ".dayOfMonth";
       case "hour":

@@ -20,6 +20,7 @@ import shallowEqual from 'shallowequal';
 import $ from 'jquery';
 import Immutable from 'immutable';
 import { Column, Table } from 'fixed-data-table-2';
+import { debounce } from 'lodash/function';
 
 import { DEFAULT_ROW_HEIGHT, MIN_COLUMN_WIDTH } from 'uiTheme/radium/sizes';
 
@@ -79,7 +80,7 @@ export default class ExploreTable extends PureComponent {
   }
 
   static tableHeight(height, wrapper, nodeOffsetTop) {
-    return (height || wrapper && (wrapper.offsetHeight - nodeOffsetTop)) + HEADER_HEIGHT;
+    return (height || wrapper && (wrapper.offsetHeight - nodeOffsetTop));
   }
 
   static getDefaultColumnWidth(widthThatWillBeSet, columns) {
@@ -91,13 +92,13 @@ export default class ExploreTable extends PureComponent {
     return defaultColumnWidth > MIN_COLUMN_WIDTH ? defaultColumnWidth : MIN_COLUMN_WIDTH;
   }
 
-  static getTableSize({widthScale = 1, width, height, maxHeight, rightTreeVisible}, wrapper, columns, nodeOffsetTop) {
-    if (!wrapper && !width && !height) {
-      console.error('Can\'t find parent width class table-parent, size maybe wrong');
+  static getTableSize({widthScale = 1, width, height, maxHeight, rightTreeVisible}, wrappers, columns, nodeOffsetTop) {
+    if (!wrappers[0] && !wrappers[1] && !width && !height) {
+      console.error('Can\'t find wrapper element, size maybe wrong');
     }
 
-    const widthThatWillBeSet = ExploreTable.tableWidth(width, wrapper, widthScale, rightTreeVisible);
-    const heightThatWillBeSet = ExploreTable.tableHeight(height, wrapper, nodeOffsetTop);
+    const widthThatWillBeSet = ExploreTable.tableWidth(width, wrappers[0], widthScale, rightTreeVisible);
+    const heightThatWillBeSet = ExploreTable.tableHeight(height, wrappers[1], nodeOffsetTop);
     const defaultColumnWidth = ExploreTable.getDefaultColumnWidth(widthThatWillBeSet, columns);
 
     return Immutable.Map({
@@ -120,7 +121,7 @@ export default class ExploreTable extends PureComponent {
       size: Immutable.Map({ width: 0, height: 0, defaultColumnWidth: 0 }),
       columns: columns || Immutable.List([])
     };
-    this.canLoadNext = true;
+    this.debouncedUpdateSize = debounce(this.updateSize, 50);
   }
 
   componentDidMount() {
@@ -150,6 +151,7 @@ export default class ExploreTable extends PureComponent {
   }
 
   componentWillUnmount() {
+    this.debouncedUpdateSize && this.debouncedUpdateSize.cancel();
     $(window).off('resize', this.handleWindowResize);
     $('.fixedDataTableCellLayout_columnResizerContainer').off('mousedown', this.removeResizerHiddenElem);
   }
@@ -225,18 +227,21 @@ export default class ExploreTable extends PureComponent {
     this.setState({ columns });
   }
 
-  updateSize() {
+  updateSize = () => {
     const columns = this.state.columns.toJS().filter(col => !col.hidden);
     const node = ReactDOM.findDOMNode(this);
     const nodeOffsetTop = $(node).offset().top;
-    const wrapper = $(node).parents('.table-parent')[0];
+    const wrapperForWidth = $(node).parents('.table-parent')[0];
+    const wrapperForHeight = document.querySelector('#grid-page');
+    const wrappers = [ wrapperForWidth, wrapperForHeight ];
+    //this need to fix DX-8244 due to re-render of table because of horizontal scroll clipping
     let height = this.props.height;
 
     if (this.props.getTableHeight) {
       height = this.props.getTableHeight(node);
     }
 
-    const size = ExploreTable.getTableSize({...this.props, height}, wrapper, columns, nodeOffsetTop);
+    const size = ExploreTable.getTableSize({...this.props, height}, wrappers, columns, nodeOffsetTop);
     this.setState(state => {
       if (!state.size.equals(size)) {
         return {size};
@@ -259,6 +264,8 @@ export default class ExploreTable extends PureComponent {
 
   handleWindowResize = () => {
     this.updateSize();
+    this.debouncedUpdateSize();
+    //this need to fix DX-8244 due to re-render of table because of horizontal scroll clipping
   };
 
   removeResizerHiddenElem = () => {
@@ -269,7 +276,7 @@ export default class ExploreTable extends PureComponent {
     return (
       <ColumnHeader
         pageType={this.props.pageType}
-        columnsNumber={this.props.tableData.get('columns').size}
+        columnsCount={this.props.tableData.get('columns').size}
         isResizeInProgress={this.props.isResizeInProgress}
         dragType={this.props.dragType}
         updateColumnName={this.props.updateColumnName}

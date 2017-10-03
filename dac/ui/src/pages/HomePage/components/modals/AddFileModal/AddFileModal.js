@@ -38,10 +38,9 @@ import { resetViewState } from 'actions/resources';
 import AddFileFormPage1 from './AddFileFormPage1';
 import FileFormatForm from './../../../components/forms/FileFormatForm';
 
-const VIEW_ID = 'AddFileModal';
-const PREVIEW_VIEW_ID = 'AddFileModalPreview';
+export const PREVIEW_VIEW_ID = 'AddFileModalPreview';
 
-class AddFileModal extends Component {
+export class AddFileModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
@@ -49,7 +48,6 @@ class AddFileModal extends Component {
     //connected
 
     parentEntity: PropTypes.instanceOf(Immutable.Map),
-    viewState: PropTypes.instanceOf(Immutable.Map),
     previewViewState: PropTypes.instanceOf(Immutable.Map),
     fileName: PropTypes.string,
     file: PropTypes.instanceOf(Immutable.Map),
@@ -71,7 +69,6 @@ class AddFileModal extends Component {
 
   componentWillMount() {
     this.success = false;
-    this.props.resetViewState(VIEW_ID);
     this.props.resetViewState(PREVIEW_VIEW_ID);
   }
 
@@ -88,7 +85,6 @@ class AddFileModal extends Component {
       this.cancelUpload();
     }
     this.props.destroy('addFile');
-    this.props.resetViewState(VIEW_ID);
     this.props.resetViewState(PREVIEW_VIEW_ID);
     this.props.hide();
   }
@@ -96,14 +92,11 @@ class AddFileModal extends Component {
   onSubmitFile = (values) => {
     const { parentEntity } = this.props;
     const { file, name, extension } = values;
-    this.props.resetFileFormatPreview()
-      .then(() => this.props.uploadFileToPath(parentEntity, file, { name }, extension, VIEW_ID))
+    return this.props.resetFileFormatPreview()
+      .then(() =>
+        ApiUtils.attachFormSubmitHandlers(this.props.uploadFileToPath(parentEntity, file, { name }, extension))
+      )
       .then((response) => {
-        if (response.error) {
-          // if we have an error, do nothing as the ViewStateWrapper will show the error to the user for us.
-          return;
-        }
-
         this.goToPage(1);
       });
   }
@@ -131,15 +124,13 @@ class AddFileModal extends Component {
 
   goToPage = (pageNumber) => {
     this.setState({ page: pageNumber });
-    if (pageNumber === 1) {
-      this.props.resetViewState(VIEW_ID);
-    } else {
+    if (pageNumber !== 1) {
       this.props.resetViewState(PREVIEW_VIEW_ID);
     }
   }
 
   render() {
-    const { file, isOpen, viewState, previewViewState } = this.props;
+    const { file, isOpen, previewViewState } = this.props;
     const { page } = this.state;
     const pageSettings = [{
       title: la('Add File: Browse for File (Step 1 of 2)'),
@@ -159,7 +150,6 @@ class AddFileModal extends Component {
             ref='form'
             onFormSubmit={this.onSubmitFile}
             onCancel={this.onHide}
-            viewState={viewState}
           />
         }
         {page === 1 &&
@@ -169,7 +159,6 @@ class AddFileModal extends Component {
             onCancel={this.goToPage.bind(this, 0)}
             cancelText='Back'
             onPreview={this.onPreview}
-            viewState={viewState}
             previewViewState={previewViewState}
           />
         }
@@ -189,7 +178,6 @@ function mapStateToProps(state) {
   }
   return {
     parentEntity,
-    viewState: getViewState(state, VIEW_ID),
     previewViewState: getViewState(state, PREVIEW_VIEW_ID),
     fileName,
     file

@@ -30,7 +30,7 @@ export const LIST = 'LIST';
 export const MAP = 'MAP';
 export const GEO = 'GEO';
 export const OTHER = 'OTHER';
-export const JSONTYPE = 'JSON';
+export const JSONTYPE = 'JSON'; // todo: no icon - is this actually a thing?
 export const ANY = 'ANY';
 
 export const typeToIconType = {
@@ -158,7 +158,7 @@ export function parseTextToDataType(cellText, dataType) {
   case FLOAT:
   case DECIMAL:
   case BIGINT: // can MAYBE remove BIGINT with DX-5403 Acceleration UI missing type icons due to incorrect types from BE
-    return cellText === null ? null : Number(cellText);
+    return Number(cellText);
   case BOOLEAN:
     return cellText === 'true';
   default:

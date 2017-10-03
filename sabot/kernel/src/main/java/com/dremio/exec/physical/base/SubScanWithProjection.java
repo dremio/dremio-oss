@@ -31,7 +31,7 @@ public abstract class SubScanWithProjection extends AbstractSubScan {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return getSchema().maskAndReorder(columns);
   }
 

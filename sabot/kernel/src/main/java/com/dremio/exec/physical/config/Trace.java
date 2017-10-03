@@ -52,11 +52,6 @@ public class Trace extends AbstractSingle {
     }
 
     @Override
-    public BatchSchema getSchema(FunctionLookupContext context) {
-      return child.getSchema(context);
-    }
-
-    @Override
     public int getOperatorType() {
       return CoreOperatorType.TRACE_VALUE;
     }

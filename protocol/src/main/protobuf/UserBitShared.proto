@@ -142,6 +142,12 @@ message DremioPBError{
      * This is a new error type not present in Apache Drill
      */
     IO_EXCEPTION = 1013;
+
+    /* Concurrent modification exception
+     * Means: please refresh and retry the operation
+     * This is a new error type not present in Apache Drill
+     */
+    CONCURRENT_MODIFICATION = 1014;
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -271,6 +277,7 @@ message QueryProfile {
   optional RpcEndpointInfos client_info = 25;
   repeated PlanPhaseProfile plan_phases = 26;
   optional AccelerationProfile acceleration_profile = 27;
+  optional string full_schema = 28;
 }
 
 message AccelerationProfile {
@@ -300,6 +307,7 @@ message LayoutMaterializedViewProfile {
   repeated SubstitutionProfile substitutions = 16;
   repeated string normalized_plans = 17;
   repeated string normalized_query_plans = 18;
+  optional string name = 19;
 }
 
 message SubstitutionProfile {
@@ -310,6 +318,7 @@ message PlanPhaseProfile {
   optional string phase_name = 1;
   optional int64 duration_millis = 2;
   optional string plan = 3;
+  optional string planner_dump = 4;
 }
 
 message MajorFragmentProfile {

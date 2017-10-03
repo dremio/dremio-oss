@@ -27,7 +27,8 @@ export const mapStateToProps = (state, props) => {
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     mutateFormValues(formValues) {
-      delete formValues.accelerationTTL;
+      delete formValues.accelerationRefreshPeriod;
+      delete formValues.accelerationGracePeriod;
     }
   });
 }

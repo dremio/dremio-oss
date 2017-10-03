@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -48,8 +50,8 @@ import com.dremio.exec.proto.UserProtos.QueryPlanFragments;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.rpc.ConnectionThrottle;
-import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -143,7 +145,11 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
     final QueryPlanFragments planFragments = queryFragmentsFutures.get();
 
     for (PlanFragment fragment : planFragments.getFragmentsList()) {
-      System.out.println(fragment.getFragmentJson());
+      try {
+        System.out.println(PhysicalPlanReader.toString(fragment.getFragmentJson(), fragment.getFragmentCodec()));
+      } catch(IOException e) {
+        e.printStackTrace();
+      }
     }
 
     return planFragments;

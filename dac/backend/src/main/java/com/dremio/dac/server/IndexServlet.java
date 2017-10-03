@@ -18,6 +18,8 @@ package com.dremio.dac.server;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Properties;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -26,12 +28,19 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 
 import org.eclipse.jetty.util.resource.Resource;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
 
+import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.ServerData.ClientSettings;
+import com.dremio.dac.service.admin.CommitInfo;
+import com.dremio.dac.service.admin.VersionInfo;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.server.options.OptionManager;
+import com.dremio.service.accelerator.AccelerationOptions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
 
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -49,18 +58,22 @@ import freemarker.template.TemplateExceptionHandler;
  * based on client side routing and page loading.
  */
 class IndexServlet implements Servlet {
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IndexServlet.class);
+
   private final Configuration templateCfg;
   private final ServerHealthMonitor serverHealthMonitor;
   private final OptionManager options;
-  private final DacConfig config;
+  private final DACConfig config;
+  private final SupportService supportService;
 
   private ServletConfig servletConfig;
 
-  public IndexServlet(DacConfig config, ServerHealthMonitor serverHealthMonitor, OptionManager options) {
+  public IndexServlet(DACConfig config, ServerHealthMonitor serverHealthMonitor, OptionManager options, SupportService supportService) {
     this.config = config;
     this.templateCfg = new Configuration(Configuration.VERSION_2_3_23);
     this.serverHealthMonitor = serverHealthMonitor;
     this.options = options;
+    this.supportService = supportService;
   }
 
   @Override
@@ -92,9 +105,9 @@ class IndexServlet implements Servlet {
   @Override
   public void service(ServletRequest servletRequest, ServletResponse response) throws ServletException, IOException {
     ClientSettings settings = new ClientSettings(options.getOption(SupportService.SUPPORT_EMAIL_ADDR), options.getOption(SupportService.SUPPORT_EMAIL_SUBJECT),
-      options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED));
-    String enviornment = config.allowTestApis ? "DEVELOPMENT" : "PRODUCTION";
-    final ServerData indexConfig = new ServerData(enviornment, serverHealthMonitor, config.getConfig(), settings);
+      options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED), options.getOption(AccelerationOptions.ENABLE_SUBHOUR_POLICIES));
+    String environment = config.allowTestApis ? "DEVELOPMENT" : "PRODUCTION";
+    final ServerData indexConfig = new ServerData(environment, serverHealthMonitor, config.getConfig(), settings, getVersionInfo(), supportService.getClusterId().getIdentity());
 
     Template tmp = templateCfg.getTemplate("/index.html");
 
@@ -107,6 +120,30 @@ class IndexServlet implements Servlet {
     } catch (TemplateException e) {
       throw new IOException("Error rendering index.html template", e);
     }
+  }
+
+  private VersionInfo getVersionInfo() {
+    String version = DremioVersionInfo.getVersion(); // get dremio version (x.y.z)
+    long buildTime = 0;
+    CommitInfo commitInfo = null;
+
+    try {
+      URL u = Resources.getResource("git.properties");
+
+      if (u != null) {
+        Properties p = new Properties();
+        p.load(Resources.asByteSource(u).openStream());
+        buildTime = DateTime.parse(p.getProperty("git.build.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis();
+        commitInfo = new CommitInfo(
+          p.getProperty("git.commit.id"),
+          p.getProperty("git.build.user.email"),
+          DateTime.parse(p.getProperty("git.commit.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis(),
+          p.getProperty("git.commit.message.short"));
+      }
+    } catch (Exception e) {
+      logger.warn("Failure when trying to access and parse git.properties.", e);
+    }
+    return new VersionInfo(version, buildTime, commitInfo);
   }
 
   @Override

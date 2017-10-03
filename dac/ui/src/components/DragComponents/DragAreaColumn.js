@@ -21,6 +21,7 @@ import Popover from 'material-ui/Popover';
 import FontIcon from 'components/Icon/FontIcon';
 import { SearchField } from 'components/Fields';
 import ColumnDragItem from 'utils/ColumnDragItem';
+import EllipsedText from 'components/EllipsedText';
 
 import { body, formDefault } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
@@ -180,7 +181,7 @@ class DragAreaColumn extends Component {
           key={columnName}
           onClick={!columnDisabled && this.selectColumn.bind(this, columnData)}>
           <FontIcon type={typeToIconType[columnType]} theme={styles.type}/>
-          <span style={[{marginLeft: 5}, disabledStyle]}>{columnName}</span>
+          <EllipsedText style={{...styles.name, ...disabledStyle}} text={columnName} />
         </div>
       );
     });
@@ -239,9 +240,7 @@ class DragAreaColumn extends Component {
     return (
       <div style={[styles.content, styles.largeContent]} key='custom-content'>
         <FontIcon type={typeToIconType[selectedColumn.get('type')]} key='custom-type' theme={styles.type}/>
-        <span style={[styles.name, body]} key='custom-name'>
-          {field.value}
-        </span>
+        <EllipsedText style={{...styles.name, ...body}} text={field.value} />
       </div>
     );
   }
@@ -299,7 +298,8 @@ const styles = {
     display: 'flex',
     width: '100%',
     justifyContent: 'center',
-    opacity: 1
+    opacity: 1,
+    overflow: 'hidden'
   },
   fontIcon: {
     Container: {
@@ -368,14 +368,15 @@ const styles = {
     minHeight: 28,
     backgroundColor: '#f3f3f3',
     borderRadius: 1,
-    marginLeft: 5
+    marginLeft: 5,
+    overflow: 'hidden'
   },
   columnWrap: {
     display: 'flex',
     flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 5,
+    padding: '2px 0',
     minWidth: 100
   },
   dragStyle: {

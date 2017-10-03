@@ -51,7 +51,7 @@ export class EditSourceModal extends Component {
             updateFormDirtyState={updateFormDirtyState}
             hide={this.hide}
             sourceName={query.name}
-            type={query.type}/>
+            sourceType={query.type}/>
         }
       </Modal>
     );

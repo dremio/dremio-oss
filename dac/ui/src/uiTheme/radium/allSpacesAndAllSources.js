@@ -51,9 +51,6 @@ export const listItem = {
 };
 
 export const link = {
-  overflow: 'hidden',
-  whiteSpace: 'nowrap',
-  textOverflow: 'ellipsis',
   textDecoration: 'none',
   color: '#333',
   padding: '0 0 0 3px'

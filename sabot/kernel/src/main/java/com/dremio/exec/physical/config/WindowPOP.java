@@ -130,7 +130,7 @@ public class WindowPOP extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     final BatchSchema childSchema = child.getSchema(context);
     List<NamedExpression> exprs = new ArrayList<>();
     for(Field f : childSchema){

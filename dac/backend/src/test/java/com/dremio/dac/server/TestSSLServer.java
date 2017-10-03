@@ -53,7 +53,7 @@ public class TestSSLServer extends BaseClientUtils {
     final String hostname = FabricServiceImpl.getAddress(false);
     final String localWritePathString = tempFolder.getRoot().getAbsolutePath();
     currentDremioDaemon = DACDaemon.newDremioDaemon(
-        DacConfig
+        DACConfig
             .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
             .masterNode(hostname)
             .autoPort(true)

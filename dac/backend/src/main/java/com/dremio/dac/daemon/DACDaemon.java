@@ -30,7 +30,7 @@ import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.NASSourceConfigurator;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.server.WebServer;
@@ -74,7 +74,7 @@ public final class DACDaemon implements AutoCloseable {
   private final boolean isExecutor;
 
   private WebServer webServer;
-  private final DacConfig dacConfig;
+  private final DACConfig dacConfig;
 
 
   private DACDaemon(
@@ -89,7 +89,8 @@ public final class DACDaemon implements AutoCloseable {
         .withSabotValue(ExecConstants.ZK_CONNECTION, incomingConfig.getString(DremioConfig.ZOOKEEPER_QUORUM))
         .withSabotValue(ExecConstants.INITIAL_USER_PORT, incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
         .withSabotValue(ExecConstants.SPILL_DIRS, incomingConfig.getList(DremioConfig.SPILLING_PATH_STRING))
-        .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS));
+        .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
+        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT));
 
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
@@ -105,7 +106,7 @@ public final class DACDaemon implements AutoCloseable {
     isCoordinator = roles.contains(ClusterCoordinator.Role.COORDINATOR);
     isExecutor = roles.contains(ClusterCoordinator.Role.EXECUTOR);
 
-    this.dacConfig = new DacConfig(config);
+    this.dacConfig = new DACConfig(config);
 
 
     this.masterNode = dacConfig.getMasterNode();
@@ -227,7 +228,7 @@ public final class DACDaemon implements AutoCloseable {
   }
 
   @VisibleForTesting
-  public DacConfig getDacConfig() {
+  public DACConfig getDACConfig() {
     return dacConfig;
   }
 
@@ -244,12 +245,12 @@ public final class DACDaemon implements AutoCloseable {
     }
   }
 
-  public static DACDaemon newDremioDaemon(DacConfig dacConfig, ScanResult scanResult) throws IOException {
+  public static DACDaemon newDremioDaemon(DACConfig dacConfig, ScanResult scanResult) throws IOException {
     return newDremioDaemon(dacConfig, scanResult, new DACDaemonModule(), new NASSourceConfigurator());
   }
 
   public static DACDaemon newDremioDaemon(
-      DacConfig dacConfig,
+      DACConfig dacConfig,
       ScanResult scanResult,
       DACModule dacModule,
       SourceToStoragePluginConfig sourceConfig) throws IOException {
@@ -260,7 +261,7 @@ public final class DACDaemon implements AutoCloseable {
 
   public static void main(final String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
-      DacConfig config = DacConfig.newConfig();
+      DACConfig config = DACConfig.newConfig();
       DACDaemon daemon = newDremioDaemon(config, ClassPathScanner.fromPrescan(config.getConfig().getSabotConfig()));
       daemon.init();
       daemon.closeOnJVMShutDown();

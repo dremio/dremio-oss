@@ -20,7 +20,10 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -34,6 +37,9 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -91,14 +97,14 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       // if partitions, add those to sort.
       final Set<Integer> sortedKeys = Sets.newHashSet();
       if (options.hasPartitions()){
-        List<Integer> partitionKeys = WriterOptions.getFieldIndices(options.getPartitionColumns(), project);
+        List<Integer> partitionKeys = getFieldIndices(options.getPartitionColumns(), project.getRowType());
         sortKeys.addAll(partitionKeys);
         sortedKeys.addAll(partitionKeys);
       }
 
       // if sorted, add those as well.
       if (options.hasSort()) {
-        List<Integer> sortRequestKeys = WriterOptions.getFieldIndices(options.getSortColumns(), project);
+        List<Integer> sortRequestKeys = getFieldIndices(options.getSortColumns(), project.getRowType());
         for(Integer key : sortRequestKeys){
           if(sortedKeys.contains(key)){
             logger.warn("Rejecting sort key {} since it is already included in partition clause.", key);
@@ -108,7 +114,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
         }
       }
 
-      final RelCollation collation = WriterOptions.getCollation(prel.getTraitSet(), sortKeys);
+      final RelCollation collation = getCollation(prel.getTraitSet(), sortKeys);
 
       final Prel sort = new SortPrel(project.getCluster(), project.getTraitSet().plus(collation), project, collation);
 
@@ -116,7 +122,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       // add bucket field.
       fieldIndices.add(sort.getRowType().getFieldCount() - 1);
       if(options.hasPartitions()){
-        fieldIndices.addAll(WriterOptions.getFieldIndices(options.getPartitionColumns(), input));
+        fieldIndices.addAll(getFieldIndices(options.getPartitionColumns(), input.getRowType()));
       }
 
       final Prel changeDetection = addChangeDetectionProject(sort, fieldIndices);
@@ -129,13 +135,13 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
       // sort by partitions.
       final Set<Integer> sortedKeys = Sets.newHashSet();
-      List<Integer> partitionKeys = WriterOptions.getFieldIndices(options.getPartitionColumns(), input);
+      List<Integer> partitionKeys = getFieldIndices(options.getPartitionColumns(), input.getRowType());
       sortKeys.addAll(partitionKeys);
       sortedKeys.addAll(partitionKeys);
 
       // then sort by sort keys, if available.
       if (options.hasSort()) {
-        List<Integer> sortRequestKeys = WriterOptions.getFieldIndices(options.getSortColumns(), input);
+        List<Integer> sortRequestKeys = getFieldIndices(options.getSortColumns(), input.getRowType());
         for(Integer key : sortRequestKeys){
           if(sortedKeys.contains(key)){
             logger.warn("Rejecting sort key {} since it is already included in partition clause.", key);
@@ -145,18 +151,18 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
         }
       }
 
-      final RelCollation collation = WriterOptions.getCollation(prel.getTraitSet(), sortKeys);
+      final RelCollation collation = getCollation(prel.getTraitSet(), sortKeys);
       final Prel sort = new SortPrel(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
 
       // we need to sort by the partitions.
-      final Prel changeDetectionPrel = addChangeDetectionProject(sort, WriterOptions.getFieldIndices(options.getPartitionColumns(), input));
+      final Prel changeDetectionPrel = addChangeDetectionProject(sort, getFieldIndices(options.getPartitionColumns(), input.getRowType()));
       final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetectionPrel, prel.getCreateTableEntry());
       return writer;
 
     } else if(options.hasSort()){
       // no partitions or distributions.
       // insert a sort on sort fields.
-      final RelCollation collation = WriterOptions.getCollation(prel.getTraitSet(), WriterOptions.getFieldIndices(options.getSortColumns(), input));
+      final RelCollation collation = getCollation(prel.getTraitSet(), getFieldIndices(options.getSortColumns(), input.getRowType()));
       final Prel sort = new SortPrel(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
       final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), sort, prel.getCreateTableEntry());
       return writer;
@@ -164,6 +170,28 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     } else {
       return super.visitWriter(prel, value);
     }
+  }
+
+  private static RelCollation getCollation(RelTraitSet set, List<Integer> keys) {
+    return set.canonize(RelCollations.of(FluentIterable.from(keys)
+        .transform(new Function<Integer, RelFieldCollation>() {
+          @Override
+          public RelFieldCollation apply(Integer input) {
+            return new RelFieldCollation(input);
+          }
+        }).toList()));
+  }
+
+  public static List<Integer> getFieldIndices(final List<String> columns, final RelDataType inputRowType) {
+    return FluentIterable.from(columns)
+        .transform(new Function<String, Integer>() {
+          @Override
+          public Integer apply(String input) {
+            return Preconditions.checkNotNull(inputRowType.getField(input, false, false),
+                String.format("Partition column '%s' could not be resolved in the table's column lists", input))
+                .getIndex();
+          }
+        }).toList();
   }
 
 

@@ -376,15 +376,15 @@ describe('ExploreInfoHeader', () => {
       sinon.stub(instance, 'isEditedDataset').returns(true);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
       expect(node.find('FontIcon')).to.have.length(1);
-      expect(node.text()).to.be.contains('displayTable (edited)');
+      expect(node.find('EllipsedText').props().text).to.be.contains('displayTable (edited)');
     });
 
     it('should not render (edited) dataset label when isEditedDataset returns false', () => {
       sinon.stub(instance, 'isEditedDataset').returns(false);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
       expect(node.find('FontIcon')).to.have.length(1);
-      expect(node.text()).to.be.contains('displayTable');
-      expect(node.text()).to.be.not.contains('(edited)');
+      expect(node.find('EllipsedText').props().text).to.be.contains('displayTable');
+      expect(node.find('EllipsedText').props().text).to.be.not.contains('(edited)');
     });
   });
 

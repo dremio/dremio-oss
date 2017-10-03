@@ -16,13 +16,17 @@
 package com.dremio.exec.planner;
 
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlExplainFormat;
@@ -30,6 +34,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
 
+import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substitution;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -39,20 +44,25 @@ import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.proto.UserBitShared.SubstitutionProfile;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 
 public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanCaptureAttemptObserver.class);
 
   private final boolean verbose;
+  private final FunctionImplementationRegistry funcRegistry;
   private final List<PlanPhaseProfile> planPhases = Lists.newArrayList();
   private final Map<Pair<String, String>, LayoutMaterializedViewProfile>
     mapIdToAccelerationProfile = new LinkedHashMap<>();
 
   private String text;
   private String json;
+  private BatchSchema schema;
+  private String schemaJSON;
 
   private boolean accelerated = false;
   private long findMaterializationMillis = 0;
@@ -60,8 +70,9 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private long substitutionMillis = 0;
   private int numSubstitutions = 0;
 
-  public PlanCaptureAttemptObserver(boolean verbose) {
+  public PlanCaptureAttemptObserver(final boolean verbose, final FunctionImplementationRegistry funcRegistry) {
     this.verbose = verbose;
+    this.funcRegistry = funcRegistry;
   }
 
   public AccelerationProfile getAccelerationProfile() {
@@ -141,6 +152,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     if (oldProfile == null) {
       layoutBuilder = LayoutMaterializedViewProfile.newBuilder()
         .setLayoutId(materialization.getLayoutId())
+        .setName(materialization.getLayoutInfo().getName())
         .setMaterializationId(materialization.getMaterializationId())
         .setMaterializationExpirationTimestamp(materialization.getExpirationTimestamp())
         .addAllDimensions(materialization.getLayoutInfo().getDimensions())
@@ -175,6 +187,17 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
+  public void planCompleted(ExecutionPlan plan) {
+    if (plan != null) {
+      try {
+        schema = RootSchemaFinder.getSchema(plan.getRootOperator(), funcRegistry);
+      } catch (Exception e) {
+        logger.warn("Failed to capture query output schema", e);
+      }
+    }
+  }
+
+  @Override
   public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Validation")
@@ -204,7 +227,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
-  public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+  public void planRelTransform(final PlannerPhase phase, RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
     final String planAsString = asString(after);
     final long millisTakenFinalize = (phase.useMaterializations) ? millisTaken - (findMaterializationMillis + normalizationMillis + substitutionMillis) : millisTaken;
     if (phase.useMaterializations) {
@@ -214,11 +237,24 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setPlan("")
         .build());
     }
-    planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName(phase.description)
-      .setDurationMillis(millisTakenFinalize)
-      .setPlan(planAsString)
-      .build());
+
+    PlanPhaseProfile.Builder b = PlanPhaseProfile.newBuilder()
+        .setPhaseName(phase.description)
+        .setDurationMillis(millisTakenFinalize)
+        .setPlan(planAsString);
+
+    // dump state of volcano planner to troubleshoot costing issues.
+    if(verbose && planner != null && planner instanceof VolcanoPlanner) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      ((VolcanoPlanner) planner).dump(pw);
+      pw.flush();
+      String dump = sw.toString();
+      b.setPlannerDump(dump);
+      //System.out.println(Thread.currentThread().getName() + ":\n" + dump);
+    }
+
+    planPhases.add(b.build());
   }
 
   @Override
@@ -265,8 +301,34 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     return json;
   }
 
+  public String getFullSchema() {
+    if (!verbose) {
+      // Sometimes schema is too big especially when the schema has lot of nested columns. Enable only in verbose mode.
+      return null;
+    }
+    if (schema == null) {
+      return "Query output schema is not set in plan observer";
+    }
+
+    if (schemaJSON != null) {
+      return schemaJSON;
+    }
+
+    try {
+      schemaJSON = schema.toJSONString();
+      return schemaJSON;
+    } catch (Exception e) {
+      logger.warn("Failed to serialize query output schema to JSON", e);
+      return "Failed to serialize query output schema to JSON: " + e.getMessage();
+    }
+  }
+
   public String asString(final RelNode plan) {
     if (!verbose) {
+      return "";
+    }
+
+    if(plan == null) {
       return "";
     }
     return RelOptUtil.dumpPlan("", plan, SqlExplainFormat.TEXT, SqlExplainLevel.ALL_ATTRIBUTES);

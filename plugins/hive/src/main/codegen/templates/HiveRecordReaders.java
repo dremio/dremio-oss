@@ -40,6 +40,8 @@ import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 
@@ -55,21 +57,19 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters.Converter;
 import org.apache.hadoop.mapred.RecordReader;
 
-import com.dremio.sabot.exec.context.OperatorContext;
-
-
 public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
   private Object key;
   private Object value;
 
   public Hive${entry.hiveReader}Reader(
-      ReadDefinition def,
+      HiveTableXattr tableAttr,
       DatasetSplit split,
       List<SchemaPath> projectedColumns,
+      List<String> partitionColumns,
       OperatorContext context,
       final HiveConf hiveConf) throws ExecutionSetupException {
-    super(def, split, projectedColumns, context, hiveConf);
+    super(tableAttr, split, projectedColumns, partitionColumns, context, hiveConf);
   }
 
   public  void internalInit(Properties tableProperties, RecordReader<Object, Object> reader) {

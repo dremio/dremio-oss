@@ -20,18 +20,51 @@ import java.io.IOException;
 import com.fasterxml.jackson.core.JsonToken;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 
+/**
+ * JSON parser that just parses records and doesn't write to output.
+ * This reader can unwrap a single root array record and treat it like a set of distinct records.
+ */
 public class CountingJsonReader extends BaseJsonProcessor {
+
+  private boolean inOuterList = false;
 
   @Override
   public ReadState write(BaseWriter.ComplexWriter writer) throws IOException {
-    final JsonToken token = parser.nextToken();
+    JsonToken token = parser.nextToken();
     if (!parser.hasCurrentToken()) {
       return ReadState.END_OF_STREAM;
-    } else if (token != JsonToken.START_OBJECT) {
-      throw new IllegalStateException(String.format("Cannot read from the middle of a record. Current token was %s", token));
     }
+
+    switch (token) {
+      case START_ARRAY:
+        if (inOuterList) {
+          throwIllegalStartException();
+        }
+        token = parser.nextToken();
+        if (token == JsonToken.START_OBJECT) {
+          inOuterList = true;
+        } else {
+          throwIllegalStartException();
+        }
+        break;
+      case START_OBJECT:
+        break;
+      case END_ARRAY:
+        if (inOuterList) {
+          return ReadState.END_OF_STREAM;
+        }
+        throwIllegalStartException();
+      default:
+        throwIllegalStartException();
+    }
+
     parser.skipChildren();
     return ReadState.WRITE_SUCCEED;
+  }
+
+  private void throwIllegalStartException() {
+    throw new IllegalStateException(
+        "The top level of your document must either be a single array of maps or a set of white space delimited maps.");
   }
 
   @Override

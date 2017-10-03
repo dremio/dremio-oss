@@ -20,6 +20,7 @@ import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_CONNE
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_BASE_DELAY;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_MAX_DELAY;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ROOT;
+import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_SESSION_TIMEOUT;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_TIMEOUT;
 
 import java.io.IOException;
@@ -109,6 +110,7 @@ class ZKClusterClient implements com.dremio.service.Service {
     curator = CuratorFrameworkFactory.builder()
       .namespace(zkRoot)
       .connectionTimeoutMs(config.getInt(ZK_TIMEOUT))
+      .sessionTimeoutMs(config.getInt(ZK_SESSION_TIMEOUT))
       .maxCloseWaitMs(config.getMilliseconds(ZK_RETRY_MAX_DELAY).intValue())
       .retryPolicy(rp)
       .connectString(connect)

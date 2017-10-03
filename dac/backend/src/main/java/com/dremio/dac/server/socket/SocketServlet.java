@@ -33,7 +33,6 @@ import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
-import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.socket.SocketMessage.JobDetailsUpdate;
 import com.dremio.dac.server.socket.SocketMessage.JobProgressUpdate;
@@ -207,13 +206,13 @@ public class SocketServlet extends WebSocketServlet {
 
     @Override
     public void profileUpdated(Job job) {
-      final JobDetailsUpdate update = new JobDetailsUpdate(new JobDetailsUI(job));
+      final JobDetailsUpdate update = new JobDetailsUpdate(job.getJobId());
       socket.send(update);
     }
 
     @Override
     public void queryCompleted(Job job) {
-      final JobDetailsUpdate update = new JobDetailsUpdate(new JobDetailsUI(job));
+      final JobDetailsUpdate update = new JobDetailsUpdate(job.getJobId());
       socket.send(update);
     }
 

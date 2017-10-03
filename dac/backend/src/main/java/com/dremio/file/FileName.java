@@ -22,10 +22,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
  * name of a file.
  */
 public class FileName extends LeafEntity {
+  private String name;
 
   @JsonCreator
   public FileName(String name) {
     super(name);
+
+    this.name = name;
   }
 
   @Override

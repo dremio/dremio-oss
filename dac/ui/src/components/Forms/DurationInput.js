@@ -32,7 +32,8 @@ export default class DurationInput extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    style: PropTypes.object
+    style: PropTypes.object,
+    disabled: PropTypes.bool
   };
 
   periodOptions = [ // todo: proper (localized) pluralization
@@ -43,17 +44,17 @@ export default class DurationInput extends Component {
   ];
 
   static constructFields = (duration) => {
-    if (duration > WEEK_IN_MILLISECONDS) {
+    if (duration >= WEEK_IN_MILLISECONDS) {
       return {
         unit: WEEKS,
         duration: Math.ceil(duration / WEEK_IN_MILLISECONDS)
       };
-    } else if (duration > DAY_IN_MILLISECONDS) {
+    } else if (duration >= DAY_IN_MILLISECONDS) {
       return {
         unit: DAYS,
         duration: Math.ceil(duration / DAY_IN_MILLISECONDS)
       };
-    } else if (duration > HOUR_IN_MILLISECONDS) {
+    } else if (duration >= HOUR_IN_MILLISECONDS) {
       return {
         unit: HOURS,
         duration: Math.ceil(duration / HOUR_IN_MILLISECONDS)
@@ -81,16 +82,17 @@ export default class DurationInput extends Component {
   };
 
   render() {
-    const { style, fields: { duration, unit } } = this.props;
+    const { style, disabled, fields: { duration, unit } } = this.props;
 
     return (
       <div style={{...style, display: 'flex'}}>
-        <TextField {...duration} type='number' style={styles.numberInput} step={1} min={1} />
+        <TextField disabled={disabled} {...duration} type='number' style={styles.numberInput} step={1} min={1} />
         <Select
           {...unit}
           items={this.periodOptions}
           buttonStyle={{ textAlign: 'left' }}
           style={styles.select}
+          disabled={disabled}
         />
       </div>
     );

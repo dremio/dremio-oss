@@ -223,7 +223,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
   public static class ElasticField implements Iterable<ElasticField> {
     private final String name;
-    private final Type type;
+    private Type type;
     private final Indexing indexing;
     private final List<String> formats;
     private final ImmutableList<ElasticField> children;
@@ -301,33 +301,46 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       }
 
       if(name != field.name){
-        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
+        this.type = Type.UNKNOWN;
+        field.type = Type.UNKNOWN;
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);
+        return null;
       }
 
       if(type != field.type){
-        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
+        this.type = Type.UNKNOWN;
+        field.type = Type.UNKNOWN;
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "types", type.toString(), field.type.toString());
+        return null;
       }
 
       if(indexing != field.indexing){
-        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
+        this.type = Type.UNKNOWN;
+        field.type = Type.UNKNOWN;
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "indexing schemes", indexing.toString(), field.indexing.toString());
+        return null;
       }
 
       if(!Objects.equal(formats, field.formats)){
-        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
+        this.type = Type.UNKNOWN;
+        field.type = Type.UNKNOWN;
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
+        return null;
       }
 
       if(docValues != field.docValues){
-        throw throwDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
+        this.type = Type.UNKNOWN;
+        field.type = Type.UNKNOWN;
+        logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "doc values storage settings", String.valueOf(docValues), String.valueOf(field.docValues));
+        return null;
       }
 
       // we just have different fields. Let's merge them.
       return new ElasticField(name, type, indexing, formats, docValues, mergeFields(children, field.children, curr_mapping, other_mapping, curr_index, other_index));
     }
 
-    public UserException throwDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
-      return UserException.dataReadError()
-      .message("Unable to merge two different definitions for Field: (%s) with Type: (%s) from (%s.%s) with Field: (%s) with Type: (%s) from (%s.%s) as they are different %s. The %s are %s and %s.", name, type, curr_index, curr_mapping, field.name, field.type, other_index, other_mapping, diff, diff, first, second)
-      .build(logger);
+    public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
+      logger.warn(String.format("Unable to merge two different definitions for Field: (%s) with Type: (%s) from (%s.%s) with Field: (%s) with Type: (%s) from (%s.%s) as they are different %s. The %s are %s and %s.", name, type, curr_index, curr_mapping, field.name, field.type, other_index, other_mapping, diff, diff, first, second));
     }
 
     public static List<ElasticField> mergeFields(List<ElasticField> fieldsA, List<ElasticField> fieldsB, String mappingA, String mappingB, String indexA, String indexB){

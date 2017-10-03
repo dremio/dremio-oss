@@ -215,6 +215,77 @@ public class TestServerJobs extends BaseTestServer {
   }
 
   @Test
+  public void testJobsPerUser() throws Exception {
+    JobsService jobsService = l(JobsService.class);
+    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    // run at least one job
+    getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+    doc("getting list of all jobs");
+    JobsUI allJobs = expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
+    int dsB1Jobs = 0;
+    List<JobListItem> foundJobs = new ArrayList<>();
+    for (JobListItem job : allJobs.getJobs()) {
+      if (Arrays.asList("testB", "dsB1").equals(job.getDatasetPathList())) {
+        dsB1Jobs++;
+        foundJobs.add(job);
+      }
+    }
+    assertEquals(1, dsB1Jobs);
+    doc("getting list of all jobs for dataset testB.dsB1");
+    JobsUI jobsUI = expectSuccess(getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(), JobsUI.class);
+    assertEquals(
+      "from all jobs:\n"
+        + JSONUtil.toString(allJobs.getJobs()) + "\n"
+        + "we found:\n"
+        + JSONUtil.toString(foundJobs) + "\n"
+        + "from dataset testB.dsB1 we found:\n"
+        + JSONUtil.toString(jobsUI.getJobs()),
+      dsB1Jobs, jobsUI.getJobs().size());
+    assertEquals(dsB1Jobs, jobsUI.getJobs().size());
+
+    getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+    jobsUI = expectSuccess(getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(), JobsUI.class);
+    // getting the data 2x on the same version does not create a new job
+    assertEquals(dsB1Jobs, jobsUI.getJobs().size());
+    dsB1Jobs++;
+
+    // get version
+    DatasetUI dsGet = getDataset(new DatasetPath("testB.dsB1"));
+
+    int dsB1JobsVersion = 0;
+    for (JobListItem job : jobsUI.getJobs()) {
+      if (Arrays.asList("testB", "dsB1").equals(job.getDatasetPathList()) &&
+        dsGet.getDatasetVersion().toString().equals(job.getDatasetVersion())) {
+        dsB1JobsVersion++;
+      }
+    }
+
+    DatasetVersion v2 = DatasetVersion.newVersion();
+    doc("Submitting job for dataset testB.dsB1 dataset for version " + v2.getVersion());
+
+    l(JobsService.class).submitJob(getQueryFromConfig(dsGet), QueryType.UI_PREVIEW, getDatasetPath(dsGet).toNamespaceKey(),
+      v2, JobStatusListener.NONE).getData().loadIfNecessary();
+
+    l(JobsService.class).submitJob(new SqlQuery(dsGet.getSql(), dsGet.getContext(), USERNAME), QueryType.UI_PREVIEW, getDatasetPath(dsGet).toNamespaceKey(),
+      v2, JobStatusListener.NONE).getData().loadIfNecessary();
+
+    List<Job> jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), 1000));
+    assertEquals(3, jobs2.size()); // we have already run that query for the latest version in the previous call
+
+    jobs2 = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), dsGet.getDatasetVersion(), 1000));
+    assertEquals(dsB1JobsVersion, jobs2.size());
+
+    jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), dsGet.getDatasetVersion(), DEFAULT_USERNAME, 1000));
+    assertEquals(1, jobs2.size());
+
+    jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), v2, DEFAULT_USERNAME, 1000));
+    assertEquals(1, jobs2.size());
+
+    jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), v2, USERNAME, 1000));
+    assertEquals(1, jobs2.size());
+  }
+
+  @Test
   public void testJobs() throws Exception {
     JobsService jobsService = l(JobsService.class);
     TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());

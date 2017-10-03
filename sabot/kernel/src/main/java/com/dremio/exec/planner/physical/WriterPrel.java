@@ -38,7 +38,6 @@ public class WriterPrel extends WriterRelBase implements Prel {
 
   public WriterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, CreateTableEntry createTableEntry) {
     super(Prel.PHYSICAL, cluster, traits, child, createTableEntry);
-    setRowType();
   }
 
   @Override

@@ -18,9 +18,11 @@ package com.dremio.exec.store.jdbc;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
 
 import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.commons.dbcp.datasources.SharedPoolDataSource;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
 /**
@@ -32,12 +34,13 @@ public final class CompatCreator {
 
   public static final String DB2_DRIVER = "com.ibm.db2.jcc.DB2Driver";
   public static final String MSSQL_DRIVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-  public static final String MSSQL_DATASOURCE = "com.microsoft.sqlserver.jdbc.SQLServerDataSource";
+  public static final String MSSQL_POOLED_DATASOURCE = "com.microsoft.sqlserver.jdbc.SQLServerConnectionPoolDataSource";
   public static final String MYSQL_DRIVER = "org.mariadb.jdbc.Driver";
-  public static final String MYSQL_DATASOURCE = "org.mariadb.jdbc.MariaDbDataSource";
+  public static final String MYSQL_POOLED_DATASOURCE = "org.mariadb.jdbc.MariaDbDataSource";
   public static final String ORACLE_DRIVER = "oracle.jdbc.OracleDriver";
-  public static final String ORACLE_DATASOURCE = "oracle.jdbc.pool.OracleDataSource";
+  public static final String ORACLE_POOLED_DATASOURCE = "oracle.jdbc.pool.OracleConnectionPoolDataSource";
   public static final String POSTGRES_DRIVER = "org.postgresql.Driver";
+  public static final String POSTGRES_POOLED_DATASOURCE = "org.postgresql.ds.PGConnectionPoolDataSource";
   public static final String REDSHIFT_DRIVER = "com.amazon.redshift.jdbc4.Driver";
 
   // Needed for test framework which uses HSQLDB and Derby
@@ -60,7 +63,7 @@ public final class CompatCreator {
 
     case MYSQL_DRIVER: {
       try {
-        final DataSource source = (DataSource) Class.forName(MYSQL_DATASOURCE).newInstance();
+        final ConnectionPoolDataSource source = (ConnectionPoolDataSource) Class.forName(MYSQL_POOLED_DATASOURCE).newInstance();
         MethodUtils.invokeExactMethod(source, "setURL", url);
 
         if(username != null) {
@@ -70,7 +73,11 @@ public final class CompatCreator {
         if(password != null) {
           MethodUtils.invokeExactMethod(source, "setPassword", password);
         }
-        return source;
+
+        SharedPoolDataSource ds = new SharedPoolDataSource();
+        ds.setConnectionPoolDataSource(source);
+        ds.setMaxActive(Integer.MAX_VALUE);
+        return ds;
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Cannot instantiate MySQL datasource", e);
       }
@@ -78,7 +85,7 @@ public final class CompatCreator {
 
     case MSSQL_DRIVER: {
       try {
-        final DataSource source = (DataSource) Class.forName(MSSQL_DATASOURCE).newInstance();
+        final ConnectionPoolDataSource source = (ConnectionPoolDataSource) Class.forName(MSSQL_POOLED_DATASOURCE).newInstance();
         MethodUtils.invokeExactMethod(source, "setURL", url);
 
         if(username != null) {
@@ -88,7 +95,11 @@ public final class CompatCreator {
         if(password != null) {
           MethodUtils.invokeExactMethod(source, "setPassword", password);
         }
-        return source;
+
+        SharedPoolDataSource ds = new SharedPoolDataSource();
+        ds.setConnectionPoolDataSource(source);
+        ds.setMaxActive(Integer.MAX_VALUE);
+        return ds;
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Cannot instantiate MSSQL datasource", e);
       }
@@ -96,7 +107,7 @@ public final class CompatCreator {
 
     case ORACLE_DRIVER: {
       try {
-        final DataSource source = (DataSource) Class.forName(ORACLE_DATASOURCE).newInstance();
+        final ConnectionPoolDataSource source = (ConnectionPoolDataSource) Class.forName(ORACLE_POOLED_DATASOURCE).newInstance();
         MethodUtils.invokeExactMethod(source, "setURL", url);
 
         if(username != null) {
@@ -106,18 +117,27 @@ public final class CompatCreator {
         if(password != null) {
           MethodUtils.invokeExactMethod(source, "setPassword", password);
         }
-        return source;
+        SharedPoolDataSource ds = new SharedPoolDataSource();
+        ds.setConnectionPoolDataSource(source);
+        ds.setMaxActive(Integer.MAX_VALUE);
+        return ds;
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Cannot instantiate Oracle datasource", e);
       }
     }
 
     case POSTGRES_DRIVER:
+      // We cannot use the PGConnectionPoolDataSource in this driver while having the Redshift
+      // driver in the same classpath. The call to SetUrl() parses the URL and discards unrecognized
+      // properties, including the OpenSourceSubProtocolOverride property. Internally when you call
+      // getPooledConnection() with this class, it'll pass its generated URL to the DriverManager, which
+      // leads to the Redshift driver getting loaded.
     case REDSHIFT_DRIVER:
       // they recommend using middleware connection pool, fall through to default impl.
     case DB2_DRIVER:
-      // DB2SimpleDataSource source = new DB2SimpleDataSource();
       // TODO: Figure out how to configure db2. For now, fall through to default behavior.
+      // DB2 has a DB2ConnectionPoolDataSource which implements ConnectionPoolDataSource, but this class does not
+      // have a documented setURL() function, so we can't use it without supplying connection information differently.
     default: {
       final BasicDataSource source = new BasicDataSource();
       // unbounded number of connections since we could have hundreds of queries running many threads simultaneously.

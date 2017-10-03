@@ -37,9 +37,6 @@ import org.slf4j.LoggerFactory;
 public abstract class FlattenTemplate implements Flattener {
   private static final Logger logger = LoggerFactory.getLogger(FlattenTemplate.class);
 
-  private static final int OUTPUT_BATCH_SIZE = 4*1024;
-  private static final int OUTPUT_MEMORY_LIMIT = 512 * 1024 * 1024;
-
   private ImmutableList<TransferPair> transfers;
   private BufferAllocator outputAllocator;
   private SelectionVectorMode svMode;
@@ -49,11 +46,8 @@ public abstract class FlattenTemplate implements Flattener {
   private boolean bigRecords = false;
   private int bigRecordsBufferSize;
 
-  /**
-   * The output batch limit starts at OUTPUT_BATCH_SIZE, but may be decreased
-   * if records are found to be large.
-   */
-  private int outputLimit = OUTPUT_BATCH_SIZE;
+  private long outputLimit;
+  private long outputMemoryLimit;
 
   // this allows for groups to be written between batches if we run out of space, for cases where we have finished
   // a batch on the boundary it will be set to 0
@@ -146,7 +140,7 @@ public abstract class FlattenTemplate implements Flattener {
                   }
                 }
               } else {
-                if (outputAllocator.getAllocatedMemory() > OUTPUT_MEMORY_LIMIT) {
+                if (outputAllocator.getAllocatedMemory() > outputMemoryLimit) {
                   /*
                    * We're dealing with big records. Reduce the outputLimit to
                    * the current record count, and take note of how much space the
@@ -156,17 +150,17 @@ public abstract class FlattenTemplate implements Flattener {
                   bigRecords = true;
                   outputLimit = Math.min(recordsThisCall, outputLimit);
                   if (outputLimit < 1) {
-                    throw new IllegalStateException("flatten outputLimit (" + outputLimit
-                        + ") won't make progress");
-                  }
+                    outputLimit = 1;
+                    bigRecordsBufferSize = monitor.getBufferSizeFor(1);
+                  } else {
 
                   /*
                    * This will differ from what the allocator reports because of
                    * overhead. But the allocator check is much cheaper to do, so we
                    * only compute this at selected times.
                    */
-                  bigRecordsBufferSize = monitor.getBufferSizeFor(recordsThisCall);
-
+                    bigRecordsBufferSize = monitor.getBufferSizeFor(recordsThisCall);
+                  }
                   // Stop and flush.
                   break outer;
                 }
@@ -274,7 +268,9 @@ public abstract class FlattenTemplate implements Flattener {
   }
 
   @Override
-  public final void setup(BufferAllocator allocator, FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing, List<TransferPair> transfers, ComplexWriterCreator complexWriterCollector)  throws SchemaChangeException{
+  public final void setup(BufferAllocator allocator, FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing,
+                          List<TransferPair> transfers, ComplexWriterCreator complexWriterCollector,
+                          long outputMemoryLimit, long outputBatchSize)  throws SchemaChangeException{
 
     this.svMode = incoming.getSchema().getSelectionVectorMode();
     switch (svMode) {
@@ -285,6 +281,8 @@ public abstract class FlattenTemplate implements Flattener {
     }
     this.transfers = ImmutableList.copyOf(transfers);
     outputAllocator = allocator;
+    this.outputMemoryLimit = outputMemoryLimit;
+    this.outputLimit = outputBatchSize;
     doSetup(context, incoming, outgoing, complexWriterCollector);
   }
 

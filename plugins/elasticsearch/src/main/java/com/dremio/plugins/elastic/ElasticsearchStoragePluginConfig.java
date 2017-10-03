@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic;
 
 import java.util.Objects;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.store.StoragePluginConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -54,6 +55,7 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
   private final String username;
   private final String password;
   private final boolean enableSSL;
+  private final boolean enableWhitelist;
 
   /**
    * Construct a new elasticsearch storage plugin configuration.
@@ -79,7 +81,13 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
                                           @JsonProperty("enable_id_column") boolean enableIdColumn,
                                           @JsonProperty("username") String username,
                                           @JsonProperty("password") String password,
-                                          @JsonProperty("enable_ssl") boolean enableSSL) {
+                                          @JsonProperty("enable_ssl") boolean enableSSL,
+                                          @JsonProperty("enable_whitelist") boolean enableWhitelist) {
+    if (batchSize < 128 || batchSize > 65535) {
+      throw UserException.validationError()
+        .message("Failure creating ElasticSearch connection. The valid range for scroll size is 128 - 65535.")
+        .build();
+    }
     this.hosts = hosts;
     this.batchSize = batchSize;
     this.scrollTimeoutMillis = scrollTimeoutMillis;
@@ -91,6 +99,7 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
     this.username = username;
     this.password = password;
     this.enableSSL = enableSSL;
+    this.enableWhitelist = enableWhitelist;
   }
 
   @JsonProperty("hosts")
@@ -171,6 +180,11 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
     return enableSSL;
   }
 
+  @JsonProperty("enable_whitelist")
+  public boolean isEnableWhitelist() {
+    return enableWhitelist;
+  }
+
   @Override
   public boolean equals(final Object o) {
     if (this == o) {
@@ -188,12 +202,13 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
         Objects.equals(hosts, that.hosts) &&
         Objects.equals(username, that.username) &&
         Objects.equals(password, that.password) &&
-        enableSSL == that.enableSSL;
+        enableSSL == that.enableSSL &&
+        enableWhitelist == this.enableWhitelist;
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-      hosts, batchSize, scrollTimeoutMillis, readTimeoutMillis, enableScripts, enableIdColumn, username, password, enableSSL);
+      hosts, batchSize, scrollTimeoutMillis, readTimeoutMillis, enableScripts, enableIdColumn, username, password, enableSSL, enableWhitelist);
   }
 }

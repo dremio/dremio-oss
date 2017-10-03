@@ -183,9 +183,9 @@ export class InnerJoin extends Component {
             path={this.props.customPath}/>
         </div>
         <div style={styles.center}>
-          <div style={[styles.add]} onClick={this.props.addEmptyColumnToInnerJoin}>
+          <div style={[styles.add]} onClick={this.props.addEmptyColumnToInnerJoin}> {/* todo: ax, consistency: button */}
             <FontIcon type='Add' hoverType='AddHover'/>
-            <span style={{marginBottom: 3}}>Add Another Join Condition</span>
+            <span style={{marginBottom: 3}}>{la('Add a Join Condition')}</span>
           </div>
         </div>
       </div>

@@ -188,7 +188,7 @@ public class CommandCreator {
           return getSqlCommand(query.getPlan(), false);
 
         case PHYSICAL: // should be deprecated once tests are removed.
-          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer, query.getPlan());
+          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer, query.getPlanBytes());
 
         default:
           throw new IllegalArgumentException(

@@ -17,6 +17,7 @@ package com.dremio.sabot.op.flatten;
 
 import java.util.List;
 
+import com.dremio.exec.ExecConstants;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
@@ -143,6 +144,8 @@ public class FlattenOperator implements SingleInputOperator {
 
 
     this.flattener = cg.getCodeGenerator().getImplementationClass();
+    long outputMemoryLimit = context.getOptions().getOption(ExecConstants.FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT);
+
     flattener.setup(
         context.getAllocator(),
         context.getClassProducer().getFunctionContext(),
@@ -157,7 +160,9 @@ public class FlattenOperator implements SingleInputOperator {
             complexWriters.add(writer);
             return writer;
           }
-        }
+        },
+        outputMemoryLimit,
+        context.getTargetBatchSize()
         );
 
     try {
@@ -172,6 +177,7 @@ public class FlattenOperator implements SingleInputOperator {
     }
 
     outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
 
     state = State.CAN_CONSUME;
     return outgoing;

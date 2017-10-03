@@ -33,8 +33,8 @@ function postUploadToPath(parentEntity, file, fileConfig, extension, viewId) {
   const uploadFileName = fileConfig.name || file.name;
   formData.append('file', file, uploadFileName);
   formData.append('fileConfig', JSON.stringify(fileConfig));
+  formData.append('fileName', uploadFileName);
   const parentPath = parentEntity.getIn(['links', 'upload_start']);
-  const resourcePath = `${parentPath}/${encodeURIComponent(uploadFileName)}`;
   const meta = {viewId};
   return {
     [CALL_API]: {
@@ -45,7 +45,7 @@ function postUploadToPath(parentEntity, file, fileConfig, extension, viewId) {
       ],
       method: 'POST',
       body: formData,
-      endpoint: `${API_URL_V2}${resourcePath}?extension=${extension}`
+      endpoint: `${API_URL_V2}${parentPath}/?extension=${extension}`
     }
   };
 }

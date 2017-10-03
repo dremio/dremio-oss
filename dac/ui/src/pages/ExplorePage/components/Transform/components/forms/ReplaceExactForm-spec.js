@@ -18,7 +18,12 @@ import { shallow } from 'enzyme';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
 
-import { ReplaceExactForm } from './ReplaceExactForm';
+import {
+  INTEGER,
+  TEXT
+} from '../../../../../../constants/DataTypes';
+
+import { ReplaceExactForm, getInitialReplaceValue } from './ReplaceExactForm';
 
 describe('ReplaceExactForm', () => {
   let minimalProps;
@@ -172,6 +177,20 @@ describe('ReplaceExactForm', () => {
         ...filterMappers.getCommonFilterValues(expectedValues, transform),
         filter: filterMappers.mapFilterExcludeValues(expectedValues,  commonProps.transform.get('columnType'))
       });
+    });
+  });
+
+  describe('#getInitialReplaceValue', () => {
+    it('should display firstCardValue if there is no selection', () => {
+      expect(getInitialReplaceValue('', INTEGER, 'foo')).to.eql('foo');
+    });
+    it('should display firstCardValue if selection is null or undefined', () => {
+      expect(getInitialReplaceValue(null, INTEGER, 'foo')).to.eql('foo');
+      expect(getInitialReplaceValue(undefined, INTEGER, 'foo')).to.eql('foo');
+    });
+    it('should display the parsed cellText otherwise', () => {
+      expect(getInitialReplaceValue('0', INTEGER, 'foo')).to.eql(0);
+      expect(getInitialReplaceValue('bar', TEXT, 'foo')).to.eql('bar');
     });
   });
 });

@@ -26,12 +26,8 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
-import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
-import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.server.options.OptionManager;
 import com.google.common.base.Preconditions;
-
-import com.google.common.collect.ImmutableList;
 
 /**
  * Will submit a query locally without going through the client
@@ -72,7 +68,8 @@ public interface LocalQueryExecutor {
     private final boolean storeQueryResults;
     private final boolean internalSingleThreaded;
     private final String queryResultsStorePath;
-    private final List<String> exclusions;
+    private final SubstitutionSettings materializationSettings;
+    private final boolean exposeInternalSources;
 
     /**
      * @param enableLeafLimits to reduce the size of the input of a query
@@ -84,14 +81,18 @@ public interface LocalQueryExecutor {
      * @param storeQueryResults to store the query results instead of returning. When enabled metadata about the stored
      *                          results is returned as job results. Actual job results are stored in given table
      *                          path <code>queryResultsStorePath</code>
+     * @param internalSingleThreaded if query should be run as single threaded (used for internal queries)
      * @param queryResultsStorePath table path where to store the query results.
      *                              Must be non-null when <code>storeQueryResults</code> is true.
-     * @param exclusions list of acceleration identifiers that will be excluded from query acceleration
+     * @param allowPartitionPruning if partition pruning is allowed
+     * @param exposeInternalSources if internal schemas should be exposed (used for internal queries)
+     * @param materializationsettings settings related to materialization.
      */
     public LocalExecutionConfig(final boolean enableLeafLimits, final long maxQueryWidth,
                                 final boolean failIfNonEmptySent, final String username, final List<String> sqlContext,
                                 final boolean storeQueryResults, final boolean internalSingleThreaded, final String queryResultsStorePath,
-                                final List<String> exclusions, final boolean allowPartitionPruning) {
+                                final boolean allowPartitionPruning, final boolean exposeInternalSources,
+                                final SubstitutionSettings materializationSettings) {
       this.enableLeafLimits = enableLeafLimits;
       this.maxQueryWidth = maxQueryWidth;
       this.failIfNonEmptySent = failIfNonEmptySent;
@@ -101,20 +102,25 @@ public interface LocalQueryExecutor {
       this.internalSingleThreaded = internalSingleThreaded;
       Preconditions.checkArgument(!storeQueryResults || (storeQueryResults && queryResultsStorePath != null));
       this.queryResultsStorePath = queryResultsStorePath;
-      this.exclusions = exclusions == null ? ImmutableList.<String>of() : exclusions;
+      this.materializationSettings = materializationSettings == null ? SubstitutionSettings.of() : materializationSettings;
       this.allowPartitionPruning = allowPartitionPruning;
+      this.exposeInternalSources = exposeInternalSources;
     }
 
     public String getUsername() {
       return username;
     }
 
+    public boolean exposeInternalSources() {
+      return exposeInternalSources;
+    }
+
     public List<String> getSqlContext() {
       return sqlContext;
     }
 
-    public List<String> getExclusions() {
-      return exclusions;
+    public SubstitutionSettings getMaterializationSettings() {
+      return materializationSettings;
     }
 
     public boolean isFailIfNonEmptySent() {

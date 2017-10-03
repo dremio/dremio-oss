@@ -19,10 +19,13 @@ import Immutable from 'immutable';
 
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import FontIcon from 'components/Icon/FontIcon';
+import EllipsedText from 'components/EllipsedText';
 
 import { body } from 'uiTheme/radium/typography';
 
 import SortDragArea from './components/SortDragArea';
+
+// TODO: DRY and fix with Join/Group BY
 
 @Radium
 class SortMultiply extends Component {
@@ -44,14 +47,14 @@ class SortMultiply extends Component {
   }
 
   render() {
-    return (
+    return ( // todo: loc
       <div className='inner-join' style={[styles.base]} onMouseUp={this.props.handleDragStop}>
         <div style={[styles.header]}>
           <div style={[styles.name, body]}>
-            {this.props.dataset.getIn(['displayFullPath', -1])}  Fields:
+            <EllipsedText text={`“${this.props.dataset.getIn(['displayFullPath', -1])}” fields:`}/>
           </div>
           <div style={[styles.name, body, {borderRight: 'none'}]}>
-            Sort Fields:
+            {la('Sort fields:')}
           </div>
         </div>
         <div style={[styles.inner]}>
@@ -63,7 +66,7 @@ class SortMultiply extends Component {
             handleDragStart={this.props.handleDragStart}
             dragType={this.props.dragType}
             style={[styles.dragNameStyle]}
-            name={this.props.path + ' (Current)'}/>
+            name={this.props.path + ' <current>'}/>
           <SortDragArea
             columnsField={this.props.columnsField}
             allColumns={this.props.columns}
@@ -74,9 +77,9 @@ class SortMultiply extends Component {
         </div>
         <span
           style={[styles.addJoinStyle, body]}
-          onClick={this.props.addAnother}>
+          onClick={this.props.addAnother}> {/* todo: ax, consistency: button */}
           <FontIcon type='Add' hoverType='AddHover' theme={{Container: {display: 'flex', alignItems: 'center'}}}/>
-          Add Another Sort Field
+          {la('Add a Sort Field')}
         </span>
       </div>
     );
@@ -94,7 +97,7 @@ const styles = {
     alignItems: 'center',
     paddingLeft: 10,
     height: 26,
-    width: 220,
+    width: 241, // +1 from style.dragNameStyle
     borderRight: '1px solid rgba(0,0,0,0.10)'
   },
   header: {
@@ -157,8 +160,8 @@ const styles = {
     display: 'inline-block'
   },
   dragNameStyle: {
-    width: 219,
-    minWidth: 219
+    width: 240, // -1 from styles.name
+    minWidth: 240 // -1 from styles.name
   }
 };
 

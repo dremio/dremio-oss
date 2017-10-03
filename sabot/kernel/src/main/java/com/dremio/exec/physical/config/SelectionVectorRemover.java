@@ -47,7 +47,7 @@ public class SelectionVectorRemover extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return child.getSchema(context).clone(SelectionVectorMode.NONE);
   }
 

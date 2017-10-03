@@ -15,6 +15,10 @@
  */
 package com.dremio.sabot.op.join.hash;
 
+import static com.dremio.sabot.op.common.hashtable.HashTable.BUILD_RECORD_LINK_SIZE;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -44,7 +48,6 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
@@ -62,11 +65,7 @@ import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JVar;
 
-import io.netty.buffer.ArrowBuf;
-
 public class HashJoinOperator implements DualInputOperator {
-  public static final long ALLOCATOR_INITIAL_RESERVATION = 1 * 1024 * 1024;
-  public static final long ALLOCATOR_MAX_RESERVATION = 20L * 1000 * 1000 * 1000;
 
   private long outputRecords;
 
@@ -98,7 +97,7 @@ public class HashJoinOperator implements DualInputOperator {
   private final HashTableStats htStats;
 
   // A structure that parallels the
-  private final List<SelectionVector4> startIndices = new ArrayList<>();
+  private final List<ArrowBuf> startIndices = new ArrayList<>();
 
   // List of BuildInfo structures. Used to maintain auxiliary information about the build batches
   // There is one of these for each incoming batch of records
@@ -154,6 +153,7 @@ public class HashJoinOperator implements DualInputOperator {
     outgoing.addSchema(right.getSchema());
     outgoing.addSchema(left.getSchema());
     outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     this.hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
 
     setupHashTable();
@@ -283,7 +283,7 @@ public class HashJoinOperator implements DualInputOperator {
   private class Listener implements BatchAddedListener {
     @Override
     public void batchAdded() {
-      startIndices.add(getNewSV4(HashTable.BATCH_SIZE));
+      startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
     }
   }
 
@@ -302,9 +302,9 @@ public class HashJoinOperator implements DualInputOperator {
       final JVar inVV = g.declareVectorValueSetupAndMember("buildBatch", new TypedFieldId(CompleteType.fromField(field), true, fieldId));
       final JVar outVV = g.declareVectorValueSetupAndMember("outgoing", new TypedFieldId(CompleteType.fromField(field), false, fieldId));
       g.getEvalBlock().add(outVV.invoke("copyFromSafe")
-          .arg(buildIndex.band(JExpr.lit((int) Character.MAX_VALUE)))
+          .arg(JExpr.cast(g.getModel().INT, buildIndex.band(JExpr.lit((int) Character.MAX_VALUE))))
           .arg(outIndex)
-          .arg(inVV.component(buildIndex.shrz(JExpr.lit(16)))));
+          .arg(inVV.component(JExpr.cast(g.getModel().INT, buildIndex.shrz(JExpr.lit(16))))));
 
       fieldId++;
     }
@@ -349,7 +349,7 @@ public class HashJoinOperator implements DualInputOperator {
 
   private void addNewBatch(int recordCount) throws SchemaChangeException {
     // Add a node to the list of BuildInfo's
-    BuildInfo info = new BuildInfo(getNewSV4(recordCount), new BitSet(recordCount), recordCount);
+    BuildInfo info = new BuildInfo(newLinksBuffer(recordCount), new BitSet(recordCount), recordCount);
     buildInfoList.add(info);
   }
 
@@ -363,51 +363,62 @@ public class HashJoinOperator implements DualInputOperator {
     int hashTableBatch  = hashTableIndex / HashTable.BATCH_SIZE;
     int hashTableOffset = hashTableIndex % HashTable.BATCH_SIZE;
 
-    SelectionVector4 startIndex = startIndices.get(hashTableBatch);
-    int linkIndex;
+    final ArrowBuf startIndex = startIndices.get(hashTableBatch);
+    final long startIndexMemStart = startIndex.memoryAddress() + hashTableOffset * BUILD_RECORD_LINK_SIZE;
 
     // If head of the list is empty, insert current index at this position
-    if ((linkIndex = (startIndex.get(hashTableOffset))) == INDEX_EMPTY) {
-      startIndex.set(hashTableOffset, buildBatch, incomingRecordIndex);
+    final int linkBatch = PlatformDependent.getInt(startIndexMemStart);
+    if (linkBatch == INDEX_EMPTY) {
+      PlatformDependent.putInt(startIndexMemStart, buildBatch);
+      PlatformDependent.putShort(startIndexMemStart + 4, (short) incomingRecordIndex);
     } else {
-      /* Head of this list is not empty, if the first link
-       * is empty insert there
-       */
-      hashTableBatch = linkIndex >>> SHIFT_SIZE;
-      hashTableOffset = linkIndex & Character.MAX_VALUE;
-
-      SelectionVector4 link = buildInfoList.get(hashTableBatch).getLinks();
-      int firstLink = link.get(hashTableOffset);
-
-      if (firstLink == INDEX_EMPTY) {
-        link.set(hashTableOffset, buildBatch, incomingRecordIndex);
-      } else {
-        /* Insert the current value as the first link and
-         * make the current first link as its next
+        /* Head of this list is not empty, if the first link
+         * is empty insert there
          */
-        int firstLinkBatchIdx  = firstLink >>> SHIFT_SIZE;
-        int firstLinkOffsetIDx = firstLink & Character.MAX_VALUE;
+      hashTableBatch = linkBatch;
+      hashTableOffset = PlatformDependent.getShort(startIndexMemStart + 4);
 
-        SelectionVector4 nextLink = buildInfoList.get(buildBatch).getLinks();
-        nextLink.set(incomingRecordIndex, firstLinkBatchIdx, firstLinkOffsetIDx);
+      final ArrowBuf firstLink = buildInfoList.get(hashTableBatch).getLinks();
+      final long firstLinkMemStart = firstLink.memoryAddress() + hashTableOffset * BUILD_RECORD_LINK_SIZE;
 
-        link.set(hashTableOffset, buildBatch, incomingRecordIndex);
+      final int firstLinkBatch = PlatformDependent.getInt(firstLinkMemStart);
+
+      if (firstLinkBatch == INDEX_EMPTY) {
+        PlatformDependent.putInt(firstLinkMemStart, buildBatch);
+        PlatformDependent.putShort(firstLinkMemStart + 4, (short) incomingRecordIndex);
+      } else {
+          /* Insert the current value as the first link and
+           * make the current first link as its next
+           */
+        final short firstLinkOffset = PlatformDependent.getShort(firstLinkMemStart + 4);
+
+        final ArrowBuf nextLink = buildInfoList.get(buildBatch).getLinks();
+        final long nextLinkMemStart = nextLink.memoryAddress() + incomingRecordIndex * BUILD_RECORD_LINK_SIZE;
+
+        PlatformDependent.putInt(nextLinkMemStart, firstLinkBatch);
+        PlatformDependent.putShort(nextLinkMemStart + 4, firstLinkOffset);
+
+        // As the existing (batch, offset) pair is moved out of firstLink into nextLink,
+        // now put the new (batch, offset) in the firstLink
+        PlatformDependent.putInt(firstLinkMemStart, buildBatch);
+        PlatformDependent.putShort(firstLinkMemStart + 4, (short) incomingRecordIndex);
       }
     }
   }
 
-  public SelectionVector4 getNewSV4(int recordCount) throws SchemaChangeException {
+  public ArrowBuf newLinksBuffer(int recordCount) {
+    // Each link is 6 bytes.
+    // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
+    final ArrowBuf linkBuf = context.getAllocator().buffer(recordCount * BUILD_RECORD_LINK_SIZE);
 
-    final ArrowBuf vector = context.getAllocator().buffer((recordCount * 4));
-
-    SelectionVector4 sv4 = new SelectionVector4(vector, recordCount, recordCount);
-
-    // Initialize the vector
-    for (int i = 0; i < recordCount; i++) {
-      sv4.set(i, INDEX_EMPTY);
+    // Initialize the buffer. Write -1 (int) in the first four bytes.
+    long bufOffset = linkBuf.memoryAddress();
+    final long maxBufOffset = bufOffset + recordCount * BUILD_RECORD_LINK_SIZE;
+    for(; bufOffset < maxBufOffset; bufOffset += BUILD_RECORD_LINK_SIZE) {
+      PlatformDependent.putInt(bufOffset, INDEX_EMPTY);
     }
 
-    return sv4;
+    return linkBuf;
   }
 
   @Override

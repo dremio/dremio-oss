@@ -16,13 +16,16 @@
 package com.dremio.service.accelerator;
 
 import com.dremio.datastore.IndexedStore;
+import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.service.Service;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.AccelerationEntry;
 import com.dremio.service.accelerator.proto.AccelerationId;
+import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationId;
+import com.dremio.service.accelerator.proto.MaterializedLayout;
 import com.dremio.service.accelerator.proto.SystemSettings;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.namespace.NamespaceKey;
@@ -46,6 +49,16 @@ public interface AccelerationService extends Service {
    * @param id look-up id
    */
   Optional<Acceleration> getAccelerationById(AccelerationId id);
+
+  /**
+   * @return acceleration associated with given layoutId, if any
+   */
+  Optional<Acceleration> getAccelerationByLayoutId(LayoutId layoutId);
+
+  /**
+   * @return retrieve layout by Id
+   */
+  Optional<Layout> getLayout(LayoutId layoutId);
 
   /**
    * Returns an optional of acceleration entry associated with the given id
@@ -147,5 +160,18 @@ public interface AccelerationService extends Service {
    */
   @VisibleForTesting
   DeveloperAccelerationService developerService();
+
+  /**
+   * return MaterializationDescriptorProvider
+   * @return MaterializationDescriptorProvider
+   */
+  MaterializationDescriptorProvider getMaterlizationProvider();
+
+  /**
+   * returns MaterializedLayout for the given layout
+   * @param layoutId
+   * @return
+   */
+  Optional<MaterializedLayout> getMaterializedLayout(LayoutId layoutId);
 
 }

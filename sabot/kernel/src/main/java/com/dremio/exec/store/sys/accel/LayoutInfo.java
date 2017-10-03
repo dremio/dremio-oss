@@ -26,9 +26,10 @@ public class LayoutInfo {
   public String partitions;
   public String distributions;
   public String sorts;
+  public String state;
 
   public LayoutInfo(String accelerationId, String layoutId, String type, String display, String dimensions,
-      String measures, String partition, String distribution, String sort) {
+      String measures, String partition, String distribution, String sort, String state) {
     super();
     this.acceleration_id = accelerationId;
     this.layout_id = layoutId;
@@ -39,6 +40,7 @@ public class LayoutInfo {
     this.partitions = partition;
     this.distributions = distribution;
     this.sorts = sort;
+    this.state = state;
   }
 
 

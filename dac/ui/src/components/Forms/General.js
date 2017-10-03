@@ -26,10 +26,6 @@ import AccelerationSection from './AccelerationSection';
 
 @GeneralMixin
 export default class General extends Component {
-  static contextTypes = {
-    username: PropTypes.string
-  };
-
   static propTypes = {
     fields: PropTypes.object,
     editing: PropTypes.bool,
@@ -43,11 +39,14 @@ export default class General extends Component {
   };
 
   static validate(values) {
-    return applyValidators(values, [isRequired('name')]);
+    return {
+      ...AccelerationSection.validate(values),
+      ...applyValidators(values, [isRequired('name')])
+    };
   }
 
   render() {
-    const { fields: { name, description, owner }, editing } = this.props;
+    const { fields: { name, description }, editing } = this.props;
 
     // TextFields have a set width, so we override them using flexes here to use all the available space
     const fieldWithErrorStyle = {display: 'flex', flex: 1, flexDirection: 'column'};
@@ -62,11 +61,6 @@ export default class General extends Component {
               style={fieldWithErrorStyle}>
               <div style={fieldWithErrorDivStyle}>
                 <TextField initialFocus {...name} disabled={editing} style={{flex: 1}}/>
-              </div>
-            </FieldWithError>
-            <FieldWithError errorPlacement='top' label={la('Creator')} {...owner} style={fieldWithErrorStyle}>
-              <div style={fieldWithErrorDivStyle}>
-                <TextField value={this.context.username} name='owner' style={{flex: 1}} disabled/>
               </div>
             </FieldWithError>
           </div>

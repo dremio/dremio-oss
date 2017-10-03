@@ -18,6 +18,7 @@ import PureRender from 'pure-render-decorator';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import jobsUtils from 'utils/jobsUtils';
+import FileUtils from 'utils/FileUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import FontIcon from 'components/Icon/FontIcon';
 import CodeMirror from 'components/CodeMirror';
@@ -131,11 +132,11 @@ class DetailsContent extends Component {
               <ListItem label={la('Average Wait on Source')}>
                 <span>{jobsUtils.msToHHMMSS(datasetProfile.get('waitOnSource'))}</span>
               </ListItem>
-              <ListItem label={la('Bytes Read')}>
-                <span>{datasetProfile.get('bytesRead')} bytes</span>
+              <ListItem label={la('Read')}>
+                <span>{FileUtils.getFormattedBytes(datasetProfile.get('bytesRead'))}</span>
               </ListItem>
               <ListItem label={la('Records Read')}>
-                <span>{datasetProfile.get('recordsRead')} bytes</span>
+                <span>{datasetProfile.get('recordsRead')}</span>
               </ListItem>
               {datasetProfile.get('pushdownQuery') ? this.getCodeMirrorItem(datasetProfile.get('pushdownQuery')) : null}
               {datasetProfile.get('dataVolumeInBytes') ? this.getFsDatasetData(item) : null}

@@ -59,7 +59,8 @@ describe('AccelerationAggregation', () => {
         dimensionFieldList: [],
         measureFieldList: [],
         partitionFieldList: [],
-        sortFieldList: []
+        sortFieldList: [],
+        partitionDistributionStrategy: 'CONSOLIDATED'
       }
     };
     instance.addNewLayout();

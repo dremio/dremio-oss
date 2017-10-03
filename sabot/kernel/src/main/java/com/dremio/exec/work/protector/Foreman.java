@@ -18,6 +18,7 @@ package com.dremio.exec.work.protector;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.PlannerPhase;
@@ -253,25 +254,26 @@ public class Foreman {
 
     @Override
     public void execDataArrived(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
-
       try {
+        // any failures here should notify the listener and release the batches
         result = attemptHandler.convertIfNecessary(result);
-        super.execDataArrived(outcomeListener, result);
       } catch (Exception ex) {
         outcomeListener.failed(RpcException.mapException(ex));
-        // release the batch
         for (ByteBuf byteBuf : result.getBuffers()) {
           byteBuf.release();
         }
+        return;
       }
+
+      super.execDataArrived(outcomeListener, result);
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       if (phase == PlannerPhase.PHYSICAL) {
         containsHashAgg = containsHashAggregate(after);
       }
-      super.planRelTransform(phase, before, after, millisTaken);
+      super.planRelTransform(phase, planner, before, after, millisTaken);
     }
 
     @Override

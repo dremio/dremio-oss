@@ -133,3 +133,9 @@ table.table>thead>tr>th {
   height: 28px;
   font-size: 11px;
 }
+
+/* limit height of pres in profiles */
+#query-content pre {
+  max-height: 300px;
+  overflow: auto;
+}

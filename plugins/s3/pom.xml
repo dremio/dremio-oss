@@ -26,10 +26,10 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugin</groupId>
-    <version>1.1.0-201708121825170680-436784e</version>
+    <version>1.2.1-201710030121530889-8e49316</version>
   </parent>
 
-  <version>1.1.0-201708121825170680-436784e</version>
+  <version>1.2.1-201710030121530889-8e49316</version>
   <artifactId>dremio-s3-plugin</artifactId>
   <name>Plugins - S3 Plugin</name>
   <packaging>jar</packaging>

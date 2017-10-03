@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.commands;
 
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
@@ -94,7 +96,16 @@ class FragmentStarter {
 
     // record all fragments for status purposes.
     for (final PlanFragment planFragment : fragments) {
-      logger.trace("Tracking intermediate remote node {} with data {}", planFragment.getAssignment(), planFragment.getFragmentJson());
+      if (logger.isTraceEnabled()) {
+        // planFragment.getFragmentJson() might be costly (internal ByteString <-> String conversion)
+        try {
+          logger.trace("Tracking intermediate remote node {} with data {}",
+              planFragment.getAssignment(),
+              PhysicalPlanReader.toString(planFragment.getFragmentJson(), planFragment.getFragmentCodec()));
+        } catch (IOException e) {
+          logger.warn("Error when trying to read fragment", e);
+        }
+      }
       if (planFragment.getLeafFragment()) {
         leafFragmentMap.put(planFragment.getAssignment(), planFragment);
       } else {

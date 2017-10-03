@@ -14,17 +14,25 @@
  * limitations under the License.
  */
 import Raven from 'raven-js';
+import uuid from 'uuid';
+import { getVersionWithEdition } from 'dyn-load/utils/versionUtils';
 import config, { isProductionServer } from './config';
 
 class SentryUtil {
 
-  install(releaseId) {
+  // we'd really like to have a uuid for the error, but cross-referencing sentry with the UI
+  // will be prone to timing issues. So just creating a session UUID that we can use - it should be
+  // good enough to find records given a report.
+  sessionUUID = uuid.v4();
+
+  install() {
     if (isProductionServer() && !config.outsideCommunicationDisabled) {
-      Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@app.getsentry.com/66750', {
-        release: releaseId
+      Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750', {
+        release: getVersionWithEdition(),
+        serverName: config.clusterId
       }).install();
-      Raven.setUserContext({
-        email: config.email // todo: this isn't set up by anything?
+      Raven.setExtraContext({
+        sessionUUID: this.sessionUUID
       });
     }
   }

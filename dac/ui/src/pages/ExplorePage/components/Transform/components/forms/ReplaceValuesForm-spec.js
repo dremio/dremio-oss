@@ -49,7 +49,7 @@ describe('ReplaceValuesForm', () => {
       replaceTitleType: 'pattern',
       replaceType: 'VALUE',
       replacementValue: 'ss',
-      replaceValues: { 'address1': true }
+      replaceValues: ['address1']
     };
     newValues = {
       ...values,
@@ -84,6 +84,12 @@ describe('ReplaceValuesForm', () => {
       });
     });
 
+    it('should reject the promise and not return submit if numSelected is 0', () => {
+      const emptyValues = {...values, replaceValues: []};
+      const wrapper = shallow(<ReplaceValuesForm {...commonProps}/>);
+      expect(wrapper.instance().submit(emptyValues)).to.be.rejected;
+    });
+
 
     it('should return correct values on submit when transformType=keeponly', () => {
       const transform = Immutable.Map({
@@ -109,9 +115,7 @@ describe('ReplaceValuesForm', () => {
       const booleanValues = {
         ...values,
         replacementValue: 'false',
-        replaceValues: {
-          'true': 'true'
-        }
+        replaceValues: ['true']
       };
       const mapValues = {
         ...values,
@@ -148,14 +152,4 @@ describe('ReplaceValuesForm', () => {
     });
   });
 
-  describe('getCheckedValues', () => {
-    it('should return checked keys', () => {
-      const instance = shallow(<ReplaceValuesForm {...minimalProps}/>).instance();
-      expect(instance.getCheckedValues({
-        'k1': true,
-        'k2': false,
-        'k3': true
-      })).to.eql(['k1', 'k3']);
-    });
-  });
 });

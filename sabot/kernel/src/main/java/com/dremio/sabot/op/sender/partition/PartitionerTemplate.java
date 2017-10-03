@@ -122,9 +122,9 @@ public abstract class PartitionerTemplate implements Partitioner {
     doSetup(context.getFunctionContext(), incoming, null);
 
     final OptionManager options = context.getOptions();
-    minOutgoingBatchRecordCount = (int) options.getOption(ExecConstants.PARTITION_SENDER_BATCH_MIN_RECORDS);
+    minOutgoingBatchRecordCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
     // how many records we can keep in memory before we are forced to flush the outgoing batch
-    final int outgoingBatchRecordCount = (int) options.getOption(ExecConstants.PARTITION_SENDER_BATCH_TARGET_RECORDS);
+    final int outgoingBatchRecordCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
     targetOutgoingBatchSize = (int) Math.min(
       options.getOption(ExecConstants.PARTITION_SENDER_MAX_BATCH_SIZE),
       options.getOption(ExecConstants.PARTITION_SENDER_MAX_MEM) / numPartitions);

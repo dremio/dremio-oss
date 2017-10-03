@@ -27,7 +27,6 @@ import ExtractPattern from './../../cardContent/ExtractPattern';
 import CardContentView from './../../cardContent/CardContentView';
 
 import TransformCard from './../../TransformCard';
-import './../../Selection.less';
 import { styles } from './ExtractListCard';
 
 @Radium

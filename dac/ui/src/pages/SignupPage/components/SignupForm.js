@@ -26,7 +26,7 @@ import { noUsersError } from 'actions/account';
 import { getViewState } from 'selectors/resources';
 import { InnerComplexForm, connectComplexForm } from 'components/Forms/connectComplexForm.js';
 import { divider, formRow } from 'uiTheme/radium/forms';
-//import { Link } from 'react-router';
+import { Link } from 'react-router';
 
 import UserForm, { userFormFields, userFormValidate } from 'components/Forms/UserForm';
 
@@ -83,9 +83,9 @@ export class SignupForm extends Component {
               type={ButtonTypes.NEXT}
               text={la('Next')}
             />
-            {/*<Link to={{ ...location, state: { modal: 'AboutModal' }}}>
+            {<Link to={{ ...location, state: { modal: 'AboutModal' }}}>
               {la('About Dremio')}
-            </Link>*/}
+            </Link>}
           </div>
         </InnerComplexForm>
       </div>

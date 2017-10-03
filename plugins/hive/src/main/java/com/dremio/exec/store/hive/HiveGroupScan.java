@@ -25,14 +25,14 @@ import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.SplitWork;
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
 import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.google.common.base.Preconditions;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 
 public class HiveGroupScan extends AbstractGroupScan {
 
@@ -55,7 +55,9 @@ public class HiveGroupScan extends AbstractGroupScan {
     }
     boolean storageImpersonationEnabled = dataset.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.STORAGE_IMPERSONATION);
     String userName = storageImpersonationEnabled ? getUserName() : ImpersonationUtil.getProcessUserName();
-    return new HiveSubScan(dataset.getReadDefinition(), splits, userName, schema, dataset.getName().getPathComponents(), conditions, dataset.getStoragePluginId(), columns);
+    final ReadDefinition readDefinition = dataset.getReadDefinition();
+    return new HiveSubScan(splits, userName, schema, dataset.getName().getPathComponents(), conditions, dataset.getStoragePluginId(), columns,
+        readDefinition.getExtendedProperty(), readDefinition.getPartitionColumnsList());
   }
 
   @Override

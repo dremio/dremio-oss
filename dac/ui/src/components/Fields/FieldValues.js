@@ -18,10 +18,14 @@ import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
 import FontIcon from 'components/Icon/FontIcon';
+import EllipsedText from 'components/EllipsedText';
+import Meter from 'components/Meter';
 
 import { LINE_NOWRAP_ROW_START_CENTER,
          FLEX_COL_START } from 'uiTheme/radium/flexStyle';
 import { body, formDescription } from 'uiTheme/radium/typography';
+
+import dataFormatUtils from 'utils/dataFormatUtils';
 
 @pureRender
 @Radium
@@ -29,7 +33,7 @@ export default class FieldValues extends Component {
   static propTypes = {
     options: PropTypes.arrayOf(
       PropTypes.shape({
-        percent: PropTypes.any,
+        percent: PropTypes.number,
         value: PropTypes.any,
         type: PropTypes.any
       })
@@ -47,19 +51,28 @@ export default class FieldValues extends Component {
     return <table>
       <tbody>
         {
-        options.map(option => <tr>
-          <td>
-            <FontIcon type={FontIcon.getIconTypeForDataType(option.type)} style={styles.icon}/>
-          </td>
-          <td style={styles.value}>{option.value}</td>
-          <td style={styles.progress}>
-            {/* todo: this is not a progress element, semantically. see <meter> */}
-            <progress value={option.percent} max={maxPercent}/>
-          </td>
-          <td style={styles.percent}>
-            {`${option.percent.toPrecision(2)}%`}
-          </td>
-        </tr>)
+        options.map(option => {
+          const correctText = dataFormatUtils.formatValue(option.value);
+          const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
+            ? styles.nullwrap
+            : {};
+          return (
+            <tr>
+              <td>
+                <FontIcon type={FontIcon.getIconTypeForDataType(option.type)} style={styles.icon}/>
+              </td>
+              <td style={styles.value}>
+                <EllipsedText text={correctText} style={{...correctTextStyle}}/>
+              </td>
+              <td style={styles.progressWrap}>
+                <Meter value={option.percent} max={maxPercent}/>
+              </td>
+              <td style={styles.percent}>
+                {`${option.percent.toPrecision(2)}%`}
+              </td>
+            </tr>
+          );
+        })
       }
       </tbody>
     </table>;
@@ -85,10 +98,16 @@ const styles = {
   },
   value: {
     ...body,
+    maxWidth: 200,
     paddingLeft: 10
   },
-  progress: {
-    verticalAlign: 0,
+  nullwrap: {
+    color: '#aaa',
+    fontStyle: 'italic',
+    width: '95%'
+  },
+  progressWrap: {
+    width: 400,
     paddingLeft: 10
   },
   percent: {

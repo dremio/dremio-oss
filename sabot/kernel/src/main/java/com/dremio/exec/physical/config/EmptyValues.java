@@ -76,7 +76,7 @@ public class EmptyValues extends AbstractBase implements Leaf, SubScan {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return schema;
   }
 

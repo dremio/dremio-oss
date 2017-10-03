@@ -17,6 +17,7 @@ package com.dremio.service.accelerator.pipeline.stages;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.junit.Assert;
@@ -34,11 +36,13 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.service.accelerator.ChainExecutor;
 import com.dremio.service.accelerator.DropTask;
-import com.dremio.service.accelerator.MaterializationTask;
 import com.dremio.service.accelerator.pipeline.StageContext;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.AccelerationContext;
+import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.accelerator.proto.AccelerationMode;
 import com.dremio.service.accelerator.proto.AccelerationState;
 import com.dremio.service.accelerator.proto.Layout;
@@ -54,6 +58,7 @@ import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
 import com.dremio.service.accelerator.store.MaterializationStore;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
@@ -67,6 +72,8 @@ public class TestActivationStage {
 
   @Mock
   private MaterializationStore store;
+
+  private String accelerationId = UUID.randomUUID().toString();
 
   /**
    * Holder for activation stage settings.
@@ -100,7 +107,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         stage.execute(context);
 
         Acceleration currentAcceleration = context.getCurrentAcceleration();
@@ -120,7 +128,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
 
@@ -144,7 +153,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
 
@@ -168,7 +178,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
         Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
@@ -194,7 +205,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Acceleration currentAcceleration = context.getCurrentAcceleration();
 
@@ -211,7 +223,7 @@ public class TestActivationStage {
         if (!setting.isAggEnabled) {
           checkRemoved(currentAcceleration, aggLayout);
         } else {
-          verify(context.getExecutorService(), times(0)).execute(any(MaterializationTask.class));
+          verify(context.getExecutorService(), never()).execute(any(ChainExecutor.class));
         }
 
         checkAcceleration(setting, currentAcceleration);
@@ -226,7 +238,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Acceleration currentAcceleration = context.getCurrentAcceleration();
 
@@ -243,7 +256,7 @@ public class TestActivationStage {
         if (!setting.isRawEnabled) {
           checkRemoved(currentAcceleration, rawLayout);
         } else {
-          verify(context.getExecutorService(), times(0)).execute(any(MaterializationTask.class));
+          verify(context.getExecutorService(), never()).execute(any(ChainExecutor.class));
         }
 
         checkAcceleration(setting, currentAcceleration);
@@ -258,7 +271,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Acceleration currentAcceleration = context.getCurrentAcceleration();
 
@@ -286,7 +300,7 @@ public class TestActivationStage {
 
           checkNotRemoved(currentAcceleration, rawLayout);
         } else {
-          verify(context.getExecutorService(), times(0)).execute(any(MaterializationTask.class));
+          verify(context.getExecutorService(), never()).execute(any(ChainExecutor.class));
         }
 
         checkAcceleration(setting, currentAcceleration);
@@ -301,7 +315,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
 
@@ -328,7 +343,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
 
@@ -355,7 +371,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
         Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
@@ -389,7 +406,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
         Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
@@ -423,7 +441,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
 
@@ -453,7 +472,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
         Acceleration originalAcceleration = context.getOriginalAcceleration();
         Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
 
@@ -483,7 +503,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
 
         Acceleration currentAcceleration = context.getCurrentAcceleration();
         Layout aggLayout = addAggLayout(currentAcceleration, 0);
@@ -496,9 +517,9 @@ public class TestActivationStage {
         verify(context).commit(currentAcceleration);
 
         if (setting.isAggEnabled) {
-          verify(context.getExecutorService()).submit(any(MaterializationTask.class));
+          verify(context.getExecutorService()).submit(any(ChainExecutor.class));
         } else {
-          verify(context.getExecutorService(), times(0)).submit(any(MaterializationTask.class));
+          verify(context.getExecutorService(), never()).submit(any(ChainExecutor.class));
         }
 
         checkAcceleration(setting, currentAcceleration);
@@ -513,7 +534,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
 
         Acceleration currentAcceleration = context.getCurrentAcceleration();
         Layout aggLayout = addAggLayout(currentAcceleration, 0);
@@ -528,9 +550,9 @@ public class TestActivationStage {
 
         if (setting.isAggEnabled || setting.isRawEnabled) {
           // If both are enabled, submit is still called once but with two chained tasks.
-          verify(context.getExecutorService(), times(1)).submit(any(MaterializationTask.class));
+          verify(context.getExecutorService(), times(1)).submit(any(ChainExecutor.class));
         } else {
-          verify(context.getExecutorService(), times(0)).submit(any(MaterializationTask.class));
+          verify(context.getExecutorService(), never()).submit(any(ChainExecutor.class));
         }
 
         checkAcceleration(setting, currentAcceleration);
@@ -545,7 +567,8 @@ public class TestActivationStage {
       public void test(Setting setting) {
         mockContext(context);
 
-        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode);
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
 
         Acceleration currentAcceleration = context.getCurrentAcceleration();
         Layout rawLayout = addRawLayout(currentAcceleration, 0);
@@ -558,9 +581,9 @@ public class TestActivationStage {
         verify(context).commit(currentAcceleration);
 
         if (setting.isRawEnabled) {
-          verify(context.getExecutorService()).submit(any(MaterializationTask.class));
+          verify(context.getExecutorService()).submit(any(ChainExecutor.class));
         } else {
-          verify(context.getExecutorService(), times(0)).submit(any(MaterializationTask.class));
+          verify(context.getExecutorService(), never()).submit(any(ChainExecutor.class));
         }
 
         checkAcceleration(setting, currentAcceleration);
@@ -663,14 +686,20 @@ public class TestActivationStage {
   }
 
   private void checkNotRemoved(Acceleration acceleration, Optional<MaterializedLayout> materializedLayout) {
-    verify(context.getExecutorService(), times(0)).execute(
-      new DropTask(acceleration, materializedLayout.get().getMaterializationList().get(0), context.getJobsService()));
-    verify(store, times(0)).remove(materializedLayout.get().getLayoutId());
+    verify(context.getExecutorService(), never()).execute(
+      new DropTask(acceleration,
+          materializedLayout.get().getMaterializationList().get(0),
+          context.getJobsService(),
+          context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId())));
+    verify(store, never()).remove(materializedLayout.get().getLayoutId());
   }
 
   private void checkRemoved(Acceleration acceleration, Optional<MaterializedLayout> materializedLayout) {
     verify(context.getExecutorService()).execute(
-      new DropTask(acceleration, materializedLayout.get().getMaterializationList().get(0), context.getJobsService()));
+      new DropTask(acceleration,
+          materializedLayout.get().getMaterializationList().get(0),
+          context.getJobsService(),
+          context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId())));
     verify(store).remove(materializedLayout.get().getLayoutId());
   }
 
@@ -678,9 +707,13 @@ public class TestActivationStage {
     Mockito.reset(this.context);
     Mockito.reset(store);
 
+    DatasetConfig ds = new DatasetConfig()
+      .setFullPathList(ImmutableList.of("a", "b"))
+      .setId(new EntityId(accelerationId));
     // Set up an empty acceleration for the current.
     final Acceleration currentAcceleration = new Acceleration()
-      .setContext(new AccelerationContext().setDataset(new DatasetConfig().setFullPathList(ImmutableList.of("a", "b"))))
+      .setId(new AccelerationId(accelerationId))
+      .setContext(new AccelerationContext().setDataset(ds))
       .setRawLayouts(new LayoutContainer().setLayoutList(new ArrayList<Layout>()))
       .setAggregationLayouts(new LayoutContainer().setLayoutList(new ArrayList<Layout>()));
 
@@ -695,6 +728,7 @@ public class TestActivationStage {
     when(context.getCurrentAcceleration()).thenReturn(currentAcceleration);
     when(context.getMaterializationStore()).thenReturn(store);
     when(context.getAcceleratorStorageName()).thenReturn("__accelerator");
+    when(context.getNamespaceService().findDatasetByUUID(currentAcceleration.getId().getId())).thenReturn(ds);
   }
 
   private void testAllActivationStages(StageTester command) {

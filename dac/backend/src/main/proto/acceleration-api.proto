@@ -205,6 +205,8 @@ message LayoutApiDescriptor {
   required MaterializationState latestMaterializationState = 7 [default = NEW];
   // additional error details if state is error
   optional ApiErrorDetails error = 8;
+  //Layout state
+  optional MaterializedLayoutState state = 9 [default=ACTIVE];
 }
 
 message LayoutDetailsApiDescriptor {
@@ -220,6 +222,8 @@ message LayoutDetailsApiDescriptor {
   repeated LayoutFieldApiDescriptor displayField = 5;
   // distribution fields
   repeated LayoutFieldApiDescriptor distributionField = 6;
+  // distribution strategy for partitions
+  optional PartitionDistributionStrategy partitionDistributionStrategy = 7 [default = CONSOLIDATED];
 }
 
 message LayoutFieldApiDescriptor {
@@ -258,6 +262,8 @@ message SystemSettingsApiDescriptor {
   required bool accelerateRaw = 3;
   // interval within which orphaned accelerations needs to be cleaned up
   required uint64 orphanCleanupInterval = 4;
+  // failure threshold to stop refreshing a reflection
+  required int32 layoutRefreshMaxAttempts = 5;
 }
 
 // represents an individual acceleration vote

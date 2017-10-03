@@ -1053,10 +1053,15 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
     @Override
     protected FileStatus reduce(Iterable<Future<FileStatus>> futures) throws IOException {
-      FileStatus found = null;
+
+      FileStatus fileStatus = null;
+      long maxModificationTime = Long.MIN_VALUE;
+      long maxAccessTime = Long.MIN_VALUE;
       for(Future<FileStatus> f : futures) {
         try {
-          found = f.get();
+            fileStatus = f.get();
+            maxModificationTime = Math.max(maxModificationTime, fileStatus.getModificationTime());
+            maxAccessTime = Math.max(maxAccessTime, fileStatus.getAccessTime());
         } catch(ExecutionException e) {
           if (e.getCause() instanceof FileNotFoundException) {
             // ignore
@@ -1069,11 +1074,22 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
         }
       }
 
-      if (found == null) {
+      if (fileStatus == null) {
         throw new FileNotFoundException("Directory not found:" + path);
       }
 
-      return fixFileStatus(null, found);
+      return fixFileStatus(null, new FileStatus(
+          fileStatus.getLen(),
+          fileStatus.isDirectory(),
+          fileStatus.getReplication(),
+          fileStatus.getBlockSize(),
+          maxModificationTime,
+          maxAccessTime,
+          fileStatus.getPermission(),
+          fileStatus.getOwner(),
+          fileStatus.getGroup(),
+          fileStatus.getPath()
+          ));
     }
   }
 }

@@ -61,6 +61,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
@@ -92,6 +93,7 @@ import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.RootSchemaFinder;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -135,6 +137,7 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.LocalQueryExecutor.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalUserUtil;
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
@@ -154,7 +157,6 @@ import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.metadata.QueryMetadata;
-import com.dremio.service.jobs.metadata.RootSchemaFinder;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -162,6 +164,7 @@ import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
@@ -171,6 +174,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -186,7 +190,7 @@ import io.protostuff.ProtobufIOUtil;
 public class LocalJobsService implements JobsService {
   private static final int DISABLE_CLEANUP_VALUE = -1;
 
-  private static final int DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES = 120;
+  private static final int DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES = 5;
 
   private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
 
@@ -212,6 +216,7 @@ public class LocalJobsService implements JobsService {
   private final Provider<ForemenTool> foremenTool;
   private final Provider<CoordTunnelCreator> coordTunnelCreator;
   private final Provider<SchedulerService> schedulerService;
+  private Cancellable cleanupTask = null;
 
   private NamespaceService namespaceService;
   private IndexedStore<JobId, JobResult> store;
@@ -278,6 +283,31 @@ public class LocalJobsService implements JobsService {
     this.storageName = fileSystemPlugin.getStorageName();
     this.jobResultsStore = new JobResultsStore(fileSystemPlugin, store, allocator);
 
+    if (isMaster) { // if Dremio process died, clean up
+      final Set<Entry<JobId, JobResult>> apparentlyAbandoned =
+          FluentIterable.from(store.find(new FindByCondition()
+              .setCondition(SearchQueryUtils.newTermQuery(JOB_STATE, JobState.RUNNING.name()))))
+          .toSet();
+      for (final Entry<JobId, JobResult> entry : apparentlyAbandoned) {
+        final List<JobAttempt> attempts = entry.getValue().getAttemptsList();
+        final int numAttempts = attempts.size();
+        if (numAttempts > 0) {
+          final JobAttempt lastAttempt = attempts.get(numAttempts - 1);
+          // .. check again; the index may not be updated, but the store maybe
+          if (lastAttempt.getState() == JobState.RUNNING) {
+            final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
+                .setInfo(lastAttempt.getInfo()
+                    .setFinishTime(System.currentTimeMillis())
+                    .setFailureInfo("Query failed as Dremio was restarted. Details and profile information " +
+                        "for this job may be missing."));
+            attempts.remove(numAttempts - 1);
+            attempts.add(newLastAttempt);
+            store.put(entry.getKey(), entry.getValue());
+          }
+        }
+      }
+    }
+
     // register to listen to query lifecycle
     bindingCreator.replace(QueryObserverFactory.class, new JobsObserverFactory());
 
@@ -296,7 +326,7 @@ public class LocalJobsService implements JobsService {
         } else {
           schedule = Schedule.Builder.everyDays(1).startingAt(Instant.now().plus(DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES, ChronoUnit.MINUTES)).build();
         }
-        schedulerService.get().schedule(schedule, new CleanupTask());
+        cleanupTask = schedulerService.get().schedule(schedule, new CleanupTask());
       }
     }
 
@@ -337,6 +367,10 @@ public class LocalJobsService implements JobsService {
   @Override
   public void close() throws Exception {
     logger.info("Stopping JobsService");
+    if (cleanupTask != null) {
+      cleanupTask.cancel();
+      cleanupTask = null;
+    }
     AutoCloseables.close(jobResultsStore, allocator);
     logger.info("Stopped JobsService");
   }
@@ -369,7 +403,8 @@ public class LocalJobsService implements JobsService {
   }
 
   private Job startJob(final SqlQuery query, QueryType queryType, String downloadId, String fileName, List<String> datasetPath,
-                       String version, final List<String> exclusions, JobStatusListener statusListener, MaterializationSummary MaterializationSummary) {
+      String version, JobStatusListener statusListener, MaterializationSummary MaterializationSummary,
+      SubstitutionSettings materializationSettings) {
     final ExternalId externalId = ExternalIdHelper.generateExternalId();
     final JobId jobId = getExternalIdAsJobId(externalId);
     final JobInfo jobInfo = new JobInfo(jobId, query.getSql(), version, queryType)
@@ -456,7 +491,8 @@ public class LocalJobsService implements JobsService {
 
     final LocalExecutionConfig config = new LocalExecutionConfig(enableLeafLimits, enableLeafLimits ? 10L : 0L,
         failIfNonEmptySent, query.getUsername(),
-        query.getContext(), true, internalSingleThreaded, queryResultsStorePath, exclusions, enablePartitionPruning);
+        query.getContext(), true, internalSingleThreaded, queryResultsStorePath, enablePartitionPruning,
+        isQueryTypeInternal(queryType), materializationSettings);
 
     Preconditions.checkArgument(store.checkAndPut(job.getJobId(), null, toJobResult(job)), "Job had a duplicate jobId. " + job);
     runningJobs.put(jobId, jobObserver);
@@ -464,6 +500,30 @@ public class LocalJobsService implements JobsService {
     queryExecutor.get().submitLocalQuery(externalId, jobObserver, queryCmd, isPrepare, config);
 
     return job;
+  }
+
+  private static boolean isQueryTypeInternal(QueryType type) {
+    switch (type) {
+
+    case UI_INTERNAL_PREVIEW:
+    case UI_INTERNAL_RUN:
+    case UI_EXPORT: // download
+    case ACCELERATOR_CREATE:
+    case ACCELERATOR_DROP:
+    case PREPARE_INTERNAL:
+    case ACCELERATOR_EXPLAIN:
+      return true;
+
+    case UI_RUN:
+    case UI_PREVIEW:
+    case ODBC:
+    case JDBC:
+    case REST:
+    case UI_INITIAL_PREVIEW:
+    case UNKNOWN:
+    default:
+      return false;
+    }
   }
 
   public static JobId getExternalIdAsJobId(ExternalId id){
@@ -480,8 +540,8 @@ public class LocalJobsService implements JobsService {
 
   @Override
   public Job submitJobWithExclusions(final SqlQuery query, final QueryType queryType, final NamespaceKey datasetPath,
-                                     final DatasetVersion version, final List<String> exclusions,
-                                     final JobStatusListener statusListener, final MaterializationSummary materializationSummary) {
+                                     final DatasetVersion version,final JobStatusListener statusListener,
+                                     final MaterializationSummary materializationSummary, SubstitutionSettings materializationSettings) {
     final Job job = startJob(
         query,
         queryType,
@@ -489,9 +549,9 @@ public class LocalJobsService implements JobsService {
         null,
         datasetPath == null ? Arrays.asList("UNKNOWN") : datasetPath.getPathComponents(),
         version == null ? "UNKNOWN" : version.getVersion(),
-        exclusions,
         statusListener,
-        materializationSummary);
+        materializationSummary,
+        materializationSettings);
     logger.debug(format("Submitted new %s job: %s for %s",
         queryType, job.getJobId().getId(), datasetPath + (version == null ? "" : "/" + version)));
     return job;
@@ -500,20 +560,20 @@ public class LocalJobsService implements JobsService {
   @Override
   public Job submitJob(final SqlQuery query, final QueryType queryType, final NamespaceKey datasetPath,
                        final DatasetVersion version, final JobStatusListener statusListener) {
-    return submitJobWithExclusions(query, queryType, datasetPath, version, ImmutableList.<String>of(), statusListener, null);
+    return submitJobWithExclusions(query, queryType, datasetPath, version, statusListener, null, SubstitutionSettings.of());
   }
 
   @Override
   public Job submitExternalJob(final SqlQuery query, QueryType type) {
-    final Job job = startJob(query, type, null, null, Arrays.asList("UNKNOWN"), "UNKNOWN", ImmutableList.<String>of(), JobStatusListener.NONE, null);
-    logger.debug("Submitted new job for sql %s" + job.getJobId().getId(), query);
+    final Job job = startJob(query, type, null, null, Arrays.asList("UNKNOWN"), "UNKNOWN", JobStatusListener.NONE, null, SubstitutionSettings.of());
+    logger.debug("Submitted new job. JobId: {}. Sql: {}", job.getJobId().getId(), query);
     return job;
   }
 
   @Override
   public Job submitDownloadJob(final SqlQuery query, String downloadId, String fileName) {
-    final Job job = startJob(query, UI_EXPORT, downloadId, fileName, Arrays.asList("UNKNOWN"), "UNKNOWN", ImmutableList.<String>of(), JobStatusListener.NONE, null);
-    logger.debug("Submitted new download job for sql %s" + job.getJobId().getId(), query);
+    final Job job = startJob(query, UI_EXPORT, downloadId, fileName, Arrays.asList("UNKNOWN"), "UNKNOWN", JobStatusListener.NONE, null, SubstitutionSettings.of());
+    logger.debug("Submitted new download job. JobId: {}. Sql: {}", job.getJobId().getId(), query);
     return job;
   }
 
@@ -573,7 +633,7 @@ public class LocalJobsService implements JobsService {
   //// Search apis
   @Override
   public int getJobsCount(final NamespaceKey datasetPath) {
-    return store.getCounts(getFilter(datasetPath, null)).get(0);
+    return store.getCounts(getFilter(datasetPath, null, null)).get(0);
   }
 
   @Override
@@ -583,14 +643,14 @@ public class LocalJobsService implements JobsService {
     }
     final List<SearchQuery> conditions = Lists.newArrayList();
     for (NamespaceKey datasetPath: datasetPaths) {
-      conditions.add(getFilter(datasetPath, null));
+      conditions.add(getFilter(datasetPath, null, null));
     }
     return store.getCounts(conditions.toArray(new SearchQuery[conditions.size()]));
   }
 
   @Override
   public int getJobsCountForDataset(final NamespaceKey datasetPath, final DatasetVersion datasetVersion) {
-    return store.getCounts(getFilter(datasetPath, datasetVersion)).get(0);
+    return store.getCounts(getFilter(datasetPath, datasetVersion, null)).get(0);
   }
 
   @Override
@@ -601,9 +661,19 @@ public class LocalJobsService implements JobsService {
   @Override
   public Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, final DatasetVersion version, int limit){
     FindByCondition condition = new FindByCondition()
-        .setCondition(getFilter(datasetPath, version))
+        .setCondition(getFilter(datasetPath, version, null))
         .setLimit(limit)
         .addSortings(DEFAULT_SORTER);
+    return findJobs(condition);
+  }
+
+  @Override
+  public Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, final DatasetVersion version, String user,
+                                         int limit){
+    FindByCondition condition = new FindByCondition()
+      .setCondition(getFilter(datasetPath, version, user))
+      .setLimit(limit)
+      .addSortings(DEFAULT_SORTER);
     return findJobs(condition);
   }
 
@@ -643,15 +713,19 @@ public class LocalJobsService implements JobsService {
     });
   }
 
-  private SearchQuery getFilter(final NamespaceKey datasetPath, final DatasetVersion datasetVersion) {
+  private SearchQuery getFilter(final NamespaceKey datasetPath, final DatasetVersion datasetVersion,
+                                final String user) {
     Preconditions.checkNotNull(datasetPath);
 
 
     ImmutableList.Builder<SearchQuery> builder = ImmutableList.<SearchQuery> builder()
-        .add(SearchQueryUtils.newTermQuery(ALL_DATASETS, datasetPath.toString()))
-        .add(JobIndexKeys.UI_EXTERNAL_JOBS_FILTER);
+      .add(SearchQueryUtils.newTermQuery(ALL_DATASETS, datasetPath.toString()))
+      .add(JobIndexKeys.UI_EXTERNAL_JOBS_FILTER);
     if (datasetVersion != null) {
       builder.add(SearchQueryUtils.newTermQuery(DATASET_VERSION, datasetVersion.getVersion()));
+    }
+    if (user != null) {
+      builder.add((SearchQueryUtils.newTermQuery(USER, user)));
     }
 
     return SearchQueryUtils.and(builder.build());
@@ -936,9 +1010,8 @@ public class LocalJobsService implements JobsService {
     private void setupJobData() {
       final JobLoader jobLoader = isInternal ?
           new InternalJobLoader(exception, completionLatch, job.getJobId(), jobResultsStore, store) : new ExternalJobLoader(completionLatch, exception);
-      final JobDataImpl result = new JobDataImpl(jobLoader, job.getJobId());
+      final JobData result = jobResultsStore.cacheNewJob(job.getJobId(), new JobDataImpl(jobLoader, job.getJobId()));
       job.setData(result);
-      jobResultsStore.cacheNewJob(job.getJobId(), result);
     }
 
     @Override
@@ -1221,10 +1294,9 @@ public class LocalJobsService implements JobsService {
     @Override
     public void planCompleted(final ExecutionPlan plan) {
       if (plan != null) {
-        final RootSchemaFinder visitor = new RootSchemaFinder(contextProvider.get().getFunctionImplementationRegistry());
         try {
-          plan.getRootOperator().accept(visitor, null);
-          builder.addBatchSchema(visitor.getBatchSchema());
+          builder.addBatchSchema(RootSchemaFinder.getSchema(plan.getRootOperator(),
+              contextProvider.get().getFunctionImplementationRegistry()));
         } catch (Exception e) {
           exception.addException(e);
         }
@@ -1280,7 +1352,7 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       statusListener.planRelTansform(phase, before, after, millisTaken);
       switch(phase){
       case LOGICAL:

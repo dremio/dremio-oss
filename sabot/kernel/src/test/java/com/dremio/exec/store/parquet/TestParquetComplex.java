@@ -15,11 +15,14 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static java.util.Arrays.asList;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.exec.ExecConstants;
 
 public class TestParquetComplex extends BaseTestQuery {
 
@@ -63,15 +66,14 @@ public class TestParquetComplex extends BaseTestQuery {
   public void filterNonComplexColumn() throws Exception {
     // default batch size
     runFilterNonComplexColumn();
-    test("alter session set `dremio.exec.operator_batch_size` = 2");
-    runFilterNonComplexColumn();
-    test("alter session set `dremio.exec.operator_batch_size` = 1");
-    runFilterNonComplexColumn();
-    test("alter session set `dremio.exec.operator_batch_size` = 3");
-    runFilterNonComplexColumn();
-    test("alter session set `dremio.exec.operator_batch_size` = 5");
-    runFilterNonComplexColumn();
-   }
+    // with different batch sizes
+    for(Long batchSize : asList(2L, 1L, 3L, 5L)) {
+      try (AutoCloseable op1 = withOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, batchSize);
+           AutoCloseable op2 = withOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, batchSize)) {
+        runFilterNonComplexColumn();
+      }
+    }
+  }
 
   private void runFilterNonComplexColumn() throws Exception {
     String query = String.format("select t1.user_info.cust_id as cust_id from %s t1 where t1.trans_id > 0 and " +

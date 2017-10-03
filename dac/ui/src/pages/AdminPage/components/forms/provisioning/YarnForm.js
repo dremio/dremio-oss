@@ -319,9 +319,12 @@ export class YarnForm extends Component {
               label={la('Memory per Worker')}
               errorPlacement='top'
               {...fields.memoryMB}>
-              <TextField {...fields.memoryMB} style={{width: 75}}/>
+              <span>
+                <TextField {...fields.memoryMB} style={{width: 75}}/>
+                <span style={formDefault}>{'GB'}</span>
+              </span>
             </FieldWithError>
-            <span style={[formDefault, {marginTop: 20, marginLeft: -25}]}>{'GB'}</span>
+
           </div>
           <div style={styles.formRow}>
             <FieldWithError {...fields.propertyList}>

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -38,8 +39,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.AccelerationStateApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LayoutApiDescriptor;
@@ -48,19 +51,32 @@ import com.dremio.dac.proto.model.acceleration.LayoutDetailsApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LayoutDimensionFieldApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LayoutFieldApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LogicalAggregationApiDescriptor;
+import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.UserExceptionMapper.ErrorMessageWithContext;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.service.accelerator.AccelerationTestUtil;
+import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.accelerator.DependencyGraph;
 import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.LayoutType;
+import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
+import com.dremio.service.accelerator.proto.PartitionDistributionStrategy;
+import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.FileFormat;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.namespace.proto.TimePeriod;
+import com.dremio.service.users.SystemUser;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
@@ -70,6 +86,8 @@ import com.google.common.collect.ImmutableList;
 public class TestAccelerationResource extends AccelerationTestUtil {
 
   private final DatasetPath physicalFileAtHome = new DatasetPath(Arrays.asList(HOME_NAME, "biz"));
+  // 100 years
+  static final long IGNORE_REFRESH_TTL_MILLIS = AccelerationUtils.toMillis(new TimePeriod().setDuration(1200L).setUnit(TimePeriod.TimeUnit.MONTHS));
 
   private static boolean created = false;
 
@@ -96,8 +114,9 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     final FormDataMultiPart form = new FormDataMultiPart();
     final FormDataBodyPart fileBody = new FormDataBodyPart("file", com.dremio.common.util.FileUtils.getResourceAsString("/testfiles/yelp_biz.json"), MediaType.MULTIPART_FORM_DATA_TYPE);
     form.bodyPart(fileBody);
+    form.bodyPart(new FormDataBodyPart("fileName", "biz"));
 
-    com.dremio.file.File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/biz").queryParam("extension", "json"))
+    com.dremio.file.File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json"))
         .buildPost(Entity.entity(form, form.getMediaType())), com.dremio.file.File.class);
     file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/biz"))
         .buildPost(Entity.json(file1.getFileFormat().getFileFormat())), com.dremio.file.File.class);
@@ -195,6 +214,16 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     saveAcceleration(completed.getId(), completed);
 
     waitForMaterialization(completed.getId(), false);
+
+    //make sure that expiry time is more than a 100 years
+    Iterable<Materialization> materializations = getAccelerationService().getMaterializations(completed.getRawLayouts().getLayoutList().get(0).getId());
+    for (Materialization materialization : materializations) {
+      assertTrue(materialization.getExpiration() > System.currentTimeMillis() + IGNORE_REFRESH_TTL_MILLIS);
+    }
+
+    //make sure that dependency graph do not contain home folders
+    DependencyGraph graph = getAccelerationService().developerService().getDependencyGraph();
+    assertEquals(0, graph.getChainExecutors().size());
   }
 
   @Test
@@ -500,6 +529,74 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     }
   }
 
+  @Test
+  public void ensurePartitionDistributionStrategyOnLayoutsIsAsRequested() throws Exception {
+    final DatasetPath path = EMPLOYEES_VIRTUAL;
+    final AccelerationApiDescriptor newApiDescriptor = createNewAcceleration(path);
+    final AccelerationApiDescriptor finalApiDescriptor = waitForLayoutGeneration(newApiDescriptor.getId());
+    assertEquals(newApiDescriptor.getId(), finalApiDescriptor.getId());
+    assertEquals(AccelerationStateApiDescriptor.DISABLED, finalApiDescriptor.getState());
+
+    assertFalse("aggregation layout generation failed", finalApiDescriptor.getAggregationLayouts().getLayoutList().isEmpty());
+    assertFalse("raw layout generation failed", finalApiDescriptor.getRawLayouts().getLayoutList().isEmpty());
+    assertFalse("dataset schema is required", finalApiDescriptor.getContext().getDatasetSchema().getFieldList().isEmpty());
+
+    // enable both
+    {
+      finalApiDescriptor.getRawLayouts().setEnabled(true);
+      finalApiDescriptor.getAggregationLayouts().setEnabled(true);
+      final AccelerationApiDescriptor updatedApiDescriptor = saveAcceleration(finalApiDescriptor.getId(), finalApiDescriptor);
+      assertEquals(AccelerationStateApiDescriptor.ENABLED, updatedApiDescriptor.getState());
+
+      assertTrue(updatedApiDescriptor.getRawLayouts().getEnabled());
+      assertTrue(updatedApiDescriptor.getAggregationLayouts().getEnabled());
+    }
+
+    // adhere to partition policy as requested
+    for (int i = 0; i < finalApiDescriptor.getRawLayouts().getLayoutList().size(); i++) {
+      final LayoutApiDescriptor layoutApiDescriptor = finalApiDescriptor.getRawLayouts().getLayoutList().get(i);
+
+      // randomly set policy
+      layoutApiDescriptor.getDetails()
+          .setPartitionDistributionStrategy(
+              Math.random() < 0.5 ? PartitionDistributionStrategy.CONSOLIDATED : PartitionDistributionStrategy.STRIPED);
+
+      final AccelerationApiDescriptor updated = saveAcceleration(finalApiDescriptor.getId(), finalApiDescriptor);
+
+      final PartitionDistributionStrategy actual = updated.getRawLayouts()
+          .getLayoutList().get(i)
+          .getDetails()
+          .getPartitionDistributionStrategy();
+
+      // ensure the policy is correctly set
+      assertEquals(layoutApiDescriptor.getDetails().getPartitionDistributionStrategy(), actual);
+      finalApiDescriptor.setVersion(updated.getVersion());
+    }
+
+    // adhere to partition policy as requested
+    for (int i = 0; i < finalApiDescriptor.getAggregationLayouts().getLayoutList().size(); i++) {
+      final LayoutApiDescriptor layoutApiDescriptor = finalApiDescriptor.getAggregationLayouts()
+          .getLayoutList().get(i);
+
+      // randomly set policy
+      layoutApiDescriptor.getDetails()
+          .setPartitionDistributionStrategy(
+              Math.random() < 0.5 ? PartitionDistributionStrategy.CONSOLIDATED : PartitionDistributionStrategy.STRIPED);
+
+      final AccelerationApiDescriptor updated = saveAcceleration(finalApiDescriptor.getId(), finalApiDescriptor);
+
+      final PartitionDistributionStrategy actual = updated.getAggregationLayouts()
+          .getLayoutList().get(i)
+          .getDetails()
+          .getPartitionDistributionStrategy();
+
+      // ensure the policy is correctly set
+      assertEquals(layoutApiDescriptor.getDetails().getPartitionDistributionStrategy(), actual);
+      finalApiDescriptor.setVersion(updated.getVersion());
+    }
+
+    // for now, no need to reset the policy back
+  }
 
   protected void testDataset(final DatasetPath path) throws Exception {
     final AccelerationApiDescriptor newApiDescriptor = createNewAcceleration(path);
@@ -596,6 +693,67 @@ public class TestAccelerationResource extends AccelerationTestUtil {
   }
 
   @Test
+  public void testMaterializationSchemaLearning() throws Exception {
+    SourceUI source = new SourceUI();
+    source.setName("src1");
+    source.setCtime(1000L);
+
+    TemporaryFolder folder = new TemporaryFolder();
+    folder.create();
+
+    final NASConfig config1 = new NASConfig();
+    config1.setPath(folder.getRoot().getAbsolutePath());
+    source.setConfig(config1);
+    String sourceResource = "source/src1";
+
+    File srcFolder = folder.getRoot();
+    File tableFolder = new File(srcFolder.getAbsolutePath(), "t1");
+    tableFolder.mkdir();
+
+    PrintStream f1 = new PrintStream(new File(tableFolder.getAbsolutePath(), "file1.json"));
+    for (int i = 0; i < 1000; i++) {
+      f1.println("{a:{b:[1,2]}}");
+    }
+    f1.close();
+
+    PrintStream f2 = new PrintStream(new File(tableFolder.getAbsolutePath(), "file2.json"));
+    for (int i = 0; i < 1000; i++) {
+      f2.println("{a:{b:[1.0,2.0]}}");
+    }
+    f2.close();
+
+    final SourceUI putSource1 = expectSuccess(getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(source)), SourceUI.class);
+
+    getJobsService().submitExternalJob(new SqlQuery("select * from src1.t1", SystemUser.SYSTEM_USERNAME), QueryType.UI_RUN);
+
+    DatasetPath path = new DatasetPath(ImmutableList.of("src1", "t1"));
+
+    final DatasetConfig dataset = new DatasetConfig()
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path.toPathList())
+      .setName(path.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setVersion(null)
+      .setOwner(DEFAULT_USERNAME)
+      .setPhysicalDataset(new PhysicalDataset()
+        .setFormatSettings(new FileConfig().setType(FileType.JSON))
+      );
+    final NamespaceService nsService = getNamespaceService();
+    nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
+
+    AccelerationApiDescriptor accel1 = createNewAcceleration(new DatasetPath(ImmutableList.of("src1", "t1")));
+
+    accel1.getRawLayouts().setEnabled(true);
+
+    saveAcceleration(accel1.getId(), accel1);
+
+    waitForLayoutGeneration(accel1.getId());
+
+    // if the job completes successfully, that means it was able to handle the schema learning
+    getJobsService().submitExternalJob(new SqlQuery("select * from src1.t1", SystemUser.SYSTEM_USERNAME), QueryType.UI_RUN).getData().loadIfNecessary();
+  }
+
+  @Test
   @Ignore
   public void testDependencyCycle() throws Exception {
     String[] queries = new String[] {
@@ -607,8 +765,8 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     }
     DependencyGraph graph = getAccelerationService().developerService().getDependencyGraph();
     graph.buildAndSchedule();
-    assertNotNull(graph.getDependencySubgraphs());
-    assertEquals(1, graph.getDependencySubgraphs().size());
-    assertEquals(2, FluentIterable.from(graph.getDependencySubgraphs().get(0)).toList().size());
+    assertNotNull(graph.getChainExecutors());
+    assertEquals(1, graph.getChainExecutors().size());
+    assertEquals(2, FluentIterable.from(graph.getChainExecutors().get(0)).toList().size());
   }
 }

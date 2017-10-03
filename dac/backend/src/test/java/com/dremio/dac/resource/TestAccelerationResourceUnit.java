@@ -52,11 +52,15 @@ import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationId;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializatonFailure;
+import com.dremio.service.accelerator.proto.MaterializedLayout;
+import com.dremio.service.accelerator.proto.MaterializedLayoutState;
 import com.dremio.service.accelerator.proto.RowType;
 import com.dremio.service.accelerator.proto.pipeline.AccelerationPipeline;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * Unit tests {@link AccelerationResource}
@@ -75,6 +79,8 @@ public class TestAccelerationResourceUnit {
     final AccelerationId id = new AccelerationId("acc-id");
     final LayoutId layoutId = new LayoutId("layout-id");
 
+    DatasetConfig ds = new DatasetConfig()
+        .setFullPathList(Lists.newArrayList("ds1"));
     final AccelerationDescriptor descriptor = new AccelerationDescriptor()
         .setId(id)
         .setState(AccelerationStateDescriptor.ENABLED)
@@ -103,6 +109,8 @@ public class TestAccelerationResourceUnit {
     final String jobId = "job-id";
     final String message = "some-message";
     final String trace = "some";
+    MaterializedLayout materializedLayout = new MaterializedLayout();
+    materializedLayout.setLayoutId(layoutId);
     final List<Materialization> materializations = ImmutableList.of(new Materialization()
         .setState(MaterializationState.FAILED)
         .setId(materializationId)
@@ -113,11 +121,14 @@ public class TestAccelerationResourceUnit {
             .setStackTrace(trace)
             )
         );
+    materializedLayout.setMaterializationList(materializations);
 
     // setup
     when(accelerationService.getAccelerationEntryById(id)).thenReturn(Optional.of(entry));
     when(accelerationService.getAccelerationById(id)).thenReturn(Optional.of(acceleration));
+    when(accelerationService.getMaterializedLayout(layoutId)).thenReturn(Optional.of(materializedLayout));
     when(accelerationService.getMaterializations(layoutId)).thenReturn(materializations);
+    when(namespaceService.findDatasetByUUID(id.getId())).thenReturn(ds);
 
     // test
     final AccelerationResource resource = new AccelerationResource(accelerationService, namespaceService);
@@ -133,8 +144,84 @@ public class TestAccelerationResourceUnit {
     assertEquals(ApiErrorCode.MATERIALIZATION_FAILURE, apiErrorDetails.getCode());
     assertEquals(message, apiErrorDetails.getMessage());
     assertEquals(trace, apiErrorDetails.getStackTrace());
+
+    assertEquals(MaterializedLayoutState.ACTIVE,response.getRawLayouts().getLayoutList().get(0).getState());
   }
 
+  @Test
+  public void testLayoutFailureGetsReported() throws Exception {
+    final AccelerationId id = new AccelerationId("acc-id");
+    final LayoutId layoutId = new LayoutId("layout-id");
+
+    DatasetConfig ds = new DatasetConfig()
+        .setFullPathList(Lists.newArrayList("ds1"));
+    final AccelerationDescriptor descriptor = new AccelerationDescriptor()
+        .setId(id)
+        .setState(AccelerationStateDescriptor.ENABLED)
+        .setContext(
+            new AccelerationContextDescriptor()
+            .setDatasetSchema(new RowType()))
+        .setRawLayouts(new LayoutContainerDescriptor()
+            .setEnabled(true)
+            .setLayoutList(
+                ImmutableList.of(new LayoutDescriptor(new LayoutDetailsDescriptor()).setId(layoutId))
+                ));
+    final AccelerationEntry entry = new AccelerationEntry()
+        .setDescriptor(descriptor);
+
+    final Acceleration acceleration = new Acceleration()
+        .setId(id)
+        .setState(AccelerationState.ENABLED)
+        .setRawLayouts(new LayoutContainer()
+            .setEnabled(true)
+            .setLayoutList(
+                ImmutableList.of(new Layout().setId(layoutId))
+                )
+            );
+
+    final MaterializationId materializationId = new MaterializationId("mat-id");
+    final String jobId = "job-id";
+    final String message = "some-message";
+    final String trace = "some";
+    MaterializedLayout materializedLayout = new MaterializedLayout();
+    materializedLayout.setLayoutId(layoutId);
+    final List<Materialization> materializations = ImmutableList.of(new Materialization()
+        .setState(MaterializationState.FAILED)
+        .setId(materializationId)
+        .setLayoutId(layoutId)
+        .setJob(new JobDetails().setJobId(jobId))
+        .setFailure(new MaterializatonFailure()
+            .setMessage(message)
+            .setStackTrace(trace)
+            )
+        );
+    materializedLayout.setMaterializationList(materializations);
+    materializedLayout.setState(MaterializedLayoutState.FAILED);
+
+    // setup
+    when(accelerationService.getAccelerationEntryById(id)).thenReturn(Optional.of(entry));
+    when(accelerationService.getAccelerationById(id)).thenReturn(Optional.of(acceleration));
+    when(accelerationService.getMaterializedLayout(layoutId)).thenReturn(Optional.of(materializedLayout));
+    when(accelerationService.getMaterializations(layoutId)).thenReturn(materializations);
+    when(namespaceService.findDatasetByUUID(id.getId())).thenReturn(ds);
+
+    // test
+    final AccelerationResource resource = new AccelerationResource(accelerationService, namespaceService);
+    final AccelerationApiDescriptor response = resource.getAcceleration(id);
+
+    //verify
+    ApiErrorDetails apiErrorDetails = response.getRawLayouts().getLayoutList().get(0).getError();
+
+    MaterializationFailureDetails materializationFailure = apiErrorDetails.getMaterializationFailure();
+    assertNotNull(materializationFailure);
+    assertEquals(materializationId.getId(), materializationFailure.getMaterializationId());
+    assertEquals(jobId, materializationFailure.getJobId());
+    assertEquals(ApiErrorCode.MATERIALIZATION_FAILURE, apiErrorDetails.getCode());
+    assertEquals(message, apiErrorDetails.getMessage());
+    assertEquals(trace, apiErrorDetails.getStackTrace());
+
+    assertEquals(MaterializedLayoutState.FAILED,response.getRawLayouts().getLayoutList().get(0).getState());
+  }
 
   @Test
   public void testPipelineFailureGetsReported() throws Exception {
@@ -148,6 +235,8 @@ public class TestAccelerationResourceUnit {
             );
     final AccelerationEntry entry = new AccelerationEntry()
         .setDescriptor(descriptor);
+    DatasetConfig ds = new DatasetConfig()
+        .setFullPathList(Lists.newArrayList("ds1"));
 
     final String message = "pipeline-failed";
     final String trace  = "some";
@@ -165,6 +254,7 @@ public class TestAccelerationResourceUnit {
     // setup
     when(accelerationService.getAccelerationEntryById(id)).thenReturn(Optional.of(entry));
     when(accelerationService.getAccelerationById(id)).thenReturn(Optional.of(acceleration));
+    when(namespaceService.findDatasetByUUID(id.getId())).thenReturn(ds);
 
     // test
     final AccelerationResource resource = new AccelerationResource(accelerationService, namespaceService);

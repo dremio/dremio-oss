@@ -61,32 +61,6 @@ describe('BreadCrumbs', () => {
       ).to.eql('<Link />');
       expect(getLinkText(wrapper, 1)).to.be.eql('bar');
     });
-
-    it('should truncate long path', () => {
-      const props = {
-        fullPath: Immutable.List(['foo', 'longpath_longpath', 'longpath_longpath', 'longpath_longpath', 'bar']),
-        pathname: '/space/foo/longpath_longpath/longpath_longpath/longpath_longpath/bar'
-      };
-      const wrapper = shallow(<BreadCrumbs {...props}/>);
-      expect(wrapper.children()).to.have.length(5);
-      expect(wrapper.children().at(1).text()).to.equal('<Link />.');
-      expect(wrapper.children().at(2).text()).to.equal('<Link />.');
-      expect(wrapper.children().at(3).text()).to.equal('<Link />.');
-      expect(wrapper.children().at(4).text()).to.eql('bar');
-
-      const fullPath = Immutable.List(
-        [
-          'foo',
-          'barasd-prod-file-asdasfsdgsdg',
-          'barasd-prod-file-asdasfsdgsdgbarasd-prod-file-asdasfsdgsdg',
-          'barasd-prod-file-asdasfsdgsdgbarasd-prod-file-asdasfsddgdfhdfjgsdg'
-        ]
-      );
-      wrapper.setProps({fullPath});
-      expect(wrapper.children()).to.have.length(3);
-      expect(wrapper.children().at(0).text()).to.equal('<Link />.');
-      expect(wrapper.children().at(1).text()).to.equal('....');
-    });
   });
 
   describe('getPartialPath', () => {

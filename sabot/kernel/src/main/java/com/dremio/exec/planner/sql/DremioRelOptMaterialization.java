@@ -20,7 +20,9 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
+import com.dremio.exec.planner.physical.visitor.CrelUniqifier;
 import com.dremio.exec.planner.sql.MaterializationDescriptor.LayoutInfo;
+import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
 
 /**
@@ -31,6 +33,7 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
   private final IncrementalUpdateSettings incrementalUpdateSettings;
   private final LayoutInfo layoutInfo;
   private final String materializationId;
+  private final BatchSchema schema;
   private final long expirationTimestamp;
 
   public DremioRelOptMaterialization(RelNode tableRel,
@@ -38,6 +41,7 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
                                      IncrementalUpdateSettings incrementalUpdateSettings,
                                      LayoutInfo layoutInfo,
                                      String materializationId,
+                                     BatchSchema schema,
                                      long expirationTimestamp) {
 
     // Create a RelOptMaterialization by manually specifying the RelOptTable.
@@ -45,6 +49,7 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
     super(tableRel, queryRel, tableRel.getTable() != null ? tableRel.getTable() : tableRel.getInput(0).getTable(), null);
     this.incrementalUpdateSettings = Preconditions.checkNotNull(incrementalUpdateSettings);
     this.materializationId = Preconditions.checkNotNull(materializationId);
+    this.schema = schema;
     this.layoutInfo = Preconditions.checkNotNull(layoutInfo);
     this.expirationTimestamp = expirationTimestamp;
   }
@@ -55,6 +60,10 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
 
   public IncrementalUpdateSettings getIncrementalUpdateSettings() {
     return incrementalUpdateSettings;
+  }
+
+  public DremioRelOptMaterialization uniqify() {
+    return new DremioRelOptMaterialization(tableRel, CrelUniqifier.uniqifyGraph(queryRel), incrementalUpdateSettings, layoutInfo, materializationId, schema, expirationTimestamp);
   }
 
   public String getMaterializationId() {
@@ -69,6 +78,14 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
     return layoutInfo.getLayoutId();
   }
 
+  public DremioRelOptMaterialization cloneWithNewQuery(RelNode query) {
+    return new DremioRelOptMaterialization(tableRel, query, incrementalUpdateSettings, layoutInfo, materializationId, schema, expirationTimestamp);
+  }
+
+  public BatchSchema getSchema() {
+    return schema;
+  }
+
   public DremioRelOptMaterialization accept(RelShuttle shuttle) {
     return new DremioRelOptMaterialization(
       tableRel.accept(shuttle),
@@ -76,6 +93,7 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
       incrementalUpdateSettings,
       layoutInfo,
       materializationId,
+      schema,
       expirationTimestamp
     );
   }

@@ -64,7 +64,6 @@ const formatOptions = [
 const FIELDS = ['type', 'version', 'location'];
 const SECTIONS = Object.keys(typeToForm).map((key) => prefixSection(key)(typeToForm[key]));
 const DEBOUNCE_DELAY = 100;
-const FOOTER_FORM_HEIGHT = 48;
 
 const typeToInitialValues = {
   Text: {
@@ -95,7 +94,7 @@ export class FileFormatForm extends Component {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
     onPreview: PropTypes.func.isRequired,
-    viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
+    viewState: PropTypes.instanceOf(Immutable.Map),
     previewViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     previewData: PropTypes.instanceOf(Immutable.Map),
     updateFormDirtyState: PropTypes.func,
@@ -117,14 +116,15 @@ export class FileFormatForm extends Component {
 
   componentDidMount() {
     if (this.props.values.type && this.props.values.type !== 'Unknown' && this.props.valid
-      && !this.props.viewState.get('isInProgress')) {
+      && (!this.props.viewState || !this.props.viewState.get('isInProgress'))) {
       this.onPreview(this.mapFormatValues(this.props.values));
     }
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.values.type && nextProps.values.type !== 'Unknown' && nextProps.valid
-        && !deepEqual(nextProps.values, this.props.values) && !this.props.viewState.get('isInProgress')) {
+        && !deepEqual(nextProps.values, this.props.values)
+        && (!this.props.viewState || !this.props.viewState.get('isInProgress'))) {
       this.onPreview(this.mapFormatValues(nextProps.values));
     }
   }
@@ -140,7 +140,7 @@ export class FileFormatForm extends Component {
 
   getTableHeight(node) {
     const customWrapper = $(node).parents('.modal-form-wrapper')[0];
-    return $(customWrapper).height() - $(customWrapper).children()[1].offsetTop - FOOTER_FORM_HEIGHT;
+    return $(customWrapper).height() - $(customWrapper).children()[1].offsetTop;
   }
 
   mapFormatValues(values) {

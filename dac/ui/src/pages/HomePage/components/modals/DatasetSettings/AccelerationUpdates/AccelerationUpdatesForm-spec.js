@@ -17,6 +17,7 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import { minimalFormProps } from 'testUtil';
 
+import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 import { AccelerationUpdatesForm } from './AccelerationUpdatesForm';
 
 describe('AccelerationUpdatesForm', () => {
@@ -26,10 +27,8 @@ describe('AccelerationUpdatesForm', () => {
     const fieldNames = ['method', 'refreshField'];
     const values = {
       method: 'FULL',
-      accelerationTTL: {
-        unit: 'MINUTES',
-        duration: 1
-      }
+      accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
+      accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod()
     };
     minimalProps = {
       ...minimalFormProps(fieldNames),
@@ -144,10 +143,8 @@ describe('AccelerationUpdatesForm', () => {
       wrapper.setProps({ ...commonProps});
       const expectedValues = {
         method: 'INCREMENTAL',
-        accelerationTTL: {
-          unit: 'MINUTES',
-          duration: 1
-        },
+        accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
+        accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod(),
         fieldList: ['col1'],
         refreshField: 'col1'
       };

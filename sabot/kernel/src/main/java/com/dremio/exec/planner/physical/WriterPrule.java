@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.util.List;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -23,16 +22,15 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.hadoop.fs.Path;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 
-public class WriterPrule extends Prule{
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlannerSettings.class);
+public class WriterPrule extends Prule {
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlannerSettings.class);
+
   public static final RelOptRule INSTANCE = new WriterPrule();
 
   public WriterPrule() {
@@ -45,30 +43,15 @@ public class WriterPrule extends Prule{
     final WriterRel writer = call.rel(0);
     final RelNode input = call.rel(1);
 
-    final WriterOptions options = writer.getCreateTableEntry().getOptions();
-
-    final RelTraitSet requestedTraits;
-    if(options.hasDistributions()) {
-      final List<Integer> keys = WriterOptions.getFieldIndices(options.getDistributionColumns(), input);
-      requestedTraits = input.getTraitSet().plus(Prel.PHYSICAL).plus(WriterOptions.getDistribution(keys));
-    } else {
-      if (options.hasPartitions()){
-        if (options.isHashPartition() && writer.isSingleWriter()) {
-          throw UserException.unsupportedError().message("Can't support single writer when hash partition is enabled.").build(logger);
-        }
-        requestedTraits = options.getTraitSetWithPartition(input.getTraitSet().plus(Prel.PHYSICAL), input);
-      } else {
-        requestedTraits = input.getTraitSet().plus(Prel.PHYSICAL);
-      }
-    }
-
+    final RelTraitSet requestedTraits = writer.getCreateTableEntry()
+        .getOptions()
+        .inferTraits(input.getTraitSet(), input.getRowType());
     final RelNode convertedInput = convert(input, requestedTraits);
 
     if (!new WriteTraitPull(call).go(writer, convertedInput)) {
       call.transformTo(convertWriter(writer, convertedInput));
     }
   }
-
 
   private static class WriteTraitPull extends SubsetTransformer<WriterRel, RuntimeException> {
 
@@ -93,7 +76,7 @@ public class WriterPrule extends Prule{
     // child's output RowType.
     final WriterPrel child = new WriterPrel(writer.getCluster(),
       writer.getTraitSet()
-        .plus(writer.isSingleWriter() ? DistributionTrait.SINGLETON : childDist)
+        .plus(writer.getCreateTableEntry().getOptions().isSingleWriter() ? DistributionTrait.SINGLETON : childDist)
         .plus(Prel.PHYSICAL),
       rel, writer.getCreateTableEntry());
 

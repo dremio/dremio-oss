@@ -183,6 +183,7 @@ public class ContextService implements Service, Provider<SabotContext> {
         .setUserPort(userport)
         .setFabricPort(fabric.getPort())
         .setStartTime(System.currentTimeMillis())
+        .setMaxDirectMemory(SabotConfig.getMaxDirectMemory())
         .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
 
     String containerId = System.getenv("CONTAINER_ID");

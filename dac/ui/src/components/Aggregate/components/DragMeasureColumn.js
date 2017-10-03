@@ -97,8 +97,7 @@ const styles = {
   select: {
     width: 200,
     height: 28,
-    marginLeft: 5,
-    marginTop: 4
+    marginLeft: 5
   }
 };
 

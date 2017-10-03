@@ -141,11 +141,13 @@ class AggregateContent extends Component {
 const styles = {
   base: {
     display: 'flex',
+    flexWrap: 'nowrap',
+    flexGrow: 1,
     backgroundColor: whiteBackground,
     minHeight: 180,
-    flexWrap: 'nowrap',
     border: borderSolidGray,
-    width: '100%'
+    width: '100%',
+    overflow: 'hidden'
   },
   inner: {
     minWidth: fieldAreaWidth,

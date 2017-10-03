@@ -91,7 +91,7 @@ export const LOAD_ACCELERATIONS_SUCCESS = 'LOAD_ACCELERATIONS_SUCCESS';
 export const LOAD_ACCELERATIONS_FAILURE = 'LOAD_ACCELERATIONS_FAILURE';
 
 const fetchAccelerations = (/*config,*/ viewId) => {
-  // TODO: will be change
+  // TODO: implement pagination, we set the limit to 1 million for now
   //const { filter = '', order = '', sort = '', offset = '', limit = '' } = config;
   const meta = {viewId};
   return {
@@ -103,7 +103,7 @@ const fetchAccelerations = (/*config,*/ viewId) => {
         {type: LOAD_ACCELERATIONS_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V2}/accelerations`)
+      endpoint: makeUncachebleURL(`${API_URL_V2}/accelerations?limit=1000000`)
     }
   };
 };
@@ -141,7 +141,7 @@ export const DELETE_ACCELERATION_FAILURE = 'DELETE_ACCELERATION_FAILURE';
 
 function fetchDeleteAcceleration(accelerationId, viewId) {
   const meta = { viewId, accelerationId };
-  const entityRemovePaths = [['acceleration', accelerationId]];
+  const entityRemovePaths = [['acceleration', accelerationId], ['datasetAcceleration', accelerationId]];
   return {
     [CALL_API]: {
       types: [

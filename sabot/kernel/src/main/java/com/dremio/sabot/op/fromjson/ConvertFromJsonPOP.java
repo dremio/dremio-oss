@@ -56,7 +56,7 @@ public class ConvertFromJsonPOP extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return getSchema(child.getSchema(context));
   }
 

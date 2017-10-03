@@ -24,10 +24,6 @@ export default class Modal extends Component {
     children: PropTypes.node
   };
 
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     return (
       <div className='modal-white'>

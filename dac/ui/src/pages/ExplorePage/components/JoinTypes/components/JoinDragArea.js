@@ -22,7 +22,7 @@ import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
 
 import JoinDragAreaColumn from './JoinDragAreaColumn';
 
-const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click "Add Another Join Condition"';
+const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click “Add a Join Condition”.';
 
 @pureRender
 @Radium

@@ -208,11 +208,15 @@ message DatasetField {
 
 message AccelerationSettings {
   // acceleration ttl
-  optional TimePeriod accelerationTTL = 1;
+  optional TimePeriod accelerationTTL = 1 [deprecated = true];
   // refresh method whether to fully or incrementally update the cache
   optional RefreshMethod method = 2 [default = FULL];
   // if incremental which field should we use to incrementally update(for non-filesystem tables only)
   optional string refreshField = 3;
+  // materialization refresh period
+  optional int64 refreshPeriod = 4;
+  // materialization grace period
+  optional int64 gracePeriod = 5;
 }
 
 enum RefreshMethod {

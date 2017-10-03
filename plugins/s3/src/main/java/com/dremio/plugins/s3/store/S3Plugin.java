@@ -60,12 +60,15 @@ public class S3Plugin extends FileSystemPlugin {
     try {
       String urlSafeName = URLEncoder.encode(getStorageName(), "UTF-8");
       getFsConf().set(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://" + urlSafeName);
-      // when/if eventually we decide to refresh on the schedule following code will have to be added
-      // dfs.initialize(dfs.getUri(), dfs.getConf());
-      // at this point it is quite expensive, since we get region per bucket during init time
       return setState(SourceState.GOOD);
     } catch (Exception e) {
       return setState(badState(e));
     }
   }
+
+  @Override
+  public S3StoragePlugin2 getStoragePlugin2() {
+    return new S3StoragePlugin2(getStorageName(), (S3PluginConfig) getConfig(), this);
+  }
+
 }

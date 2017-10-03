@@ -23,13 +23,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class VersionInfo {
   private final String version;
-  private final String buildtime;
+  private final long buildtime;
   private final CommitInfo commit;
 
   @JsonCreator
   public VersionInfo(
       @JsonProperty("version") String version,
-      @JsonProperty("buildtime") String buildtime,
+      @JsonProperty("buildtime") long buildtime,
       @JsonProperty("commit") CommitInfo commit) {
     super();
     this.version = version;
@@ -41,12 +41,11 @@ public class VersionInfo {
     return version;
   }
 
-  public String getBuildtime() {
+  public long getBuildtime() {
     return buildtime;
   }
 
   public CommitInfo getCommit() {
     return commit;
   }
-
 }

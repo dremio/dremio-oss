@@ -130,7 +130,7 @@ public class FragmentExecutorBuilder {
         list = new OptionList();
       } else {
         try {
-          list = planReader.getLpPersistance().getMapper().readValue(fragment.getOptionsJson(), OptionList.class);
+          list = planReader.readOptionList(fragment.getOptionsJson(), fragment.getFragmentCodec());
         } catch (final Exception e) {
           throw new ExecutionSetupException("Failure while reading plan options.", e);
         }

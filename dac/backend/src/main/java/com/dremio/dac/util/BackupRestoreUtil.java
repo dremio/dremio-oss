@@ -41,7 +41,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.GlobFilter;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -52,7 +51,7 @@ import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConfig;
 import com.dremio.dac.proto.model.backup.BackupFileInfo;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.DataStoreUtils;
@@ -299,16 +298,15 @@ public final class BackupRestoreUtil {
     return backupStats;
   }
 
-  public static BackupStats restore(FileSystem fs, Path backupDir, DacConfig dacConfig) throws Exception {
-    LocalFileSystem localFileSystem = FileSystem.getLocal(new Configuration());
-    final URI dbDir = dacConfig.getConfig().getURI(DremioConfig.DB_PATH_STRING);
+  public static BackupStats restore(FileSystem fs, Path backupDir, DACConfig dacConfig) throws Exception {
+    final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
     URI uploads = dacConfig.getConfig().getURI(DremioConfig.UPLOADS_PATH_STRING);
-    Path dbPath = new Path(dbDir.getPath());
+    File dbPath = new File(dbDir);
 
-    if (!localFileSystem.isDirectory(dbPath) || localFileSystem.listStatus(dbPath).length > 0) {
+    if (!dbPath.isDirectory() || dbPath.list().length > 0) {
       throw new IllegalArgumentException(format("Path %s must be an empty directory.", dbDir));
     }
-    final LocalKVStoreProvider localKVStoreProvider = new LocalKVStoreProvider(ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig()), dbDir.getPath(), false, true, false, true);
+    final LocalKVStoreProvider localKVStoreProvider = new LocalKVStoreProvider(ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig()), dbDir, false, true, false, true);
     localKVStoreProvider.start();
     // TODO after we add home file store type to configuration make sure we change homefile store construction.
     if(uploads.getScheme().equals("pdfs")){

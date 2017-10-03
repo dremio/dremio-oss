@@ -17,6 +17,7 @@ import { PureComponent, PropTypes } from 'react';
 import invariant from 'invariant';
 
 import codeMirror from 'codemirror';
+import './CodeMirror-sqlMode';
 
 const CM_EVENTS = [
   'change', 'changes', 'beforeChange', 'cursorActivity', 'keyHandled', 'inputRead', 'electricInput',
@@ -37,7 +38,7 @@ const CM_EVENT_PROP_TYPES = Object.keys(PROP_NAME_TO_CM_EVENT).reduce((prev, pro
 }, {});
 
 const DEFAULT_OPTIONS = {
-  mode: 'text/x-sql',
+  mode: 'text/x-dremiosql',
   theme: 'mdn-like'
 };
 

@@ -16,6 +16,7 @@
 package com.dremio.exec.rpc;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.NamedThreadFactory;
 
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;

@@ -26,12 +26,14 @@ public class SchemaConfig {
   private transient final SchemaInfoProvider provider;
   private final AuthorizationContext authContext;
   private final boolean exposeSubSchemasAsTopLevelSchemas;
+  private final boolean exposeInternalSources;
 
   private SchemaConfig(final SchemaInfoProvider provider, final AuthorizationContext authContext,
-      final boolean exposeSubSchemasAsTopLevelSchemas) {
+                       final boolean exposeSubSchemasAsTopLevelSchemas, boolean exposeInternalSources) {
     this.provider = provider;
     this.authContext = authContext;
     this.exposeSubSchemasAsTopLevelSchemas = exposeSubSchemasAsTopLevelSchemas;
+    this.exposeInternalSources = exposeInternalSources;
   }
 
   /**
@@ -47,6 +49,7 @@ public class SchemaConfig {
     SchemaInfoProvider provider;
     boolean ignoreAuthErrors;
     boolean exposeSubSchemasAsTopLevelSchemas;
+    boolean exposeInternalSources = false;
 
     private Builder(final String username) {
       this.username = Preconditions.checkNotNull(username);
@@ -62,6 +65,11 @@ public class SchemaConfig {
       return this;
     }
 
+    public Builder exposeInternalSources(boolean exposeInternalSources) {
+      this.exposeInternalSources = exposeInternalSources;
+      return this;
+    }
+
     /**
      * Whether to expose the nested subschemas as top level schemas by adding a short cut to subschema at top level.
      * Useful in cases where a client can not understand more than one level of schemas such as Tableau.
@@ -74,7 +82,8 @@ public class SchemaConfig {
     }
 
     public SchemaConfig build() {
-      return new SchemaConfig(provider, new AuthorizationContext(username, ignoreAuthErrors), exposeSubSchemasAsTopLevelSchemas);
+      return new SchemaConfig(provider, new AuthorizationContext(username, ignoreAuthErrors),
+          exposeSubSchemasAsTopLevelSchemas, exposeInternalSources);
     }
   }
 
@@ -105,6 +114,10 @@ public class SchemaConfig {
    */
   public boolean exposeSubSchemasAsTopLevelSchemas() {
     return exposeSubSchemasAsTopLevelSchemas;
+  }
+
+  public boolean exposeInternalSources() {
+    return exposeInternalSources;
   }
 
   public OptionValue getOption(String optionKey) {

@@ -38,7 +38,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
+import com.dremio.PlanTestBase;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.exception.SchemaChangeException;
@@ -52,7 +52,7 @@ import com.google.common.io.Files;
 import org.junit.rules.TemporaryFolder;
 
 
-public class TestJsonReader extends BaseTestQuery {
+public class TestJsonReader extends PlanTestBase {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJsonReader.class);
 
   private static final boolean VERBOSE_DEBUG = false;
@@ -60,6 +60,7 @@ public class TestJsonReader extends BaseTestQuery {
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
 
+  @Ignore("DX-9357. Test is file order dependent.")
   @Test
   public void testEmptyList() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/json/emptyLists").toURI().toString();
@@ -473,4 +474,14 @@ public class TestJsonReader extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testSkipAll() throws Exception {
+    final String query = "SELECT count(*) FROM cp.`json/map_list_map.json`";
+    testPhysicalPlan(query, "columns=[]");
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .sqlBaselineQuery("SELECT count(id) FROM cp.`json/map_list_map.json`")
+        .go();
+  }
 }

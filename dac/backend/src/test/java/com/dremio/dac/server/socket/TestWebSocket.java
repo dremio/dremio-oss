@@ -158,7 +158,7 @@ public class TestWebSocket extends BaseTestServer {
     socket.send(new SocketMessage.ListenDetails(runResp.getJobId()));
     List<Payload> payloads = socket.awaitCompletion(2, 10);
     JobDetailsUpdate detailsUpdate = (JobDetailsUpdate) payloads.get(1);
-    assertTrue(detailsUpdate.getDetails().getTimeSpentInPlanning() > 0);
+    assertTrue(detailsUpdate.getJobId().equals(runResp.getJobId()));
   }
 
   /**

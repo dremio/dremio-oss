@@ -80,7 +80,8 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
     return schema;
   }
 
-  public BatchSchema getSchema(FunctionLookupContext context){
+  @Override
+  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
     return schema;
   }
 

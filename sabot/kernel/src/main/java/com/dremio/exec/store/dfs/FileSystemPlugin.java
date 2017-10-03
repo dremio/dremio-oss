@@ -20,11 +20,9 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -50,6 +48,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.dotfile.DotFile;
 import com.dremio.exec.dotfile.DotFileType;
@@ -368,10 +367,11 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
     return optionExtractor.getFunctions(tableSchemaPath, this, schemaConfig);
   }
 
-  private FormatMatcher findMatcher(FileSystemWrapper fs, FileStatus file) {
+  private FormatMatcher findMatcher(FileSystemWrapper fs, FileSelection file) {
     FormatMatcher matcher = null;
     try {
       for (FormatMatcher m : dropFileMatchers) {
+
         if (m.matches(fs, file, codecFactory)) {
           return m;
         }
@@ -383,33 +383,20 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
   }
 
   private boolean isHomogeneous(FileSystemWrapper fs, FileSelection fileSelection) throws IOException {
-    if (fileSelection == null) {
-      throw UserException
-              .validationError()
-              .message(String.format("Table [%s] not found", fileSelection))
-              .build(logger);
-    }
-
     FormatMatcher matcher = null;
-    Queue<FileStatus> listOfFiles = new LinkedList<>();
-    listOfFiles.addAll(fileSelection.getStatuses(fs));
+    FileSelection noDir = fileSelection.minusDirectories();
 
-    while (!listOfFiles.isEmpty()) {
-      FileStatus currentFile = listOfFiles.poll();
-      if (currentFile.isDirectory()) {
-        listOfFiles.addAll(fs.list(true, currentFile.getPath()));
-      } else {
-        if (matcher != null) {
-          if (!matcher.matches(fs, currentFile, codecFactory)) {
-            return false;
-          }
-        } else {
-          matcher = findMatcher(fs, currentFile);
-          // Did not match any of the file patterns, exit
-          if (matcher == null) {
-            return false;
-          }
+    for(FileStatus s : noDir.getStatuses()) {
+      FileSelection subSelection = FileSelection.create(s);
+      if (matcher == null) {
+        matcher = findMatcher(fs, subSelection);
+        if(matcher == null) {
+          return false;
         }
+      }
+
+      if(!matcher.matches(fs, subSelection, codecFactory)) {
+        return false;
       }
     }
     return true;
@@ -433,6 +420,14 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
+    if (fileSelection == null) {
+      throw UserException
+          .validationError()
+          .message(String.format("Table [%s] not found", SqlUtils.quotedCompound(tableSchemaPath)))
+          .build(logger);
+    }
+
     try {
       if (!isHomogeneous(fs, fileSelection)) {
         throw UserException
@@ -526,7 +521,7 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
                       .addAll(PathUtils.toPathComponents(new Path(config.getPath())))
                       .addAll(table.subList(1, table.size()))
                       .build());
-      fileStatuses = getFS(schemaConfig.getUserName()).list(false, fullPath);
+      fileStatuses = getFS(schemaConfig.getUserName()).list(fullPath, false);
     } catch (IOException e) {
       throw new PartitionNotFoundException("Error finding partitions for table " + table, e);
     }

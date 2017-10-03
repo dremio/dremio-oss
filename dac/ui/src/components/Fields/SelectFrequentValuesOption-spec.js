@@ -21,34 +21,31 @@ describe('SelectFrequentValuesOption', () => {
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      field: {
-        value: {
-          'foo': true
-        }
-      },
+      checked: true,
       option: {
         percent: 25,
         value: 'foo'
-      }
+      },
+      maxPercent: 50,
+      onCheck: sinon.spy()
     };
     commonProps = {
-      ...minimalProps,
-      maxPercent: 50
+      ...minimalProps
     };
   });
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<SelectFrequentValuesOption {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
   });
-  it('should render Checkbox, progress', () => {
+  it('should render Checkbox, Meter', () => {
     const wrapper = shallow(<SelectFrequentValuesOption {...commonProps}/>);
     const checkbox = wrapper.find('Checkbox');
-    const progress = wrapper.find('progress');
+    const meter = wrapper.find('Meter');
     expect(checkbox).to.have.length(1);
     expect(checkbox.prop('checked')).to.be.true;
-    expect(progress).to.have.length(1);
-    expect(progress.prop('value')).to.eql(commonProps.option.percent);
-    expect(progress.prop('max')).to.eql(commonProps.maxPercent);
+    expect(meter).to.have.length(1);
+    expect(meter.prop('value')).to.eql(commonProps.option.percent);
+    expect(meter.prop('max')).to.eql(commonProps.maxPercent);
   });
 
   describe('#shouldComponentUpdate', () => {
@@ -58,39 +55,25 @@ describe('SelectFrequentValuesOption', () => {
       wrapper = shallow(<SelectFrequentValuesOption {...commonProps}/>);
       instance = wrapper.instance();
     });
-    it('should return true if field value for option or cellStringBiggerThanCell change', () => {
+    it('should return true if field value for option change', () => {
       const nextProps = {
-        field: {
-          value: {
-            'foo': false
-          }
-        },
+        checked: false,
         option: {
           value: 'bar'
         }
       };
-      const nextState = {
-        cellStringBiggerThanCell: true
-      };
       expect(instance.shouldComponentUpdate(nextProps)).to.be.true;
-
-      expect(instance.shouldComponentUpdate(commonProps, nextState)).to.be.true;
     });
-    it('should return false if field value for option or cellStringBiggerThanCell do not change', () => {
+    it('should return false if field value for option do not change', () => {
       const nextProps = {
-        field: {
-          value: {
-            'foo': true
-          }
-        },
+        checked: true,
         option: {
           value: 'foo'
         }
       };
-      const state = { cellStringBiggerThanCell: false };
-      expect(instance.shouldComponentUpdate(commonProps, state)).to.be.false;
+      expect(instance.shouldComponentUpdate(commonProps)).to.be.false;
 
-      expect(instance.shouldComponentUpdate(nextProps, state)).to.be.false;
+      expect(instance.shouldComponentUpdate(nextProps)).to.be.false;
     });
   });
 
@@ -98,11 +81,8 @@ describe('SelectFrequentValuesOption', () => {
     let testProps;
     beforeEach(() => {
       testProps = {
-        field: {
-          value: {
-            undefined : true
-          }
-        },
+        ...minimalProps,
+        checked: true,
         option: {
           percent: 50,
           value: undefined

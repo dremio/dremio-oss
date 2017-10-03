@@ -27,12 +27,9 @@ import CellPopover from './CellPopover';
 
 // AccelerationGridController is used for behavior definition cells on Raw/Aggregation
 // Aggregation:
-//   User can enable one of 'Dimension' or 'Measure' per field
-//   If user enabled 'Dimension' we should turn off 'Measure', when 'Measure' enabled - turn off 'Dimension'.
-//   If user didn't enable 'Dimension' field but enables sort/partition/distribution field, we should enable 'Dimension' by default.
-//   If user disabled 'Dimension' and 'Measure' fields, we should disable sort/partition/distribution fields.
-//   If user enables sort, we should make enable 'Dimension' field.
-//   If user disable 'Dimension' and 'Measure' enabled then we keep partition/distribution, but turn off sort.
+//   User can enable one or both of 'Dimension' or 'Measure' per field
+//   If user didn't enable 'Dimension' field but enables sort/partition/distribution field, we should enable 'Dimension'.
+//   If user disabled 'Dimension' field, we should disable sort/partition/distribution fields.
 // Raw:
 //   If user doesn't enable 'Display' field but enables sort/partition/distribution field, we should enable 'Display' field.
 //   If user disabled 'Display' field, we should disable sort/partition/distribution fields.
@@ -182,20 +179,10 @@ export default class AccelerationGridController extends Component {
   applyAggregationConstraints = (field, columnIndex, rowIndex) => {
     const currentRow = this.getRowByIndex(rowIndex);
     const dimensionSelected = this.findCurrentColumnInLayouts('dimensionFieldList', rowIndex, columnIndex);
-    const measureSelected = this.findCurrentColumnInLayouts('measureFieldList', rowIndex, columnIndex);
+    // const measureSelected = this.findCurrentColumnInLayouts('measureFieldList', rowIndex, columnIndex);
     const fieldSelected = field && this.findCurrentColumnInLayouts(field, rowIndex, columnIndex);
 
-    if (['dimensionFieldList', 'measureFieldList'].includes(field)) {
-      if (dimensionSelected && measureSelected) {
-        if (field === 'dimensionFieldList') {
-          this.removeFieldByIndex(currentRow, 'measureFieldList', columnIndex);
-        } else {
-          this.removeFieldByIndex(currentRow, 'dimensionFieldList', columnIndex);
-          this.removeFieldByIndex(currentRow, 'sortFieldList', columnIndex);
-          this.removeFieldByIndex(currentRow, 'partitionFieldList', columnIndex);
-          this.removeFieldByIndex(currentRow, 'distributionFieldList', columnIndex);
-        }
-      }
+    if (['dimensionFieldList'].includes(field)) {
       if (!dimensionSelected) {
         this.removeFieldByIndex(currentRow, 'sortFieldList', columnIndex);
         this.removeFieldByIndex(currentRow, 'partitionFieldList', columnIndex);
@@ -203,7 +190,6 @@ export default class AccelerationGridController extends Component {
       }
     }
     if (['partitionFieldList', 'distributionFieldList', 'sortFieldList'].includes(field) && fieldSelected) {
-      this.removeFieldByIndex(currentRow, 'measureFieldList', columnIndex);
       this.addFieldByIndex(currentRow, 'dimensionFieldList', columnIndex);
     }
   };
@@ -329,7 +315,7 @@ export default class AccelerationGridController extends Component {
     const columns = this.filterFieldList(allColumns);
 
     return (
-      <div>
+      <div style={styles.base}>
         <AccelerationGrid
           activeTab={activeTab}
           renderBodyCell={this.renderBodyCell}
@@ -354,6 +340,10 @@ export default class AccelerationGridController extends Component {
 }
 
 const styles = {
+  base: {
+    display: 'flex',
+    flexGrow: 1
+  },
   cell: {
     display: 'flex',
     justifyContent: 'space-between',

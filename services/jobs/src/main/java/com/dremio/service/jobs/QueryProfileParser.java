@@ -19,6 +19,7 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -47,6 +48,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -292,8 +295,8 @@ class QueryProfileParser {
       return;
     }
 
+    final ListMultimap<CoreOperatorType, OperatorProfile> operators = ArrayListMultimap.create();
     for (MajorFragmentProfile majorFragment: queryProfile.getFragmentProfileList()) {
-      final Map<OperationType, List<OperatorProfile>> operators = Maps.newHashMap();
       if (majorFragment.getMinorFragmentProfileList() == null) {
         continue;
       }
@@ -311,6 +314,8 @@ class QueryProfileParser {
             setOperationStats(OperationType.Misc, toMillis(operatorProfile.getProcessNanos()));
             continue;
           }
+
+          operators.put(operatorType, operatorProfile);
 
           switch (operatorType) {
             case SCREEN:
@@ -390,9 +395,6 @@ class QueryProfileParser {
 
             // job output writer
             case ARROW_WRITER:
-              if (jobStats.getOutputRecords() == null) {
-                setOutputStatsForQueryResults(operatorProfile.getInputProfileList());
-              }
               setOperationStats(OperationType.Writing, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
@@ -429,12 +431,30 @@ class QueryProfileParser {
 
     // finalize output stats
 
+    // Get query output stats
+    // Try first ARROW_WRITER operators (UI) or SCREEN otherwise (for external clients)
+    for(CoreOperatorType operatorType: Arrays.asList(CoreOperatorType.ARROW_WRITER, CoreOperatorType.SCREEN)) {
+      List<OperatorProfile> profiles = operators.get(operatorType);
+      if (profiles.isEmpty()) {
+        continue;
+      }
+
+      for(OperatorProfile profile: profiles) {
+        List<StreamProfile> streams = profile.getInputProfileList();
+        setOutputStatsForQueryResults(streams);
+      }
+      // No need to try other operators
+      break;
+    }
+
     if (jobStats.getOutputRecords() == null) {
       jobStats.setOutputRecords(queryOutputRecords);
     }
     if (jobStats.getOutputBytes() == null) {
       jobStats.setOutputBytes(queryOutputBytes);
     }
+
+
     jobDetails.setOutputRecords(jobStats.getOutputRecords());
     jobDetails.setDataVolume(jobStats.getOutputBytes());
     jobDetails.setFsDatasetProfilesList(new ArrayList<>(fileSystemDatasetProfileMap.values()));

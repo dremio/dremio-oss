@@ -44,7 +44,7 @@ import com.beust.jcommander.Parameters;
 import com.dremio.dac.daemon.NetworkUtil;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.HttpsConnectorGenerator;
 import com.dremio.dac.server.tokens.TokenUtils;
@@ -128,7 +128,7 @@ public class Backup {
     }
   }
 
-  public static BackupStats createBackup(DacConfig dacConfig, String userName, String password, KeyStore trustStore, URI uri) throws IOException {
+  public static BackupStats createBackup(DACConfig dacConfig, String userName, String password, KeyStore trustStore, URI uri) throws IOException {
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     provider.setMapper(JSONUtil.prettyMapper());
     ClientBuilder clientBuilder = ClientBuilder.newBuilder()
@@ -157,7 +157,7 @@ public class Backup {
   }
 
   public static void main(String[] args) {
-    final DacConfig dacConfig = DacConfig.newConfig();
+    final DACConfig dacConfig = DACConfig.newConfig();
     final BackupManagerOptions options = BackupManagerOptions.parse(args);
     try {
       if (!NetworkUtil.addressResolvesToThisNode(dacConfig.getMasterNode())) {

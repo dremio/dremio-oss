@@ -114,6 +114,24 @@
     ]
   },
   {
+    "type": "MAP",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      }
+    ]
+  },
+  {
+    "type": "BOOLEAN",
+    "values": [
+      {
+        "option": "TEXT",
+        "label": "Text"
+      }
+    ]
+  },
+  {
     "type": "DATE",
     "values": [
       {

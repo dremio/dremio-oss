@@ -21,7 +21,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.ArrowType.Null;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +175,7 @@ public class SchemaMerger {
     Field listChild = listType.getOnlyChild();
 
     // check that the basic list types are the same. We don't compare full types here because it could be that the two different structs (only a subset of fields showed up in one or both structs).
-    if(!listChild.getType().equals(nonListType.getType())){
+    if(!listChild.getType().equals(nonListType.getType()) && !listChild.getType().equals(Null.INSTANCE)){
       throw failure(parent, declaredField, observedType);
     }
 

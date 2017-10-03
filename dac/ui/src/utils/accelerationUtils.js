@@ -18,14 +18,16 @@ export const mapStateToIcon = status => ({
   RUNNING: 'Pending',
   DONE: 'OKSolid',
   FAILED: 'ErrorSolid',
-  DELETED: 'Warning', // deleted and un-replaced layout is probably bad
+  DELETED: 'Warning-Solid', // deleted and un-replaced layout is probably bad
 
   // Acceleration#state:
-  OUT_OF_DATE: 'Warning',
+  OUT_OF_DATE: 'Warning-Solid',
 
   // synthetic:
   DISABLED: 'Disabled',
-  EXPIRED: 'Warning-Solid'
+  EXPIRED: 'Warning-Solid',
+  FAILED_FINAL: 'ErrorSolid',
+  FAILED_NONFINAL: 'Warning-Solid'
 }[status] || 'Warning-Solid');
 
 export const mapStateToText = status => ({
@@ -40,20 +42,23 @@ export const mapStateToText = status => ({
 
   // synthetic:
   DISABLED: la('Disabled'),
-  EXPIRED: la('Expired')
-}[status] || la('Unknown'));
+  EXPIRED: la('Expired'),
+  FAILED_FINAL: la('Multiple attempts to build Reflection failed, will not reattempt.'),
+  FAILED_NONFINAL: la('Attempt to build Reflection failed, will reattempt.')
+}[status] || la('Unknown: ') + status);
 
 export function summarizeState(acceleration) {
   if (acceleration.errorList && acceleration.errorList.length) {
     return 'FAILED';
   }
 
-  if (acceleration.state === 'NEW') { // todo: eventually replace Acceleration#state with a #isGeneratingSuggestions bool
-    return 'NEW';
-  }
-
   if (acceleration.state === 'OUT_OF_DATE') { // todo: eventually replace Acceleration#state with other flags
     return 'OUT_OF_DATE';
+  }
+
+  // generating suggestions
+  if (acceleration.state === 'NEW') { // todo: eventually replace Acceleration#state with a #isGeneratingSuggestions bool
+    return 'NEW';
   }
 
   let eitherEnabled = false;
@@ -71,18 +76,27 @@ export function summarizeState(acceleration) {
 
   if (!eitherEnabled) return 'DISABLED';
 
-  const states = new Set(layouts.map(e => e.latestMaterializationState));
+  const states = new Set(layouts.map(syntheticLayoutState));
 
-  // todo: DRY up with classes
-  if (layouts.some(e => e.latestMaterializationState === 'DONE' && !e.hasValidMaterialization)) {
-    states.add('EXPIRED');
-  }
-
-  for (const state of ['FAILED', 'EXPIRED', 'RUNNING', 'NEW']) {
+  for (const state of [
+    'FAILED_FINAL',
+    'FAILED_NONFINAL',
+    'EXPIRED',
+    'RUNNING',
+    'NEW'
+  ]) {
     if (states.has(state)) return state;
   }
 
   return 'DONE';
+}
+
+export function syntheticLayoutState(layout) {
+  if (layout.latestMaterializationState === 'FAILED' && layout.state === 'FAILED') return 'FAILED_FINAL';
+  if (layout.latestMaterializationState === 'FAILED' && layout.state === 'ACTIVE') return 'FAILED_NONFINAL';
+  if (layout.latestMaterializationState === 'DONE' && !layout.hasValidMaterialization) return 'EXPIRED';
+  // todo: future: show a "RUNNING but it is a reattempt"
+  return layout.latestMaterializationState;
 }
 
 export function summarizeByteSize(acceleration) {

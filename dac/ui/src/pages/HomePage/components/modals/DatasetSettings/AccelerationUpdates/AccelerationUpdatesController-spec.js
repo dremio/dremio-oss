@@ -17,6 +17,7 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
+import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 import { ALL_TYPES, INCREMENTAL_TYPES } from 'constants/columnTypeGroups';
 import { AccelerationUpdatesController } from './AccelerationUpdatesController';
 import AccelerationUpdatesForm from './AccelerationUpdatesForm';
@@ -34,10 +35,8 @@ describe('AccelerationUpdatesController', () => {
       ...minimalProps,
       accelerationSettings: Immutable.fromJS({
         refreshMethod: 'FULL',
-        accelerationTTL: {
-          duration: 1,
-          unit: 'HOUR'
-        }
+        accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
+        accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod()
       }),
       summaryDataset: Immutable.fromJS({
         fields: [

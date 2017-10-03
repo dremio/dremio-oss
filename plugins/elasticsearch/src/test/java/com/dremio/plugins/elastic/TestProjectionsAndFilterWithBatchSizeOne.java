@@ -18,6 +18,8 @@ package com.dremio.plugins.elastic;
 import org.junit.After;
 import org.junit.Before;
 
+import com.dremio.exec.ExecConstants;
+
 /**
  * Runs the same set of tests as TestAggregationsAndFilter, but with batch size set to 1 for the entire test.
  * This is important to make sure that batch size is handled properly in elasticsearch readers and that when next()
@@ -28,11 +30,13 @@ public class TestProjectionsAndFilterWithBatchSizeOne extends TestProjectionsAnd
   @Before
   public void loadTable() throws Exception {
     super.loadTable();
-    test("alter session set `dremio.exec.operator_batch_size` = 1");
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, "1");
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, "1");
   }
 
   @After
   public void cleanUp() throws Exception {
-    test("alter session set `dremio.exec.operator_batch_size` = 4000");
+    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
   }
 }

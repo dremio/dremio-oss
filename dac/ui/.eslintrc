@@ -56,7 +56,7 @@
     }],
     "react/jsx-uses-vars": "error",
     "react/no-is-mounted": "error",
-    "react/no-direct-mutation-state": "off",
+    "react/no-direct-mutation-state": "error",
     "react/no-did-mount-set-state": "error",
     "react/no-did-update-set-state": "error",
     "react/jsx-no-duplicate-props": ["off", { "ignoreCase": false }],
@@ -65,7 +65,7 @@
     "react/jsx-indent": ["error", 2],
     "react/jsx-curly-spacing": ["off", "never", { "allowMultiline": true }],
     "react/jsx-boolean-value": ["error", "never"],
-    "max-len": ["error", 120, {ignoreComments: true, ignoreTemplateLiterals: true, ignorePattern: "^\\s*it\\('"}],
+    "react/jsx-no-comment-textnodes": "error",
     "comma-dangle": "error",
     "no-negated-in-lhs": "error",
     "block-scoped-var": "error",
@@ -92,7 +92,6 @@
     "no-new-wrappers": "error",
     "no-new": "error",
     "no-octal-escape": "error",
-    "no-param-reassign": ["error", {props: false}],
     "no-proto": "error",
     "no-script-url": "error",
     "no-self-compare": "error",
@@ -158,6 +157,11 @@
     "jsx-quotes": ["error", "prefer-single"],
     "no-restricted-globals": ["error", "encodeURI"], // if you think you want this, you probably want encodeURIComponent instead
     "keyword-spacing": ["error", { "before": true, "after": true }]
+  },
+  "settings": {
+    "import/core-modules": [
+      "redux-saga/effects"
+    ]
   },
   "globals":{
     "$": true,

@@ -92,10 +92,7 @@ public class StatsCollector extends AbstractOpWrapperVisitor<Void, RuntimeExcept
     stats.addMinWidth(groupScan.getMinParallelizationWidth());
 
     ImmutableList<CompleteWork> work = ImmutableList.<CompleteWork>copyOf(groupScan.getSplits(executionNodeMap));
-
     stats.addSplits(groupScan, work);
-    stats.addEndpointAffinities(work.iterator());
-    stats.setDistributionAffinity(groupScan.getDistributionAffinity());
 
     return super.visitGroupScan(groupScan, wrapper);
   }

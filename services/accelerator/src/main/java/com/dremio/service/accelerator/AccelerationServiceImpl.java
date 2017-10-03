@@ -23,7 +23,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
@@ -31,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
@@ -47,13 +47,11 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.concurrent.RenamingCallable;
+import com.dremio.concurrent.RenamingRunnable;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
-import com.dremio.exec.planner.sql.MaterializationDescriptor.LayoutInfo;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
@@ -64,7 +62,6 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.service.BindingCreator;
-import com.dremio.service.accelerator.DependencyGraph.DependencyNode;
 import com.dremio.service.accelerator.materialization.MaterializationStoragePluginConfig;
 import com.dremio.service.accelerator.pipeline.PipelineManager;
 import com.dremio.service.accelerator.proto.Acceleration;
@@ -77,18 +74,15 @@ import com.dremio.service.accelerator.proto.DataPartition;
 import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.LayoutContainerDescriptor;
 import com.dremio.service.accelerator.proto.LayoutDescriptor;
-import com.dremio.service.accelerator.proto.LayoutDetails;
 import com.dremio.service.accelerator.proto.LayoutDetailsDescriptor;
-import com.dremio.service.accelerator.proto.LayoutDimensionField;
 import com.dremio.service.accelerator.proto.LayoutDimensionFieldDescriptor;
-import com.dremio.service.accelerator.proto.LayoutField;
 import com.dremio.service.accelerator.proto.LayoutFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationId;
-import com.dremio.service.accelerator.proto.MaterializationMetrics;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
+import com.dremio.service.accelerator.proto.MaterializedLayoutState;
 import com.dremio.service.accelerator.proto.RowType;
 import com.dremio.service.accelerator.proto.SystemSettings;
 import com.dremio.service.accelerator.store.AccelerationEntryStore;
@@ -97,17 +91,20 @@ import com.dremio.service.accelerator.store.AccelerationStore;
 import com.dremio.service.accelerator.store.MaterializationStore;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -125,6 +122,7 @@ public class AccelerationServiceImpl implements AccelerationService {
   private static final Logger logger = LoggerFactory.getLogger(AccelerationServiceImpl.class);
 
   private static final Schedule EVERY_DAY = Schedule.Builder.everyDays(1).build();
+  private static final Schedule EVERY_MINUTE = Schedule.Builder.everyMinutes(1).build();
   private static final TemporalAmount COMPACTION_GRACE_PERIOD = Duration.ofHours(4);
   public static final Ordering<Materialization> COMPLETION_ORDERING = Ordering.from(new Comparator<Materialization>() {
     @Override
@@ -159,6 +157,7 @@ public class AccelerationServiceImpl implements AccelerationService {
   private final AtomicReference<DependencyGraph> dependencyGraph = new AtomicReference<>();
   private MaterializationPlanningFactory materializationPlanningFactory = new MaterializationPlanningFactory();
   private AtomicReference<Cancellable> cleanupTaskRef = new AtomicReference<>();
+  private Cancellable syncDatasetPathsTask;
 
   public AccelerationServiceImpl(
       final BindingCreator bindingCreator,
@@ -221,11 +220,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     final MaterializationDescriptorProvider provider = new MaterializationDescriptorProvider() {
       @Override
       public List<MaterializationDescriptor> get() {
-        if (!queryAccelerationEnabled) {
-          return ImmutableList.of();
-        }
-
-        return getMaterializations();
+        return get(false);
       }
 
       @Override
@@ -241,17 +236,40 @@ public class AccelerationServiceImpl implements AccelerationService {
         }
         return Optional.absent();
       }
+
+      @Override
+      public void update(MaterializationDescriptor materializationDescriptor) {
+      }
+
+      @Override
+      public List<MaterializationDescriptor> get(boolean includeIncompleteDatasets) {
+        if (!queryAccelerationEnabled) {
+          return ImmutableList.of();
+        }
+        return getMaterializations(includeIncompleteDatasets);
+      }
+
     };
 
     materializationProvider = new CachedMaterializationProvider(provider, contextProvider, this);
+    materializationProvider.getStartedFuture().addListener(
+      RenamingRunnable.of(RebuildRefreshGraph.of(this), "accel-refresher-startup"),
+      executor
+    );
+
     bindingCreator.replace(MaterializationDescriptorProvider.class, materializationProvider);
 
     bindingCreator.replace(AccelerationManager.class, new AccelerationManagerImpl(this, namespaceService.get()));
     schedulerService.get().schedule(EVERY_DAY, new EnableMostRequestedAccelerationTask(this));
     schedulerService.get().schedule(EVERY_DAY, new GarbageCollectorTask(this, COMPACTION_GRACE_PERIOD));
-    executor.submit(RenamingCallable.of(RebuildRefreshGraph.of(this), "accel-refresher-startup"));
     cleanupTaskRef.set(scheduleCleanupTask());
+    syncDatasetPathsTask = schedulerService.get().schedule(EVERY_MINUTE, new SyncDatasetPathsTask());
     logger.info("Acceleration service is up");
+  }
+
+  @Override
+  public MaterializationDescriptorProvider getMaterlizationProvider() {
+    return materializationProvider;
   }
 
   private Cancellable scheduleCleanupTask() {
@@ -263,6 +281,7 @@ public class AccelerationServiceImpl implements AccelerationService {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(materializationProvider, pipelineManager);
+    ScheduleUtils.cancel(syncDatasetPathsTask, cleanupTaskRef.get());
   }
 
   @Override
@@ -276,6 +295,11 @@ public class AccelerationServiceImpl implements AccelerationService {
   }
 
   @Override
+  public Optional<Acceleration> getAccelerationByLayoutId(LayoutId layoutId) {
+    return accelerationStore.getByIndex(AccelerationIndexKeys.LAYOUT_ID, layoutId.getId());
+  }
+
+  @Override
   public Optional<AccelerationEntry> getAccelerationEntryById(final AccelerationId id) {
     return entryStore.get(id)
         .transform(new EntryRefresher());
@@ -284,15 +308,13 @@ public class AccelerationServiceImpl implements AccelerationService {
   @Override
   public Optional<AccelerationEntry> getAccelerationEntryByDataset(final NamespaceKey path) {
     final String pathString = Preconditions.checkNotNull(path, "path is required").getSchemaPath();
-    return accelerationStore.getByIndex(AccelerationIndexKeys.DATASET_PATH, pathString)
-        .transform(new Function<Acceleration, AccelerationEntry>() {
-          @Nullable
-          @Override
-          public AccelerationEntry apply(@Nullable final Acceleration input) {
-            return entryStore.get(input.getId()).get();
-          }
-        })
-        .transform(new EntryRefresher());
+    try {
+      final DatasetConfig datasetConfig = namespaceService.get().getDataset(path);
+      return getAccelerationEntryById(new AccelerationId (datasetConfig.getId().getId()));
+    } catch (NamespaceException e) {
+      logger.warn("could not obtain dataset using path {}" , pathString, e);
+      return Optional.absent();
+    }
   }
 
   @Override
@@ -306,6 +328,22 @@ public class AccelerationServiceImpl implements AccelerationService {
         }
       })
       .transform(new EntryRefresher());
+  }
+
+  @Override
+  public Optional<Layout> getLayout(final LayoutId layoutId) {
+    final Optional<Acceleration> acceleration = accelerationStore.getByIndex(AccelerationIndexKeys.LAYOUT_ID, layoutId.getId());
+    if (!acceleration.isPresent()) {
+      return null;
+    }
+
+    return FluentIterable.from(AccelerationUtils.allLayouts(acceleration.get()))
+      .firstMatch(new Predicate<Layout>() {
+        @Override
+        public boolean apply( Layout layout) {
+          return layout.getId().equals(layoutId);
+        }
+      });
   }
 
   @Override
@@ -583,6 +621,11 @@ public class AccelerationServiceImpl implements AccelerationService {
   }
 
   @Override
+  public Optional<MaterializedLayout> getMaterializedLayout(final LayoutId layoutId) {
+    return materializationStore.get(layoutId);
+  }
+
+  @Override
   public void remove(final AccelerationId id) {
     entryStore.remove(id);
     final Optional<Acceleration> acceleration = accelerationStore.get(id);
@@ -613,7 +656,8 @@ public class AccelerationServiceImpl implements AccelerationService {
         .setLimit((int)manager.getOption(ExecConstants.ACCELERATION_LIMIT))
         .setAccelerateAggregation(manager.getOption(ExecConstants.ACCELERATION_AGGREGATION_ENABLED))
         .setAccelerateRaw(manager.getOption(ExecConstants.ACCELERATION_RAW_ENABLED))
-        .setOrphanCleanupInterval(manager.getOption(ExecConstants.ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS));
+        .setOrphanCleanupInterval(manager.getOption(ExecConstants.ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS))
+        .setLayoutRefreshMaxAttempts((int)manager.getOption(ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS));
   }
 
   @Override
@@ -626,6 +670,9 @@ public class AccelerationServiceImpl implements AccelerationService {
       manager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS.getOptionName(), settings.getOrphanCleanupInterval()));
       Cancellable cleanupTask = cleanupTaskRef.getAndSet(scheduleCleanupTask());
       cleanupTask.cancel();
+    }
+    if (settings.getLayoutRefreshMaxAttempts() != null) {
+      manager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), settings.getLayoutRefreshMaxAttempts()));
     }
   }
 
@@ -707,7 +754,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     final Iterable<Acceleration> allActive = Iterables.concat(
         accelerationStore.getAllByIndex(AccelerationIndexKeys.ACCELERATION_STATE, AccelerationState.ENABLED.toString()),
         accelerationStore.getAllByIndex(AccelerationIndexKeys.ACCELERATION_STATE, AccelerationState.ENABLED_SYSTEM.toString())
-    );
+        );
 
     return FluentIterable
         .from(allActive)
@@ -717,10 +764,21 @@ public class AccelerationServiceImpl implements AccelerationService {
           public Iterable<Layout> apply(@Nullable Acceleration acceleration) {
             return AccelerationUtils.allActiveLayouts(acceleration);
           }
+        })
+        .filter(new Predicate<Layout>() {
+          @Override
+          public boolean apply(Layout input) {
+            Optional<MaterializedLayout>  materializedLayoutOpt = materializationStore.get(input.getId());
+            if (materializedLayoutOpt.isPresent()) {
+              MaterializedLayout materializedLayout = materializedLayoutOpt.get();
+              return (materializedLayout.getState() != MaterializedLayoutState.FAILED);
+            }
+            return true;
+          }
         });
   }
 
-  private List<MaterializationDescriptor> getMaterializations() {
+  private List<MaterializationDescriptor> getMaterializations(final boolean includeIncompleteDatasets) {
     final Iterable<Acceleration> accelerations = accelerationStore.find();
     final Set<DataPartition> activeHosts = getActiveHosts();
 
@@ -730,7 +788,7 @@ public class AccelerationServiceImpl implements AccelerationService {
           @Nullable
           @Override
           public Iterable<MaterializationDescriptor> apply(@Nullable final Acceleration acceleration) {
-            return getMaterializations(acceleration, activeHosts);
+            return getMaterializations(acceleration, activeHosts, includeIncompleteDatasets);
           }
         })
         .toList();
@@ -739,75 +797,35 @@ public class AccelerationServiceImpl implements AccelerationService {
   /**
    * Returns effective materializations associated with the given acceleration
    */
-  private Iterable<MaterializationDescriptor> getMaterializations(final Acceleration acceleration, final Set<DataPartition> activeHosts) {
+  private Iterable<MaterializationDescriptor> getMaterializations(final Acceleration acceleration, final Set<DataPartition> activeHosts, final boolean includeIncompleteDatasets) {
     return FluentIterable
         .from(AccelerationUtils.allActiveLayouts(acceleration))
         .transformAndConcat(new Function<Layout, Iterable<MaterializationDescriptor>>() {
           @Nullable
           @Override
           public Iterable<MaterializationDescriptor> apply(@Nullable final Layout layout) {
-            final Iterable<Materialization> completed = getEffectiveMaterialization(layout, activeHosts);
+            final Iterable<MaterializationWrapper> completed = getEffectiveMaterialization(layout, activeHosts, includeIncompleteDatasets);
 
             return FluentIterable
                 .from(completed)
-                .transform(new Function<Materialization, MaterializationDescriptor>() {
+                .transform(new Function<MaterializationWrapper, MaterializationDescriptor>() {
                   @Nullable
                   @Override
-                  public MaterializationDescriptor apply(@Nullable final Materialization materialization) {
-                    final byte[] planBytes = layout.getLogicalPlan().toByteArray();
-                    final List<String> fullPath = ImmutableList.<String>builder()
-                        .addAll(materialization.getPathList())
-                        .build();
-                    return new MaterializationDescriptor(
-                        acceleration.getId().getId(),
-                        toLayoutInfo(layout),
-                        materialization.getId().getId(),
-                        materialization.getUpdateId(),
-                        materialization.getExpiration(),
-                        planBytes,
-                        fullPath,
-                        Optional.fromNullable(materialization.getMetrics()).or(new MaterializationMetrics()).getOriginalCost(),
-                        new IncrementalUpdateSettings(Optional.fromNullable(layout.getIncremental()).or(false), layout.getRefreshField())
-                    );
+                  public MaterializationDescriptor apply(@Nullable final MaterializationWrapper materializationInfo) {
+                    return AccelerationUtils.getMaterializationDescriptor(acceleration, layout, materializationInfo.getMaterialization(), materializationInfo.isComplete());
                   }
                 });
           }
         });
   }
 
-  private static LayoutInfo toLayoutInfo(Layout layout){
-    String id = layout.getId().getId();
-    LayoutDetails details = layout.getDetails();
-    return new LayoutInfo(id,
-        getNames(Optional.fromNullable(details.getSortFieldList()).or(Collections.<LayoutField>emptyList())),
-        getNames(Optional.fromNullable(details.getPartitionFieldList()).or(Collections.<LayoutField>emptyList())),
-        getNames(Optional.fromNullable(details.getDistributionFieldList()).or(Collections.<LayoutField>emptyList())),
-        getDimensionNames(Optional.fromNullable(details.getDimensionFieldList()).or(Collections.<LayoutDimensionField>emptyList())),
-        getNames(Optional.fromNullable(details.getMeasureFieldList()).or(Collections.<LayoutField>emptyList())),
-        getNames(Optional.fromNullable(details.getDisplayFieldList()).or(Collections.<LayoutField>emptyList()))
-    );
-  }
-
-  private static List<String> getDimensionNames(List<LayoutDimensionField> fields){
-    return FluentIterable.from(fields).transform(new Function<LayoutDimensionField, String>(){
-      @Nullable
-      @Override
-      public String apply(@Nullable LayoutDimensionField input) {
-        return input.getName();
-      }
-    }).toList();
-  }
-
-  private static List<String> getNames(List<LayoutField> fields){
-    return FluentIterable.from(fields).transform(new Function<LayoutField, String>(){
-      @Override
-      public String apply(LayoutField input) {
-        return input.getName();
-      }}).toList();
-  }
-
   Optional<Materialization> getEffectiveMaterialization(final Layout layout) {
-    return Optional.fromNullable(Iterables.getFirst(getEffectiveMaterialization(layout, getActiveHosts()), null));
+    MaterializationWrapper materializationInfo = Iterables.getFirst(getEffectiveMaterialization(layout, getActiveHosts(), false), null);
+    if (materializationInfo != null) {
+      return Optional.of(materializationInfo.getMaterialization());
+    } else {
+      return Optional.absent();
+    }
   }
 
   private Set<DataPartition> getActiveHosts() {
@@ -820,7 +838,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     }));
   }
 
-  private List<Materialization> getEffectiveMaterialization(final Layout layout, final Set<DataPartition> activeHosts) {
+  private Iterable<MaterializationWrapper> getEffectiveMaterialization(final Layout layout, final Set<DataPartition> activeHosts, final boolean includeIncompleteDatasets) {
     if (layout.getLogicalPlan() == null) {
       return ImmutableList.of();
     }
@@ -828,6 +846,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     final List<Materialization> materializations = AccelerationUtils.getAllMaterializations(materializationStore.get(layout.getId()));
 
     final List<Materialization> expiredMaterializations = new ArrayList<>();
+    final Set<Materialization> incompleteMaterializations = new HashSet<>();
 
     List<Materialization> result = COMPLETION_ORDERING
         .greatestOf(FluentIterable
@@ -841,23 +860,34 @@ public class AccelerationServiceImpl implements AccelerationService {
                 if (materialization.getLayoutVersion() != layout.getVersion()) {
                   return false;
                 }
-                List<DataPartition> partitionList = Optional.fromNullable(materialization.getPartitionList()).or(ImmutableList.<DataPartition>of());
-                final ImmutableSet<DataPartition> partitions = ImmutableSet.copyOf(partitionList);
-                return activeHosts.containsAll(partitions);
+                if (materialization.getExpiration() == null) {
+                  logger.warn("No ttl found for layout: {}. Excluding materialization", layout.getId().getId());
+                  return false;
+                }
+                return true;
               }
             })
             .filter(new Predicate<Materialization>() {
               @Override
               public boolean apply(@Nullable Materialization materialization) {
-                if (materialization.getExpiration() == null) {
-                  logger.warn("No ttl found for layout: {}. Excluding materialization", layout.getId().getId());
-                  return false;
+                List<DataPartition> partitionList = Optional.fromNullable(materialization.getPartitionList()).or(ImmutableList.<DataPartition>of());
+                final ImmutableSet<DataPartition> partitions = ImmutableSet.copyOf(partitionList);
+                if (!activeHosts.containsAll(partitions)) {
+                  if (includeIncompleteDatasets) {
+                    incompleteMaterializations.add(materialization);
+                  } else {
+                    return false;
+                  }
                 }
                 long expiration = materialization.getExpiration();
                 long currentTime = System.currentTimeMillis();
                 if (currentTime > expiration) {
-                  expiredMaterializations.add(materialization);
-                  return false;
+                  if (includeIncompleteDatasets) {
+                    incompleteMaterializations.add(materialization);
+                  } else {
+                    expiredMaterializations.add(materialization);
+                    return false;
+                  }
                 }
                 return true;
               }
@@ -878,7 +908,15 @@ public class AccelerationServiceImpl implements AccelerationService {
           expiredString.toString()
       );
     }
-    return result;
+    return FluentIterable
+        .from(result)
+        .transform(new Function<Materialization, MaterializationWrapper>() {
+          @Nullable
+          @Override
+          public MaterializationWrapper apply(@Nullable final Materialization materialization) {
+            return new MaterializationWrapper(materialization, !incompleteMaterializations.contains(materialization));
+          }
+        });
   }
 
   private void startMaterializationPlugin() throws IOException, ExecutionSetupException {
@@ -891,13 +929,15 @@ public class AccelerationServiceImpl implements AccelerationService {
    */
   private void dropMaterialization(final Materialization materialization) {
     Acceleration acceleration = accelerationStore.getByIndex(AccelerationIndexKeys.LAYOUT_ID, materialization.getLayoutId().getId()).get();
-    final DropTask task = new DropTask(acceleration, materialization, jobsService.get());
+    DatasetConfig dataset = namespaceService.get().findDatasetByUUID(acceleration.getId().getId());
+    final DropTask task = new DropTask(acceleration, materialization, jobsService.get(), dataset);
     task.run();
   }
 
-  // utility classes
-
   private DependencyGraph buildDependencyGraph(Iterable<Layout> layouts) {
+    logger.info("Started building the dependency graph.");
+    Stopwatch stopWatch = Stopwatch.createStarted();
+
     final DependencyGraph graph = new DependencyGraph(this,
         jobsService.get(),
         namespaceService.get(),
@@ -906,7 +946,6 @@ public class AccelerationServiceImpl implements AccelerationService {
         acceleratorStoragePluginProvider.get().getStorageName(),
         materializationStore,
         executor,
-        accelerationStore,
         acceleratorStoragePluginProvider.get());
 
     Map<String, Layout> layoutMap = FluentIterable.from(layouts)
@@ -925,7 +964,7 @@ public class AccelerationServiceImpl implements AccelerationService {
           if (dataset != null) {
             MaterializationPlanningTask task = materializationPlanningFactory.createTask(
                 acceleratorStoragePluginProvider.get().getStorageName(),
-                jobsService.get(), layout, layoutMap, namespaceService.get(), acceleration.get());
+                jobsService.get(), layout, namespaceService.get(), this, acceleration.get());
             executor.execute(task);
             DependencyNode vertex = new DependencyNode(layout);
             graph.addVertex(vertex);
@@ -941,10 +980,17 @@ public class AccelerationServiceImpl implements AccelerationService {
       }
     }
     graph.buildAndSchedule();
+    logger.info("Finished building the dependency graph, took {} ms.", stopWatch.stop().elapsed(TimeUnit.MILLISECONDS));
+
     DependencyGraph old = dependencyGraph.getAndSet(graph);
     if (old != null) {
       old.close();
     }
+
+    if (graph != null && logger.isDebugEnabled()) {
+      logger.debug(graph.toString());
+    }
+
     return graph;
   }
 
@@ -968,6 +1014,24 @@ public class AccelerationServiceImpl implements AccelerationService {
         // Remove the entry from the store
         logger.info("removing acceleration {} because dataset is removed", acceleration.getId().getId());
         remove(acceleration.getId());
+      }
+    }
+  }
+
+  private void updateDatasetPaths() {
+    final Iterable<Acceleration> accelerations = accelerationStore.find();
+    for (final Acceleration acceleration : accelerations) {
+      DatasetConfig dataset = namespaceService.get().findDatasetByUUID(acceleration.getId().getId());
+      if (dataset != null) {
+        // if dataset path has changed, then update it on acceleration so that it gets indexed properly.
+        if (!dataset.getFullPathList().equals(acceleration.getContext().getDataset().getFullPathList())) {
+          logger.info("updating dataset path for acceleration {} from {} to {} .",
+              acceleration.getId().getId(),
+              acceleration.getContext().getDataset().getFullPathList(),
+              dataset.getFullPathList() );
+          acceleration.getContext().getDataset().setFullPathList(dataset.getFullPathList());
+          accelerationStore.save(acceleration);
+        }
       }
     }
   }
@@ -1019,6 +1083,10 @@ public class AccelerationServiceImpl implements AccelerationService {
       cleanupOrphanedAccelerations();
     }
 
+    @Override
+    public void syncDatasetPaths() {
+      updateDatasetPaths();
+    }
   }
 
   /**
@@ -1056,6 +1124,13 @@ public class AccelerationServiceImpl implements AccelerationService {
     @Override
     public void run() {
       cleanupOrphanedAccelerations();
+    }
+  }
+
+  private class SyncDatasetPathsTask implements Runnable {
+    @Override
+    public void run() {
+      updateDatasetPaths();
     }
   }
 }

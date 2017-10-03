@@ -37,7 +37,6 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
   protected int receiverMajorFragmentId;
   protected List<NodeEndpoint> senderLocations;
   protected List<NodeEndpoint> receiverLocations;
-  private BatchSchema cachedSchema;
 
   public AbstractExchange(PhysicalOperator child) {
     super(child);
@@ -125,15 +124,12 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-
-    // since we can do many levels of parallelization, ensure to cache schema locally.
-    if(cachedSchema == null){
-      cachedSchema = child.getSchema(context);
-      if(cachedSchema == null){
-        throw new UnsupportedOperationException();
-      }
+  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
+    BatchSchema schema = child.getSchema(functionLookupContext);
+    if(schema == null){
+      throw new UnsupportedOperationException();
     }
-    return cachedSchema;
+
+    return schema;
   }
 }

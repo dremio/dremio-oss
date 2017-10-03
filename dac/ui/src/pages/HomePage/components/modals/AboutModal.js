@@ -14,76 +14,42 @@
  * limitations under the License.
  */
 import { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
 
 import { formDescription } from 'uiTheme/radium/typography';
-import { getViewState } from 'selectors/resources';
-import { loadVersion } from 'actions/resources/version';
 
 import Modal from 'components/Modals/Modal';
 import FontIcon from 'components/Icon/FontIcon';
-import ViewStateWrapper from 'components/ViewStateWrapper';
 
 import { getEdition } from 'dyn-load/utils/versionUtils';
+import config from 'utils/config';
+import timeUtils from 'utils/timeUtils';
 
-export const VIEW_ID = 'ABOUT_VIEW_ID';
-
-export class AboutModal extends Component {
+export default class AboutModal extends Component {
 
   static propTypes = {
-    viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    version: PropTypes.instanceOf(Immutable.Map),
-    loadVersion: PropTypes.func.isRequired,
     isOpen: PropTypes.bool,
     hide: PropTypes.func
   };
 
-  state = {
-    loadingVersion: false
-  }
-
-  componentDidMount() {
-    this.receiveProps(this.props);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.receiveProps(nextProps, this.props);
-  }
-
-  receiveProps(nextProps, prevProps = {}) {
-    if (nextProps.isOpen && !nextProps.version && !this.state.loadingVersion) {
-      this.setState({loadingVersion: true});
-      nextProps.loadVersion({viewId: VIEW_ID}).then(() => {
-        this.setState({loadingVersion: false});
-      }).catch(() => {
-        // TODO: show an error
-      });
-    }
-  }
-
   renderVersion() {
-    if (!this.props.version) {
-      return null;
-    }
-
-    const version = this.props.version.toJS();
+    const buildTime = timeUtils.formatTime(config.versionInfo.buildTime);
+    const commitTime = timeUtils.formatTime(config.versionInfo.commitTime);
 
     return <dl>
       <dt style={styles.dtStyle}>{la('Build')}</dt>
-      <dd>{version.version}</dd>
+      <dd>{config.versionInfo.version}</dd>
 
       <dt style={styles.dtStyle}>{la('Edition')}</dt>
       <dd>{getEdition()}</dd>
 
       <dt style={styles.dtStyle}>{la('Build Time')}</dt>
-      <dd>{version.buildtime}</dd>
+      <dd>{buildTime}</dd>
 
       <dt style={styles.dtStyle}>{la('Change Hash')}</dt>
-      <dd>{version.commit.hash}</dd>
+      <dd>{config.versionInfo.commitHash}</dd>
 
       <dt style={styles.dtStyle}>{la('Change Time')}</dt>
-      <dd>{version.commit.time}</dd>
+      <dd>{commitTime}</dd>
     </dl>;
   }
 
@@ -102,11 +68,9 @@ export class AboutModal extends Component {
           </div>
           <div style={styles.pane}>
             <div style={{flex: 1}}>
-              <div style={{fontSize: '2em', marginBottom: 10}}>Dremio</div>
+              <div style={{fontSize: '2em', marginBottom: 10}}>{la('Dremio')}</div>
               <div>
-                <ViewStateWrapper viewState={this.props.viewState}>
-                  {this.renderVersion()}
-                </ViewStateWrapper>
+                {this.renderVersion()}
               </div>
             </div>
             <div style={formDescription}>
@@ -117,13 +81,6 @@ export class AboutModal extends Component {
       </Modal>
     );
   }
-}
-
-function mapStateToProps(state) {
-  return {
-    viewState: getViewState(state, VIEW_ID),
-    version: state.resources.entities.get('version').first()
-  };
 }
 
 const styles = {
@@ -155,4 +112,3 @@ const styles = {
   }
 };
 
-export default connect(mapStateToProps, { loadVersion })(AboutModal);

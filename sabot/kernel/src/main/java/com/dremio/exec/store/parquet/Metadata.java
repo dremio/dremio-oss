@@ -60,10 +60,9 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  public static ParquetTableMetadata getParquetTableMetadata(ParquetFooterCache cache, FileSystem fs, String path,
+  public static ParquetTableMetadata getParquetTableMetadata(ParquetFooterCache cache, FileStatus status, FileSystem fs,
       ParquetFormatConfig formatConfig, Configuration fsConf) throws IOException {
     Metadata metadata = new Metadata(formatConfig, fsConf);
-    FileStatus status = fs.getFileStatus(new Path(path));
     return metadata.getParquetTableMetadata(ImmutableList.of(status), cache);
   }
 
@@ -228,7 +227,7 @@ public class Metadata {
     }
     String path = Path.getPathWithoutSchemeAndAuthority(file.getPath()).toString();
 
-    return new ParquetFileMetadata(path, file.getLen(), rowGroupMetadataList, columnTypeInfo);
+    return new ParquetFileMetadata(file, file.getLen(), rowGroupMetadataList, columnTypeInfo);
   }
 
   /**
@@ -283,14 +282,16 @@ public class Metadata {
    * Struct which contains the metadata for a single parquet file
    */
   public static class ParquetFileMetadata {
+    private final FileStatus status;
     private final String path;
     private final Long length;
     private final List<RowGroupMetadata> rowGroups;
     private final Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo;
 
-    public ParquetFileMetadata(String path, Long length, List<RowGroupMetadata> rowGroups,
+    public ParquetFileMetadata(FileStatus status, Long length, List<RowGroupMetadata> rowGroups,
         Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo) {
-      this.path = path;
+      this.status = status;
+      this.path = status.getPath().toString();
       this.length = length;
       this.rowGroups = rowGroups;
       this.columnTypeInfo = columnTypeInfo;
@@ -298,10 +299,14 @@ public class Metadata {
 
     @Override
     public String toString() {
-      return String.format("path: %s rowGroups: %s", path, rowGroups);
+      return String.format("path: %s rowGroups: %s", status.getPath(), rowGroups);
     }
 
-    public String getPath() {
+    public FileStatus getStatus() {
+      return status;
+    }
+
+    public String getPathString() {
       return path;
     }
 

@@ -75,7 +75,8 @@ export const modalBody = {
   flexDirection: 'column',
   flexGrow: 1,
   width: '100%',
-  height: '100%'
+  height: '100%',
+  overflow: 'auto' // Seems to work but this is a hack to get around mixing flex and height: 100%. See DX-8853
 };
 
 export const modalFooter = {

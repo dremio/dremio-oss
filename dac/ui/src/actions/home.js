@@ -54,13 +54,15 @@ export const CONVERT_DATASET_TO_FOLDER_SUCCESS = 'CONVERT_DATASET_TO_FOLDER_SUCC
 export const CONVERT_DATASET_TO_FOLDER_FAILURE = 'CONVERT_DATASET_TO_FOLDER_FAILURE';
 
 function fetchConvertDataset(entity, viewId) {
-  const meta = {viewId, folderId: entity.get('id')};
+  // DX-8102: invalidating home view id so that # of jobs of the folder updates
+  const meta = {viewId, folderId: entity.get('id'), invalidateViewIds: ['HomeContents']};
+  const successMeta = {...meta, success: true}; // doesn't invalidateViewIds without `success: true`
   const errorMessage = la('There was an error removing format of the folder.');
   return {
     [CALL_API]: {
       types: [
-        {type:CONVERT_DATASET_TO_FOLDER_START, meta},
-        schemaUtils.getSuccessActionTypeWithSchema(CONVERT_DATASET_TO_FOLDER_SUCCESS, folderSchema, meta),
+        {type: CONVERT_DATASET_TO_FOLDER_START, meta},
+        schemaUtils.getSuccessActionTypeWithSchema(CONVERT_DATASET_TO_FOLDER_SUCCESS, folderSchema, successMeta),
         {
           type: CONVERT_DATASET_TO_FOLDER_FAILURE,
           meta: {

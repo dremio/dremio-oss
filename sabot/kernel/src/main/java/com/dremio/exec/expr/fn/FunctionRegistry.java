@@ -21,7 +21,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.OperandTypes;
+import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.dremio.common.scanner.persistence.AnnotatedClassDescriptor;
@@ -30,6 +36,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlAggOperator;
+import com.dremio.exec.planner.sql.SqlDatePartOperator;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
@@ -60,6 +67,11 @@ public class FunctionRegistry {
       .put("CONVERT_TO", Pair.of(2, 2))
       .put("CONVERT_FROM", Pair.of(2, 2))
       .put("FLATTEN", Pair.of(1, 1)).build();
+
+  // Function for E()
+  public static final SqlFunction E_FUNCTION =
+    new SqlFunction(new SqlIdentifier("E", SqlParserPos.ZERO), ReturnTypes.DOUBLE,
+      null, OperandTypes.NILADIC, null, SqlFunctionCategory.NUMERIC);
 
   public FunctionRegistry(ScanResult classpathScan) {
     FunctionConverter converter = new FunctionConverter();
@@ -120,7 +132,10 @@ public class FunctionRegistry {
   }
 
   public void register(OperatorTable operatorTable) {
+    operatorTable.add("DATE_PART", SqlDatePartOperator.INSTANCE);
     operatorTable.add("FLATTEN", SqlFlattenOperator.INSTANCE);
+    operatorTable.add("E", E_FUNCTION);
+
     for (Entry<String, Collection<BaseFunctionHolder>> function : registeredFunctions.asMap().entrySet()) {
       final ArrayListMultimap<Pair<Integer, Integer>, BaseFunctionHolder> functions = ArrayListMultimap.create();
       final ArrayListMultimap<Integer, BaseFunctionHolder> aggregateFunctions = ArrayListMultimap.create();

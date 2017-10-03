@@ -67,7 +67,7 @@ export default class Frequency extends Component {
     return (
       <span>
         <Select value={hour.value || hour.initialValue} items={this.hours} {...hour} style={styles.select}/> :
-        <Select value={minutes.value || minutes.initialValue} items={this.mins} {...minutes}  style={styles.select}/>
+        <Select value={minutes.value || minutes.initialValue} items={this.mins} {...minutes} style={styles.select}/>
         <Select value={format.value || format.initialValue} items={this.items.format}{...format} style={styles.select}/>
       </span>
     );

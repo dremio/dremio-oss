@@ -19,8 +19,12 @@ import { modalContent } from 'uiTheme/radium/modal';
 import fileABug from 'utils/fileABug';
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
+import CopyButton from 'components/Buttons/CopyButton';
+import sentryUtil from 'utils/sentryUtil';
+import config from 'utils/config';
 
 import { modalFooter } from 'uiTheme/radium/modal';
+import { formDescription } from 'uiTheme/radium/typography';
 
 export default class ProdErrorModal extends Component {
 
@@ -38,6 +42,8 @@ export default class ProdErrorModal extends Component {
       showFileABug
     } = this.props;
 
+    const sessionUUID = la('Session ID:') + ' ' + sentryUtil.sessionUUID;
+
     return (
       <Modal
         isOpen
@@ -51,7 +57,11 @@ export default class ProdErrorModal extends Component {
             <FontIcon type='Error' iconStyle={{width: 60, height: 60}}/>
           </div>
           <div style={styles.content}>
-            {la('If the problem persists, please contact support.')}
+            <div>{la('If the problem persists, please contact support.')}</div>
+            <div style={{...formDescription, fontSize: 12, marginTop: '1em'}}>
+              {sessionUUID}
+              {!config.outsideCommunicationDisabled && <CopyButton style={{marginLeft: '0.5em'}} text={sessionUUID} title={la('Copy')}/>}
+            </div>
           </div>
         </div>
 

@@ -20,7 +20,7 @@ import { Link } from 'react-router';
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import jobsUtils from 'utils/jobsUtils';
-import {mapStateToText, mapStateToIcon} from 'utils/accelerationUtils';
+import {mapStateToText, mapStateToIcon, syntheticLayoutState} from 'utils/accelerationUtils';
 import { formDescription } from 'uiTheme/radium/typography';
 
 import Footprint from './Footprint';
@@ -40,8 +40,7 @@ export default class LayoutInfo extends Component {
     const layoutData = this.props.layout.toJS();
     const marginRight = 10;
 
-    let layoutState = layoutData.latestMaterializationState;
-    if (layoutState === 'DONE' && !layoutData.hasValidMaterialization) layoutState = 'EXPIRED';
+    const layoutState = syntheticLayoutState(layoutData);
 
     const jobsURL = jobsUtils.navigationURLForLayoutId(layoutData.id.id);
 

@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 
 /**
  * Base class for Asynchronous queries.
@@ -26,7 +27,9 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
 
   public enum QueueType {
     SMALL,
-    LARGE
+    LARGE,
+    REFLECTION_SMALL,
+    REFLECTION_LARGE
   }
 
   protected final QueryContext context;
@@ -44,7 +47,15 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
 
   protected void setQueueTypeFromPlan(PhysicalPlan plan) {
     final long queueThreshold = context.getOptions().getOption(ExecConstants.QUEUE_THRESHOLD_SIZE);
-    queueType = (plan.getCost() > queueThreshold) ? QueueType.LARGE : QueueType.SMALL;
+    if (context.getQueryContextInfo().getPriority().getWorkloadClass().equals(WorkloadClass.BACKGROUND)) {
+      setQueueType((plan.getCost() > queueThreshold) ? QueueType.REFLECTION_LARGE : QueueType.REFLECTION_SMALL);
+    } else {
+      setQueueType((plan.getCost() > queueThreshold) ? QueueType.LARGE : QueueType.SMALL);
+    }
+  }
+
+  private void setQueueType(QueueType queueType) {
+    this.queueType = queueType;
   }
 
   public QueueType getQueueType() {

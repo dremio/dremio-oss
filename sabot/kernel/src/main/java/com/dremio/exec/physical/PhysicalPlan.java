@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.physical;
 
-import java.io.IOException;
 import java.util.List;
 
 import com.dremio.common.graph.Graph;
@@ -29,7 +28,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 
@@ -78,16 +76,6 @@ public class PhysicalPlan {
   @JsonProperty("head")
   public PlanProperties getProperties() {
     return properties;
-  }
-
-  /** Parses a physical plan. */
-  public static PhysicalPlan parse(ObjectReader reader, String planString) {
-    try {
-      PhysicalPlan plan = reader.readValue(planString);
-      return plan;
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /** Converts a physical plan to a string. (Opposite of {@link #parse}.) */

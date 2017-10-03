@@ -58,7 +58,8 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
     return dataset.getName().getPathComponents();
   }
 
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  @Override
+  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
     return getSchema().maskAndReorder(getColumns());
   }
 

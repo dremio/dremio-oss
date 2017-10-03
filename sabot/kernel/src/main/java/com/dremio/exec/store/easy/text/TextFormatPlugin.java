@@ -40,11 +40,11 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyGroupScanUtils;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
 import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
 import com.dremio.exec.store.text.TextRecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -66,13 +66,11 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
         formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
   }
 
-
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, FileWork fileWork,
+  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes,
                                       List<SchemaPath> columns) throws ExecutionSetupException {
-    Path path = dfs.makeQualified(new Path(fileWork.getPath()));
-    FileSplit split = new FileSplit(path, fileWork.getStart(), fileWork.getLength(), new String[]{""});
-
+    Path path = dfs.makeQualified(new Path(splitAttributes.getPath()));
+    FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
     TextParsingSettings settings = new TextParsingSettings();
     settings.set((TextFormatConfig)formatConfig);
     return new CompliantTextRecordReader(split, dfs, context, settings, columns);

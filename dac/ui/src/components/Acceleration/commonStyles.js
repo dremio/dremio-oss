@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 import { h3, body } from 'uiTheme/radium/typography';
-import { BORDER_TABLE, CELL_EXPANSION_HEADER, WHITE } from 'uiTheme/radium/colors';
+import { BORDER_TABLE, CELL_EXPANSION_HEADER, WHITE, PALE_ORANGE } from 'uiTheme/radium/colors';
 
 export const commonStyles = {
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    height: 40,
+    minHeight: 40,
     backgroundColor: CELL_EXPANSION_HEADER,
     borderTop: `1px solid ${BORDER_TABLE}`,
     borderLeft: `1px solid ${BORDER_TABLE}`,
@@ -49,6 +49,6 @@ export const commonStyles = {
     backgroundColor: WHITE
   },
   highlight: {
-    backgroundColor: 'hsl(60, 94%, 76%)'
+    backgroundColor: PALE_ORANGE
   }
 };

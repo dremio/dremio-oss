@@ -38,13 +38,7 @@ export default class Exact extends Component {
     unmatchedCount: PropTypes.number
   };
 
-  constructor(props) {
-    super(props);
-
-    this.handleRadioChange = this.handleRadioChange.bind(this);
-  }
-
-  handleRadioChange(event) {
+  handleRadioChange = (event) => {
     const { replaceNull } = this.props;
     if (event.target.value === 'Null') {
       replaceNull.onChange(true);

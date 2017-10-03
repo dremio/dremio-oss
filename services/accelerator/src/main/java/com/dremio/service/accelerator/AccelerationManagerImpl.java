@@ -43,6 +43,7 @@ import com.dremio.service.accelerator.proto.LayoutFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.LayoutType;
 import com.dremio.service.accelerator.proto.LogicalAggregation;
+import com.dremio.service.accelerator.proto.PartitionDistributionStrategy;
 import com.dremio.service.accelerator.proto.RowType;
 import com.dremio.service.accelerator.proto.pipeline.AccelerationPipeline;
 import com.dremio.service.namespace.NamespaceException;
@@ -120,8 +121,11 @@ public class AccelerationManagerImpl implements AccelerationManager {
     details.setMeasureFieldList(toDescriptor(definition.getMeasure()));
     details.setPartitionFieldList(toDescriptor(definition.getPartition()));
     details.setSortFieldList(toDescriptor(definition.getSort()));
+    details.setPartitionDistributionStrategy(definition.getPartitionDistributionStrategy() ==
+        com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy.STRIPED ?
+        PartitionDistributionStrategy.STRIPED : PartitionDistributionStrategy.CONSOLIDATED);
     LayoutDescriptor descriptor = new LayoutDescriptor(details)
-        .setName(generateName(definition.getType(), entry));
+        .setName(definition.getName());
     entry.getDescriptor().setMode(AccelerationMode.MANUAL);
     if(definition.getType() == Type.AGGREGATE){
       List<LayoutDescriptor> descriptors = new ArrayList<>();
@@ -136,16 +140,6 @@ public class AccelerationManagerImpl implements AccelerationManager {
     }
 
     accelService.update(entry);
-  }
-
-  private String generateName(Type type, AccelerationEntry entry) {
-    switch (type) {
-    case AGGREGATE:
-      return "Aggregate Reflection" + (entry.getDescriptor().getAggregationLayouts().getLayoutList().size() + 1);
-    case RAW:
-      return "Raw Reflection" + (entry.getDescriptor().getRawLayouts().getLayoutList().size() + 1);
-    default: throw new RuntimeException ("Invalid type");
-    }
   }
 
   private List<LayoutDimensionFieldDescriptor> toDimensionFields(List<SqlAddLayout.NameAndGranularity> fields) {

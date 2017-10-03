@@ -176,7 +176,14 @@ public class ScanBuilder {
       return;
     }
 
-    String[] includesOrderedByOriginalTable = scan.getBatchSchema().mask(scan.getProjectedColumns(), false).toCalciteRecordType(scan.getCluster().getTypeFactory()).getFieldNames().toArray(new String[0]);
+
+    final String[] includesOrderedByOriginalTable;
+    if (scan.getProjectedColumns().isEmpty()) {
+      includesOrderedByOriginalTable = new String[0];
+    } else
+      includesOrderedByOriginalTable =
+          scan.getBatchSchema().mask(scan.getProjectedColumns(), false)
+            .toCalciteRecordType(scan.getCluster().getTypeFactory()).getFieldNames().toArray(new String[0]);
 
     // canonicalize includes order so we don't get test variability.
     Arrays.sort(includesOrderedByOriginalTable);

@@ -17,15 +17,11 @@ package com.dremio.sabot.op.sort.external;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -35,14 +31,11 @@ import org.apache.arrow.vector.util.TransferPair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.data.Order.Ordering;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.compile.sig.GeneratorMapping;
 import com.dremio.exec.compile.sig.MappingSet;
@@ -57,12 +50,13 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector4;
+import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.vector.CopyUtil;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
+import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -79,10 +73,7 @@ import com.google.common.collect.Iterables;
 public class DiskRunManager implements AutoCloseable {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DiskRunManager.class);
-  private static String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
 
-  private final FileSystem fileSystem;
-  private final Path outputDirectory;
   private final List<Ordering> orderings;
   private final List<DiskRun> diskRuns = new CopyOnWriteArrayList<>();
   private final ClassProducer producer;
@@ -95,11 +86,13 @@ public class DiskRunManager implements AutoCloseable {
   private int merge = 0;
   private final BufferAllocator parentAllocator;
   private BufferAllocator copierAllocator;
-  private int targetRecordCount;
+  private final int targetRecordCount; /** number of records for the copy output. */
+  private final int targetBatchSizeInBytes; /** estimated size of copy output */
   private DiskRunMerger diskRunMerger;
   private PriorityQueueCopier copier;
   private VectorContainer tempContainer;
   private MergeState mergeState = MergeState.TRY;
+  private final SpillManager spillManager;
 
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
@@ -109,7 +102,9 @@ public class DiskRunManager implements AutoCloseable {
 
   public DiskRunManager(
       SabotConfig config,
+      OptionManager optionManager,
       int targetRecordCount,
+      int targetBatchSizeInBytes,
       FragmentHandle handle,
       int operatorId,
       ClassProducer producer,
@@ -118,31 +113,17 @@ public class DiskRunManager implements AutoCloseable {
       BatchSchema dataSchema
       ) {
     this.targetRecordCount = targetRecordCount;
+    this.targetBatchSizeInBytes = targetBatchSizeInBytes;
     this.orderings = orderings;
     this.producer = producer;
     this.dataSchema = dataSchema;
     this.parentAllocator = parentAllocator;
 
-    final List<String> directories = new ArrayList<>(config.getStringList(ExecConstants.SPILL_DIRS));
-    if (directories.isEmpty()) {
-      throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
-    }
-    // pick a random path (so each fragment will be potentially on a different disk/path)
-    final String spillDir = directories.get(ThreadLocalRandom.current().nextInt(directories.size()));
-
-    try {
-      final Configuration conf = FileSystemPlugin.getNewFsConf();
-      conf.set(DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
-      this.fileSystem = FileSystemWrapper.get(new URI(spillDir), conf);
-    } catch (IOException | URISyntaxException e) {
-      throw UserException.dataWriteError(e).message("Failure creating sort spilling filesystem accessor.")
-          .build(logger);
-    }
-
-    final Path basePath = new Path(spillDir);
-    this.outputDirectory = new Path(basePath,
-        String.format("q%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()), handle.getMajorFragmentId(),
-            handle.getMinorFragmentId(), operatorId));
+    final Configuration conf = FileSystemPlugin.getNewFsConf();
+    conf.set(SpillManager.DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
+    this.spillManager = new SpillManager(config, optionManager,
+      String.format("q%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()), handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId),
+      conf);
   }
 
   public long spillTimeNanos() {
@@ -275,9 +256,9 @@ public class DiskRunManager implements AutoCloseable {
 
   private class DiskRunMerger {
     final private PriorityQueueCopier copier;
-    final private Path spillPath;
     final private FSDataOutputStream out;
     final private VectorContainer container;
+    final private SpillFile spillFile;
 
     private int maxBatchSize = 0;
     private int recordCount;
@@ -286,8 +267,8 @@ public class DiskRunManager implements AutoCloseable {
     public DiskRunMerger(List<DiskRun> diskRuns) throws IOException {
       container = VectorContainer.create(copierAllocator, dataSchema);
       this.copier = createCopier(container, diskRuns);
-      spillPath = new Path(outputDirectory, String.format("merge%05d", merge++));
-      out = fileSystem.create(spillPath);
+      this.spillFile = spillManager.getSpillFile(String.format("merge%05d", merge++));
+      out = spillFile.create();
     }
 
     public boolean consolidate() throws IOException {
@@ -296,7 +277,7 @@ public class DiskRunManager implements AutoCloseable {
         int copied = copier.copy(targetRecordCount);
         if (copied == 0) {
           out.close();
-          DiskRun diskRun = new DiskRun(spillPath, recordCount, maxBatchSize, batchCount);
+          DiskRun diskRun = new DiskRun(spillFile, recordCount, maxBatchSize, batchCount);
           DiskRunManager.this.diskRuns.add(diskRun);
           return true;
         }
@@ -327,9 +308,9 @@ public class DiskRunManager implements AutoCloseable {
       int maxBatchSize = 0;
       int batchCount = 0;
       int records = 0;
-      final Path spillPath = new Path(outputDirectory, String.format("run%05d", run++));
+      final SpillFile spillFile = spillManager.getSpillFile(String.format("run%05d", run++));
 
-      try (FSDataOutputStream out = fileSystem.create(spillPath);
+      try (FSDataOutputStream out = spillFile.create();
            final VectorContainer outgoing = VectorContainer.create(copyTargetAllocator, hyperBatch.getSchema());
            VectorContainer hyperBatchToClose = hyperBatch) {
 
@@ -373,7 +354,7 @@ public class DiskRunManager implements AutoCloseable {
 
       Preconditions.checkArgument(copyTargetAllocator.getAllocatedMemory() == 0,
         "Target Allocator should be empty, is consuming %s bytes.", copyTargetAllocator.getAllocatedMemory());
-      final DiskRun run = new DiskRun(spillPath, records, maxBatchSize, batchCount);
+      final DiskRun run = new DiskRun(spillFile, records, maxBatchSize, batchCount);
       diskRuns.add(run);
     } finally {
       spillWatch.stop();
@@ -413,18 +394,21 @@ public class DiskRunManager implements AutoCloseable {
       copierAllocator.close();
       copierAllocator = null;
     }
+
     long totalSizeNeeded = 0;
-    long maxSize = 0;
+    // for now we always read one batch from all disk runs, so we need to make sure we have enough memory reserver
+    // to allocate the largest batch per run
     for(DiskRun run : diskRuns){
       long batchSize = nextPowerOfTwo(run.largestBatch);
       totalSizeNeeded += batchSize;
-      maxSize = Math.max(batchSize, maxSize);
     }
 
     // add the required space for the copy output. We use * 3 to manage against a really large vector.
-    totalSizeNeeded += maxSize * 3;
+    totalSizeNeeded += targetBatchSizeInBytes * 3;
 
-    copierAllocator = this.parentAllocator.newChildAllocator("spill_copier", totalSizeNeeded, totalSizeNeeded);
+    // because we can't know for sure how much memory will be needed for variable length vectors we don't put a limit
+    // on the copy allocator. But this will still be capped by the sort allocator limit.
+    copierAllocator = this.parentAllocator.newChildAllocator("spill_copier", totalSizeNeeded, Long.MAX_VALUE);
   }
 
   public PriorityQueueCopier createCopier() throws IOException {
@@ -477,32 +461,20 @@ public class DiskRunManager implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(new Deletion()), Collections.singleton(copierAllocator)));
-  }
-
-  /**
-   * Used to treat manage deletion using AutoCloseables chaining.
-   */
-  private class Deletion implements AutoCloseable {
-
-    @Override
-    public void close() throws Exception {
-      fileSystem.delete(outputDirectory, true);
-    }
-
+    AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(this.spillManager), Collections.singleton(copierAllocator)));
   }
 
   private class DiskRun implements AutoCloseable {
 
-    private final Path location;
+    private final SpillFile spillFile;
     private final int recordCount;
     private final int largestBatch;
     private final int batchCount;
     private DiskRunIterator iterator;
 
-    public DiskRun(Path location, int recordCount, int largestBatch, int batchCount) {
+    public DiskRun(SpillFile spillFile, int recordCount, int largestBatch, int batchCount) {
       super();
-      this.location = location;
+      this.spillFile = spillFile;
       this.recordCount = recordCount;
       this.largestBatch = largestBatch;
       this.batchCount = batchCount;
@@ -524,7 +496,7 @@ public class DiskRunManager implements AutoCloseable {
       Preconditions.checkArgument(iterator == null);
       final long memCapacity = nextPowerOfTwo(largestBatch);
       final BufferAllocator allocator = copierAllocator.newChildAllocator("diskrun", 0, memCapacity);
-      iterator = new DiskRunIterator(batchCount, location, container, allocator);
+      iterator = new DiskRunIterator(batchCount, spillFile, container, allocator);
       return iterator;
     }
 
@@ -549,11 +521,13 @@ public class DiskRunManager implements AutoCloseable {
     private int recordIndex = -1;
     private int recordIndexMax;
     private final VectorContainer container = new VectorContainer();
+    private final SpillFile spillFile;
 
 
-    private DiskRunIterator(int batchCount, Path location, ExpandableHyperContainer hyperContainer, BufferAllocator allocator) throws IOException {
+    private DiskRunIterator(int batchCount, SpillFile spillFile, ExpandableHyperContainer hyperContainer, BufferAllocator allocator) throws IOException {
       this.allocator = allocator;
-      this.inputStream = fileSystem.open(location);
+      this.spillFile = spillFile;
+      this.inputStream = spillFile.open();
       this.batchIndexMax = batchCount;
       loadNextBatch(true);
       hyperContainer.addBatch(this.container);
@@ -593,7 +567,7 @@ public class DiskRunManager implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(container, allocator, inputStream);
+      AutoCloseables.close(container, allocator, inputStream, spillFile);
     }
 
     public int getNextId() throws IOException{
@@ -609,7 +583,5 @@ public class DiskRunManager implements AutoCloseable {
       return ++recordIndex;
     }
 
-
   }
-
 }

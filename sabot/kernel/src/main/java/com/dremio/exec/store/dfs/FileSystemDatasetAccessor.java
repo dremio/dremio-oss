@@ -57,6 +57,7 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
   protected final FileSelection fileSelection;
   protected final FormatPlugin formatPlugin;
   protected final FileUpdateKey updateKey;
+  protected final DatasetConfig oldConfig;
 
   private DatasetConfig datasetConfig;
   private ReadDefinition readDefinition;
@@ -69,7 +70,8 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
                                    NamespaceKey tableSchemaPath,
                                    String tableName,
                                    FileUpdateKey updateKey,
-                                   FormatPlugin formatPlugin) {
+                                   FormatPlugin formatPlugin,
+                                   DatasetConfig oldConfig) {
     this.tableName = tableName;
     this.updateKey = updateKey;
     this.fsPlugin =  fsPlugin;
@@ -77,6 +79,7 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
     this.fs = fs;
     this.fileSelection = fileSelection;
     this.formatPlugin = formatPlugin;
+    this.oldConfig = oldConfig;
   }
 
   @Override
@@ -138,9 +141,8 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
 
   protected DatasetConfig getDatasetInternal(final FileSystemWrapper fs, final FileSelection selection, List<String> tableSchemaPath) {
     final UserGroupInformation processUGI = ImpersonationUtil.getProcessUserUGI();
-    BatchSchema schema = null;
     try {
-      schema = processUGI.doAs(
+      BatchSchema newSchema = processUGI.doAs(
         new PrivilegedExceptionAction<BatchSchema>() {
           @Override
           public BatchSchema run() throws Exception {
@@ -149,7 +151,7 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
               return getBatchSchema(selection, fs);
             } finally {
               logger.debug("Took {} ms to sample the schema of table located at: {}",
-                watch.elapsed(TimeUnit.MILLISECONDS), selection.selectionRoot);
+                watch.elapsed(TimeUnit.MILLISECONDS), selection.getSelectionRoot());
             }
           }
         }
@@ -157,6 +159,11 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
       DatasetType type = fs.isDirectory(new Path(selection.getSelectionRoot())) ?
         DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER :
         DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+      // Merge sampled schema into the existing one, if one already exists
+      BatchSchema schema = newSchema;
+      if (oldConfig != null && DatasetHelper.getSchemaBytes(oldConfig) != null) {
+        schema = BatchSchema.fromDataset(oldConfig).merge(newSchema);
+      }
       return new DatasetConfig()
         .setName(tableSchemaPath.get(tableSchemaPath.size() - 1))
         .setType(type)

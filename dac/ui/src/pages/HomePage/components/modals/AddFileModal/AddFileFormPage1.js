@@ -15,14 +15,11 @@
  */
 import path from 'path';
 import { Component, PropTypes } from 'react';
-import Immutable from 'immutable';
 
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { FieldWithError, TextField, FileField } from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
-
-import ViewStateWrapper from 'components/ViewStateWrapper';
 
 const FIELDS = ['file', 'name', 'extension'];
 
@@ -38,8 +35,7 @@ export class AddFileFormPage1 extends Component {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
     fields: PropTypes.object,
-    handleSubmit: PropTypes.func.isRequired,
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    handleSubmit: PropTypes.func.isRequired
   };
 
   constructor(props) {
@@ -58,18 +54,16 @@ export class AddFileFormPage1 extends Component {
   }
 
   render() {
-    const {fields, handleSubmit, onFormSubmit, viewState} = this.props;
+    const {fields, handleSubmit, onFormSubmit} = this.props;
 
     return (
       <ModalForm {...modalFormProps(this.props)} confirmText='Next' onSubmit={handleSubmit(onFormSubmit)}>
-        <ViewStateWrapper viewState={viewState} hideChildrenWhenInProgress hideChildrenWhenFailed={false}>
-          <FormBody>
-            <FileField accept='multipart/form-data' {...fields.file} onChange={this.onFileChange}/>
-            <FieldWithError label='Name' {...fields.name} style={[formRow, h5]}>
-              <TextField accept='multipart/form-data' {...fields.name}/>
-            </FieldWithError>
-          </FormBody>
-        </ViewStateWrapper>
+        <FormBody>
+          <FileField accept='multipart/form-data' {...fields.file} onChange={this.onFileChange}/>
+          <FieldWithError label='Name' {...fields.name} style={[formRow, h5]} errorPlacement='top'>
+            <TextField accept='multipart/form-data' {...fields.name}/>
+          </FieldWithError>
+        </FormBody>
       </ModalForm>
     );
   }

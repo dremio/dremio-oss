@@ -77,7 +77,6 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     this.rootDefinition = rootDefinition;
     this.fieldsProjected = fieldsProjected;
 
-    assert Preconditions.checkNotNull(columns).size() > 0 : "JSON record reader requires at least one column";
     this.selection = FieldSelection.getFieldSelection(columns);
 
     this.metaUIDSelected = metaUIDSelected;
@@ -373,7 +372,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
    * @throws IOException
    * @throws JsonParseException
    */
-  public JsonToken seekForward(String fieldName) throws IOException, JsonParseException {
+  private JsonToken seekForward(String fieldName) throws IOException, JsonParseException {
     JsonToken token = null;
 
     String currentName;
@@ -548,10 +547,3 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
 
   }
 }
-
-
-
-
-
-
-

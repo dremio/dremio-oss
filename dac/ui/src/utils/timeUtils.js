@@ -64,6 +64,11 @@ class TimeUtils {
     }
     return moment(timestamp).fromNow();
   }
+
+  formatTime(time, invalidDateString = 'Invalid date') { // todo: loc of 'Invalid date', and loc of real date string
+    const t = moment(time, 'x');
+    return t.isValid() ? t.format('MM/DD/YYYY HH:mm:ss') : invalidDateString;
+  }
 }
 
 const timeUtils = new TimeUtils();

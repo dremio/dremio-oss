@@ -26,11 +26,9 @@ import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.AbstractFileGroupScan;
-import com.dremio.exec.store.SplitWork;
-import com.dremio.exec.store.parquet.FilterCondition;
-import com.dremio.exec.store.parquet.ParquetSubScan;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 
 /**
@@ -56,8 +54,8 @@ public class ParquetGroupScan extends AbstractFileGroupScan {
     for(SplitWork split : work){
       splits.add(split.getSplit());
     }
-    return new ParquetSubScan(dataset.getReadDefinition(), dataset.getFormatSettings(), splits, getUserName(), schema, getDataset().getName().getPathComponents(), conditions,
-      dataset.getStoragePluginId(), columns, globalDictionaryEncodedColumns);
+    return new ParquetSubScan(dataset.getFormatSettings(), splits, getUserName(), schema, getDataset().getName().getPathComponents(), conditions,
+      dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(), globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
   }
 
   public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {

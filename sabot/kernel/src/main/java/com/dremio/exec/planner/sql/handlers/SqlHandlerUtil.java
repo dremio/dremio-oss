@@ -53,8 +53,10 @@ import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.AbstractSchema;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
+import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -251,8 +253,8 @@ public class SqlHandlerUtil {
    * @param inputRel
    * @return
    */
-  public static Rel storeQueryResultsIfNeeded(final SqlParser.Config config, final QueryContext context, final SchemaPlus rootSchema,
-      final Rel inputRel) {
+  public static Rel storeQueryResultsIfNeeded(final SqlParser.Config config, final QueryContext context,
+                                              final Rel inputRel) {
     final OptionManager options = context.getOptions();
     final boolean storeResults = options.getOption(STORE_QUERY_RESULTS.getOptionName()) != null ?
         options.getOption(STORE_QUERY_RESULTS.getOptionName()).bool_val : false;
@@ -261,32 +263,26 @@ public class SqlHandlerUtil {
       return inputRel;
     }
 
+    // store query results as the system user
+    final SchemaPlus systemUserSchema = context.getRootSchema(
+        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
+            .setProvider(context.getSchemaInfoProvider())
+            .build());
     final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).string_val;
     final List<String> storeTable =
         new StrTokenizer(storeTablePath, '.', config.quoting().string.charAt(0))
             .setIgnoreEmptyTokens(true)
             .getTokenList();
 
-    final AbstractSchema schema =
-        SchemaUtilities.resolveToMutableSchemaInstance(rootSchema, Util.skipLast(storeTable), true, MutationType.TABLE);
+    final AbstractSchema schema = SchemaUtilities.resolveToMutableSchemaInstance(systemUserSchema,
+        Util.skipLast(storeTable), true, MutationType.TABLE);
 
     // Query results are stored in arrow format. If need arises, we can change this to a configuration option.
     final Map<String, Object> storageOptions = ImmutableMap.<String, Object>of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
 
     final CreateTableEntry createTableEntry = schema.createNewTable(Util.last(storeTable), WriterOptions.DEFAULT, storageOptions);
 
-    return addWriterRel(inputRel, createTableEntry, false);
-  }
-
-  /**
-   * Insert a writer rel on top of the given input rel.
-   * @param inputRel
-   * @param entry
-   * @param singleWriter
-   * @return
-   */
-  public static Rel addWriterRel(final Rel inputRel, final CreateTableEntry entry, final boolean singleWriter) {
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
-    return new WriterRel(inputRel.getCluster(), traits, inputRel, entry, singleWriter);
+    return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry);
   }
 }

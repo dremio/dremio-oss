@@ -16,6 +16,7 @@
 import { Component, PropTypes } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import Divider from 'material-ui/Divider';
 
 import Menu from './Menu';
 
@@ -31,10 +32,11 @@ export default class ColumnActionMenu extends Component {
   static propTypes = {
     columnType: PropTypes.string,
     columnName: PropTypes.string,
-    columnsNumber: PropTypes.number,
+    columnsCount: PropTypes.number,
     makeTransform: PropTypes.func,
     openDetailsWizard: PropTypes.func,
-    hideDropdown: PropTypes.func
+    hideDropdown: PropTypes.func,
+    onRename: PropTypes.func.isRequired
   }
 
   makeTransform = (actionType) => {
@@ -43,7 +45,7 @@ export default class ColumnActionMenu extends Component {
     if (oneStepItems.indexOf(actionType) !== -1) {
       this.props.makeTransform({type: actionType, columnName});
     } else if (actionType === 'RENAME') {
-      $(`.cell#cell${columnName}`, '.fixed-data-table').focus();
+      this.props.onRename();
     } else {
       this.props.openDetailsWizard({ detailType: actionType, columnName });
     }
@@ -53,31 +55,41 @@ export default class ColumnActionMenu extends Component {
   isAvailable(menuItems, columnType) {
     return menuItems.some((menuItem) => menuItem && menuItem.props.availableTypes.includes(columnType));
   }
+  shouldShowDivider(menuGroup) {
+    const { columnType } = this.props;
+    const menuItems = menuGroup.renderMenuItems(columnType);
+    return this.isAvailable(menuItems, columnType);
+  }
+  renderDivider(menuGroups) {
+    const shouldShowDivider = menuGroups.every((menuGroup) => this.shouldShowDivider(menuGroup));
+    return shouldShowDivider && <Divider style={styles.dividerStyle} />;
+  }
 
   render() {
-    const { columnType, columnsNumber } = this.props;
+    const { columnType, columnsCount } = this.props;
     return (
       <Menu>
         <SortGroup
-          isAvailable={this.isAvailable}
           makeTransform={this.makeTransform}
           columnType={columnType}
         />
+        {this.renderDivider([SortGroup])}
         <MainActionGroup
           makeTransform={this.makeTransform}
           columnType={columnType}
-          columnsNumber={columnsNumber}
+          columnsCount={columnsCount}
         />
+        <Divider style={styles.dividerStyle}/>
         <SqlGroup
-          isAvailable={this.isAvailable}
           makeTransform={this.makeTransform}
           columnType={columnType}
         />
+        {this.renderDivider([SqlGroup, ReplaceGroup, OtherGroup])}
         <ReplaceGroup
-          isAvailable={this.isAvailable}
           makeTransform={this.makeTransform}
           columnType={columnType}
         />
+        {this.renderDivider([ReplaceGroup, OtherGroup])}
         <OtherGroup
           makeTransform={this.makeTransform}
           columnType={columnType}
@@ -86,3 +98,10 @@ export default class ColumnActionMenu extends Component {
     );
   }
 }
+
+const styles = {
+  dividerStyle: {
+    marginTop: 5,
+    marginBottom: 5
+  }
+};

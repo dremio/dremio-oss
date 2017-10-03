@@ -61,10 +61,10 @@ public class SystemTablePlugin extends AbstractStoragePlugin<SystemTablePlugin.S
 
   public static final String SYS_SCHEMA_NAME = "sys";
 
-  private final SabotContext context;
-  private final String name;
-  private final SystemTablePluginConfig config;
-  private final SystemSchema schema = new SystemSchema();
+  protected final SabotContext context;
+  protected final String name;
+  protected final SystemTablePluginConfig config;
+  protected final SystemSchema schema = new SystemSchema();
 
   public SystemTablePlugin(SystemTablePluginConfig config, SabotContext context, String name) {
     this.config = config;
@@ -113,7 +113,7 @@ public class SystemTablePlugin extends AbstractStoragePlugin<SystemTablePlugin.S
   /**
    * This class defines a namespace for {@link com.dremio.exec.store.sys.SystemTable}s
    */
-  private class SystemSchema extends AbstractSchema {
+  protected class SystemSchema extends AbstractSchema {
 
     private final Set<String> tableNames;
 

@@ -15,11 +15,12 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
+import org.apache.hadoop.fs.FileStatus;
 
 public interface FileWork {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileWork.class);
 
-  public String getPath();
+  public FileStatus getStatus();
   public long getStart();
   public long getLength();
 }

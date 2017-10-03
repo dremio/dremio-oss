@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.store.dfs;
 
+import org.apache.hadoop.fs.FileStatus;
+
 import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.exec.store.schedule.EndpointByteMap;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
 public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
@@ -26,21 +26,21 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
 
   private final long start;
   private final long length;
-  private final String path;
+  private final FileStatus status;
   private final EndpointByteMap byteMap;
 
-  public CompleteFileWork(EndpointByteMap byteMap, long start, long length, String path) {
+  public CompleteFileWork(EndpointByteMap byteMap, long start, long length, FileStatus status) {
     super();
     this.start = start;
     this.length = length;
-    this.path = path;
+    this.status = status;
     this.byteMap = byteMap;
   }
 
   public int compareTo(CompleteFileWork o) {
     if(o instanceof CompleteFileWork){
       CompleteFileWork c = (CompleteFileWork) o;
-      int cmp = path.compareTo(c.getPath());
+      int cmp = status.getPath().compareTo(c.status.getPath());
       if(cmp != 0){
         return cmp;
       }
@@ -65,8 +65,8 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
   }
 
   @Override
-  public String getPath() {
-    return path;
+  public FileStatus getStatus() {
+    return status;
   }
 
   @Override
@@ -80,7 +80,7 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
   }
 
   public FileWorkImpl getAsFileWork(){
-    return new FileWorkImpl(start, length, path);
+    return new FileWorkImpl(start, length, status);
   }
 
   @Override
@@ -94,31 +94,30 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
     CompleteFileWork that = (CompleteFileWork) o;
     return start == that.start &&
         length == that.length &&
-        Objects.equal(path, that.path);
+        Objects.equal(status, that.status);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(start, length, path);
+    return Objects.hashCode(start, length, status);
   }
 
-  public static class FileWorkImpl implements FileWork{
+  public static class FileWorkImpl implements FileWork {
 
     public long start;
     public long length;
-    public String path;
+    public FileStatus status;
 
-    @JsonCreator
-    public FileWorkImpl(@JsonProperty("start") long start, @JsonProperty("length") long length, @JsonProperty("path") String path) {
+    public FileWorkImpl(long start, long length, FileStatus status) {
       super();
       this.start = start;
       this.length = length;
-      this.path = path;
+      this.status = status;
     }
 
     @Override
-    public String getPath() {
-      return path;
+    public FileStatus getStatus() {
+      return status;
     }
 
     @Override
@@ -135,6 +134,6 @@ public class CompleteFileWork implements FileWork, Comparable<CompleteFileWork>{
 
   @Override
   public String toString() {
-    return String.format("File: %s start: %d length: %d", path, start, length);
+    return String.format("File: %s start: %d length: %d", status.getPath(), start, length);
   }
 }

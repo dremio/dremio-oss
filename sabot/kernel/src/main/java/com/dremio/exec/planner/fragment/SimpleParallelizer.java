@@ -39,6 +39,7 @@ import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
 import com.dremio.exec.planner.fragment.Materializer.IndexedFragmentNode;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
+import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordExecRPC.IncomingMinorFragment;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
@@ -56,6 +57,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
 
 /**
  * The simple parallelizer determines the level of parallelization of a plan based on the cost of the underlying
@@ -74,6 +76,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private final double assignmentCreatorBalanceFactor;
   private final AttemptObserver observer;
   private final ExecutionNodeMap executionMap;
+  private final FragmentCodec fragmentCodec;
 
   public SimpleParallelizer(QueryContext context, AttemptObserver observer) {
     OptionManager optionManager = context.getOptions();
@@ -95,6 +98,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.useNewAssignmentCreator = !optionManager.getOption(ExecConstants.OLD_ASSIGNMENT_CREATOR);
     this.assignmentCreatorBalanceFactor = optionManager.getOption(ExecConstants.ASSIGNMENT_CREATOR_BALANCE_FACTOR);
     this.observer = observer;
+    this.fragmentCodec = FragmentCodec.valueOf(optionManager.getOption(ExecConstants.FRAGMENT_CODEC).toUpperCase());
 
   }
 
@@ -107,6 +111,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.observer = observer;
     this.useNewAssignmentCreator = useNewAssignmentCreator;
     this.assignmentCreatorBalanceFactor = assignmentCreatorBalanceFactor;
+    this.fragmentCodec = FragmentCodec.NONE;
   }
 
   @Override
@@ -129,10 +134,12 @@ public class SimpleParallelizer implements ParallelizationParameters {
     return affinityFactor;
   }
 
+  @Override
   public boolean useNewAssignmentCreator() {
     return useNewAssignmentCreator;
   }
 
+  @Override
   public double getAssignmentCreatorBalanceFactor(){
     return assignmentCreatorBalanceFactor;
   }
@@ -313,7 +320,6 @@ public class SimpleParallelizer implements ParallelizationParameters {
       FunctionLookupContext functionLookupContext) throws ExecutionSetupException {
 
     final List<PlanFragment> fragments = Lists.newArrayList();
-
     // now we generate all the individual plan fragments and associated assignments. Note, we need all endpoints
     // assigned before we can materialize, so we start a new loop here rather than utilizing the previous one.
     for (Wrapper wrapper : planningSet) {
@@ -338,11 +344,11 @@ public class SimpleParallelizer implements ParallelizationParameters {
         FragmentRoot root = (FragmentRoot) op;
 
         // get plan as JSON
-        String plan;
-        String optionsData;
+        ByteString plan;
+        ByteString optionsData;
         try {
-          plan = reader.writeJson(root);
-          optionsData = reader.writeJson(options);
+          plan = reader.writeJsonBytes(root, fragmentCodec);
+          optionsData = reader.writeJsonBytes(options, fragmentCodec);
         } catch (JsonProcessingException e) {
           throw new ForemanSetupException("Failure while trying to convert fragment into json.", e);
         }
@@ -367,6 +373,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
             .setCredentials(session.getCredentials())
             .addAllCollector(CountRequiredFragments.getCollectors(root))
             .setPriority(queryContextInfo.getPriority())
+            .setFragmentCodec(fragmentCodec)
             .build();
 
         if(logger.isTraceEnabled()){

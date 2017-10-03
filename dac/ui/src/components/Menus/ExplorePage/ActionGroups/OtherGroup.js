@@ -27,25 +27,30 @@ export default class OtherGroup extends Component {
     makeTransform: PropTypes.func.isRequired,
     columnType: PropTypes.string
   }
-
+  static renderMenuItems(columnType, onClick) {
+    return [
+      <ColumnMenuItem
+        columnType={columnType}
+        actionType='KEEP_ONLY'
+        title={la('Keep Only...')}
+        availableTypes={KEEP_ONLY_TYPES}
+        onClick={onClick}
+      />,
+      <ColumnMenuItem
+        columnType={columnType}
+        actionType='EXCLUDE'
+        title={la('Exclude...')}
+        availableTypes={KEEP_ONLY_TYPES}
+        onClick={onClick}
+      />
+    ];
+  }
   render() {
-    const { columnType } = this.props;
+    const { columnType, makeTransform } = this.props;
+    const menuItems = OtherGroup.renderMenuItems(columnType, makeTransform);
     return (
       <div>
-        <ColumnMenuItem
-          columnType={columnType}
-          actionType='KEEP_ONLY'
-          title={la('Keep Only...')}
-          availableTypes={KEEP_ONLY_TYPES}
-          onClick={this.props.makeTransform}
-        />
-        <ColumnMenuItem
-          columnType={columnType}
-          actionType='EXCLUDE'
-          title={la('Exclude...')}
-          availableTypes={KEEP_ONLY_TYPES}
-          onClick={this.props.makeTransform}
-        />
+        {menuItems}
       </div>
     );
   }

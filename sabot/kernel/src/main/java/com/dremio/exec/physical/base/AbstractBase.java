@@ -16,6 +16,8 @@
 package com.dremio.exec.physical.base;
 
 import com.dremio.common.graph.GraphVisitor;
+import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
 
 public abstract class AbstractBase implements PhysicalOperator{
@@ -23,11 +25,12 @@ public abstract class AbstractBase implements PhysicalOperator{
 
   private final String userName;
 
-  protected long initialAllocation = 1000000L;
-  protected long maxAllocation = Long.MAX_VALUE;
+  private long initialAllocation = 1000000L;
+  private long maxAllocation = Long.MAX_VALUE;
   private int id;
   private double cost;
   private boolean isSingle = false;
+  private BatchSchema cachedSchema;
 
   public AbstractBase() {
     userName = null;
@@ -47,6 +50,7 @@ public abstract class AbstractBase implements PhysicalOperator{
     isSingle = true;
   }
 
+  @Override
   public boolean isSingle() {
     return isSingle;
   }
@@ -79,10 +83,16 @@ public abstract class AbstractBase implements PhysicalOperator{
     return initialAllocation;
   }
 
+  public void setInitialAllocation(long initialAllocation) {
+    this.initialAllocation = initialAllocation;
+  }
+
+  @Override
   public double getCost() {
     return cost;
   }
 
+  @Override
   public void setCost(double cost) {
     this.cost = cost;
   }
@@ -92,8 +102,23 @@ public abstract class AbstractBase implements PhysicalOperator{
     return maxAllocation;
   }
 
+  public void setMaxAllocation(long maxAllocation) {
+    this.maxAllocation = maxAllocation;
+  }
+
   @Override
   public String getUserName() {
     return userName;
   }
+
+  @Override
+  public final BatchSchema getSchema(FunctionLookupContext context) {
+    if (cachedSchema == null) {
+      cachedSchema = constructSchema(context);
+    }
+
+    return cachedSchema;
+  }
+
+  protected abstract BatchSchema constructSchema(FunctionLookupContext context);
 }

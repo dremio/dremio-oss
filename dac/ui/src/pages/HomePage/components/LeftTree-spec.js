@@ -82,18 +82,6 @@ describe('LeftTree', () => {
         expect(instance.state.isAddingSampleSource).to.be.false;
       });
     });
-    it('should reset state.isAddingSampleSource on promise reject', () => {
-      commonProps.createSampleSource = sinon.stub().rejects();
-      const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      const promise = instance.addSampleSource();
-      expect(instance.state.isAddingSampleSource).to.be.true;
-      return promise.then(() => {
-        throw new Error('should reject');
-      }, () => {
-        expect(context.router.push).to.have.not.been.called;
-        expect(instance.state.isAddingSampleSource).to.be.false;
-      });
-    });
   });
 
   describe('#getInitialSpacesContent()', () => {
@@ -108,19 +96,14 @@ describe('LeftTree', () => {
   });
 
   describe('#getInitialSourcesContent()', () => {
-    it("only sample, user can't add: show nothing", () => {
+    it("only sample source(s), user can't add: show nothing", () => {
       context.loggedInUser.admin = false;
       sinon.stub(sourcesActions, 'isSampleSource').returns(true);
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
       expect(instance.getInitialSourcesContent()).to.be.null;
       sourcesActions.isSampleSource.restore();
     });
-    it('single source (not sample): show nothing', () => {
-      const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      expect(instance.getInitialSourcesContent()).to.be.null;
-    });
-    it('multiple sources: show nothing', () => {
-      commonProps.sources = Immutable.fromJS([{}, {}]);
+    it('have a non-sample source: show nothing', () => {
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
       expect(instance.getInitialSourcesContent()).to.be.null;
     });
@@ -143,7 +126,7 @@ describe('LeftTree', () => {
         'You do not have any sources.'
       );
     });
-    it('only sample source, user can add: show text and add button', () => {
+    it('only sample source(s), user can add: show text and add button', () => {
       sinon.stub(sourcesActions, 'isSampleSource').returns(true);
 
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();

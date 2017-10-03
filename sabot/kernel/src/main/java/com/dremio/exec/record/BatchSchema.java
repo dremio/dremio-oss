@@ -16,6 +16,7 @@
 package com.dremio.exec.record;
 
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ import com.dremio.exec.vector.complex.fn.FieldSelection;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -136,7 +138,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
 
   /**
    * Masks an existing schema based on the provided schemapath. Additionally, reorders the schema to match the requested schema path.
-   * @param schemaPath
+   * @param schemaPaths
    * @return
    */
   public BatchSchema maskAndReorder(List<SchemaPath> schemaPaths){
@@ -169,7 +171,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     for(SchemaPath p : schemaPaths){
       final String name = p.getRootSegment().getPath().toLowerCase();
       if(requestedTopLevelFields.add(name)){
-        Field f = Preconditions.checkNotNull(updatedFields.get(name), "The projected column %s was not found in the schema to be masked: %s with a mask of %s.", name, this.toString(), schemaPaths);
+        Field f = Preconditions.checkNotNull(updatedFields.get(name), "The projected column %s was not found in the schema to be masked: %s with a mask of %s.", name, this, schemaPaths);
         updatedFieldList.add(f);
       }
     }
@@ -283,6 +285,44 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     }
     sb.append(")");
     return sb.toString();
+  }
+
+  /**
+   * Output the minimal schema info as JSON. This is different from the default serialization supported by {@link Field}
+   * as it has lot more information (such as vector types) which is not needed for understanding the schema.
+   * @return
+   * @throws Exception
+   */
+  public String toJSONString() throws Exception {
+    final JsonFactory factory = new JsonFactory();
+    final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    final JsonGenerator jsonGenerator = factory.createGenerator(outputStream);
+
+    toJSONString("root", null, getFields(), jsonGenerator);
+
+    jsonGenerator.flush();
+    return outputStream.toString();
+  }
+
+  private void toJSONString(String name, ArrowTypeID typeID, List<Field> children, JsonGenerator jsonGenerator) throws IOException {
+    jsonGenerator.writeStartObject();
+    jsonGenerator.writeFieldName("name");
+    jsonGenerator.writeString(name);
+
+    if (typeID != null) {
+      jsonGenerator.writeFieldName("type");
+      jsonGenerator.writeString(typeID.name());
+    }
+
+    if (children != null && children.size() > 0) {
+      jsonGenerator.writeFieldName("children");
+      jsonGenerator.writeStartArray(children.size());
+      for(Field child : children) {
+        toJSONString(child.getName(), child.getType().getTypeID(), child.getChildren(), jsonGenerator);
+      }
+      jsonGenerator.writeEndArray();
+    }
+    jsonGenerator.writeEndObject();
   }
 
   public static enum SelectionVectorMode {
@@ -448,17 +488,17 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
    * Find an estimated size of the record. Currently we assume constant size for variable length columns.
    * @return
    */
-  public int estimateRecordSize() {
+  public int estimateRecordSize(int listSizeEstimate, int varFieldSizeEstimate) {
     // calculate the target record size
     int estimatedRecordSize = 0;
     for(Field column : this) {
-      estimatedRecordSize += estimateFieldSize(column);
+      estimatedRecordSize += estimateFieldSize(column, listSizeEstimate, varFieldSizeEstimate);
     }
 
     return estimatedRecordSize;
   }
 
-  private static int estimateFieldSize(Field field) {
+  private static int estimateFieldSize(Field field, int listSizeEstimate, int varFieldSizeEstimate) {
     ArrowTypeID typeID = field.getType().getTypeID();
     final int estimatedFieldSize;
     switch (typeID) {
@@ -475,24 +515,26 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       case Struct:
         int childrenSize = 0;
         for(Field child : field.getChildren()) {
-          childrenSize += estimateFieldSize(child);
+          childrenSize += estimateFieldSize(child, listSizeEstimate, varFieldSizeEstimate);
         }
         estimatedFieldSize = childrenSize;
         break;
       case List:
         // assume an average of 5 elements in a list.
-        estimatedFieldSize = estimateFieldSize(field.getChildren().get(0)) * 5;
+        int elemSize = estimateFieldSize(field.getChildren().get(0), listSizeEstimate, varFieldSizeEstimate);
+        estimatedFieldSize = elemSize * listSizeEstimate;
         break;
       case FixedSizeList:
         final int fixedListSize = ((FixedSizeList)field.getType()).getListSize();
-        estimatedFieldSize = estimateFieldSize(field.getChildren().get(0)) * fixedListSize;
+        elemSize = estimateFieldSize(field.getChildren().get(0), listSizeEstimate, varFieldSizeEstimate);
+        estimatedFieldSize =  elemSize * fixedListSize;
         break;
       case Union:
         // Take average of fields in a union
         if (field.getChildren().size() > 0) {
           int size = 0;
           for(Field child : field.getChildren()) {
-            size = estimateFieldSize(child);
+            size += estimateFieldSize(child, listSizeEstimate, varFieldSizeEstimate);
           }
           estimatedFieldSize = size / field.getChildren().size();
         } else {
@@ -502,7 +544,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       case Utf8:
       case Binary:
         // large size constant number
-        estimatedFieldSize = 15;
+        estimatedFieldSize = varFieldSizeEstimate;
         break;
       case Bool:
         estimatedFieldSize = 1;

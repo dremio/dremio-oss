@@ -76,6 +76,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -105,14 +106,14 @@ public class SourceService {
     this.catalogService = catalogService;
   }
 
-  public SourceConfig registerSourceWithRuntime(SourceUI source) throws ExecutionSetupException {
-    SourceConfig sourceConfig = source.asSourceConfig();
+  public SourceConfig registerSourceWithRuntime(SourceUI source) throws ExecutionSetupException, NamespaceException {
+    final SourceConfig sourceConfig = source.asSourceConfig();
     StoragePluginConfig config = configurator.configure(source.getConfig());
     if (logger.isDebugEnabled()) {
       logger.debug("Connection Object: \n{}\n", JSONUtil.toString(config));
     }
     plugins.createOrUpdate(sourceConfig.getName(), config, sourceConfig, true);
-    return sourceConfig;
+    return namespaceService.getSource(new NamespaceKey(sourceConfig.getName()));
   }
 
   public void unregisterSourceWithRuntime(SourceName sourceName) {
@@ -468,7 +469,8 @@ public class SourceService {
           .setAccelerationSettings(
               new AccelerationSettingsDescriptor()
                 .setMethod(RefreshMethod.FULL)
-                .setAccelerationTTL(config.getAccelerationTTL())
+                .setAccelerationRefreshPeriod(config.getAccelerationRefreshPeriod())
+                .setAccelerationGracePeriod(config.getAccelerationGracePeriod())
           ),
         jobsCount,
         descendants);
@@ -531,4 +533,12 @@ public class SourceService {
     }
   }
 
+  @VisibleForTesting
+  public StoragePlugin getStoragePlugin(String sourceName) throws SourceNotFoundException, ExecutionSetupException {
+    StoragePlugin<?> plugin = plugins.getPlugin(sourceName);
+    if (plugin == null) {
+      throw new SourceNotFoundException(sourceName);
+    }
+    return plugin;
+  }
 }

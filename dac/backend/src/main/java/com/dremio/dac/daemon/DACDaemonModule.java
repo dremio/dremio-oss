@@ -33,7 +33,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.homefiles.HomeFileConfig;
 import com.dremio.dac.homefiles.HomeFileTool;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.server.WebServer;
@@ -62,6 +62,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PDFSService;
 import com.dremio.exec.store.dfs.PDFSService.PDFSMode;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
+import com.dremio.exec.store.sys.SystemTablePluginProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
@@ -114,7 +115,7 @@ public class DACDaemonModule implements DACModule {
   }
 
   @Override
-  public void bootstrap(final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DacConfig dacConfig, String masterNode, boolean isMaster) {
+  public void bootstrap(final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, String masterNode, boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
     final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
 
@@ -156,7 +157,7 @@ public class DACDaemonModule implements DACModule {
 
   @Override
   public void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DacConfig dacConfig, String masterNode, boolean isMaster, SourceToStoragePluginConfig configurator) {
+      DACConfig dacConfig, String masterNode, boolean isMaster, SourceToStoragePluginConfig configurator) {
     final DremioConfig config = dacConfig.getConfig();
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
@@ -309,14 +310,16 @@ public class DACDaemonModule implements DACModule {
         isExecutor ? PDFSMode.DATA : PDFSMode.CLIENT
         ));
 
-    registry.bind(SchedulerService.class, new LocalSchedulerService());
+    registry.bind(SchedulerService.class, new LocalSchedulerService(isCoordinator ? config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT) : 1));
+    registry.bindSelf(new SystemTablePluginProvider(registry.provider(SabotContext.class)));
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
         registry.getBindingCreator(),
         isMaster,
-        isCoordinator));
+        isCoordinator,
+        registry.provider(SystemTablePluginProvider.class)));
 
 
     registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
@@ -403,7 +406,8 @@ public class DACDaemonModule implements DACModule {
 
     if (isExecutor) {
       registry.bind(AccelerationListManager.class, new AccelerationListManagerImpl(
-          registry.provider(KVStoreProvider.class)
+          registry.provider(KVStoreProvider.class),
+          registry.provider(SabotContext.class)
           ));
     }
 

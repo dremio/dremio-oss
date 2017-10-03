@@ -20,13 +20,11 @@ import ExploreCellLargeOverlay from 'pages/ExplorePage/components/ExploreTable/E
 
 import SelectFrequentValuesOption from './SelectFrequentValuesOption';
 
-const MAX_SUGGESTIONS = 100;
-
 @Radium
 export default class SelectFrequentValues extends Component {
   static propTypes = {
     style: PropTypes.object,
-    field: PropTypes.object,
+    field: PropTypes.object.isRequired,
     options: PropTypes.arrayOf(
       PropTypes.shape({
         percent: PropTypes.any,
@@ -39,74 +37,60 @@ export default class SelectFrequentValues extends Component {
     options: []
   };
 
-  constructor(props) {
-    super(props);
-
-    this.showMore = this.showMore.bind(this);
-    this.hideMore = this.hideMore.bind(this);
-    this.onCheck = this.onCheck.bind(this);
-
-    this.state = {
-      activeCell: false
-    };
+  state = {
+    activeCell: false
   }
 
-  onCheck(value) {
+  handleCheck = (value, isChecked) => {
     const { field } = this.props;
-    const isChecked = field.value[value];
-    field.onChange({
-      ...field.value,
-      [value]: !isChecked
-    });
+    const newSet = new Set(field.value);
+    if (isChecked) {
+      newSet.add(value);
+    } else {
+      newSet.delete(value);
+    }
+    field.onChange([...newSet]);
   }
 
-  showMore(cellValue, anchor) {
+  showMore = (cellValue, anchor) => {
     this.setState({
       activeCell: { cellValue, anchor }
     });
   }
 
-  hideMore() {
+  hideMore = () => {
     this.setState({
       activeCell: false
     });
   }
 
   renderExploreCellLargeOverlay() {
-    return this.state.activeCell
-      ? (
-        <ExploreCellLargeOverlay
-          {...this.state.activeCell}
-          hide={this.hideMore}
-      />
-    )
-      : null;
+    return this.state.activeCell ? <ExploreCellLargeOverlay {...this.state.activeCell} hide={this.hideMore} /> : null;
   }
 
-  renderOption(option, maxPercent) {
-    const { field } = this.props;
+  renderOption(option, maxPercent, valueSet) {
     return (
       <SelectFrequentValuesOption
         maxPercent={maxPercent}
         onShowMore={this.showMore}
-        field={field}
+        checked={valueSet.has(option.value)}
         option={option}
-        onCheck={this.onCheck}
-        key={option.value}
+        onCheck={this.handleCheck}
+        key={JSON.stringify(option.value) || 'undefined'} // JSON.stringify for null vs "null"
       />
     );
   }
 
   render() {
-    const { options, style } = this.props;
+    const { options, style, field } = this.props;
     const maxPercent = options.reduce((prev, cur) => Math.max(prev, cur.percent), 0);
+
+    const valueSet = new Set(field.value);
     return (
       <div style={{...style}}>
         <table>
           <tbody>
-            {options && options
-              .slice(0, MAX_SUGGESTIONS)
-              .map((option) => this.renderOption(option, maxPercent))}
+            {options && options.map((option) => this.renderOption(option, maxPercent, valueSet))}
           </tbody>
         </table>
         {this.renderExploreCellLargeOverlay()}

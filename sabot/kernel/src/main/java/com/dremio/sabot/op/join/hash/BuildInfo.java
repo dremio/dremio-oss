@@ -15,13 +15,14 @@
  */
 package com.dremio.sabot.op.join.hash;
 
+import io.netty.buffer.ArrowBuf;
 import java.util.BitSet;
-
-import com.dremio.exec.record.selection.SelectionVector4;
 
 public class BuildInfo implements AutoCloseable {
   // List of links. Logically it helps maintain a linked list of records with the same key value
-  private SelectionVector4 links;
+  // Each link is 6 bytes.
+  // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
+  private ArrowBuf links;
 
   // List of bitvectors. Keeps track of records on the build side that matched a record on the probe side
   private BitSet keyMatchBitVector;
@@ -29,13 +30,13 @@ public class BuildInfo implements AutoCloseable {
   // number of records in this batch
   int recordCount;
 
-  public BuildInfo(SelectionVector4 links, BitSet keyMatchBitVector, int recordCount) {
+  public BuildInfo(ArrowBuf links, BitSet keyMatchBitVector, int recordCount) {
     this.links = links;
     this.keyMatchBitVector = keyMatchBitVector;
     this.recordCount = recordCount;
   }
 
-  public SelectionVector4 getLinks() {
+  public ArrowBuf getLinks() {
     return links;
   }
 

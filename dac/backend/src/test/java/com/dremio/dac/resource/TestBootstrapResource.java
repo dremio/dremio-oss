@@ -28,7 +28,7 @@ import com.dremio.dac.model.usergroup.UserForm;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserUI;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.UserExceptionMapper;
@@ -42,7 +42,7 @@ import com.dremio.test.DremioTest;
 public class TestBootstrapResource extends BaseTestServer {
 
   // make sure we disable the test APIs otherwise NoUserFilter will never be tested.
-  private static DacConfig dacConfig =  DacConfig
+  private static DACConfig dacConfig =  DACConfig
     .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
     .autoPort(true)
     .serveUI(false)

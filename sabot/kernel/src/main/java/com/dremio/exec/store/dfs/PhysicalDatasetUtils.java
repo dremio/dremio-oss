@@ -85,6 +85,11 @@ public class PhysicalDatasetUtils {
 
   /**
    * Convert file format settings from dac to Dremio.
+   *
+   * NOTE TO DEVELOPERS: Make sure this method in sync with the below {@link #toFileFormat} method. If a new parameter
+   * is added to FileConfig, make sure the parameter is added to the FormatPluginConfig here, and vice versa in
+   * {@link #toFileFormat} method.
+   *
    * @param fileConfig Format settings set by user in DAC
    * @param extensions list of extensions found for a table
    * @return {@code FormatPluginConfig} that should be used for creating Dremio table.
@@ -153,7 +158,12 @@ public class PhysicalDatasetUtils {
   }
 
   /**
-   * Convert Dremio's format plugin config to dac's format settings
+   * Convert Dremio's format plugin config to dac's format settings.
+   *
+   * NOTE TO DEVELOPERS: Make sure this method in sync with the above {@link #toFormatPlugin} method. If a new
+   * parameter is added to FormatPlugin, make sure the parameter is added to the FileFormat here, and vice versa in
+   * {@link #toFormatPlugin} method.
+   *
    * @param formatPlugin format plugin used to create the table
    * @return {@code FileFormat} for corresponding format plugin, null if not found.
    */
@@ -180,6 +190,7 @@ public class PhysicalDatasetUtils {
       textFileConfig.setSkipFirstLine(settings.isSkipFirstLine());
       textFileConfig.setLineDelimiter(new String(settings.getNewLineDelimiter()));
       textFileConfig.setAutoGenerateColumnNames(settings.isAutoGenerateColumnNames());
+      textFileConfig.setTrimHeader(settings.isTrimHeader());
       return textFileConfig;
     }
     if (formatPlugin instanceof AvroFormatPlugin) {

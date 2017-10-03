@@ -193,6 +193,9 @@ export default class ExploreTableCell extends Component {
       return true;
     }
     const columnName = selectionData.oRange.startContainer.parentNode.getAttribute('data-columnname');
+    const column = this.props.tableData.get('columns').find(col => col.get('name') === columnName);
+    if (!column) return true;
+
     const columnStatus = this.props.tableData.get('columns').find(col => col.get('name') === columnName).get('status');
     return Boolean(query.type && query.type === 'transform' && columnStatus === 'HIGHLIGHTED');
   }

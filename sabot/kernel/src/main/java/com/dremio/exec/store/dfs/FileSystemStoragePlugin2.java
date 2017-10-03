@@ -60,6 +60,7 @@ import com.dremio.service.namespace.file.proto.FileSystemCachedEntity;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
@@ -75,6 +76,8 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
   private static final BooleanCapabilityValue REQUIRES_HARD_AFFINITY = new BooleanCapabilityValue(SourceCapabilities.REQUIRES_HARD_AFFINITY, true);
 
   private static final int PERMISSION_CHECK_TASK_BATCH_SIZE = 10;
+
+  public static final String FILESYSTEM_TYPE_NAME = "dfs";
 
   private final FileSystemPlugin fsPlugin;
   private final String name;
@@ -100,7 +103,7 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
     if(name == null){
       throw new IllegalStateException("Attempted to get the id for an ephemeral storage plugin.");
     }
-    final StoragePluginType pluginType = new StoragePluginType("dfs", fsPlugin.getContext().getConfig().getClass("dremio.plugins.dfs.rulesfactory", StoragePluginTypeRulesFactory.class, FileSystemRulesFactory.class));
+    final StoragePluginType pluginType = new StoragePluginType(FILESYSTEM_TYPE_NAME, fsPlugin.getContext().getConfig().getClass("dremio.plugins.dfs.rulesfactory", StoragePluginTypeRulesFactory.class, FileSystemRulesFactory.class));
     return fs.isPdfs() ?
         new StoragePluginId(name, fileSystemConfig, new SourceCapabilities(REQUIRES_HARD_AFFINITY), pluginType) :
           new StoragePluginId(name, fileSystemConfig, SourceCapabilities.NONE, pluginType);
@@ -176,26 +179,24 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
         }
       }
 
-      final boolean hasDirectories = fileSelection.containsDirectories(fs);
-      final boolean isDir = fs.isDirectory(new Path(fileSelection.getSelectionRoot()));
-      final String selectionRoot = fileSelection.getSelectionRoot();
+      final boolean hasDirectories = fileSelection.containsDirectories();
+      final FileStatus rootStatus = fs.getFileStatus(new Path(fileSelection.getSelectionRoot()));
 
       // Get subdirectories under file selection before pruning directories
       final List<FileSystemCachedEntity> cachedEntities = Lists.newArrayList();
-      if (isDir) {
+      if (rootStatus.isDirectory()) {
         // first entity is always a root
-        final FileStatus rootStatus = fs.getFileStatus(new Path(selectionRoot));
         cachedEntities.add(fromFileStatus(rootStatus));
       }
 
-      for (FileStatus dirStatus: fileSelection.getAllDirectories(fs)) {
+      for (FileStatus dirStatus: fileSelection.getAllDirectories()) {
         cachedEntities.add(fromFileStatus(dirStatus));
       }
 
       final FileUpdateKey updateKey = new FileUpdateKey().setCachedEntitiesList(cachedEntities);
       // Expand selection by copying it first used to check extensions of files in directory.
-      final FileSelection fileSelectionWithoutDir =  hasDirectories? new FileSelection(fileSelection).minusDirectories(fs): fileSelection;
-      if(fileSelectionWithoutDir == null){
+      final FileSelection fileSelectionWithoutDir =  hasDirectories? new FileSelection(fileSelection).minusDirectories(): fileSelection;
+      if(fileSelectionWithoutDir == null || fileSelectionWithoutDir.isEmpty()){
         // no files in the found directory, not a table.
         return null;
       }
@@ -214,7 +215,7 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
       if (datasetAccessor == null) {
         for (final FormatMatcher matcher : fsPlugin.getMatchers()) {
           try {
-            if (matcher.matches(fs, fileSelection.getFirstPath(fs), fsPlugin.getCodecFactory())) {
+            if (matcher.matches(fs, fileSelection, fsPlugin.getCodecFactory())) {
               datasetAccessor = matcher.getFormatPlugin().getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, fsPlugin, datasetPath, tableName, updateKey);
               if (datasetAccessor != null) {
                 break;
@@ -226,20 +227,6 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
         }
       }
 
-      if (datasetAccessor == null) {
-        for (final FormatMatcher matcher : fsPlugin.getMatchers()) {
-          try {
-            if (matcher.matches(fs, fileSelectionWithoutDir.getFirstPath(fs), fsPlugin.getCodecFactory())) {
-              datasetAccessor = matcher.getFormatPlugin().getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, fsPlugin, datasetPath, tableName, updateKey);
-              if (datasetAccessor != null) {
-                break;
-              }
-            }
-          } catch (IOException e) {
-            logger.debug("File read failed.", e);
-          }
-        }
-      }
       return datasetAccessor;
     } catch (AccessControlException e) {
       if (!ignoreAuthErrors) {
@@ -427,7 +414,7 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
   @Override
   public CheckResult checkReadSignature(ByteString key, DatasetConfig oldConfig) throws Exception {
     FileUpdateKey fileUpdateKey = new FileUpdateKey();
-    ProtostuffIOUtil.mergeFrom(key.toByteArray(), fileUpdateKey, fileUpdateKey.getSchema());
+    ProtostuffIOUtil.mergeFrom(key.toByteArray(), fileUpdateKey, FileUpdateKey.getSchema());
 
     if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
       // single file dataset
@@ -451,46 +438,77 @@ public class FileSystemStoragePlugin2 implements StoragePlugin2 {
       }
     }
 
-    boolean newUpdateKey = false;
+    final UpdateStatus status = checkMultifileStatus(fileUpdateKey);
+    switch(status) {
+    case DELETED:
+      return CheckResult.DELETED;
+    case UNCHANGED:
+      return CheckResult.UNCHANGED;
+    case CHANGED:
+      // continue below.
+      break;
+    default:
+      throw new UnsupportedOperationException(status.name());
+    }
+
+
+    final SourceTableDefinition newDatasetAccessor = getDataset(new NamespaceKey(oldConfig.getFullPathList()), oldConfig, false);
+    return new CheckResult() {
+      @Override
+      public UpdateStatus getStatus() {
+        return UpdateStatus.CHANGED;
+      }
+
+      @Override
+      public SourceTableDefinition getDataset() {
+        return newDatasetAccessor;
+      }
+    };
+
+  }
+
+  /**
+   * Given a file update key, determine whether the source system has changed since we last read the status.
+   * @param fileUpdateKey
+   * @return The type of status change.
+   */
+  private UpdateStatus checkMultifileStatus(FileUpdateKey fileUpdateKey) {
     final List<FileSystemCachedEntity> cachedEntities = fileUpdateKey.getCachedEntitiesList();
     for (int i = 0; i < cachedEntities.size(); ++i) {
       final FileSystemCachedEntity cachedEntity = cachedEntities.get(i);
       final Path cachedEntityPath =  new Path(cachedEntity.getPath());
       try {
-        if (fs.exists(cachedEntityPath)) {
-          FileStatus fileStatus = fs.getFileStatus(cachedEntityPath);
-          final long modificationTime = fileStatus.getModificationTime();
-          Preconditions.checkArgument(fileStatus.isDirectory(), "fs based dataset update key must be composed of directories");
-          if (cachedEntity.getLastModificationTime() < modificationTime || modificationTime == 0) {
-            newUpdateKey = true;
-          }
-        } else {
+
+        final Optional<FileStatus> optionalStatus = fs.getFileStatusSafe(cachedEntityPath);
+        if(!optionalStatus.isPresent()) {
           // if first entity (root) is missing then table is deleted
           if (i == 0) {
-            return CheckResult.DELETED;
+            return UpdateStatus.DELETED;
           }
           // missing directory force update for this dataset
-          newUpdateKey = true;
+          return UpdateStatus.CHANGED;
         }
+
+        if(cachedEntity.getLastModificationTime() == 0) {
+          // this system doesn't support modification times, no need to further probe (S3)
+          return UpdateStatus.CHANGED;
+        }
+
+        final FileStatus updatedFileStatus = optionalStatus.get();
+        final long updatedModificationTime = updatedFileStatus.getModificationTime();
+        Preconditions.checkArgument(updatedFileStatus.isDirectory(), "fs based dataset update key must be composed of directories");
+        if (cachedEntity.getLastModificationTime() < updatedModificationTime) {
+          // the file/folder has been changed since our last check.
+          return UpdateStatus.CHANGED;
+        }
+
       } catch (IOException ioe) {
         // continue with other cached entities
         logger.error("Failed to get status for {}", cachedEntityPath, ioe);
+        return UpdateStatus.CHANGED;
       }
     }
-    if (newUpdateKey) {
-        final SourceTableDefinition newDatasetAccessor = getDataset(new NamespaceKey(oldConfig.getFullPathList()), oldConfig, false);
-        return new CheckResult() {
-          @Override
-          public UpdateStatus getStatus() {
-            return UpdateStatus.CHANGED;
-          }
 
-          @Override
-          public SourceTableDefinition getDataset() {
-            return newDatasetAccessor;
-          }
-        };
-      }
-    return CheckResult.UNCHANGED;
+    return UpdateStatus.UNCHANGED;
   }
 }

@@ -24,12 +24,13 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+
+import io.protostuff.ByteString;
 
 /**
  * Parquet sub scan.
@@ -37,16 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("parquet-scan")
 public class ParquetSubScan extends SubScanWithProjection {
 
-  private final ReadDefinition readDefinition;
   private final List<DatasetSplit> splits;
   private final List<FilterCondition> conditions;
   private final StoragePluginId pluginId;
   private final FileConfig formatSettings;
+  private final List<String> partitionColumns;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
+  private final ByteString extendedProperty;
 
   @JsonCreator
   public ParquetSubScan(
-    @JsonProperty("readDefinition") ReadDefinition readDefinition,
     @JsonProperty("formatSettings") FileConfig formatSettings,
     @JsonProperty("splits") List<DatasetSplit> splits,
     @JsonProperty("userName") String userName,
@@ -55,26 +56,33 @@ public class ParquetSubScan extends SubScanWithProjection {
     @JsonProperty("conditions") List<FilterCondition> conditions,
     @JsonProperty("pluginId") StoragePluginId pluginId,
     @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns) {
+    @JsonProperty("partitionColumns") List<String> partitionColumns,
+    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+    @JsonProperty("extendedProperty") ByteString extendedProperty) {
     super(userName, schema, tablePath, columns);
-    this.readDefinition = readDefinition;
     this.formatSettings = formatSettings;
     this.splits = splits;
     this.conditions = conditions;
     this.pluginId = pluginId;
+    this.partitionColumns = partitionColumns;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
+    this.extendedProperty = extendedProperty;
   }
 
   public FileConfig getFormatSettings(){
     return formatSettings;
   }
 
-  public ReadDefinition getReadDefinition() {
-    return readDefinition;
+  public List<String> getPartitionColumns() {
+    return partitionColumns;
   }
 
   public List<DatasetSplit> getSplits() {
     return splits;
+  }
+
+  public ByteString getExtendedProperty() {
+    return extendedProperty;
   }
 
   public List<FilterCondition> getConditions() {

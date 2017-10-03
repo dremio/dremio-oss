@@ -31,6 +31,9 @@ import com.dremio.dac.explore.bi.TableauMessageBodyGenerator;
 import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
+import freemarker.core.HTMLOutputFormat;
+import freemarker.template.Configuration;
+
 /**
  * Dremio Rest Server.
  */
@@ -58,6 +61,7 @@ public class RestServerV2 extends ResourceConfig {
     }
 
     // FEATURES
+    property(FreemarkerMvcFeature.TEMPLATE_OBJECT_FACTORY, getFreemarkerConfiguration());
     register(FreemarkerMvcFeature.class);
     register(MultiPartFeature.class);
     register(FirstTimeFeature.class);
@@ -87,5 +91,12 @@ public class RestServerV2 extends ResourceConfig {
         getConfiguration().getRuntimeType());
     property(disableMoxy, true);
     property(TableauMessageBodyGenerator.CUSTOMIZATION_ENABLED, false);
+  }
+
+  private Configuration getFreemarkerConfiguration() {
+    Configuration configuration = new Configuration(Configuration.VERSION_2_3_26);
+    configuration.setOutputFormat(HTMLOutputFormat.INSTANCE);
+    configuration.setClassForTemplateLoading(getClass(), "/");
+    return configuration;
   }
 }

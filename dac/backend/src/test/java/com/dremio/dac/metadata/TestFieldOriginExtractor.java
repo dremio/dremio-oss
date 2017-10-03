@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
@@ -69,7 +70,7 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
               }
 
               @Override
-              public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+              public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
                 if (phase == PlannerPhase.LOGICAL) {
                   fields = FieldOriginExtractor.getFieldOrigins(before, rowType);
                 }

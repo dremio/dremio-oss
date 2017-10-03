@@ -132,7 +132,7 @@ export default class DatasetList extends Component {
             inputValue={inputValue}
             fullPath={value.get('datasetPathList')}
             typeIcon={getIconDataTypeFromDatasetType(value.get('type'))}
-            showFullPath={false}/>
+            showFullPath />
         </div>
       );
     }).toJS().filter(Boolean);

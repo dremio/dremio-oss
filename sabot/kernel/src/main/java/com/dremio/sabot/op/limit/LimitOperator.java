@@ -69,6 +69,7 @@ public class LimitOperator implements SingleInputOperator {
     transfers = ImmutableList.copyOf(pairs);
 
     outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
     return outgoing;
   }

@@ -27,7 +27,7 @@ import javax.inject.Provider;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.proto.model.tokens.SessionState;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.service.scheduler.Schedule;
@@ -62,7 +62,7 @@ public class TokenManagerImpl implements TokenManager {
   public TokenManagerImpl(final Provider<KVStoreProvider> kvProvider,
                           final Provider<SchedulerService> schedulerService,
                           final boolean isMaster,
-                          final DacConfig config) {
+                          final DACConfig config) {
     this(kvProvider,
         schedulerService,
         isMaster,

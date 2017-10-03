@@ -5,3 +5,4 @@ coverage
 npm-debug.log
 /build
 /.nyc_output
+/target

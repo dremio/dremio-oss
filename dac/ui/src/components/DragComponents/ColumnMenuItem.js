@@ -18,6 +18,7 @@ import pureRender from 'pure-render-decorator';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
+import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import { body, unavailable } from 'uiTheme/radium/typography';
 import { ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
@@ -104,9 +105,10 @@ export default class ColumnMenuItem extends Component {
             data-qa={`inner-join-field-${item.get('name')}-${fieldType}`}
           >
             <FontIcon type={typeToIconType[item.get('type')]} theme={styles.type}/>
-            <div style={[styles.textOverflow, !preventDrag && {paddingRight: 10} /* leave space for knurling */]}>
+            <EllipsedText style={!preventDrag ? {paddingRight: 10} : {} /* leave space for knurling */}
+              text={item.get('name')}>
               <span data-qa={item.get('name')} style={[styles.name, font]}>{item.get('name')}</span>
-            </div>
+            </EllipsedText>
             {this.renderDraggableIcon()}
           </div>
         </DragSource>
@@ -142,12 +144,6 @@ const styles = {
       borderTop: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`,
       borderBottom: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`
     }
-  },
-  textOverflow: {
-    width: '100%',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
   },
   type: {
     'Icon': {

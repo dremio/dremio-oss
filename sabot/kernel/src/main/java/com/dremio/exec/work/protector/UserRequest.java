@@ -95,7 +95,7 @@ public class UserRequest {
     case GET_TABLES:
     case GET_SERVER_META:
       return MAX_MEMORY_UTIL;
-    case  RUN_QUERY:
+    case RUN_QUERY:
       RunQuery q = unwrap(RunQuery.class);
       if(q.hasMaxAllocation()){
         return q.getMaxAllocation();
@@ -139,7 +139,7 @@ public class UserRequest {
       return String.format("[Get Server Meta]");
     }
 
-    case  RUN_QUERY:
+    case RUN_QUERY:
       RunQuery q = unwrap(RunQuery.class);
       if(q.hasDescription()){
         return q.getDescription();
@@ -184,7 +184,7 @@ public class UserRequest {
     case GET_SCHEMAS: return RequestType.GET_SCHEMAS;
     case GET_TABLES: return RequestType.GET_TABLES;
     case GET_SERVER_META: return RequestType.GET_SERVER_META;
-    case  RUN_QUERY:
+    case RUN_QUERY:
       RunQuery q = unwrap(RunQuery.class);
       if(q.getType() == QueryType.PREPARED_STATEMENT){
         return RequestType.EXECUTE_PREPARE;

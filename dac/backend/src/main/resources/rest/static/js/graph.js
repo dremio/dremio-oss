@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 $(window).load(function () {
+    globalconfig.majorcolorscale = d3.scale.category20().domain([0, d3.max(globalconfig.fragmentProfileSize, accessor("majorFragmentId"))]);
+
     // for each record, unroll the array pointed to by "fieldpath" into a new
     // record for each element of the array
     function unnest (table, fieldpath, dest) {
@@ -265,57 +267,25 @@ $(window).load(function () {
             .selectAll('text').attr("fill", chartprops.tickColor);
     }
 
-    function loadprofile (queryid, callback) {
-        $.ajax({
-            type: "GET",
-            dataType: "json",
-            url: "/apiv2/profiles/" + queryid + ".json",
-            success: callback,
-            error: function (x, y, z) {
-                console.log(x);
-                console.log(y);
-                console.log(z);
-            }
-        });
-    }
-
-    function setupglobalconfig (profile) {
-        globalconfig.profile = profile;
-        globalconfig.majorcolorscale = d3.scale.category20()
-            .domain([0, d3.max(profile.fragmentProfile, accessor("majorFragmentId"))]);
-
-    }
-
     String.prototype.endsWith = function(suffix) {
         return this.indexOf(suffix, this.length - suffix.length) !== -1;
     };
 
-    loadprofile(globalconfig.queryid, function (profile) {
-        setupglobalconfig(profile);
+    var queryvisualdrawn = false;
+    var jsonprofileshown = false;
 
-        var queryvisualdrawn = false;
-        var timingoverviewdrawn = false;
-        var jsonprofileshown = false;
+    // trigger svg drawing when visible
+    $('#query-tabs').on('shown.bs.tab', function (e) {
+      if (queryvisualdrawn || !e.target.href.endsWith("#query-visual")) return;
+        buildplangraph(d3.select("#query-visual-canvas"), globalconfig.planText);
+        queryvisualdrawn = true;
+    })
+    // select default tabs
+    $('#fragment-overview').collapse('show');
+    $('#operator-overview').collapse('show');
+    $('#query-tabs a[href="#query-query"]').tab('show');
 
-        // trigger svg drawing when visible
-        $('#query-tabs').on('shown.bs.tab', function (e) {
-            if (queryvisualdrawn || !e.target.href.endsWith("#query-visual")) return;
-            buildplangraph(d3.select("#query-visual-canvas"), profile.plan);
-            queryvisualdrawn = true;
-        })
-        $('#fragment-accordion').on('shown.bs.collapse', function (e) {
-            if (timingoverviewdrawn || e.target.id != "fragment-overview") return;
-            buildtimingchart(d3.select("#fragment-overview-canvas"), extractminortimes(profile));
-            timingoverviewdrawn = true;
-        });
-
-        // select default tabs
-        $('#fragment-overview').collapse('show');
-        $('#operator-overview').collapse('show');
-        $('#query-tabs a[href="#query-query"]').tab('show');
-
-        //builddomtable(d3.select("#timing-table")
-        //            .append("tbody"), extractminortimes(profile),
-        //            ["name", "start", "end"]);
-    });
+    //builddomtable(d3.select("#timing-table")
+    //            .append("tbody"), extractminortimes(profile),
+    //            ["name", "start", "end"]);
 });

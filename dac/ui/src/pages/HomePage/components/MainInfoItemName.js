@@ -111,7 +111,7 @@ export default class MainInfoItemName extends Component {
         <Link style={linkStyle} to={href}>
           {this.renderDatasetItemLabel()}
         </Link>
-        { fullPath && <CopyButton text={fullPath} title={la('Copy Path')} /> }
+        { fullPath && <CopyButton text={fullPath} title={la('Copy Path')} style={{transform: 'translateY(1px)'}} /> }
       </div>
     );
   }

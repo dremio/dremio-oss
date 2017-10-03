@@ -15,32 +15,44 @@
  */
 import { Component, PropTypes } from 'react';
 import { label, subSectionTitle, formRow } from 'uiTheme/radium/forms';
+import { formDefault } from 'uiTheme/radium/typography';
 import { Select } from 'components/Fields';
 import HoverHelp from 'components/HoverHelp';
-import DurationInput from './DurationInput';
+import DurationField from 'components/Fields/DurationField';
+import FieldWithError from 'components/Fields/FieldWithError';
 
-//todo wrap in la
-const OBJECT_NAMES_TOOLTIP = 'Refresh interval for top-level source object names' +
-  ' such as names of DBs and tables. This is a lightweight operation.';
-const FULL_SCHEMA_TOOLTIP = 'Expiration of metadata Dremio needs for query planning' +
-  ' such as information on fields, types, shards, statistics and locality.';
-const REFRESH_MODE_TOOLTIP = 'Background - Queried datasets: Dremio updates deep metadata' +
-  ' for previously queried stale objects in a source. This mode increases query performance' +
-  ' as less work needs to be done at query time for these datasets.\n Background - All datasets:' +
-  ' Dremio updates deep metadata for all stale datasets in a source. This mode increases query' +
-  ' performance as less work needs to be done at query time.\n As Needed: Dremio updates deep metadata' +
-  ' for a dataset at query time. This mode minimizes metadata queries on a source when not used,' +
-  ' but might lead to longer planning times.';
-const AUTHORIZATION_TOOLTIP = 'Expiration of authorization information that Dremio caches when' +
-  ' querying systems with impersonation enabled.';
-const DEFAULT_DURATION = 1800000;
-const TTL_FIELDS = ['namesRefreshMillis', 'datasetDefinitionTTLMillis', 'authTTLMillis'];
+// todo wrap in la
+const DISCOVERY_TOOLTIP = 'Refresh interval for top-level source object names such as names of DBs and tables. '
+  + 'This is a lightweight operation.';
+const DETAILS_TOOLTIP =
+`Metadata Dremio needs for query planning such as information on fields, types, shards, statistics and locality.
+
+Fetch Modes:
+
+Only Queried Datasets:
+Dremio updates details for previously queried objects in a source. This mode increases query performance as less work needs to be done at query time for these datasets.
+
+All Datasets:
+Dremio updates details for all datasets in a source. This mode increases query performance as less work needs to be done at query time.
+
+As Needed:
+Dremio updates details for a dataset at query time. This mode minimizes metadata queries on a source when not used, but might lead to longer planning times.`;
+
+const AUTHORIZATION_TOOLTIP =
+  'When impersonation is enabled, maximum amount of time Dremio will cache authorization information.';
+const DEFAULT_DURATION_ONE_HOUR = 3600000;
+const DEFAULT_DURATION_THREE_HOUR = DEFAULT_DURATION_ONE_HOUR * 3;
+const TTL_FIELDS = ['namesRefreshMillis', 'datasetDefinitionRefreshAfterMillis', 'datasetDefinitionExpireAfterMillis',
+  'authTTLMillis'];
+
+const MIN_TIME = 60 * 1000; // when changed, must update validation error text
 
 export default class MetadataRefresh extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    hideObjectNames: PropTypes.bool
+    hideObjectNames: PropTypes.bool,
+    showAuthorization: PropTypes.bool
   };
 
   static defaultProps = {
@@ -50,9 +62,10 @@ export default class MetadataRefresh extends Component {
   static defaultFormValues() {
     return {
       metadataPolicy: {
-        namesRefreshMillis: DurationInput.constructFields(DEFAULT_DURATION),
-        datasetDefinitionTTLMillis: DurationInput.constructFields(DEFAULT_DURATION),
-        authTTLMillis: DurationInput.constructFields(DEFAULT_DURATION),
+        namesRefreshMillis: DEFAULT_DURATION_ONE_HOUR,
+        datasetDefinitionRefreshAfterMillis: DEFAULT_DURATION_ONE_HOUR,
+        datasetDefinitionExpireAfterMillis: DEFAULT_DURATION_THREE_HOUR,
+        authTTLMillis: DEFAULT_DURATION_THREE_HOUR,
         updateMode: 'PREFETCH_QUERIED'
       }
     };
@@ -60,14 +73,36 @@ export default class MetadataRefresh extends Component {
 
   static getFields() {
     return [
-      'metadataPolicy.namesRefreshMillis.duration',
-      'metadataPolicy.namesRefreshMillis.unit',
-      'metadataPolicy.datasetDefinitionTTLMillis.duration',
-      'metadataPolicy.datasetDefinitionTTLMillis.unit',
-      'metadataPolicy.authTTLMillis.duration',
-      'metadataPolicy.authTTLMillis.unit',
+      'metadataPolicy.namesRefreshMillis',
+      'metadataPolicy.datasetDefinitionRefreshAfterMillis',
+      'metadataPolicy.datasetDefinitionExpireAfterMillis',
+      'metadataPolicy.authTTLMillis',
       'metadataPolicy.updateMode'
     ];
+  }
+
+  static validate(values) {
+    const errors = {metadataPolicy: {}};
+
+    if (values.metadataPolicy.namesRefreshMillis < MIN_TIME) {
+      errors.metadataPolicy.namesRefreshMillis = la('Dataset discovery fetch must be at least 1 minute.');
+    }
+
+    if (values.metadataPolicy.updateMode !== 'INLINE' && values.metadataPolicy.datasetDefinitionRefreshAfterMillis < MIN_TIME) {
+      errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = la('Dataset details fetch must be at least 1 minute.');
+    }
+
+    if (values.metadataPolicy.datasetDefinitionExpireAfterMillis < MIN_TIME) {
+      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la('Dataset details expiry must be at least 1 minute.');
+    } else if (values.metadataPolicy.datasetDefinitionRefreshAfterMillis > values.metadataPolicy.datasetDefinitionExpireAfterMillis) {
+      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la('Dataset details cannot be configured to expire faster than they fetch.');
+    }
+
+    if (values.metadataPolicy.authTTLMillis < MIN_TIME) {
+      errors.metadataPolicy.authTTLMillis = la('Authorization expiry must be at least 1 minute.');
+    }
+
+    return errors;
   }
 
   static mapToFormFields(source) {
@@ -80,80 +115,102 @@ export default class MetadataRefresh extends Component {
     return TTL_FIELDS.reduce((fieldValues, ttlField) => {
       const ttlSourceValue = metadataPolicy[ttlField];
       if (ttlSourceValue) {
-        fieldValues[ttlField] = DurationInput.constructFields(ttlSourceValue);
+        fieldValues[ttlField] = ttlSourceValue;
       }
       return fieldValues;
     }, initialValue);
   }
 
-  static normalizeValues(values) {
-    return TTL_FIELDS.reduce((metadataValue, ttlField) => {
-      return {
-        ...metadataValue,
-        [ttlField]: DurationInput.convertToMilliseconds(values.metadataPolicy[ttlField])
-      };
-    }, {updateMode: values.metadataPolicy.updateMode});
-  }
-
   refreshModeOptions = [
-    { label: la('Background - Queried Datasets'), option: 'PREFETCH_QUERIED' },
-    { label: la('Background - All datasets'), option: 'PREFETCH' },
+    { label: la('Only Queried Datasets'), option: 'PREFETCH_QUERIED' },
+    { label: la('All Datasets'), option: 'PREFETCH' },
     { label: la('As Needed'), option: 'INLINE' }
   ];
 
   render() {
-    const { fields: { metadataPolicy }, hideObjectNames } = this.props;
+    const { fields: { metadataPolicy }, hideObjectNames, showAuthorization } = this.props;
+
+    // if INLINE, disable the datasetDefinitionRefreshAfterMillis field
+    const disableFetchEvery = metadataPolicy.updateMode && metadataPolicy.updateMode.value === 'INLINE';
     return (
       <div className='metadata-refresh'>
-        <h3 style={subSectionTitle}>{la('Metadata Refresh Policy')}</h3>
+        <h3 style={subSectionTitle}>{la('Metadata Caching')}</h3>
         {!hideObjectNames && <div style={formRow}>
           <span style={styles.label}>
-            {la('Object Names')}
-            <HoverHelp content={la(OBJECT_NAMES_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
+            {la('Dataset Discovery')}
+            <HoverHelp content={la(DISCOVERY_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
           </span>
-          <DurationInput fields={metadataPolicy.namesRefreshMillis}/>
+          <div style={styles.formSubRow}>
+            <FieldWithError {...metadataPolicy.namesRefreshMillis} label={la('Fetch every')} labelStyle={styles.inputLabel} errorPlacement='right'>
+              <DurationField
+                {...metadataPolicy.namesRefreshMillis}
+                min={MIN_TIME}
+                style={styles.durationField}/>
+            </FieldWithError>
+          </div>
         </div>}
-        <div style={formRow}>
-          <span style={{...styles.label, width: 240}}>
-            {la('Full Schema')}
-            <HoverHelp content={la(FULL_SCHEMA_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
-          </span>
+        <div style={formRow}> {/* todo: add a <table> or two to make look nice in other locs */}
           <span style={styles.label}>
-            {la('Refresh Mode')}
-            <HoverHelp content={la(REFRESH_MODE_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
+            {la('Dataset Details')}
+            <HoverHelp content={la(DETAILS_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
           </span>
-          <div style={{ display: 'flex' }}>
-            <DurationInput fields={metadataPolicy.datasetDefinitionTTLMillis}/>
-            <Select
-              {...metadataPolicy.updateMode}
-              items={this.refreshModeOptions}
-              buttonStyle={{ textAlign: 'left' }}
-              style={styles.inRowSelect}
-            />
+
+          <div style={styles.formSubRow}>
+            <FieldWithError {...metadataPolicy.updateMode} label={la('Fetch mode')} labelStyle={styles.inputLabel} errorPlacement='right'>
+              <div style={{display: 'inline-block', verticalAlign: 'middle'}}>
+                <Select
+                  {...metadataPolicy.updateMode}
+                  items={this.refreshModeOptions}
+                  buttonStyle={{ textAlign: 'left' }}
+                  style={styles.inRowSelect}/>
+              </div>
+            </FieldWithError>
+          </div>
+
+          <div style={styles.formSubRow}>
+            <FieldWithError {...metadataPolicy.datasetDefinitionRefreshAfterMillis} label={la('Fetch every')} labelStyle={styles.inputLabel} errorPlacement='right'>
+              <DurationField
+                {...metadataPolicy.datasetDefinitionRefreshAfterMillis}
+                min={MIN_TIME}
+                disabled={disableFetchEvery}
+                style={styles.durationField}/>
+            </FieldWithError>
+          </div>
+
+          <div style={styles.formSubRow}>
+            <FieldWithError {...metadataPolicy.datasetDefinitionExpireAfterMillis} label={la('Expire after')} labelStyle={styles.inputLabel} errorPlacement='right'>
+              <DurationField
+                {...metadataPolicy.datasetDefinitionExpireAfterMillis}
+                min={MIN_TIME}
+                style={styles.durationField}/>
+            </FieldWithError>
           </div>
         </div>
-        <div style={formRow}>
+        {showAuthorization && <div style={formRow}>
           <span style={styles.label}>
             {la('Authorization')}
             <HoverHelp content={la(AUTHORIZATION_TOOLTIP)} tooltipInnerStyle={styles.hoverTip}/>
           </span>
-          <DurationInput fields={metadataPolicy.authTTLMillis}/>
-        </div>
+          <div style={styles.formSubRow}>
+            <FieldWithError {...metadataPolicy.authTTLMillis} label={la('Expire after')} labelStyle={styles.inputLabel} errorPlacement='right'>
+              <DurationField
+                {...metadataPolicy.authTTLMillis}
+                min={MIN_TIME}
+                style={styles.durationField}/>
+            </FieldWithError>
+          </div>
+        </div>}
       </div>
     );
   }
 }
 
 const styles = {
-  select: {
-    width: 164
-  },
   numberInput: {
     width: 42
   },
   inRowSelect: {
-    width: 200,
-    marginLeft: 20
+    width: 214
   },
   hoverTip: {
     textAlign: 'left',
@@ -164,5 +221,20 @@ const styles = {
     ...label,
     display: 'inline-flex',
     alignItems: 'center'
+  },
+  inputLabel: {
+    ...formDefault,
+    marginLeft: 10,
+    marginRight: 10,
+    display: 'inline-flex'
+  },
+  formSubRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6
+  },
+  durationField: {
+    width: 214
   }
 };

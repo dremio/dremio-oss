@@ -401,6 +401,32 @@ public class UserException extends RuntimeException {
     return builder(DremioPBError.ErrorType.IO_EXCEPTION, cause);
   }
 
+  /**
+   * Creates a new user exception builder .
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#CONCURRENT_MODIFICATION
+   * @return user exception builder
+   */
+  public static Builder concurrentModificationError() {
+    return concurrentModificationError(null);
+  }
+
+  /**
+   * Wraps the passed exception inside a concurrent modification error.
+   * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
+   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#CONCURRENT_MODIFICATION
+   *
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
+   *              returned by the builder instead of creating a new user exception
+   * @return user exception builder
+   */
+  public static Builder concurrentModificationError(final Throwable cause) {
+    return builder(DremioPBError.ErrorType.CONCURRENT_MODIFICATION, cause);
+  }
+
   protected static Builder builder(final DremioPBError.ErrorType type, final Throwable cause) {
     return new Builder(type, cause);
   }

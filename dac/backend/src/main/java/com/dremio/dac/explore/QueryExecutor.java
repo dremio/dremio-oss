@@ -98,8 +98,8 @@ public class QueryExecutor {
       // don't check the cache for UI_RUN queries
       if (queryType != QueryType.UI_RUN) {
         final Iterable<Job> jobsForDataset = version == null ?
-          jobsService.getJobsForDataset(datasetPath.toNamespaceKey(), MAX_JOBS_TO_SEARCH) :
-          jobsService.getJobsForDataset(datasetPath.toNamespaceKey(), version, MAX_JOBS_TO_SEARCH);
+          jobsService.getJobsForDataset(datasetPath.toNamespaceKey(), null, query.getUsername(), MAX_JOBS_TO_SEARCH) :
+          jobsService.getJobsForDataset(datasetPath.toNamespaceKey(), version, query.getUsername(), MAX_JOBS_TO_SEARCH);
         for (Job job : jobsForDataset) {
           if (job.getJobAttempt().getInfo().getQueryType() == queryType
             && query.getSql().equals(job.getJobAttempt().getInfo().getSql())

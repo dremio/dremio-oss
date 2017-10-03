@@ -35,6 +35,7 @@ import javax.ws.rs.ext.MessageBodyWriter;
 
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.WebServer;
 import com.dremio.exec.util.ViewFieldsHelper;
@@ -46,6 +47,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 /**
  * A {@link VirtualDatasetUI} serializer as Qlik Sense apps
@@ -72,6 +74,10 @@ public class QlikAppMessageBodyGenerator implements MessageBodyWriter<DatasetCon
     return -1;
   }
 
+  private static String quoteString(String str) {
+    return "\"" + CharMatcher.is('"').replaceFrom(str, "\"\"") + "\"";
+  }
+
   private static final Function<ViewFieldType, String> FIELD_TO_NAME = new Function<ViewFieldType, String>() {
     @Override
     public String apply(ViewFieldType input) {
@@ -79,7 +85,7 @@ public class QlikAppMessageBodyGenerator implements MessageBodyWriter<DatasetCon
 
       // Qlik needs field names that contain spaces to be surrounded by " so we surround all field names.
       // If the field name contains a ", we escape it with "" (per http://help.qlik.com/en-US/sense/3.1/Subsystems/Hub/Content/Scripting/use-quotes-in-script.htm)
-      return "\"" + CharMatcher.is('"').replaceFrom(name, "\"\"") + "\"";
+      return quoteString(name);
     }
   };
 
@@ -150,8 +156,19 @@ public class QlikAppMessageBodyGenerator implements MessageBodyWriter<DatasetCon
         writeFields(pw, entry.getKey().name(), entry.getValue());
       }
 
-      pw.format("  FROM %1$s%2$s%1$s.%1$s%3$s%1$s;\n", QUOTE, Joiner.on('.').join(datasetPath.toParentPathList()),
-          datasetPath.getLeaf().getName());
+      /* Qlik supports paths with more than 2 components ("foo"."bar"."baz"."boo"), but each individual path segment
+       * must be quoted to work with Dremio.  SqlUtils.quoteIdentifier will only quote when needed, so we do another
+       * pass to ensure they are quoted. */
+      final List<String> quotedPathComponents = Lists.newArrayList();
+      for (final String component : dataset.getFullPathList()) {
+        String quoted = SqlUtils.quoteIdentifier(component);
+        if (!quoted.startsWith(String.valueOf(SqlUtils.QUOTE)) || !quoted.endsWith(String.valueOf(SqlUtils.QUOTE))) {
+          quoted = quoteString(quoted);
+        }
+        quotedPathComponents.add(quoted);
+      }
+
+      pw.format("  FROM %1$s;\n", Joiner.on('.').join(quotedPathComponents));
     }
   }
 

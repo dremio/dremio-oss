@@ -118,7 +118,7 @@ public class HiveTestDataGenerator {
   }
 
   public void executeDDL(String query) throws IOException {
-    final HiveConf conf = new HiveConf(SessionState.class);
+    final HiveConf conf = newHiveConf();
     final SessionState ss = new SessionState(conf);
     try {
       SessionState.start(ss);
@@ -129,21 +129,27 @@ public class HiveTestDataGenerator {
     }
   }
 
-  private Driver getHiveDriver(HiveConf conf) {
-    conf.set("javax.jdo.option.ConnectionURL", String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
+  private HiveConf newHiveConf() {
+    HiveConf conf = new HiveConf(SessionState.class);
+
+    conf.set(ConfVars.METASTORECONNECTURLKEY.varname, String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
-    conf.set("hive.metastore.warehouse.dir", whDir);
+    conf.set(ConfVars.METASTOREWAREHOUSE.varname, whDir);
     conf.set("mapred.job.tracker", "local");
     conf.set(ConfVars.SCRATCHDIR.varname,  getTempDir("scratch_dir"));
     conf.set(ConfVars.LOCALSCRATCHDIR.varname, getTempDir("local_scratch_dir"));
     conf.set(ConfVars.DYNAMICPARTITIONINGMODE.varname, "nonstrict");
 
-    Driver hiveDriver = new Driver(conf);
-    return hiveDriver;
+    return conf;
+
+  }
+
+  private Driver getHiveDriver(HiveConf conf) {
+    return new Driver(conf);
   }
 
   private void generateTestData() throws Exception {
-    HiveConf conf = new HiveConf(SessionState.class);
+    HiveConf conf = newHiveConf();
     SessionState ss = new SessionState(conf);
     SessionState.start(ss);
     Driver hiveDriver = getHiveDriver(conf);

@@ -78,7 +78,7 @@ public class NestedLoopJoinPOP extends AbstractBase {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     SchemaBuilder b = BatchSchema.newBuilder();
     for (Field f : getRight().getSchema(context)) {
       b.addField(f);

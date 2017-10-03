@@ -51,6 +51,7 @@ class IndexManager implements AutoCloseable {
         }
       })
       .build(new CacheLoader<String, LuceneSearchIndex>() {
+        @Override
         public LuceneSearchIndex load(String name) throws IOException {
           return new LuceneSearchIndex(indexDirectory, name, inMemory);
         }
@@ -113,6 +114,7 @@ class IndexManager implements AutoCloseable {
   @Override
   public void close() throws Exception {
     indexes.invalidateAll();
+    indexes.cleanUp();
     closeException.close();
   }
 }

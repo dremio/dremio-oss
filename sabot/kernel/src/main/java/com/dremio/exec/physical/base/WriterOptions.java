@@ -18,73 +18,58 @@ package com.dremio.exec.physical.base;
 import java.util.List;
 
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationImpl;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
+
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.visitor.WriterUpdater;
+import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 /**
- * Describes a set of traits to apply to a given writer.
+ * Writer options.
  */
 public class WriterOptions {
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
-
-  public static WriterOptions DEFAULT = new WriterOptions(null, ImmutableList.<String>of(), false, false, ImmutableList.<String>of(), ImmutableList.<String>of());
+  public static final WriterOptions DEFAULT = new WriterOptions(null, ImmutableList.<String>of(),
+      ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, false);
 
   private final Integer ringCount;
   private final List<String> partitionColumns;
   private final List<String> sortColumns;
   private final List<String> distributionColumns;
-  private final boolean hashPartition;
-  private final boolean roundRobinPartition;
+  private final PartitionDistributionStrategy partitionDistributionStrategy;
+  private final boolean singleWriter;
 
   @JsonCreator
   public WriterOptions(
       @JsonProperty("ringCount") Integer ringCount,
       @JsonProperty("partitionColumns") List<String> partitionColumns,
-      @JsonProperty("hashPartition") boolean hashPartition,
-      @JsonProperty("roundRobinPartition") boolean roundRobinPartition,
       @JsonProperty("sortColumns") List<String> sortColumns,
-      @JsonProperty("distributionColumns") List<String> distributionColumns) {
-    super();
+      @JsonProperty("distributionColumns") List<String> distributionColumns,
+      @JsonProperty("partitionDistributionStrategy") PartitionDistributionStrategy partitionDistributionStrategy,
+      @JsonProperty("singleWriter") boolean singleWriter) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
     this.distributionColumns = distributionColumns;
-    this.hashPartition = hashPartition;
-    this.roundRobinPartition = roundRobinPartition;
+    this.partitionDistributionStrategy = partitionDistributionStrategy;
+    this.singleWriter = singleWriter;
   }
 
-  public boolean isHashPartition() {
-    return hashPartition;
+  public Integer getRingCount() {
+    return ringCount;
   }
 
   public List<String> getPartitionColumns() {
     return partitionColumns;
-  }
-
-  public RelTraitSet getTraitSetWithPartition(RelTraitSet inputTraitSet, RelNode input) {
-    if (!hasPartitions()) {
-      return inputTraitSet;
-    }
-    if (hashPartition) {
-      return inputTraitSet.plus(getDistribution(getFieldIndices(partitionColumns, input)));
-    }
-    if (roundRobinPartition) {
-      return inputTraitSet.plus(DistributionTrait.ROUND_ROBIN);
-    }
-    return inputTraitSet;
   }
 
   public List<String> getSortColumns() {
@@ -95,51 +80,55 @@ public class WriterOptions {
     return distributionColumns;
   }
 
-  public Integer getRingCount(){
-    return ringCount;
+  public boolean isSingleWriter() {
+    return singleWriter;
   }
 
   public boolean hasDistributions() {
     return distributionColumns != null && !distributionColumns.isEmpty();
   }
 
-
-  public boolean hasPartitions(){
+  public boolean hasPartitions() {
     return partitionColumns != null && !partitionColumns.isEmpty();
   }
 
-  public boolean hasSort(){
+  public boolean hasSort() {
     return sortColumns != null && !sortColumns.isEmpty();
   }
 
-  public static RelCollation getCollation(RelTraitSet set, List<Integer> keys){
-    List<RelFieldCollation> fields = Lists.newArrayList();
-    for (int key : keys) {
-      fields.add(new RelFieldCollation(key));
-    }
-    return set.canonize(RelCollationImpl.of(fields));
-  }
+  public RelTraitSet inferTraits(final RelTraitSet inputTraitSet, final RelDataType inputRowType) {
+    final RelTraitSet relTraits = inputTraitSet.plus(Prel.PHYSICAL);
 
-  public static DistributionTrait getDistribution(List<Integer> keys) {
-    List<DistributionField> fields = Lists.newArrayList();
-    for (int key : keys) {
-      fields.add(new DistributionField(key));
-    }
-    return new DistributionTrait(DistributionType.HASH_DISTRIBUTED, ImmutableList.copyOf(fields));
-  }
-
-  public static List<Integer> getFieldIndices(List<String> columns, RelNode input){
-    final List<Integer> keys = Lists.newArrayList();
-    final RelDataType inputRowType = input.getRowType();
-    for (final String col : columns) {
-      final RelDataTypeField field = inputRowType.getField(col, false, false);
-      Preconditions.checkArgument(field != null, String.format("partition col %s could not be resolved in table's column lists!", col));
-      keys.add(field.getIndex());
+    if (hasDistributions()) {
+      return relTraits.plus(hashDistributedOn(distributionColumns, inputRowType));
     }
 
-    return keys;
+    if (hasPartitions()) {
+      switch (partitionDistributionStrategy) {
+
+      case HASH:
+        return relTraits.plus(hashDistributedOn(partitionColumns, inputRowType));
+
+      case ROUND_ROBIN:
+        return relTraits.plus(DistributionTrait.ROUND_ROBIN);
+
+      case UNSPECIFIED:
+      case STRIPED:
+        // fall through ..
+      }
+    }
+
+    return relTraits;
   }
 
-
-
+  private static DistributionTrait hashDistributedOn(final List<String> columns, final RelDataType inputRowType) {
+    return new DistributionTrait(DistributionType.HASH_DISTRIBUTED,
+        FluentIterable.from(WriterUpdater.getFieldIndices(columns, inputRowType))
+            .transform(new Function<Integer, DistributionField>() {
+              @Override
+              public DistributionField apply(Integer input) {
+                return new DistributionField(input);
+              }
+            }).toList());
+  }
 }

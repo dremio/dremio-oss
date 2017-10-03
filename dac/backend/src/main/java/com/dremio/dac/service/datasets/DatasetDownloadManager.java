@@ -131,7 +131,7 @@ public class DatasetDownloadManager {
       case PARQUET:
         return "type => 'parquet'";
       case CSV:
-        return "type => 'text', fieldDelimiter => ','";
+        return "type => 'text', fieldDelimiter => ',', lineDelimiter => '\r\n'";
       case TABLEAU_DATA_EXTRACT:
         throw new UnsupportedOperationException("TDE format not supported by dataset download");
       case TABLEAU_DATA_SOURCE:

@@ -13,17 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export Elastic from './Elastic';
-export HBase from './HBase';
-export HDFS from './HDFS';
-export MapRFS from './MapRFS';
-export MongoDB from './MongoDB';
-export MySQL from './MySQL';
-export Oracle from './Oracle';
-export NAS from './NAS';
-export PostgreSQL from './PostgreSQL';
-export S3 from './S3';
-export SQLserver from './SQLserver';
-export Hive from './Hive';
-export DB2 from './DB2';
-export Redshift from './Redshift';
+
+import DB2Form from 'dyn-load/components/sourceForms/DB2Form';
+import ElasticForm from './ElasticForm';
+import HBaseForm from './HBaseForm';
+import HDFSForm from './HDFSForm';
+import MapRFSForm from './MapRFSForm';
+import MongoDBForm from './MongoDBForm';
+import MySQLForm from './MySQLForm';
+import OracleForm from './OracleForm';
+import NASForm from './NASForm';
+import PostgreSQLForm from './PostgreSQLForm';
+import S3Form from './S3Form';
+import SQLServerForm from './SQLServerForm';
+import HiveForm from './HiveForm';
+import RedshiftForm from './RedshiftForm';
+
+const sourceForms = {
+  ElasticForm,
+  HBaseForm,
+  HDFSForm,
+  MapRFSForm,
+  MongoDBForm,
+  MySQLForm,
+  OracleForm,
+  NASForm,
+  PostgreSQLForm,
+  S3Form,
+  SQLServerForm,
+  HiveForm,
+  DB2Form,
+  RedshiftForm
+};
+
+// only include available source forms
+for (const [key, sourceForm] of Object.entries(sourceForms)) {
+  if (!sourceForm) {
+    delete sourceForms[key];
+  }
+}
+
+export default sourceForms;

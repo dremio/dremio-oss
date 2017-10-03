@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.SchemaPlus;
@@ -34,6 +35,7 @@ import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.RootSchemaFinder;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -51,7 +53,6 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.jobs.metadata.QueryMetadata.Builder;
-import com.dremio.service.jobs.metadata.RootSchemaFinder;
 import com.google.common.base.Throwables;
 
 /**
@@ -176,10 +177,9 @@ public final class QueryParser {
     @Override
     public void planCompleted(ExecutionPlan plan) {
       if (plan != null) {
-        final RootSchemaFinder visitor = new RootSchemaFinder(sabotContext.getFunctionImplementationRegistry());
         try {
-          plan.getRootOperator().accept(visitor, null);
-          builder.addBatchSchema(visitor.getBatchSchema());
+          builder.addBatchSchema(RootSchemaFinder.getSchema(plan.getRootOperator(),
+              sabotContext.getFunctionImplementationRegistry()));
         } catch (Exception e) {
           throw new RuntimeException("Failure in finding schema", e);
         }
@@ -187,7 +187,7 @@ public final class QueryParser {
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       switch(phase){
       case JOIN_PLANNING:
         builder.addPreJoinPlan(before);

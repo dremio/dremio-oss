@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -47,5 +48,9 @@ public class ExecutionNodeMap {
       // if there is more than one endpoint on the same host, pick a random one.
       return endpoints.get(ThreadLocalRandom.current().nextInt(endpoints.size()));
     }
+  }
+
+  public Collection<String> getHosts() {
+    return nodeMap.keySet();
   }
 }

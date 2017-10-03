@@ -31,6 +31,7 @@ export default class AccelerationRaw extends Component {
     return [
       'rawLayouts.layoutList[].id.id',
       'rawLayouts.layoutList[].name',
+      'rawLayouts.layoutList[].details.partitionDistributionStrategy',
       'rawLayouts.layoutList[].details.partitionFieldList[].name',
       'rawLayouts.layoutList[].details.sortFieldList[].name',
       'rawLayouts.layoutList[].details.displayFieldList[].name',
@@ -50,7 +51,8 @@ export default class AccelerationRaw extends Component {
       details: {
         displayFieldList: [],
         partitionFieldList: [],
-        sortFieldList: []
+        sortFieldList: [],
+        partitionDistributionStrategy: 'CONSOLIDATED'
       }
     });
   }
@@ -85,7 +87,7 @@ export default class AccelerationRaw extends Component {
   render() {
     const {acceleration, fields: {rawLayouts}} = this.props;
     return (
-      <div>
+      <div style={styles.base}>
         {this.renderHeader()}
         <AccelerationGridController
           acceleration={acceleration}
@@ -96,3 +98,11 @@ export default class AccelerationRaw extends Component {
     );
   }
 }
+
+const styles = {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1
+  }
+};

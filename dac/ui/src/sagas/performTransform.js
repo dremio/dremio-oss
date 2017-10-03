@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
 import { put, call, takeEvery } from 'redux-saga/effects';
+import invariant from 'invariant';
 
 import { PERFORM_TRANSFORM } from 'actions/explore/dataset/transform';
 import { PERFORM_TRANSFORM_AND_RUN } from 'actions/explore/dataset/run';
@@ -61,8 +61,8 @@ export function* performTransform({
   dataset, currentSql, queryContext, viewId, nextTable, isRun, transformData, callback
 }) {
   const sql = currentSql || dataset.get('sql');
-  invariant(!queryContext || queryContext instanceof (Immutable.List), 'queryContext must be Immutable.List');
-  const finalTransformData = yield call(getTransformData, dataset, currentSql, queryContext, transformData);
+  invariant(!queryContext || queryContext instanceof Immutable.List, 'queryContext must be Immutable.List');
+  const finalTransformData = yield call(getTransformData, dataset, sql, queryContext, transformData);
 
   try {
     let nextDataset = dataset;
@@ -115,15 +115,15 @@ export function* performTransform({
 /**
  * Returns updateSQL transforms if there isn't already transformData, and dataset is not new.
  */
-export const getTransformData = (dataset, currentSql, queryContext, transformData) => {
+export const getTransformData = (dataset, sql, queryContext, transformData) => {
   if (dataset.get('isNewQuery') || transformData) {
     return transformData;
   }
 
   const savedSql = dataset && dataset.get('sql');
   const savedContext = dataset && dataset.get('context') || Immutable.List();
-  if ((currentSql !== undefined && savedSql !== currentSql) || !savedContext.equals(queryContext)) {
-    return { type: 'updateSQL', sql: currentSql, sqlContextList: queryContext && queryContext.toJS()};
+  if ((sql !== undefined && savedSql !== sql) || !savedContext.equals(queryContext)) {
+    return { type: 'updateSQL', sql, sqlContextList: queryContext && queryContext.toJS()};
   }
 };
 

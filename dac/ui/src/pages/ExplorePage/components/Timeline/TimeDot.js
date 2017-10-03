@@ -20,13 +20,14 @@ import Immutable from 'immutable';
 import { Overlay } from 'react-overlays';
 import { Link } from 'react-router';
 
-import FontIcon from 'components/Icon/FontIcon';
+// import FontIcon from 'components/Icon/FontIcon';
 import { EXPLORE_PROGRESS_STATES } from 'constants/Constants';
 import Spinner from 'components/Spinner';
 
 import { HISTORY_ITEM_COLOR, ORANGE, NAVY } from 'uiTheme/radium/colors';
-import { h5White, bodySmallWhite } from 'uiTheme/radium/typography';
+import { h5White /*, bodySmallWhite*/ } from 'uiTheme/radium/typography';
 import { TIME_DOT_DIAMETER } from 'uiTheme/radium/sizes';
+import EllipsedText from 'components/EllipsedText';
 
 @Radium
 export default class TimeDot extends Component {
@@ -46,10 +47,6 @@ export default class TimeDot extends Component {
 
   constructor(props) {
     super(props);
-    this.handleMouseEnter = this.handleMouseEnter.bind(this);
-    this.handleMouseLeave = this.handleMouseLeave.bind(this);
-    this.renderProgressContent = this.renderProgressContent.bind(this);
-    this.renderCompletedContent = this.renderCompletedContent.bind(this);
 
     this.canClose = true;
 
@@ -69,6 +66,8 @@ export default class TimeDot extends Component {
     };
   }
 
+  canClose = false;
+
   getLinkLocation() {
     const { tipVersion, historyItem, datasetPathname, location } = this.props;
     const query = location && location.query || {};
@@ -85,7 +84,7 @@ export default class TimeDot extends Component {
     };
   }
 
-  handleMouseLeave() {
+  handleMouseLeave = () => {
     this.hideTimeout = setTimeout(() => {
       this.setState({
         open: false
@@ -93,7 +92,7 @@ export default class TimeDot extends Component {
     }, this.props.hideDelay);
   }
 
-  handleMouseEnter() {
+  handleMouseEnter = () => {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
     }
@@ -102,37 +101,29 @@ export default class TimeDot extends Component {
     });
   }
 
-  renderCompletedContent() {
+  renderCompletedContent = (wrap = true) => {
     const { historyItem } = this.props;
     const owner = historyItem.get('owner');
-    return (
-      <div>
-        <div style={[styles.popoverTitle]}>
-          <span style={[h5White, styles.textDesc]}>{historyItem.get('transformDescription')}</span>
-          <span style={[h5White]}>{owner ? owner : ''}</span>
-        </div>
-      </div>
-    );
+    const node = <div style={[styles.popoverTitle]}>
+      <EllipsedText style={{...h5White, ...styles.textDesc}} text={historyItem.get('transformDescription')}/>
+      <span style={[h5White]}>{owner ? owner : ''}</span>
+    </div>;
+    return wrap ? <div>{node}</div> : node;
   }
 
-  renderProgressContent() {
-    const { historyItem } = this.props;
-    const owner = historyItem.get('owner');
+  renderProgressContent = () => {
     return (
       <div>
-        <div style={[styles.popoverTitle]}>
-          <span style={[h5White, styles.textDesc]}>{historyItem.get('transformDescription')}</span>
-          <span style={[h5White]}>{owner ? owner : ''}</span>
-        </div>
+        {this.renderCompletedContent(false)}
         <div style={[styles.progress]}>
           <Spinner containerStyle={styles.progressIcon.Container} iconStyle={styles.progressIcon.Icon}/>
         </div>
-        <div style={[styles.popoverFooterWrap]}>
+        {/*DX-8023 <div style={[styles.popoverFooterWrap]}>
           <span style={[bodySmallWhite, styles.cancel]}>
             <FontIcon type='CanceledGray' theme={styles.cancelIcon}/>
             <span style={styles.cancelText}>Cancel Job</span>
           </span>
-        </div>
+        </div>*/}
       </div>
     );
   }
@@ -212,10 +203,9 @@ const styles = {
   },
   textDesc: {
     width: 170,
-    whiteSpace: 'nowrap',
     textDecoration: 'none',
-    textOverflow: 'ellipsis',
-    overflow: 'hidden'
+    flexGrow: 1,
+    paddingRight: 10
   },
   progress: {
     display: 'flex',

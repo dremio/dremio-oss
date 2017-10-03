@@ -26,11 +26,8 @@ import java.util.regex.Pattern;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 
@@ -50,7 +47,6 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.StoragePluginOptimizerRule;
 import com.dremio.exec.store.dfs.BaseFormatPlugin;
 import com.dremio.exec.store.dfs.BasicFormatMatcher;
-import com.dremio.exec.store.dfs.DefaultPathFilter;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemDatasetAccessor;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -144,7 +140,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       List<SchemaPath> columns,
       BatchSchema schema,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns) throws IOException {
-    return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.selectionRoot, columns, schema,
+    return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.getSelectionRoot(), columns, schema,
       globalDictionaryColumns, null);
   }
 
@@ -180,7 +176,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
   //       ParquetReaderUtility.DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer, columns, autoCorrectCorruptDates);
 
-  private static class ParquetFormatMatcher extends BasicFormatMatcher{
+  private static class ParquetFormatMatcher extends BasicFormatMatcher {
 
     private final ParquetFormatConfig formatConfig;
 
@@ -189,28 +185,6 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.formatConfig = formatConfig;
     }
 
-    @Override
-    public boolean matches(FileSystemWrapper fs, FileStatus fileStatus, CompressionCodecFactory codecFactory) throws IOException {
-      if (fileStatus.isDirectory() && isDirReadable(fs, fileStatus, codecFactory)){
-        return true;
-      }
-      return super.isFileReadable(fs, fileStatus, codecFactory);
-    }
-
-    private boolean isDirReadable(FileSystemWrapper fs, FileStatus dir, CompressionCodecFactory codecFactory) {
-      try {
-        PathFilter filter = new DefaultPathFilter();
-
-        FileStatus[] files = fs.listStatus(dir.getPath(), filter);
-        if (files.length == 0) {
-          return false;
-        }
-        return super.isFileReadable(fs, files[0], codecFactory);
-      } catch (IOException e) {
-        logger.info("Failure while attempting to check for Parquet metadata file.", e);
-        return false;
-      }
-    }
   }
 
   /**

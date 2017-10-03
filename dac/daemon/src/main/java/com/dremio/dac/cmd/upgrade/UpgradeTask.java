@@ -27,7 +27,8 @@ public abstract class UpgradeTask {
   protected static final Version VERSION_108 = new Version("1.0.8", 1, 0, 8, 0, "");
   protected static final Version VERSION_109 = new Version("1.0.9", 1, 0, 9, 0, "");
   protected static final Version VERSION_110 = new Version("1.1.0", 1, 1, 0, 0, "");
-
+  protected static final Version VERSION_111 = new Version("1.1.1", 1, 1, 1, 0, "");
+  protected static final Version VERSION_120 = new Version("1.2.0", 1, 2, 0, 0, "");
   static final Function<UpgradeTask, Version> TASK_MIN_VERSION = new Function<UpgradeTask, Version>() {
     @Override
     public Version apply(UpgradeTask task) {

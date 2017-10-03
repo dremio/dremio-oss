@@ -27,6 +27,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
@@ -42,24 +43,26 @@ import com.google.common.collect.ImmutableList;
 public class JSONRecordReader extends AbstractRecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JSONRecordReader.class);
 
-  private VectorContainerWriter writer;
-
-  // Data we're consuming
-  private Path hadoopPath;
-  private JsonNode embeddedContent;
-  private InputStream stream;
-  private final FileSystemWrapper fileSystem;
-  private JsonProcessor jsonReader;
-  private int recordCount;
-  private long runningRecordCount = 0;
   private final OperatorContext context;
   private final boolean enableAllTextMode;
   private final boolean readNumbersAsDouble;
-  private final boolean unionEnabled;
+
+  // Data we're consuming
+  private final Path hadoopPath;
+  private final JsonNode embeddedContent;
+
+  private final FileSystemWrapper fileSystem;
+
+  private VectorContainerWriter writer;
+  private JsonProcessor jsonReader;
+  private int recordCount;
+  private long runningRecordCount = 0;
+
+  private InputStream stream;
 
   /**
    * Create a JSON Record Reader that uses a file based input stream.
-   * @param fragmentContext
+   * @param context
    * @param inputPath
    * @param fileSystem
    * @param columns  pathnames of columns/subfields to read
@@ -72,7 +75,7 @@ public class JSONRecordReader extends AbstractRecordReader {
 
   /**
    * Create a new JSON Record Reader that uses a in memory materialized JSON stream.
-   * @param fragmentContext
+   * @param context
    * @param embeddedContent
    * @param fileSystem
    * @param columns  pathnames of columns/subfields to read
@@ -98,17 +101,19 @@ public class JSONRecordReader extends AbstractRecordReader {
 
     if(inputPath != null) {
       this.hadoopPath = new Path(inputPath);
+      this.embeddedContent = null;
     } else {
       this.embeddedContent = embeddedContent;
+      this.hadoopPath = null;
     }
 
     this.fileSystem = fileSystem;
     this.context = operatorContext;
 
     // only enable all text mode if we aren't using embedded content mode.
-    this.enableAllTextMode = embeddedContent == null && operatorContext.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR);
-    this.readNumbersAsDouble = embeddedContent == null && operatorContext.getOptions().getOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR);
-    this.unionEnabled = embeddedContent == null && operatorContext.getOptions().getOption(ExecConstants.ENABLE_UNION_TYPE);
+    final OptionManager options = operatorContext.getOptions();
+    this.enableAllTextMode = embeddedContent == null && options.getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR);
+    this.readNumbersAsDouble = embeddedContent == null && options.getOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR);
   }
 
   @Override
@@ -127,6 +132,7 @@ public class JSONRecordReader extends AbstractRecordReader {
       }
 
       this.writer = new VectorContainerWriter(output);
+      this.writer.setInitialCapacity(context.getTargetBatchSize());
       if (isSkipQuery()) {
         this.jsonReader = new CountingJsonReader();
       } else {
@@ -177,6 +183,7 @@ public class JSONRecordReader extends AbstractRecordReader {
 
   @Override
   public int next() {
+    jsonReader.resetDataSizeCounter();
     writer.allocate();
     writer.reset();
 
@@ -196,6 +203,10 @@ public class JSONRecordReader extends AbstractRecordReader {
           break outside;
         }
 
+        // If we already reached the target batch size, end the batch.
+        if (jsonReader.getDataSizeCounter() > numBytesPerBatch) {
+          break outside;
+        }
       }
 
       jsonReader.ensureAtLeastOneField(writer);

@@ -44,7 +44,6 @@ import com.dremio.exec.record.DefaultSchemaMutator;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.easy.json.JsonProcessor;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
-import com.dremio.exec.vector.complex.fn.WorkingBuffer;
 import com.dremio.plugins.elastic.ElasticActions.DeleteScroll;
 import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticActions.SearchScroll;
@@ -88,7 +87,6 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
 
   private final String query;
-  private final DatasetSplit split;
 
   private final ElasticConnection connection;
   private final OperatorStats stats;
@@ -97,8 +95,6 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private final ElasticsearchStoragePluginConfig config;
   private final ElasticSplitXattr splitAttributes;
   private final boolean usingElasticProjection;
-  private final BatchSchema schema;
-  private final WorkingBuffer buffer;
   private final FieldReadDefinition readDefinition;
   private final ElasticTableXattr tableAttributes;
   private final List<String> tableSchemaPath;
@@ -127,24 +123,19 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       ElasticConnection connection,
       List<SchemaPath> columns,
       FieldReadDefinition readDefinition,
-      ElasticsearchStoragePluginConfig config,
-      WorkingBuffer buffer,
-      BatchSchema schema) throws InvalidProtocolBufferException {
+      ElasticsearchStoragePluginConfig config) throws InvalidProtocolBufferException {
     super(context, columns);
     this.plugin = plugin;
     this.tableAttributes = tableAttributes;
     this.tableSchemaPath = tableSchemaPath;
     this.spec = spec;
     this.stats = context == null ? null : context.getStats();
-    this.split = split;
     this.readDefinition = readDefinition;
     this.connection = connection;
     String query = spec.getQuery();
     this.query = query != null && query.length() > 0 ? query : MATCH_ALL_REQUEST;
     this.usingElasticProjection = useElasticProjection;
     this.config = config;
-    this.schema = schema;
-    this.buffer = buffer;
     this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
     this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
@@ -156,19 +147,37 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     complexWriter = new VectorContainerWriter(output);
-    jsonReader = new ElasticsearchJsonReader(
-        context.getManagedBuffer(),
-        ImmutableList.copyOf(getColumns()),
-        resource,
-        readDefinition,
-        usingElasticProjection,
-        metaUIDSelected,
-        metaIDSelected,
-        metaTypeSelected,
-        metaIndexSelected
-        );
+    if (getColumns().isEmpty()) {
+      jsonReader = new CountingElasticsearchJsonReader(
+          context.getManagedBuffer(),
+          ImmutableList.copyOf(getColumns()),
+          resource,
+          readDefinition,
+          usingElasticProjection,
+          metaUIDSelected,
+          metaIDSelected,
+          metaTypeSelected,
+          metaIndexSelected
+      );
+    } else {
+      jsonReader = new ElasticsearchJsonReader(
+          context.getManagedBuffer(),
+          ImmutableList.copyOf(getColumns()),
+          resource,
+          readDefinition,
+          usingElasticProjection,
+          metaUIDSelected,
+          metaIDSelected,
+          metaTypeSelected,
+          metaIndexSelected
+      );
+    }
   }
 
+  @Override
+  protected boolean supportsSkipAllQuery() {
+    return true;
+  }
 
   @Override
   public SchemaChangeMutator getSchemaChangeMutator() {

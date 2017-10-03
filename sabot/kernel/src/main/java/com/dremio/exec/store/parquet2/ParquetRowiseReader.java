@@ -396,21 +396,13 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     }
 
     public void reset() {
-      index = -1;
-      runningDelta = Integer.MAX_VALUE;
+      index = 0;
+      runningDelta = deltasAccessor.get(0);
+      maxIndex = deltasAccessor.getValueCount();
     }
 
     @Override
     public boolean isMatch() {
-      if (runningDelta == Integer.MAX_VALUE) {
-        // get first index
-        index++;
-        maxIndex = deltasAccessor.getValueCount();
-        runningDelta = deltasAccessor.get(index);
-        if (runningDelta == 0) {
-          return true;
-        }
-      }
       if (runningDelta == 0 && index++ < maxIndex) {
         if (index < maxIndex) {
           runningDelta = deltasAccessor.get(index);

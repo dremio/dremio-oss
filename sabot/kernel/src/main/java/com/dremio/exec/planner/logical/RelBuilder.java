@@ -38,6 +38,10 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
     };
   }
 
+  public static org.apache.calcite.tools.RelBuilder newCalciteRelBuilderWithoutContext(RelOptCluster cluster) {
+    return proto((RelNode.Context) null).create(cluster, null);
+  }
+
   protected RelBuilder(Context context, RelOptCluster cluster, RelOptSchema relOptSchema) {
     super(context, cluster, relOptSchema);
   }

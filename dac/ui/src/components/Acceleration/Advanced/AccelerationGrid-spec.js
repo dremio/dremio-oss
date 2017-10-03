@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow, mount } from 'enzyme';
 import Immutable from 'immutable';
-import { Column, Table } from 'fixed-data-table-2';
+import { Table } from 'fixed-data-table-2';
 import { AccelerationGrid } from './AccelerationGrid';
 
 describe('AccelerationGrid', () => {
@@ -27,7 +27,7 @@ describe('AccelerationGrid', () => {
     minimalProps = {
       columns: Immutable.List(),
       shouldShowDistribution: true,
-      layoutFields: [{id:{id:{value:'b'}}}],
+      layoutFields: [{id:{id:{value:'b'}}, name: {value: 'foo'}, details: {partitionDistributionStrategy: {value: 'CONSOLIDATED'}}}],
       location: {
         state: {}
       },
@@ -36,15 +36,15 @@ describe('AccelerationGrid', () => {
         aggregationLayouts: {
           // WARNING: this might not be exactly accurate - but it's enough for the test
           layoutList: [
-            {id:{id:'a'}}, // deleted
-            {id:{id:'b'}}
+            {id:{id:'a'}, name:'foo', details: {partitionDistributionStrategy: 'CONSOLIDATED'}}, // already deleted at this point (see layoutFields)
+            {id:{id:'b'}, name:'foo', details: {partitionDistributionStrategy: 'STRIPED'}}
           ],
           enabled: true
         },
         rawLayouts: {
           // WARNING: this might not be exactly accurate - but it's enough for the test
           layoutList: [
-            {id:{id:'c'}}
+            {id:{id:'c'}, name:'foo', details: {partitionDistributionStrategy: 'CONSOLIDATED'}}
           ],
           enabled: true
         }
@@ -68,8 +68,9 @@ describe('AccelerationGrid', () => {
   });
 
   it('should correct render Columns and cells', () => {
+    wrapper = mount(<AccelerationGrid {...commonProps}/>);
     expect(wrapper.find(Table)).to.have.length(1);
-    expect(wrapper.find(Column)).to.have.length(2);
+    expect(wrapper.find('.fixedDataTableRowLayout_body .fixedDataTableCellGroupLayout_cellGroupWrapper')).to.have.length(2);
   });
 
   describe('#renderSubCellHeaders', () => {
@@ -97,9 +98,22 @@ describe('AccelerationGrid', () => {
     });
   });
 
+  it('#renderExtraLayoutSettingsModal', () => {
+    let result = shallow(instance.renderExtraLayoutSettingsModal(0, 'name'));
+    expect(result.find('Modal').props().isOpen).to.equal(false);
+
+    instance.setState({visibleLayoutExtraSettingsIndex: 0});
+    result = shallow(instance.renderExtraLayoutSettingsModal(0, 'name'));
+    expect(result.find('Modal').props().isOpen).to.equal(true);
+
+    instance.renderExtraLayoutSettingsModal(0, 'name').props.hide();
+    result = shallow(instance.renderExtraLayoutSettingsModal(0, 'name'));
+    expect(result.find('Modal').props().isOpen).to.equal(false);
+  });
+
   describe('#findLayoutData()', () => {
     it('aggregation', () => {
-      expect(instance.findLayoutData(0).toJS()).to.eql({id:{id:'b'}});
+      expect(instance.findLayoutData(0)).to.equal(minimalProps.acceleration.get('aggregationLayouts').get('layoutList').get(1));
     });
     it('raw', () => {
       wrapper.setProps({
@@ -108,7 +122,7 @@ describe('AccelerationGrid', () => {
           {id: {id: {value: 'c'}}}
         ]
       });
-      expect(instance.findLayoutData(0).toJS()).to.eql({id:{id:'c'}});
+      expect(instance.findLayoutData(0)).to.equal(minimalProps.acceleration.get('rawLayouts').get('layoutList').get(0));
     });
   });
 });

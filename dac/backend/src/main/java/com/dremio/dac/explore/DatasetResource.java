@@ -19,6 +19,7 @@ import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 import javax.annotation.security.RolesAllowed;
@@ -36,8 +37,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.arrow.vector.types.pojo.Field;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -85,13 +84,14 @@ import io.protostuff.ByteString;
 @RolesAllowed({"admin", "user"})
 @Path("/dataset/{cpath}")
 public class DatasetResource {
-  private static final Logger logger = LoggerFactory.getLogger(DatasetResource.class);
+//  private static final Logger logger = LoggerFactory.getLogger(DatasetResource.class);
 
   private final DatasetVersionMutator datasetService;
   private final JobsService jobsService;
   private final SecurityContext securityContext;
   private final DatasetPath datasetPath;
   private final NamespaceService namespaceService;
+  private final AccelerationService accelerationService;
 
   @Inject
   public DatasetResource(
@@ -106,6 +106,7 @@ public class DatasetResource {
     this.jobsService = jobsService;
     this.securityContext = securityContext;
     this.datasetPath = datasetPath;
+    this.accelerationService = accelerationService;
   }
 
 
@@ -140,9 +141,10 @@ public class DatasetResource {
 
     final AccelerationSettings settings = config.getPhysicalDataset().getAccelerationSettings();
     final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-        .setAccelerationTTL(settings.getAccelerationTTL())
-        .setMethod(settings.getMethod())
-        .setRefreshField(settings.getRefreshField());
+      .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
+      .setAccelerationGracePeriod(settings.getGracePeriod())
+      .setMethod(settings.getMethod())
+      .setRefreshField(settings.getRefreshField());
 
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(config);
     if (schemaBytes != null) {
@@ -166,8 +168,9 @@ public class DatasetResource {
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
   public void updateAccelerationSettings(final AccelerationSettingsDescriptor descriptor) throws NamespaceException {
-    Preconditions.checkArgument(descriptor!=null, "settings is required");
-    Preconditions.checkArgument(descriptor.getAccelerationTTL() !=null, "settings.accelerationTTL is required");
+    Preconditions.checkArgument(descriptor != null, "acceleration settings descriptor is required");
+    Preconditions.checkArgument(descriptor.getAccelerationRefreshPeriod() != null, "refreshPeriod is required");
+    Preconditions.checkArgument(descriptor.getAccelerationGracePeriod() != null, "gracePeriod is required");
     Preconditions.checkArgument(descriptor.getMethod() != null, "settings.method is required");
 
     final DatasetConfig config = namespaceService.getDataset(datasetPath.toNamespaceKey());
@@ -192,10 +195,19 @@ public class DatasetResource {
     }
 
     final AccelerationSettings settings = config.getPhysicalDataset().getAccelerationSettings();
-    settings.setAccelerationTTL(descriptor.getAccelerationTTL())
+    final boolean settingsUpdated = !Objects.equals(settings.getRefreshPeriod(), descriptor.getAccelerationRefreshPeriod()) ||
+      !Objects.equals(settings.getGracePeriod(), descriptor.getAccelerationGracePeriod()) ||
+      !Objects.equals(settings.getMethod(), descriptor.getMethod()) ||
+      !Objects.equals(settings.getRefreshField(), descriptor.getRefreshField());
+    if (settingsUpdated) {
+      settings.setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
+        .setGracePeriod(descriptor.getAccelerationGracePeriod())
         .setMethod(descriptor.getMethod())
         .setRefreshField(descriptor.getRefreshField());
-    namespaceService.addOrUpdateDataset(datasetPath.toNamespaceKey(), config);
+      namespaceService.addOrUpdateDataset(datasetPath.toNamespaceKey(), config);
+      // we need to rebuild the dependency graph to ensure existing refresh chains take the updated settings into account
+      accelerationService.buildRefreshDependencyGraph();
+    }
   }
 
   /**

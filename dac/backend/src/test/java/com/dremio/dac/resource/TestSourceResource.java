@@ -18,6 +18,8 @@ package com.dremio.dac.resource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.concurrent.TimeUnit;
+
 import javax.ws.rs.client.Entity;
 
 import org.junit.Rule;
@@ -29,7 +31,6 @@ import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.service.namespace.proto.TimePeriod;
 
 /**
  * Tests {@link SourceResource} API
@@ -42,14 +43,16 @@ public class TestSourceResource extends BaseTestServer {
   @Test
   public void testAddSourceWithAccelerationTTL() throws Exception {
     final String sourceName = "src";
-    final TimePeriod ttl = new TimePeriod().setDuration(12L).setUnit(TimePeriod.TimeUnit.HOURS);
+    final long refreshPeriod = TimeUnit.HOURS.toMillis(4);
+    final long gracePeriod = TimeUnit.HOURS.toMillis(12);
     {
       final NASConfig nas = new NASConfig();
       nas.setPath(folder.getRoot().getPath());
       SourceUI source = new SourceUI();
       source.setName(sourceName);
       source.setCtime(System.currentTimeMillis());
-      source.setAccelerationTTL(ttl);
+      source.setAccelerationRefreshPeriod(refreshPeriod);
+      source.setAccelerationGracePeriod(gracePeriod);
       source.setConfig(nas);
 
       expectSuccess(
@@ -62,9 +65,10 @@ public class TestSourceResource extends BaseTestServer {
       );
 
       assertEquals(source.getFullPathList(), result.getFullPathList());
-      assertEquals(source.getAccelerationTTL(), result.getAccelerationTTL());
+      assertEquals(source.getAccelerationRefreshPeriod(), result.getAccelerationRefreshPeriod());
+      assertEquals(source.getAccelerationGracePeriod(), result.getAccelerationGracePeriod());
 
-      newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 0);
+      newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 1);
     }
   }
 
@@ -88,11 +92,10 @@ public class TestSourceResource extends BaseTestServer {
     );
 
     assertEquals(source.getFullPathList(), result.getFullPathList());
-    assertNotNull(result.getAccelerationTTL());
-    assertNotNull(result.getAccelerationTTL().getDuration());
-    assertNotNull(result.getAccelerationTTL().getUnit());
+    assertNotNull(result.getAccelerationRefreshPeriod());
+    assertNotNull(result.getAccelerationGracePeriod());
 
-    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 0);
+    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 1);
   }
 
 
@@ -119,10 +122,11 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(source.getFullPathList(), result.getFullPathList());
 
     assertNotNull(source.getMetadataPolicy());
-    assertEquals(CatalogService.DEFAULT_TTL_MILLIS, result.getMetadataPolicy().getAuthTTLMillis());
-    assertEquals(CatalogService.DEFAULT_TTL_MILLIS, result.getMetadataPolicy().getDatasetDefinitionTTLMillis());
-    assertEquals(CatalogService.DEFAULT_TTL_MILLIS, result.getMetadataPolicy().getNamesRefreshMillis());
+    assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, result.getMetadataPolicy().getAuthTTLMillis());
+    assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, result.getMetadataPolicy().getNamesRefreshMillis());
+    assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, result.getMetadataPolicy().getDatasetDefinitionRefreshAfterMillis());
+    assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, result.getMetadataPolicy().getDatasetDefinitionExpireAfterMillis());
 
-    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 0);
+    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 1);
   }
 }

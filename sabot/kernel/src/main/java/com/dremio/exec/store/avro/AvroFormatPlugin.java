@@ -30,8 +30,8 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 import com.google.common.collect.Lists;
 
 /**
@@ -55,8 +55,8 @@ public class AvroFormatPlugin extends EasyFormatPlugin<AvroFormatConfig> {
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, FileWork fileWork, List<SchemaPath> columns) throws ExecutionSetupException {
-    return new AvroRecordReader(context, fileWork.getPath(), fileWork.getStart(), fileWork.getLength(), columns, getFsPlugin().getFsConf());
+  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
+    return new AvroRecordReader(context, splitAttributes.getPath(), splitAttributes.getStart(), splitAttributes.getLength(), columns, getFsPlugin().getFsConf());
   }
 
   @Override

@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
 import com.dremio.dac.daemon.ServerHealthMonitor;
+import com.dremio.dac.support.SupportService;
 import com.dremio.exec.server.options.OptionManager;
 
 /**
@@ -38,10 +39,10 @@ public class DremioServlet implements Servlet {
   private final IndexServlet indexServlet;
   private final DefaultServlet staticResources = new DefaultServlet();
 
-  private static final String[] EXTENSIONS = { ".jpg", ".js", ".png", ".woff2", ".ttf", ".svg", ".css", ".ico" };
+  private static final String[] EXTENSIONS = { ".jpg", ".js", ".png", ".woff2", ".ttf", ".svg", ".css", ".ico", ".js.map" };
 
-  public DremioServlet(DacConfig config, ServerHealthMonitor serverHealthMonitor, OptionManager options) {
-    this.indexServlet = new IndexServlet(config, serverHealthMonitor, options);
+  public DremioServlet(DACConfig config, ServerHealthMonitor serverHealthMonitor, OptionManager options, SupportService supportService) {
+    this.indexServlet = new IndexServlet(config, serverHealthMonitor, options, supportService);
   }
 
   @Override

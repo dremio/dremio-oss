@@ -21,15 +21,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.dremio.exec.planner.logical.TableBase;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -63,11 +61,12 @@ public class BasicFormatMatcher extends FormatMatcher {
   }
 
   @Override
-  public boolean matches(FileSystemWrapper fs, FileStatus fileStatus, CompressionCodecFactory codecFactory) throws IOException {
-    if (!fileStatus.isDirectory()) {
-      return isFileReadable(fs, fileStatus, codecFactory);
+  public boolean matches(FileSystemWrapper fs, FileSelection selection, CompressionCodecFactory codecFactory) throws IOException {
+    Optional<FileStatus> firstFileO = selection.getFirstFile();
+    if(!firstFileO.isPresent()) {
+      return false;
     }
-    return false;
+    return isFileReadable(fs, firstFileO.get(), codecFactory);
   }
 
   /*

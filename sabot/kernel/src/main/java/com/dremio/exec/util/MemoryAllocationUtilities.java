@@ -18,30 +18,28 @@ package com.dremio.exec.util;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.arrow.memory.RootAllocatorFactory;
-
-import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ExternalSort;
+import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.OptionManager;
 
-public class MemoryAllocationUtilities {
+public final class MemoryAllocationUtilities {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryAllocationUtilities.class);
 
   /**
-   * Helper method to setup SortMemoryAllocations
-   * since this method can be used in multiple places adding it in this class
-   * rather than keeping it in AttemptManager
-   * @param plan
-   * @param queryContext
+   * Helper method to set memory allocations for sorts.
+   *
+   * @param plan physical plan
+   * @param optionManager options
+   * @param clusterInfo cluster resource information
    */
   public static void setupSortMemoryAllocations(
       final PhysicalPlan plan,
       final OptionManager optionManager,
-      final SabotConfig config) {
+      final ClusterResourceInformation clusterInfo) {
     // look for external sorts
     final List<ExternalSort> sortList = new LinkedList<>();
     for (final PhysicalOperator op : plan.getSortedOperators()) {
@@ -53,8 +51,8 @@ public class MemoryAllocationUtilities {
     // if there are any sorts, compute the maximum allocation, and set it on them
     if (sortList.size() > 0) {
       final long maxWidthPerNode = optionManager.getOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY).num_val;
-      long maxAllocPerNode = Math.min(SabotConfig.getMaxDirectMemory(), config.getLong(RootAllocatorFactory.TOP_LEVEL_MAX_ALLOC));
-      maxAllocPerNode = Math.min(maxAllocPerNode, optionManager.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).num_val);
+      final long maxAllocPerNode = Math.min(clusterInfo.getAverageExecutorMemory(),
+          optionManager.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).num_val);
       final long maxSortAlloc = maxAllocPerNode / (sortList.size() * maxWidthPerNode);
       logger.debug("Max sort alloc: {}", maxSortAlloc);
 
@@ -64,4 +62,6 @@ public class MemoryAllocationUtilities {
     }
   }
 
+  private MemoryAllocationUtilities() {
+  }
 }

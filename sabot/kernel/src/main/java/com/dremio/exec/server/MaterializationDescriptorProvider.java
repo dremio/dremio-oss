@@ -45,6 +45,21 @@ public interface MaterializationDescriptorProvider {
   void setDebug(boolean debug);
 
   /**
+   * add or update with a new materialization
+   * @param materializationDescriptor
+   */
+
+  void update(MaterializationDescriptor materializationDescriptor);
+
+  /**
+   * Provides a list of latest materialization instances.
+   * includes or excludes incomplete (expired or not on active hosts) based on the boolean argument
+   *
+   * @return a list of {@code Materialization} instances. Might be empty.
+   */
+  List<MaterializationDescriptor> get(boolean includeInComplete);
+
+  /**
    * Empty materialization provider.
    */
   MaterializationDescriptorProvider EMPTY = new MaterializationDescriptorProvider() {
@@ -60,6 +75,15 @@ public interface MaterializationDescriptorProvider {
     @Override
     public Optional<MaterializationDescriptor> get(String materializationId) {
       return Optional.absent();
+    }
+
+    @Override
+    public void update(MaterializationDescriptor materializationDescriptor) {
+    }
+
+    @Override
+    public List<MaterializationDescriptor> get(boolean includeInComplete) {
+      return get();
     }
   };
 }

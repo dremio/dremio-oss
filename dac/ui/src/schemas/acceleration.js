@@ -26,7 +26,7 @@ const acceleration = new Schema('acceleration', {
 export default acceleration;
 
 export const datasetAccelerationSchema = new Schema('datasetAcceleration', {
-  idAttribute: 'fullPath'
+  idAttribute: getId
 });
 
 export const jobAccelerationSchema = new Schema('jobAcceleration', {

@@ -99,7 +99,6 @@ export default class AccelerationAggregate extends Component {
         </div>
         <AggregateForm
           style={styles.aggregateForm}
-          contentStyle={styles.aggregateFormContent}
           fields={fields}
           columns={columns}
           dataset={dataset}
@@ -114,15 +113,13 @@ export default class AccelerationAggregate extends Component {
 
 const styles = {
   wrap: {
-    flex: '1 0 auto',
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    flexGrow: 1,
+    overflow: 'hidden'
   },
   aggregateForm: {
     flexFlow: 'column nowrap',
-    flexGrow: 1
-  },
-  aggregateFormContent: {
     flexGrow: 1
   }
 };

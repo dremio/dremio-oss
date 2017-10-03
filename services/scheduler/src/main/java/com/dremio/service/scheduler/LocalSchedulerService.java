@@ -17,18 +17,16 @@ package com.dremio.service.scheduler;
 
 import static java.lang.String.format;
 
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.threeten.bp.Instant;
 import org.threeten.bp.temporal.ChronoUnit;
-import org.threeten.bp.temporal.TemporalAmount;
+
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -38,63 +36,35 @@ import com.google.common.annotations.VisibleForTesting;
  */
 public class LocalSchedulerService implements SchedulerService {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(LocalSchedulerService.class);
+  private static final String THREAD_NAME_PREFIX = "scheduler-";
 
-  private final ScheduledExecutorService executorService;
-  static final Schedule ONLY_ONCE_SCHEDULE = new Schedule() {
-    @Override
-    public TemporalAmount getPeriod() {
-      return null;
-    }
-
-    @Override
-    public Iterator<Instant> iterator() {
-      return Collections.singleton(Instant.now()).iterator();
-    }
-  };
-
-  /**
-   * Thread factory for scheduler threads:
-   * - threads are named scheduler-&lt;number&gt;
-   * - threads are configured as daemon thread
-   */
-  @VisibleForTesting
-  static final ThreadFactory THREAD_FACTORY = new ThreadFactory() {
-    private final ThreadGroup threadGroup = new ThreadGroup("scheduler");
-    private final AtomicInteger count = new AtomicInteger();
-    @Override
-    public Thread newThread(Runnable r) {
-      Thread result = new Thread(threadGroup, r, format("scheduler-%d", count.getAndIncrement()));
-
-      // Scheduler threads should not prevent JVM to exit
-      result.setDaemon(true);
-
-      return result;
-    }
-  };
+  private final CloseableSchedulerThreadPool executorService;
 
   /**
    * Creates a new scheduler service.
    *
-   * The underlying executor uses a {@link ThreadPoolExecutor}, with a core of 1.
+   * The underlying executor uses a {@link ThreadPoolExecutor}, with a given pool size.
+   *
+   * @param corePoolSize -- the <b>maximum</b> number of threads used by the underlying {@link ThreadPoolExecutor}
    */
-  public LocalSchedulerService() {
-    this(Executors.newScheduledThreadPool(1, THREAD_FACTORY));
+  public LocalSchedulerService(int corePoolSize) {
+    this(new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize));
   }
 
   @VisibleForTesting
-  LocalSchedulerService(ScheduledExecutorService executorService) {
+  LocalSchedulerService(CloseableSchedulerThreadPool executorService) {
     this.executorService = executorService;
   }
 
   @VisibleForTesting
-  public ScheduledExecutorService getExecutorService() {
+  public CloseableSchedulerThreadPool getExecutorService() {
     return executorService;
   }
 
   @Override
   public void close() throws Exception {
     LOGGER.info("Stopping SchedulerService");
-    executorService.shutdown();
+    executorService.close();
     LOGGER.info("Stopped SchedulerService");
   }
 
@@ -108,6 +78,8 @@ public class LocalSchedulerService implements SchedulerService {
     private final Iterator<Instant> instants;
     private final Runnable task;
     private Instant lastRun = Instant.MIN;
+
+    private final AtomicReference<ScheduledFuture<?>> currentTask = new AtomicReference<>(null);
 
     public CancellableTask(Schedule schedule, Runnable task) {
       this.instants = schedule.iterator();
@@ -135,7 +107,8 @@ public class LocalSchedulerService implements SchedulerService {
       }
 
       Instant instant = nextInstant();
-      executorService.schedule(this, ChronoUnit.MILLIS.between(Instant.now(), instant), TimeUnit.MILLISECONDS);
+      ScheduledFuture<?> future = executorService.schedule(this, ChronoUnit.MILLIS.between(Instant.now(), instant), TimeUnit.MILLISECONDS);
+      currentTask.set(future);
     }
 
     private Instant nextInstant() {
@@ -155,7 +128,12 @@ public class LocalSchedulerService implements SchedulerService {
         // Already cancelled
         return;
       }
+
       LOGGER.info(format("Cancelling task %s", task.toString()));
+      ScheduledFuture<?> future = currentTask.getAndSet(null);
+      if (future != null) {
+        future.cancel(true);
+      }
     }
 
     @Override
@@ -169,11 +147,6 @@ public class LocalSchedulerService implements SchedulerService {
     cancellableTask.scheduleNext();
 
     return cancellableTask;
-  }
-
-  @Override
-  public Cancellable scheduleOnce(final Runnable task) {
-    return schedule(ONLY_ONCE_SCHEDULE, task);
   }
 
 }

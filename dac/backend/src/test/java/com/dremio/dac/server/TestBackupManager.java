@@ -73,7 +73,7 @@ import com.google.common.collect.Lists;
 public class TestBackupManager extends BaseTestServer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestBackupManager.class);
 
-  private static DacConfig dacConfig =  DacConfig
+  private static DACConfig dacConfig =  DACConfig
     .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
     .autoPort(true)
     .allowTestApis(true)

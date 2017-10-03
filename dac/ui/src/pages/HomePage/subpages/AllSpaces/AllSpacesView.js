@@ -25,6 +25,8 @@ import { showConfirmationDialog } from 'actions/confirmation';
 
 import * as allSpacesAndAllSources from 'uiTheme/radium/allSpacesAndAllSources';
 
+import EllipsedText from 'components/EllipsedText';
+
 import LinkButton from 'components/Buttons/LinkButton';
 import ResourcePin from 'components/ResourcePin';
 import { AllSpacesMenu } from 'components/Menus/HomePage/AllSpacesMenu';
@@ -61,7 +63,7 @@ export class AllSpacesView extends Component {
               <div style={allSpacesAndAllSources.listItem}>
                 {icon}
                 <Link style={allSpacesAndAllSources.link} to={item.getIn(['links', 'self'])}>
-                  <span>{item.get('name')}</span>
+                  <EllipsedText text={item.get('name')} />
                 </Link>
                 <ResourcePin
                   name={item.get('name')}

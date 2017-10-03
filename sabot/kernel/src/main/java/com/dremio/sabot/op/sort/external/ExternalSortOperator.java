@@ -25,6 +25,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.Order.Ordering;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassGenerator;
@@ -35,6 +36,7 @@ import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.server.options.OptionManager;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -133,9 +135,20 @@ public class ExternalSortOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible incoming) {
     this.output =  VectorContainer.create(context.getAllocator(), incoming.getSchema());
     this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema());
-    this.diskRuns = new DiskRunManager(context.getConfig(), targetBatchSize, context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator, config.getOrderings(), incoming.getSchema());
     this.incoming = incoming;
     state = State.CAN_CONSUME;
+
+
+    // estimate how much memory the outgoing batch will take in memory
+    final OptionManager options = context.getOptions();
+    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
+    final int targetBatchSizeInBytes = targetBatchSize * estimatedRecordSize;
+
+    this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
+        context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
+        config.getOrderings(), incoming.getSchema());
     return output;
   }
 

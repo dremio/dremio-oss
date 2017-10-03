@@ -38,6 +38,10 @@ export default class FunctionsHelpPanel extends Component {
     };
   }
 
+  componentDidMount() {
+    this.setPanelHeight();
+  }
+
   componentWillReceiveProps() {
     if (this.refs.sqlHelpPanel && this.state.heightPanel !== this.refs.sqlHelpPanel.offsetHeight) {
       this.setPanelHeight();

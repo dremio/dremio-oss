@@ -20,7 +20,7 @@ import ReactDOM from 'react-dom';
 import json from '../../../../utils/mappers/mocks/gridMapper/expected.json';
 import { MIN_COLUMN_WIDTH } from '../../../../uiTheme/radium/sizes';
 
-import ExploreTable, { RIGHT_TREE_OFFSET, HEADER_HEIGHT } from './ExploreTable';
+import ExploreTable, { RIGHT_TREE_OFFSET } from './ExploreTable';
 
 describe('ExploreTable', () => {
 
@@ -63,6 +63,7 @@ describe('ExploreTable', () => {
 
     wrapper = shallow(<ExploreTable {...commonProps}/>, {context});
     instance = wrapper.instance();
+    sinon.stub(instance, 'debouncedUpdateSize');
   });
 
   it('should render .fixed-data-table', () => {
@@ -146,10 +147,10 @@ describe('ExploreTable', () => {
 
   describe('tableHeight', () => {
     it('should return height if defined', () => {
-      expect(ExploreTable.tableHeight(100, {}, null)).to.equal(100 + HEADER_HEIGHT);
+      expect(ExploreTable.tableHeight(100, {}, null)).to.equal(100);
     });
     it('should calculate height', () => {
-      expect(ExploreTable.tableHeight(null, { offsetHeight: 200}, 100)).to.equal(100 + HEADER_HEIGHT);
+      expect(ExploreTable.tableHeight(null, { offsetHeight: 200}, 100)).to.equal(100);
     });
   });
 
@@ -175,7 +176,7 @@ describe('ExploreTable', () => {
       maxHeight: 300,
       rightTreeVisible: false
     };
-    wrapper = {};
+    const customWrappers = [ {}, {} ];
     const columns = [];
     const nodeOffsetTop = 10;
 
@@ -183,7 +184,7 @@ describe('ExploreTable', () => {
       sinon.spy(ExploreTable, 'tableWidth');
       sinon.spy(ExploreTable, 'tableHeight');
       sinon.spy(ExploreTable, 'getDefaultColumnWidth');
-      res = ExploreTable.getTableSize(data, wrapper, columns, nodeOffsetTop);
+      res = ExploreTable.getTableSize(data, customWrappers, columns, nodeOffsetTop);
     });
 
     afterEach(() => {
@@ -193,16 +194,16 @@ describe('ExploreTable', () => {
     });
 
     it('should run tableWidth with proper params', () => {
-      expect(ExploreTable.tableWidth.calledWith(100, wrapper, 2, false));
+      expect(ExploreTable.tableWidth.calledWith(100, customWrappers[0], 2, false));
     });
     it('should run tableHeight with proper params', () => {
-      expect(ExploreTable.tableHeight.calledWith(200, wrapper, 10));
+      expect(ExploreTable.tableHeight.calledWith(200, customWrappers[1], 10));
     });
     it('should run getDefaultColumnWidth with proper params', () => {
       expect(ExploreTable.getDefaultColumnWidth.calledWith(100, columns));
     });
     it('should return object with size properties', () => {
-      expect(res).to.eql(Immutable.Map({ width: 200, height: 245, maxHeight: 300, defaultColumnWidth: 200 }));
+      expect(res).to.eql(Immutable.Map({ width: 200, height: 200, maxHeight: 300, defaultColumnWidth: 200 }));
     });
   });
 

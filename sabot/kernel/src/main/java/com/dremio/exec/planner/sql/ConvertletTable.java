@@ -75,6 +75,7 @@ public class ConvertletTable extends ReflectiveConvertletTable {
     registerOp(SqlStdOperatorTable.IS_DISTINCT_FROM, DistinctFromConvertlet.INSTANCE);
     registerOp(SqlStdOperatorTable.IS_NOT_DISTINCT_FROM, DistinctFromConvertlet.INSTANCE);
     registerOp(SqlFlattenOperator.INSTANCE, FlattenConvertlet.INSTANCE);
+    registerOp(SqlDatePartOperator.INSTANCE, SqlDatePartOperator.CONVERTLET);
     registerOp(SqlStdOperatorTable.MINUS, new SqlRexConvertlet() {
       @Override
       public RexNode convertCall(SqlRexContext cx, SqlCall call) {

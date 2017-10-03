@@ -25,7 +25,32 @@ describe('AccelerationAdvanced', () => {
   beforeEach(() => {
     minimalProps = {
       location: {},
-      acceleration: Immutable.Map()
+      acceleration: Immutable.Map(),
+      updateFormDirtyState: sinon.spy(),
+      values: {
+        aggregationLayouts: {
+          enabled: false,
+          layoutList: [
+            {
+              details: {
+                fakeFieldList: [],
+                booly: true
+              }
+            }
+          ]
+        },
+        rawLayouts: {
+          enabled: false,
+          layoutList: [
+            {
+              details: {
+                fakeFieldList: [],
+                booly: true
+              }
+            }
+          ]
+        }
+      }
     };
     commonProps = {
       ...minimalProps
@@ -57,6 +82,220 @@ describe('AccelerationAdvanced', () => {
       const wrapper = shallow(<AccelerationAdvanced {...props}/>);
       wrapper.setState({activeTab: 'AGGREGATION'});
       expect(wrapper.find(AccelerationAggregation)).to.have.length(1); // use as canary
+    });
+  });
+
+  describe('#areAdvancedReflectionsFieldsEqual', () => {
+    let wrapper;
+    let instance;
+    let aggregationLayouts;
+    let rawLayouts;
+    beforeEach(() => {
+      aggregationLayouts = Immutable.fromJS(commonProps.values.aggregationLayouts);
+      rawLayouts = Immutable.fromJS(commonProps.values.rawLayouts);
+      wrapper = shallow(<AccelerationAdvanced {...commonProps}/>);
+      instance = wrapper.instance();
+    });
+
+    it('should return true when aggregationLayouts and rawLayouts are equal', () => {
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts);
+
+      expect(result).to.be.true;
+    });
+
+    it('should return false when aggregationLayouts has been changed', () => {
+      const changedAggregationLayouts = aggregationLayouts
+        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+
+      expect(result).to.be.false;
+    });
+
+    it('should return false when rawLayouts has been changed', () => {
+      const changedRawLayouts = rawLayouts
+        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+
+      expect(result).to.be.false;
+    });
+
+    it('should return false if initialLayoutLists don\'t have layoutList from next layout list', () => {
+      const changedRawLayouts = rawLayouts.set('layoutList', Immutable.fromJS([
+        { details: { fakeFieldList: [] } },
+        { details: { anotherFieldList: [] } }
+      ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+
+      expect(result).to.be.false;
+    });
+
+    it('should return true if aggregation field has changed and then has returned to initial state', () => {
+      const changedAggregationLayouts = aggregationLayouts
+        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+
+      expect(result).to.be.false;
+
+      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts);
+
+      expect(initResult).to.be.true;
+    });
+
+    it('should return true if raw field has changed and then has returned to initial state', () => {
+      const changedRawLayouts = rawLayouts
+        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+
+      expect(result).to.be.false;
+
+      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts);
+
+      expect(initResult).to.be.true;
+    });
+
+    it('should return true if we get equal field list but with values in a different order', () => {
+      const props = {
+        ...commonProps,
+        values: {
+          aggregationLayouts: Immutable.fromJS({
+            enabled: false,
+            layoutList: [
+              {
+                details: {
+                  fakeFieldList: [{ name: 'foo' }, { name: 'bar' }],
+                  booly: true
+                }
+              }
+            ]
+          }),
+          rawLayouts: Immutable.fromJS({
+            enabled: false,
+            layoutList: [
+              {
+                details: {
+                  fakeFieldList: [],
+                  booly: true
+                }
+              }
+            ]
+          })
+        }
+      };
+      wrapper = shallow(<AccelerationAdvanced {...props}/>);
+      const changedAggregationLayouts = aggregationLayouts
+        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
+      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+
+      expect(result).to.be.true;
+    });
+
+    it('should return true if we get sortFieldList with values in the same order', () => {
+      const props = {
+        ...commonProps,
+        values: {
+          aggregationLayouts: Immutable.fromJS({
+            enabled: false,
+            layoutList: [
+              {
+                details: {
+                  fakeFieldList: [],
+                  sortFieldList: [{ name: 'foo' }, { name: 'bar' }],
+                  booly: true
+                }
+              }
+            ]
+          }),
+          rawLayouts: Immutable.fromJS({
+            enabled: false,
+            layoutList: [
+              {
+                details: {
+                  fakeFieldList: [],
+                  sortFieldList: [],
+                  booly: true
+                }
+              }
+            ]
+          })
+        }
+      };
+      wrapper = shallow(<AccelerationAdvanced {...props}/>);
+      const changedAggregationLayouts = aggregationLayouts
+        .setIn(['layoutList', 0, 'details', 'sortFieldList'], Immutable.fromJS([ { name: 'foo' }, { name: 'bar' } ]));
+      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+
+      expect(result).to.be.true;
+    });
+
+    it('should return false if we get sortFieldList with values in a different order', () => {
+      const props = {
+        ...commonProps,
+        values: {
+          aggregationLayouts: Immutable.fromJS({
+            enabled: false,
+            layoutList: [
+              {
+                details: {
+                  fakeFieldList: [],
+                  sortFieldList: [{ name: 'foo' }, { name: 'bar' }],
+                  booly: true
+                }
+              }
+            ]
+          }),
+          rawLayouts: Immutable.fromJS({
+            enabled: false,
+            layoutList: [
+              {
+                details: {
+                  fakeFieldList: [],
+                  sortFieldList: [],
+                  booly: true
+                }
+              }
+            ]
+          })
+        }
+      };
+      wrapper = shallow(<AccelerationAdvanced {...props}/>);
+      const changedAggregationLayouts = aggregationLayouts
+        .setIn(['layoutList', 0, 'details', 'sortFieldList'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
+      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+
+      expect(result).to.be.false;
+    });
+
+    it('should return false if enabled value is different from initial state', () => {
+      const changedAggregationLayouts = aggregationLayouts.set('enabled', true);
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedAggregationLayouts);
+
+      expect(result).to.be.false;
+
+      const changedRawLayouts = rawLayouts.set('enabled', true);
+      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+
+      expect(anotherResult).to.be.false;
+    });
+
+    it('should return false if non-array details value is different from initial state', () => {
+      const changedAggregationLayouts = aggregationLayouts.setIn(['layoutList', 0, 'details', 'booly'], false);
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedAggregationLayouts);
+
+      expect(result).to.be.false;
+
+      const changedRawLayouts = rawLayouts.setIn(['layoutList', 0, 'details', 'booly'], false);
+      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+
+      expect(anotherResult).to.be.false;
+    });
+  });
+
+  describe('#componentWillReceiveProps', () => {
+    it('should updateFormDirtyState when getting new props', () => {
+      const wrapper = shallow(<AccelerationAdvanced {...minimalProps}/>);
+      wrapper.setProps(commonProps);
+
+      expect(commonProps.updateFormDirtyState).to.be.called;
     });
   });
 });

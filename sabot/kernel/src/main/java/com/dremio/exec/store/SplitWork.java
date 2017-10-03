@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
@@ -31,6 +32,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
 public class SplitWork implements CompleteWork {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWork.class);
 
   private final DatasetSplit split;
   private final ExecutionNodeMap nodeMap;
@@ -69,6 +71,16 @@ public class SplitWork implements CompleteWork {
       NodeEndpoint endpoint = nodeMap.getEndpoint(a.getHost());
       if(endpoint != null){
         endpoints.add(new EndpointAffinity(endpoint, a.getFactor(), affinityType == DistributionAffinity.HARD, affinityType == DistributionAffinity.HARD ? 1 : Integer.MAX_VALUE));
+      } else {
+        if (affinityType == DistributionAffinity.HARD) {
+          // Throw an error if there is no endpoint on host
+          throw UserException.resourceError()
+              .message("No executors are available for data with hard affinity. " +
+                  "You may consider using \"registration.publish-host\" property if your network rules change.")
+              .addContext("available executors %s", nodeMap.getHosts())
+              .addContext("data affinity", a.getHost())
+              .build(logger);
+        }
       }
     }
     return endpoints;

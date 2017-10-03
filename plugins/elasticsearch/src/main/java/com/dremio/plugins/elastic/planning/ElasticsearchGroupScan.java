@@ -31,9 +31,9 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
-import com.google.common.base.Objects;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
+import com.google.common.collect.FluentIterable;
 
 /**
  * Elasticsearch group scan.
@@ -80,11 +80,11 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
         getUserName(),
         getDataset().getStoragePluginId(),
         spec,
-        getDataset().getReadDefinition(),
         splitWork,
         getColumns(),
         getTableSchemaPath(),
-        getSchema()
+        getSchema(),
+        getDataset().getReadDefinition().getExtendedProperty()
         );
   }
 

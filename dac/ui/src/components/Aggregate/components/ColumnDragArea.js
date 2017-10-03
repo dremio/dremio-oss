@@ -24,7 +24,7 @@ import ColumnDragItem from 'utils/ColumnDragItem';
 import DragAreaColumn from '../../DragComponents/DragAreaColumn';
 
 // todo: loc (needs build fix)
-const DEFAULT_DRAG_AREA_TEXT = ('Drag and drop a field here or click “Add Another Dimension”.');
+const DEFAULT_DRAG_AREA_TEXT = ('Drag and drop a field here or click “Add a Dimension”.');
 
 @Radium
 class ColumnDragArea extends Component {

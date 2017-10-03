@@ -25,7 +25,7 @@ import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import { formLabel } from 'uiTheme/radium/typography';
 import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
-import { BINARY, TEXT, INTEGER, FLOAT, DECIMAL, LIST, DATE, TIME, DATETIME } from 'constants/DataTypes';
+import { BINARY, TEXT, INTEGER, FLOAT, DECIMAL, LIST, DATE, TIME, DATETIME, MAP, BOOLEAN } from 'constants/DataTypes';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import {
   NoParamToBinary,
@@ -200,6 +200,12 @@ export default class DataTypeConverterView extends Component {
         </Tabs>
         <Tabs tabId={LIST} activeTab={toType}>
           <ConvertListToTextForm tabId={TEXT} {...formProps} />
+        </Tabs>
+        <Tabs tabId={MAP} activeTab={toType}>
+          <NoParamForm tabId={noParamType} {...formProps} />
+        </Tabs>
+        <Tabs tabId={BOOLEAN} activeTab={toType}>
+          <NoParamForm tabId={noParamType} {...formProps} />
         </Tabs>
       </Tabs>
     </div>;

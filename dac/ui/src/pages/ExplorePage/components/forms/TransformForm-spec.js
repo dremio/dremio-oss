@@ -22,10 +22,12 @@ describe('TransformForm', () => {
 
   let minimalProps;
   let commonProps;
+  let wrapper;
+  let instance;
   beforeEach(() => {
     minimalProps = {
       ...minimalFormProps(),
-      onFormSubmit: sinon.spy(),
+      onFormSubmit: sinon.stub().returns(Promise.resolve()),
       resetRecommendedTransforms: sinon.stub()
     };
     commonProps = {
@@ -41,21 +43,21 @@ describe('TransformForm', () => {
       debounceDelay: 0,
       viewState: Immutable.fromJS({})
     };
+
+    wrapper = shallow(<TransformForm {...commonProps}/>);
+    instance = wrapper.instance();
   });
 
   it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TransformForm {...minimalProps}/>);
+    wrapper.setProps(...minimalProps);
     expect(wrapper).to.have.length(1);
   });
 
   it('should render', () => {
-    const wrapper = shallow(<TransformForm {...commonProps}/>);
     expect(wrapper.find('DefaultWizardFooter')).to.have.length(1);
   });
 
   it('should only autoPeek when it is set, and valid', () => {
-    const wrapper = shallow(<TransformForm {...commonProps}/>);
-    const instance = wrapper.instance();
     sinon.stub(instance, 'autoPeek');
 
     // call initially
@@ -70,9 +72,22 @@ describe('TransformForm', () => {
     expect(instance.autoPeek.callCount).to.equal(1);
   });
 
+  describe('autoPeek', () => {
+    it('should handle and ignore form validation errors in onFormSubmit', () => {
+      wrapper.setProps({onFormSubmit: sinon.stub().returns(Promise.reject({_error: {}}))});
+
+      return expect(instance.autoPeek()).to.be.fulfilled;
+    });
+    it('should not handle errors in onFormSubmit that are not validation errors', () => {
+      wrapper.setProps({onFormSubmit: sinon.stub().returns(Promise.reject())});
+
+      return expect(instance.autoPeek()).to.be.rejected;
+    });
+  });
+
   it('should flush autoPeek debounce for card-level changes', () => {
-    const wrapper = shallow(<TransformForm {...commonProps} debounceDelay={1} />);
-    const instance = wrapper.instance();
+    wrapper = shallow(<TransformForm {...commonProps} debounceDelay={1}/>);
+    instance = wrapper.instance();
     sinon.stub(instance.autoPeek, 'flush');
 
     // call initially
@@ -84,8 +99,6 @@ describe('TransformForm', () => {
   });
 
   it('should call loadTransformCardPreview when card values change', () => {
-    const wrapper = shallow(<TransformForm {...commonProps} />);
-
     wrapper.setProps({values: {...commonProps.values, activeCard: 0}});
     expect(commonProps.loadTransformCardPreview).to.have.not.been.called;
 
@@ -94,8 +107,8 @@ describe('TransformForm', () => {
   });
 
   it('should call loadTransformCardPreview on mount is transform does not load cards from server', () => {
-    const wrapper = shallow(<TransformForm {...commonProps} debounceDelay={1}/>);
-    const instance = wrapper.instance();
+    wrapper = shallow(<TransformForm {...commonProps} debounceDelay={1}/>);
+    instance = wrapper.instance();
 
     sinon.stub(exploreUtils, 'needsToLoadCardFormValuesFromServer').returns(true);
     instance.componentDidMount();
@@ -110,13 +123,13 @@ describe('TransformForm', () => {
 
   it('should call onValuesChange when values changes', () => {
     const newValues = {...commonProps.values, foo: 2};
-    const wrapper = shallow(<TransformForm {...commonProps} dirty/>);
-    wrapper.setProps({values: newValues});
+    wrapper.setProps({values: newValues, dirty: true});
     expect(commonProps.onValuesChange).to.have.been.called;
   });
 
   it('#componentWillUnmount', () => {
-    const instance = shallow(<TransformForm {...commonProps} debounceDelay={1} />).instance();
+    wrapper = shallow(<TransformForm {...commonProps} debounceDelay={1}/>);
+    instance = wrapper.instance();
     sinon.stub(instance.autoPeek, 'cancel');
     sinon.stub(instance.updateCard, 'cancel');
 

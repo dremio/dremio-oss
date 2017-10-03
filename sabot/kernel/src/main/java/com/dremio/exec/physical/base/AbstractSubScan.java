@@ -34,9 +34,6 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan {
 
   public AbstractSubScan(String userName, BatchSchema schema, List<String> tablePath) {
     super(userName);
-    if(schema.getFieldCount() == 0){
-      throw UserException.dataReadError().message("Selected table has no columns.").build(logger);
-    }
     this.schema = schema;
     this.tablePath = tablePath;
   }
@@ -65,7 +62,7 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return schema;
   }
 

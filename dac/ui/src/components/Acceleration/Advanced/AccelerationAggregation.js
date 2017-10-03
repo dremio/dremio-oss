@@ -32,6 +32,7 @@ export default class AccelerationAggregation extends Component {
       'aggregationLayouts.enabled',
       'aggregationLayouts.layoutList[].id.id',
       'aggregationLayouts.layoutList[].name',
+      'aggregationLayouts.layoutList[].details.partitionDistributionStrategy',
       'aggregationLayouts.layoutList[].details.partitionFieldList[].name',
       'aggregationLayouts.layoutList[].details.sortFieldList[].name',
       'aggregationLayouts.layoutList[].details.dimensionFieldList[].name',
@@ -53,7 +54,8 @@ export default class AccelerationAggregation extends Component {
         dimensionFieldList: [],
         measureFieldList: [],
         partitionFieldList: [],
-        sortFieldList: []
+        sortFieldList: [],
+        partitionDistributionStrategy: 'CONSOLIDATED'
       }
     });
   }
@@ -88,7 +90,7 @@ export default class AccelerationAggregation extends Component {
   render() {
     const {acceleration, fields: {aggregationLayouts}} = this.props;
     return (
-      <div>
+      <div style={styles.base}>
         {this.renderHeader()}
         <AccelerationGridController
           acceleration={acceleration}
@@ -99,3 +101,11 @@ export default class AccelerationAggregation extends Component {
     );
   }
 }
+
+const styles = {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1
+  }
+};

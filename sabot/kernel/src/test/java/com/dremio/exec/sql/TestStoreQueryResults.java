@@ -22,6 +22,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
@@ -53,6 +54,7 @@ import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.exec.work.user.LocalQueryExecutor.LocalExecutionConfig;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
@@ -95,7 +97,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
         }
 
         @Override
-        public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+        public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
           if (phase == PlannerPhase.PHYSICAL) {
             if (checkPlanWriterDistribution) {
               // Visit the tree and check that all the WriterCommitter is a singleton and its input is also singleton
@@ -286,7 +288,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
 
     String queryResultsStorePath = format("%s.`%s`", TEMP_SCHEMA, storeTblName);
     LocalExecutionConfig config = new LocalExecutionConfig(false, 0L, false, getProcessUserName(),
-        Collections.<String>emptyList(), true, false, queryResultsStorePath, null, true);
+        Collections.<String>emptyList(), true, false, queryResultsStorePath, true, false, SubstitutionSettings.of());
 
     TestQueryObserver queryObserver = new TestQueryObserver(checkWriterDistributionTrait);
     localQueryExecutor.submitLocalQuery(ExternalIdHelper.generateExternalId(), queryObserver, queryCmd, false, config);

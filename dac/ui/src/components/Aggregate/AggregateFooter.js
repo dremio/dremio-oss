@@ -38,17 +38,17 @@ class AggregateFooter extends Component {
         <div style={styles.center}>
           <div style={[styles.add]}
             data-qa='add-dimension'
-            onClick={this.props.addAnother.bind(this, 'dimensions')}>
+            onClick={this.props.addAnother.bind(this, 'dimensions')}> {/* todo: ax, consistency: button */}
             <FontIcon type='Add' hoverType='AddHover'/>
-            <span>Add Another Dimension</span>
+            <span>{la('Add a Dimension')}</span>
           </div>
         </div>
         <div style={styles.right}>
           <div style={[styles.add]}
             data-qa='add-measure'
-            onClick={this.props.addAnother.bind(this, 'measures')}>
+            onClick={this.props.addAnother.bind(this, 'measures')}> {/* todo: ax, consistency: button */}
             <FontIcon type='Add' hoverType='AddHover'/>
-            <span>Add Another Measure</span>
+            <span>{la('Add a Measure')}</span>
           </div>
         </div>
       </div>

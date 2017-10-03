@@ -100,7 +100,7 @@ public class NLJOperator implements DualInputOperator {
     outgoing.addSchema(left.getSchema());
     allRight = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
     outgoing.buildSchema(SelectionVectorMode.NONE);
-
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME_R;
     return outgoing;
   }
@@ -158,7 +158,6 @@ public class NLJOperator implements DualInputOperator {
     }
 
     if (currentOutputPosition == 0) {
-      // System.out.println("allocated");
       outgoing.allocateNew();
     }
 
@@ -176,6 +175,7 @@ public class NLJOperator implements DualInputOperator {
       if (leftState == LeftState.COMPLETED) {
         state = State.DONE;
         // System.out.println("finished " + (outputIndex));
+        outgoing.setAllCount(outputIndex);
         return outputIndex;
       } else {
         // need more input, (emitted zero records or less than max).

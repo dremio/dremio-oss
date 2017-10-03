@@ -32,8 +32,8 @@ export default class CopyButton extends Component {
   render() {
     return (
       <CopyToClipboard text={this.props.text}>
-        <span title={this.props.title} style={{display: 'flex'}}>
-          <FontIcon class='copy-button' type='Clipboard' style={this.props.style}/>
+        <span title={this.props.title} style={{display: 'inline-block', transform: 'translateY(2px)', ...this.props.style}}>
+          <FontIcon class='copy-button' type='Clipboard'/>
         </span>
       </CopyToClipboard>
     );

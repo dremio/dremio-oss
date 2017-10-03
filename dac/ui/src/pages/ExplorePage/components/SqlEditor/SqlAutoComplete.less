@@ -22,6 +22,7 @@
   margin-right: 16px;
   margin-top: 0;
   border: 1px solid #c2c2c2;
+  z-index: 0; // fight against CodeMirror's internal z-indexes by containing them within a 0 index container
 
   span {
     .fontBody()

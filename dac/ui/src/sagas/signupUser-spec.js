@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { replace } from 'react-router-redux';
 import { put, take } from 'redux-saga/effects';
+import { replace } from 'react-router-redux';
 
 import { fetchLoginUser, LOGIN_USER_SUCCESS } from 'actions/account';
 import { handleSignup } from './signupUser';

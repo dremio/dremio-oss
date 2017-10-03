@@ -100,7 +100,7 @@ class QueryManager {
     this.prepareId = prepareId;
     this.schemaTreeProvider = schemaTreeProvider;
 
-    capturer = new PlanCaptureAttemptObserver(verboseProfiles);
+    capturer = new PlanCaptureAttemptObserver(verboseProfiles, context.getFunctionRegistry());
     observers.add(capturer);
     observers.add(new TimeMarker());
   }
@@ -304,6 +304,11 @@ class QueryManager {
       final String planJson = capturer.getJson();
       if (planJson != null) {
         profileBuilder.setJsonPlan(planJson);
+      }
+
+      final String fullSchema = capturer.getFullSchema();
+      if (fullSchema != null) {
+        profileBuilder.setFullSchema(fullSchema);
       }
 
       final List<PlanPhaseProfile> planPhases = capturer.getPlanPhases();

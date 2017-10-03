@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ConcurrentModificationException;
+import java.util.UUID;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
@@ -44,12 +45,14 @@ import com.dremio.service.accelerator.analysis.AccelerationAnalyzer;
 import com.dremio.service.accelerator.pipeline.StageContext;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.AccelerationContext;
+import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.LayoutContainer;
 import com.dremio.service.accelerator.proto.LayoutType;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
@@ -65,6 +68,8 @@ public class TestPlanningStage {
 
   @Mock(answer = Answers.RETURNS_DEEP_STUBS)
   private RelNode plan;
+
+  private String accelerationId = UUID.randomUUID().toString();
 
   @Test
   public void testPlanningStageNoLayouts() {
@@ -284,7 +289,6 @@ public class TestPlanningStage {
     final Acceleration acceleration = getAndMockAcceleration(pojo);
     when(pojo.getOptionManager().getOption(ExecConstants.ACCELERATION_RAW_REMOVE_PROJECT)).thenReturn(false);
     when(pojo.getOptionManager().getOption(ExecConstants.ACCELERATION_ENABLE_MIN_MAX)).thenReturn(true);
-
     // test
     stage.execute(context);
 
@@ -433,13 +437,18 @@ public class TestPlanningStage {
   }
 
   private Acceleration getAndMockAcceleration(MockedPojo pojo) {
+    DatasetConfig ds = new DatasetConfig()
+        .setFullPathList(ImmutableList.of("a", "b"))
+        .setId(new EntityId(accelerationId));
     final Acceleration acceleration = new Acceleration()
-      .setContext(new AccelerationContext().setDataset(new DatasetConfig().setFullPathList(ImmutableList.of("a", "b"))))
+      .setId(new AccelerationId(accelerationId))
+      .setContext(new AccelerationContext().setDataset(ds))
       .setRawLayouts(new LayoutContainer().setLayoutList(ImmutableList.of(pojo.getRawLayout())))
       .setAggregationLayouts(new LayoutContainer().setLayoutList(ImmutableList.of(pojo.getAggLayout())));
 
     when(context.getCurrentAcceleration()).thenReturn(acceleration);
     when(context.getOptionManager()).thenReturn(pojo.getOptionManager());
+    when(context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId())).thenReturn(ds);
     when(pojo.getAnalyzer().getPlan(any(NamespaceKey.class))).thenReturn(plan);
 
     when(plan.getRowType().getFieldList()).thenReturn(ImmutableList.<RelDataTypeField>of());

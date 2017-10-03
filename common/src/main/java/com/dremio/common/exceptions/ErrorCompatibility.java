@@ -22,8 +22,10 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 
 /**
  * converts newly added error types to types compatible with the existing c/odbc clients.<br>
- * SCHEMA_CHANGE -> DATA_READ
- * OUT_OF_MEMORY -> RESOURCE
+ * SCHEMA_CHANGE   .  .  . -> DATA_READ
+ * OUT_OF_MEMORY   .  .  . -> RESOURCE
+ * IO_EXCEPTION    .  .  . -> RESOURCE
+ * CONCURRENT_MODIFICATION -> RESOURCE
  */
 public class ErrorCompatibility {
 
@@ -31,7 +33,7 @@ public class ErrorCompatibility {
     final ErrorType type = error.getErrorType();
 
     return type == ErrorType.SCHEMA_CHANGE || type == ErrorType.OUT_OF_MEMORY
-        || type == ErrorType.IO_EXCEPTION;
+        || type == ErrorType.IO_EXCEPTION || type == ErrorType.CONCURRENT_MODIFICATION;
   }
 
   public static DremioPBError convertIfNecessary(final DremioPBError error) {

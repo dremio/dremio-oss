@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { assign, set, result } from 'lodash/object';
+import { merge, set, result } from 'lodash/object';
 import { capitalize } from 'lodash';
 import Immutable from 'immutable';
 
@@ -26,12 +26,14 @@ export function isEmptyObject(value) {
   return !value || keys.length === 0 || !keys.some((k) => value[k]);
 }
 
-export function isRequired(key, label = key) {
+export function isRequired(key, label) {
+  const finalLabel = label || capitalize(key);
   return function(values) {
     const value = result(values, key);
     const isEmptyArr = value && (value instanceof Immutable.List && !value.size);
     if (isEmptyValue(value) || (typeof value === 'number' && isNaN(value)) || isEmptyArr) {
-      return set({}, key, `${capitalize(label)} is required`);
+      // use lodash.set in case key has dotted path
+      return set({}, key, `${finalLabel} is required`);
     }
   };
 }
@@ -145,7 +147,7 @@ export function applyBoundValidator(values, fields) {
 }
 
 export function applyValidators(values, validators) {
-  const messages = assign({}, ...validators.map((v) => v(values)));
+  const messages = merge({}, ...validators.map((v) => v(values)));
   return messages;
 }
 

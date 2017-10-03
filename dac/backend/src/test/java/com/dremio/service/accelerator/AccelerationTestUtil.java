@@ -15,6 +15,7 @@
  */
 package com.dremio.service.accelerator;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.nio.file.Files;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
@@ -65,7 +67,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
-import com.dremio.service.namespace.proto.TimePeriod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -93,6 +94,8 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   public static final String EMPLOYEES_FILE = "employees.json";
   public static final String EMPLOYEES_WITH_NULL_FILE = "employees_with_null.json";
   public static final String EMPLOYEES_VIRTUAL_DATASET_NAME = "ds_emp";
+  public static final String RENAMED_EMPLOYEES_VIRTUAL_DATASET_NAME = "renamed_ds_emp";
+
 
   // Available Datasets
   public static final DatasetPath EMPLOYEES = new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_FILE));
@@ -174,9 +177,20 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   }
 
   public void addEmployeesJson() throws Exception {
-    addJson(EMPLOYEES, EMPLOYEES_VIRTUAL);
+    addJson(EMPLOYEES, new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME)));
   }
 
+  public void renameDataset(DatasetPath ds, DatasetPath dsNew) {
+    NamespaceKey key = ds.toNamespaceKey();
+    DatasetConfig config;
+    try {
+      config = getNamespaceService().getDataset(key);
+      if (config != null) {
+        getNamespaceService().renameDataset(key, dsNew.toNamespaceKey());
+      }
+    }catch (NamespaceException e) {
+    }
+  }
 
   public void deleteDataset(DatasetPath ds) {
     NamespaceKey key = ds.toNamespaceKey();
@@ -253,7 +267,10 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   protected void setTtl(DatasetPath path, long newTtl) throws Exception {
     DatasetConfig config = getNamespaceService().getDataset(path.toNamespaceKey());
     DatasetConfig newConfig = clone(config);
-    newConfig.getPhysicalDataset().getAccelerationSettings().setAccelerationTTL(new TimePeriod(newTtl, TimePeriod.TimeUnit.MINUTES));
+    newConfig.getPhysicalDataset()
+      .getAccelerationSettings()
+        .setRefreshPeriod(TimeUnit.MINUTES.toMillis(newTtl))
+        .setGracePeriod(TimeUnit.MINUTES.toMillis(newTtl));
     getNamespaceService().addOrUpdateDataset(path.toNamespaceKey(), newConfig);
   }
 
@@ -270,7 +287,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
 
     AccelerationApiDescriptor newApiDescriptor2 = saveAcceleration(descriptor.getId(), descriptor);
 
-    waitForMaterialization(descriptor.getId(), true);
+    waitForMaterialization(newApiDescriptor2.getId(), true);
   }
 
   protected AccelerationApiDescriptor createNewAcceleration(DatasetPath path) {
@@ -393,6 +410,22 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     }
 
     Assert.fail("Timed out waiting for cached materializations");
+  }
+
+  protected AccelerationApiDescriptor createAcceleration(DatasetPath dataset) throws Exception {
+    final AccelerationApiDescriptor newApiDescriptor = createNewAcceleration(dataset);
+    final AccelerationApiDescriptor existingApiDescriptor = pollAcceleration(newApiDescriptor.getId());
+
+    assertEquals(newApiDescriptor.getId(), existingApiDescriptor.getId());
+    assertEquals(newApiDescriptor.getType(), existingApiDescriptor.getType());
+
+    final AccelerationApiDescriptor finalApiDescriptor = waitForLayoutGeneration(newApiDescriptor.getId());
+    assertEquals(newApiDescriptor.getId(), finalApiDescriptor.getId());
+    assertEquals(AccelerationStateApiDescriptor.DISABLED, finalApiDescriptor.getState());
+    assertFalse("aggregation layout generation failed", finalApiDescriptor.getAggregationLayouts().getLayoutList().isEmpty());
+    assertFalse("raw layout generation failed", finalApiDescriptor.getRawLayouts().getLayoutList().isEmpty());
+    assertFalse("dataset schema is required", finalApiDescriptor.getContext().getDatasetSchema().getFieldList().isEmpty());
+    return newApiDescriptor;
   }
 
   private static <T> T getOrFailChecked(final Optional<T> entry, final String message) throws AccelerationNotFoundException {

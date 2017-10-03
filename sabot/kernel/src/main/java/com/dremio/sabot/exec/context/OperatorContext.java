@@ -75,6 +75,6 @@ public abstract class OperatorContext {
   }
 
   public interface Creator {
-    public OperatorContext newOperatorContext(PhysicalOperator popConfig);
+    public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception;
   }
 }

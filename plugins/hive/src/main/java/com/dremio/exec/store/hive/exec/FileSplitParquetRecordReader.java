@@ -38,13 +38,13 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.parquet.ParquetFooterCache;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
-import com.dremio.exec.store.parquet.RowGroupReadEntry;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
 import com.google.common.collect.Lists;
 
 /**
@@ -111,6 +111,12 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       innerReaders = Lists.newArrayList();
       for (int rowGroupNum : rowGroupNums) {
+        ParquetDatasetSplitXAttr split = new ParquetDatasetSplitXAttr();
+        split.setRowGroupIndex(rowGroupNum);
+        split.setPath(Path.getPathWithoutSchemeAndAuthority(finalPath).toString());
+        split.setStart(0l);
+        split.setLength((long) Integer.MAX_VALUE);
+
         final UnifiedParquetReader innerReader = new UnifiedParquetReader(
             oContext,
             readerFactory,
@@ -119,7 +125,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             null,
             conditions,
             footerCache,
-            new RowGroupReadEntry(Path.getPathWithoutSchemeAndAuthority(finalPath).toString(), 0, Integer.MAX_VALUE, rowGroupNum),
+            split,
             fs,
             null,
             CodecFactory.createDirectCodecFactory(jobConf, new ParquetDirectByteBufferAllocator(oContext.getAllocator()), 0),

@@ -18,6 +18,7 @@ package com.dremio.exec;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
@@ -29,7 +30,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 import com.dremio.PlanTestBase;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemConfig;
@@ -69,7 +69,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
 
     // Set the MiniDfs base dir to be the temp directory of the test, so that all files created within the MiniDfs
     // are properly cleanup when test exits.
-    miniDfsStoragePath = System.getProperty("java.io.tmpdir") + Path.SEPARATOR + testClass;
+    miniDfsStoragePath = Files.createTempDirectory(testClass).toString();
     dfsConf.set("hdfs.minidfs.basedir", miniDfsStoragePath);
     // HDFS-8880 and HDFS-8953 introduce metrics logging that requires log4j, but log4j is explicitly
     // excluded in build. So disable logging to avoid NoClassDefFoundError for Log4JLogger.
@@ -96,8 +96,9 @@ public class BaseTestMiniDFS extends PlanTestBase {
     FileSystem.mkdirs(fs, dirPath, new FsPermission((short)0777));
     fs.setOwner(dirPath, processUser, processUser);
 
+
     final FileSystemConfig miniDfsPluginConfig =
-        new FileSystemConfig(dfsConf.get(FileSystem.FS_DEFAULT_NAME_KEY), "/",
+        new FileSystemConfig(fs.getUri().toString(), "/",
             ImmutableMap.<String, String>of(), lfsPluginConfig.getFormats(), impersonationEnabled, SchemaMutability.ALL);
 
     pluginRegistry.createOrUpdate(MINIDFS_STORAGE_PLUGIN_NAME, miniDfsPluginConfig, true);

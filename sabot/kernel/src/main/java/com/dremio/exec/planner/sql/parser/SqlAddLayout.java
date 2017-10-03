@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.sql.SqlCall;
@@ -37,7 +38,7 @@ public class SqlAddLayout extends SqlSystemCall {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ADD_LAYOUT", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 8, "SqlAddLayout.createCall() has to get 8 operands!");
+      Preconditions.checkArgument(operands.length == 10, "SqlAddLayout.createCall() has to get 10 operands!");
       return new SqlAddLayout(
           pos,
           (SqlIdentifier) operands[0],
@@ -47,7 +48,9 @@ public class SqlAddLayout extends SqlSystemCall {
           (SqlNodeList) operands[4],
           (SqlNodeList) operands[5],
           (SqlNodeList) operands[6],
-          (SqlNodeList) operands[7]
+          (SqlNodeList) operands[7],
+          ((SqlLiteral) operands[8]).symbolValue(PartitionDistributionStrategy.class),
+          (SqlIdentifier) operands[9]
           );
     }
   };
@@ -60,10 +63,12 @@ public class SqlAddLayout extends SqlSystemCall {
   private final SqlNodeList distributionList;
   private final SqlNodeList partitionList;
   private final SqlNodeList sortList;
+  private final PartitionDistributionStrategy partitionDistributionStrategy;
+  private final SqlIdentifier name;
 
   private SqlAddLayout(SqlParserPos pos, SqlIdentifier tblName, SqlNode isRaw, SqlNodeList displayList,
       SqlNodeList dimensionList, SqlNodeList measureList, SqlNodeList distributionList, SqlNodeList partitionList,
-      SqlNodeList sortList) {
+      SqlNodeList sortList, PartitionDistributionStrategy partitionDistributionStrategy, SqlIdentifier name) {
     super(pos);
     this.tblName = tblName;
     this.isRaw = isRaw;
@@ -73,6 +78,8 @@ public class SqlAddLayout extends SqlSystemCall {
     this.distributionList = distributionList;
     this.partitionList = partitionList;
     this.sortList = sortList;
+    this.partitionDistributionStrategy = partitionDistributionStrategy;
+    this.name = name;
   }
 
   @Override
@@ -82,16 +89,17 @@ public class SqlAddLayout extends SqlSystemCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(tblName, isRaw, displayList, dimensionList, measureList, distributionList, partitionList, sortList);
-  }
+    List<SqlNode> operands = new ArrayList<>();
 
+    operands.addAll(ImmutableList.of(tblName, isRaw, displayList, dimensionList, measureList, distributionList, partitionList,
+        sortList, SqlLiteral.createSymbol(partitionDistributionStrategy, SqlParserPos.ZERO)));
+
+    operands.add(name);
+    return operands;
+  }
 
   public SqlIdentifier getTblName() {
     return tblName;
-  }
-
-  public SqlNode getIsRaw() {
-    return isRaw;
   }
 
   public boolean isRaw(){
@@ -100,6 +108,10 @@ public class SqlAddLayout extends SqlSystemCall {
 
   public List<String> getDisplayList() {
     return toStrings(displayList);
+  }
+
+  public SqlIdentifier getName() {
+    return name;
   }
 
   public List<NameAndGranularity> getDimensionList() {
@@ -120,6 +132,10 @@ public class SqlAddLayout extends SqlSystemCall {
 
   public List<String> getSortList() {
     return toStrings(sortList);
+  }
+
+  public PartitionDistributionStrategy getPartitionDistributionStrategy() {
+    return partitionDistributionStrategy;
   }
 
   private List<NameAndGranularity> toNameAndGranularity(SqlNodeList list){
@@ -147,12 +163,21 @@ public class SqlAddLayout extends SqlSystemCall {
     return columnNames;
   }
 
-  public static SqlAddLayout createAggregation(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList dimensionList, SqlNodeList measureList, SqlNodeList distributionList, SqlNodeList partitionList, SqlNodeList sortList){
-    return new SqlAddLayout(pos, tblName, SqlLiteral.createBoolean(false, SqlParserPos.ZERO), null, dimensionList, measureList, distributionList, partitionList, sortList);
+  public static SqlAddLayout createAggregation(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList dimensionList,
+                                               SqlNodeList measureList, SqlNodeList distributionList,
+                                               SqlNodeList partitionList, SqlNodeList sortList,
+                                               PartitionDistributionStrategy partitionDistributionStrategy, SqlIdentifier name) {
+    return new SqlAddLayout(pos, tblName, SqlLiteral.createBoolean(false, SqlParserPos.ZERO), null, dimensionList,
+        measureList, distributionList, partitionList, sortList, partitionDistributionStrategy, name);
   }
 
-  public static SqlAddLayout createRaw(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList displayList, SqlNodeList distributionList, SqlNodeList partitionList, SqlNodeList sortList){
-    return new SqlAddLayout(pos, tblName, SqlLiteral.createBoolean(true, SqlParserPos.ZERO), displayList, null, null, distributionList, partitionList, sortList);
+  public static SqlAddLayout createRaw(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList displayList,
+                                       SqlNodeList distributionList, SqlNodeList partitionList,
+                                       SqlNodeList sortList,
+                                       PartitionDistributionStrategy partitionDistributionStrategy,
+                                       SqlIdentifier name) {
+    return new SqlAddLayout(pos, tblName, SqlLiteral.createBoolean(true, SqlParserPos.ZERO), displayList, null, null,
+        distributionList, partitionList, sortList, partitionDistributionStrategy, name);
   }
 
   public static class NameAndGranularity {

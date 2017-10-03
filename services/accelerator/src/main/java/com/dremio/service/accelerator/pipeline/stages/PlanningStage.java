@@ -112,7 +112,7 @@ public class PlanningStage implements Stage {
     final boolean removeProject = optionManager.getOption(ExecConstants.ACCELERATION_RAW_REMOVE_PROJECT);
     final boolean enableMinMax = optionManager.getOption(ExecConstants.ACCELERATION_ENABLE_MIN_MAX);
 
-    final DatasetConfig config = acceleration.getContext().getDataset();
+    final DatasetConfig config = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
     final NamespaceKey path = new NamespaceKey(config.getFullPathList());
     final RelNode accPlan = context.getAccelerationAnalysisPlan();
     final RelNode datasetPlan = removeUpdateColumn(null != accPlan ? accPlan : createAnalyzer(jobsService).getPlan(path));

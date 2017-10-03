@@ -16,25 +16,17 @@
 package com.dremio.service.accelerator;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.JobDetails;
 import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationId;
 import com.dremio.service.accelerator.proto.MaterializationMetrics;
-import com.dremio.service.accelerator.store.MaterializationStore;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceService;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -43,20 +35,17 @@ import com.google.common.collect.ImmutableList;
 public class BasicMaterializationTask extends MaterializationTask {
   private static final Logger logger = LoggerFactory.getLogger(BasicMaterializationTask.class);
 
-  public BasicMaterializationTask(final String acceleratorStorageName, final MaterializationStore materializationStore,
-                                  JobsService jobsService, NamespaceService namespaceService, CatalogService catalogService, Layout layout, ExecutorService executorService, Acceleration acceleration,
-                                  final FileSystemPlugin plugin) {
-    super(acceleratorStorageName, materializationStore, jobsService, namespaceService, catalogService, layout, executorService, acceleration, plugin);
+  BasicMaterializationTask(final MaterializationContext materializationContext, Layout layout, Acceleration acceleration, long gracePeriod) {
+    super(materializationContext, layout, acceleration, gracePeriod);
   }
 
   @Override
   protected String getCtasSql(List<String> source, MaterializationId id, Materialization materialization) {
 
-
     final String viewSql = String.format("SELECT * FROM %s", SqlUtils.quotedCompound(source));
 
     final List<String> ctasDest = ImmutableList.of(
-        getAcceleratorStorageName(),
+        getContext().getAcceleratorStorageName(),
         String.format("%s/%s", getLayout().getId().getId(), id.getId())
         );
 
@@ -65,7 +54,7 @@ public class BasicMaterializationTask extends MaterializationTask {
     logger.info(ctasSql);
 
     final List<String> destination = ImmutableList.of(
-        getAcceleratorStorageName(),
+        getContext().getAcceleratorStorageName(),
         getLayout().getId().getId(),
         id.getId()
         );
@@ -76,20 +65,17 @@ public class BasicMaterializationTask extends MaterializationTask {
   }
 
   @Override
-  protected void handleJobComplete(final Materialization materialization, final AtomicReference<Job> jobRef) {
+  public void updateMetadataAndSave() {
+    final Materialization materialization = getMaterialization();
     materialization.setUpdateId(-1L);
-    save(materialization);
-    createMetadata(materialization);
-    if (getNext() != null) {
-      getExecutorService().submit(getNext());
-    }
+    save(materialization); //TODO move this to ChainExecutor
+    createMetadata(materialization); //TODO move this to ChainExecutor ?
   }
 
   @Override
-  protected Materialization getMaterialization() {
-    Materialization materialization;
+  protected Materialization getOrCreateMaterialization() {
     final MaterializationId id = newRandomId();
-    materialization = new Materialization()
+    return new Materialization()
       // unique materialization id
       .setId(id)
       // owning layout id
@@ -100,6 +86,5 @@ public class BasicMaterializationTask extends MaterializationTask {
       .setMetrics(new MaterializationMetrics())
       // set version
       .setLayoutVersion(getLayout().getVersion());
-    return materialization;
   }
 }

@@ -116,16 +116,25 @@ export class ReplaceExactForm extends Component {
   }
 }
 
+export function getInitialReplaceValue(cellText, columnType, firstCardValue) {
+  // - cellText === '' means no selection
+  // - when cellText is null, the null value radio will be selected, but we still want to populate
+  // the disabled replaceValue field with firstCardValue.
+  // - cellText being undefined should not happen, but still guard against it.
+  return (cellText === '' || cellText === null || cellText === undefined)
+    ? firstCardValue
+    : parseTextToDataType(cellText, columnType);
+}
+
 function mapStateToProps(state, props) {
   const { transform } = props;
   const columnName = transform.get('columnName');
   const columnType = transform.get('columnType');
   const selection = transform.get('selection');
-  const cardValues = state.explore.recommended.getIn(['transform', transform.get('transformType'), 'Exact', 'values']);
   const cellText = selection.get('cellText');
-  const cellValue = parseTextToDataType(cellText, columnType);
-  const defaultValue = cardValues && cardValues.get && cardValues.get('values') &&
-                       cardValues.get('values').get(0) && cardValues.get('values').get(0).get('value');
+
+  const cardValues = state.explore.recommended.getIn(['transform', transform.get('transformType'), 'Exact', 'values']);
+  const firstCardValue = cardValues && cardValues.getIn(['values', 0, 'value']);
 
   return {
     matchedCount: cardValues && cardValues.get('matchedCount'),
@@ -133,7 +142,7 @@ function mapStateToProps(state, props) {
     initialValues: {
       newFieldName: columnName,
       dropSourceField: true,
-      replaceValues: [getDefaultValue(columnType, cellValue || defaultValue)],
+      replaceValues: [getDefaultValue(columnType, getInitialReplaceValue(cellText, columnType, firstCardValue))],
       replacementValue: getDefaultValue(columnType),
       replaceNull: cellText === null,
       replaceType: 'VALUE'

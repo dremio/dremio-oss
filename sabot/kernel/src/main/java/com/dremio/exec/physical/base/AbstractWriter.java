@@ -38,7 +38,7 @@ public abstract class AbstractWriter extends AbstractSingle implements Writer{
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
     return RecordWriter.SCHEMA;
   }
 

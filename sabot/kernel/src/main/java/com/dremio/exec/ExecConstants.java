@@ -15,10 +15,12 @@
  */
 package com.dremio.exec;
 
+import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.server.options.OptionValidator;
 import com.dremio.exec.server.options.Options;
 import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
 import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
+import com.dremio.exec.server.options.TypeValidators.EnumValidator;
 import com.dremio.exec.server.options.TypeValidators.EnumeratedStringValidator;
 import com.dremio.exec.server.options.TypeValidators.LongValidator;
 import com.dremio.exec.server.options.TypeValidators.PositiveLongValidator;
@@ -33,6 +35,7 @@ import com.dremio.sabot.op.common.hashtable.HashTable;
 public interface ExecConstants {
   String ZK_CONNECTION = "dremio.exec.zk.connect";
   String ZK_TIMEOUT = "dremio.exec.zk.timeout";
+  String ZK_SESSION_TIMEOUT = "dremio.exec.zk.session.timeout";
   String ZK_ROOT = "dremio.exec.zk.root";
   String ZK_REFRESH = "dremio.exec.zk.refresh";
   String BIT_RETRY_TIMES = "dremio.exec.rpc.bit.server.retry.count";
@@ -52,11 +55,19 @@ public interface ExecConstants {
   String BATCH_PURGE_THRESHOLD = "dremio.exec.sort.purge.threshold";
   String SPILL_DIRS = "dremio.exec.sort.external.spill.directories";
   String HTTP_ENABLE = "dremio.exec.http.enabled";
+
+  /** Spill disk space configurations */
+  PositiveLongValidator SPILL_DISK_SPACE_CHECK_INTERVAL = new PositiveLongValidator("dremio.exec.spill.check.interval", Integer.MAX_VALUE, 60*1000);
+  PositiveLongValidator SPILL_DISK_SPACE_CHECK_SPILLS = new PositiveLongValidator("dremio.exec.spill.check.spills", Integer.MAX_VALUE, 1);
+  PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Integer.MAX_VALUE, 1024*1024*1024);
+  DoubleValidator SPILL_DISK_SPACE_LIMIT_PERCENTAGE = new RangeDoubleValidator("dremio.exec.spill.limit.percentage", 0.0, 100.0, 1.0);
+
   /** Size of JDBC batch queue (in batches) above which throttling begins. */
   String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
 
   String JDBC_ROW_COUNT_QUERY_TIMEOUT = "store.jdbc.row_count_query_timeout_seconds";
   LongValidator JDBC_ROW_COUNT_QUERY_TIMEOUT_VALIDATOR = new PositiveLongValidator(JDBC_ROW_COUNT_QUERY_TIMEOUT, Integer.MAX_VALUE, 5);
+
 
   /**
    * Currently if a query is cancelled, but one of the fragments reports the status as FAILED instead of CANCELLED or
@@ -66,11 +77,15 @@ public interface ExecConstants {
   String RETURN_ERROR_FOR_FAILURE_IN_CANCELLED_FRAGMENTS =
       "dremio.exec.debug.return_error_for_failure_in_cancelled_fragments";
 
-  String OPERATOR_TARGET_BATCH_SIZE = "dremio.exec.operator_batch_size";
-  OptionValidator OPERATOR_TARGET_BATCH_SIZE_VALIDATOR = new LongValidator(OPERATOR_TARGET_BATCH_SIZE, 4095);
+  PositiveLongValidator TARGET_BATCH_RECORDS_MIN = new PositiveLongValidator("exec.batch.records.min", Character.MAX_VALUE, 127);
+  PositiveLongValidator TARGET_BATCH_RECORDS_MAX = new PositiveLongValidator("exec.batch.records.max", Character.MAX_VALUE, 4095);
+  PositiveLongValidator TARGET_BATCH_SIZE_BYTES = new PositiveLongValidator("exec.batch.size-bytes", Integer.MAX_VALUE, 1024*1024);
+  PositiveLongValidator BATCH_LIST_SIZE_ESTIMATE = new PositiveLongValidator("exec.batch.field.list.size-estimate", Integer.MAX_VALUE, 5);
+  PositiveLongValidator BATCH_VARIABLE_FIELD_SIZE_ESTIMATE =
+      new PositiveLongValidator("exec.batch.field.variable-width.size-estimate", Integer.MAX_VALUE, 15);
 
   String OPERATOR_TARGET_BATCH_BYTES = "dremio.exec.operator_batch_bytes";
-  OptionValidator OPERATOR_TARGET_BATCH_BYTES_VALIDATOR = new LongValidator(OPERATOR_TARGET_BATCH_BYTES, 256*1024);
+  OptionValidator OPERATOR_TARGET_BATCH_BYTES_VALIDATOR = new LongValidator(OPERATOR_TARGET_BATCH_BYTES, 10*1024*1024);
 
   String CLIENT_SUPPORT_COMPLEX_TYPES = "dremio.client.supports-complex-types";
 
@@ -102,6 +117,10 @@ public interface ExecConstants {
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE = "store.parquet.enable_dictionary_encoding_binary_type";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE_VALIDATOR = new BooleanValidator(
     PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE, false);
+
+  LongValidator PARQUET_MAXIMUM_PARTITIONS_VALIDATOR = new LongValidator("store.max_partitions", 10000);
+
+  LongValidator PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR = new LongValidator("store.parquet.min_records_for_flush", 25000);
 
   String PARQUET_NEW_RECORD_READER = "store.parquet.use_new_reader";
   BooleanValidator PARQUET_RECORD_READER_IMPLEMENTATION_VALIDATOR = new BooleanValidator(PARQUET_NEW_RECORD_READER, false);
@@ -166,13 +185,14 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_UNION_TYPE = new BooleanValidator("exec.enable_union_type", true);
 
+  BooleanValidator ACCELERATION_VERBOSE_LOGGING = new BooleanValidator("accelerator.system.verbose.logging", true);
   LongValidator ACCELERATION_LIMIT = new LongValidator("accelerator.system.limit", 10);
   BooleanValidator ACCELERATION_AGGREGATION_ENABLED = new BooleanValidator("accelerator.system.aggretation.enabled", true);
   BooleanValidator ACCELERATION_RAW_ENABLED = new BooleanValidator("accelerator.system.raw.enabled", false);
   // DX-6734
   BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
   BooleanValidator ACCELERATION_ENABLE_MIN_MAX = new BooleanValidator("accelerator.enable_min_max", true);
-  BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
+  BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", false);
   LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   // TODO: We need to add a feature that enables storage plugins to add their own options. Currently we have to declare
@@ -223,6 +243,7 @@ public interface ExecConstants {
   String MAX_WIDTH_GLOBAL_KEY = "planner.width.max_per_query";
   LongValidator MAX_WIDTH_GLOBAL = new PositiveLongValidator(MAX_WIDTH_GLOBAL_KEY, Integer.MAX_VALUE, 1000);
 
+
   /**
    * Factor by which a node with endpoint affinity will be favored while creating assignment
    */
@@ -264,13 +285,26 @@ public interface ExecConstants {
   String AVERAGE_FIELD_WIDTH_KEY = "planner.memory.average_field_width";
   OptionValidator AVERAGE_FIELD_WIDTH = new PositiveLongValidator(AVERAGE_FIELD_WIDTH_KEY, Long.MAX_VALUE, 8);
 
+  /**
+   * Compression used to send fragments over RPC
+   */
+  String FRAGMENT_CODEC_KEY = "planner.fragment.codec";
+  EnumValidator<FragmentCodec> FRAGMENT_CODEC = new EnumValidator<>(FRAGMENT_CODEC_KEY, FragmentCodec.class, FragmentCodec.SNAPPY);
+
   BooleanValidator ENABLE_QUEUE = new BooleanValidator("exec.queue.enable", true);
+  BooleanValidator REFLECTION_ENABLE_QUEUE = new BooleanValidator("reflection.queue.enable", true);
   LongValidator LARGE_QUEUE_SIZE = new PositiveLongValidator("exec.queue.large", 1000, 10);
   LongValidator SMALL_QUEUE_SIZE = new PositiveLongValidator("exec.queue.small", 100000, 100);
+  LongValidator REFLECTION_LARGE_QUEUE_SIZE = new RangeLongValidator("reflection.queue.large", 0, 100, 1);
+  LongValidator REFLECTION_SMALL_QUEUE_SIZE = new RangeLongValidator("reflection.queue.small", 0, 10000, 10);
   LongValidator QUEUE_THRESHOLD_SIZE = new PositiveLongValidator("exec.queue.threshold",
       Long.MAX_VALUE, 30000000);
   LongValidator QUEUE_TIMEOUT = new PositiveLongValidator("exec.queue.timeout_millis",
       Long.MAX_VALUE, 60 * 1000 * 5);
+  // 24 hour timeout for reflection jobs to enter queue.
+  // This will enable reflections to wait for longer running reflections to finish and enter queue.
+  LongValidator REFLECTION_QUEUE_TIMEOUT = new PositiveLongValidator("reflection.queue.timeout_millis",
+      Long.MAX_VALUE, 24 * 60 * 60 * 1000 );
   BooleanValidator ENABLE_QUEUE_MEMORY_LIMIT = new BooleanValidator("exec.queue.memory.enable", true);
   LongValidator LARGE_QUEUE_MEMORY_LIMIT = new RangeLongValidator("exec.queue.memory.large", 0, Long.MAX_VALUE, 0);
   LongValidator SMALL_QUEUE_MEMORY_LIMIT = new RangeLongValidator("exec.queue.memory.small", 0, Long.MAX_VALUE, 0);
@@ -301,14 +335,6 @@ public interface ExecConstants {
    */
   BooleanValidator PARTITION_SENDER_BATCH_ADAPTIVE = new BooleanValidator("exec.partitioner.batch.adaptive", false);
 
-  /**
-   * This value is interpreted differently based on whether {@link #PARTITION_SENDER_BATCH_ADAPTIVE} is enabled or not.
-   * When adaptive batch size is
-   *   - enabled: bucket size never exceeds this value.
-   *   - disabled: bucket size is same as this value.
-   */
-  PositiveLongValidator PARTITION_SENDER_BATCH_TARGET_RECORDS = new PositiveLongValidator("exec.partitioner.batch.records", Character.MAX_VALUE, 4096);
-  PositiveLongValidator PARTITION_SENDER_BATCH_MIN_RECORDS = new PositiveLongValidator("exec.partitioner.batch.records.min", Character.MAX_VALUE, 127);
   PositiveLongValidator PARTITION_SENDER_MAX_MEM = new PositiveLongValidator("exec.partitioner.mem.max", Integer.MAX_VALUE, 100*1024*1024);
   PositiveLongValidator PARTITION_SENDER_MAX_BATCH_SIZE = new PositiveLongValidator("exec.partitioner.batch.size.max", Integer.MAX_VALUE, 1024*1024);
 
@@ -316,6 +342,7 @@ public interface ExecConstants {
 
   BooleanValidator MATERIALIZATION_CACHE_ENABLED = new BooleanValidator("dremio.materialization.cache.enabled", true);
   PositiveLongValidator MATERIALIZATION_CACHE_REFRESH_DURATION = new PositiveLongValidator("dremio.materialization.cache.refresh_seconds", Long.MAX_VALUE, 30);
+  PositiveLongValidator LAYOUT_REFRESH_MAX_ATTEMPTS = new PositiveLongValidator("layout.refresh.max.attempts", Integer.MAX_VALUE, 3);
 
   BooleanValidator OLD_ASSIGNMENT_CREATOR = new BooleanValidator("exec.work.assignment.old", false);
 
@@ -330,7 +357,8 @@ public interface ExecConstants {
   PositiveLongValidator SOURCE_STATE_REFRESH_MIN = new PositiveLongValidator("store.metadata.state.refresh_min", Character.MAX_VALUE, 5);
   PositiveLongValidator SOURCE_METADATA_REFRESH_MIN = new PositiveLongValidator("store.metadata.base.refresh_min", Character.MAX_VALUE, 5);
   BooleanValidator PARQUET_SINGLE_STREAM = new BooleanValidator("store.parquet.single_stream", false);
-  LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", -1);
+  LongValidator PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD = new LongValidator("store.parquet.single_stream_column_threshold", 40);
+  LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 30);
   //Configuration used for testing or debugging
   LongValidator DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS = new LongValidator("debug.results.max.age_in_milliseconds", 0);
 
@@ -338,4 +366,8 @@ public interface ExecConstants {
 
   // Check for storage plugin status at time of creation of the plugin
   BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
+
+  LongValidator FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT = new LongValidator("dremio.exec.operator.flatten_output_memory_limit", 512*1024*1024);
+
+  PositiveLongValidator PLANNER_IN_SUBQUERY_THRESHOLD = new PositiveLongValidator("planner.in.subquery.threshold", Character.MAX_VALUE, 20);
 }

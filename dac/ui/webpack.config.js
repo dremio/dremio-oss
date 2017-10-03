@@ -105,7 +105,15 @@ class BuildInfo {
           shouldEnableRSOD: ${!isProductionBuild || '${dremio.debug.rsod.enabled?c}'},
           supportEmailTo: ${JSON.stringify(isProductionBuild ? '${dremio.settings.supportEmailTo}' : 'noreply@dremio.com')},
           supportEmailSubjectForJobs: ${JSON.stringify(isProductionBuild ? '${dremio.settings.supportEmailSubjectForJobs}' : '')},
-          outsideCommunicationDisabled: ${isProductionBuild ? '${dremio.settings.outsideCommunicationDisabled?c}' : false}
+          outsideCommunicationDisabled: ${isProductionBuild ? '${dremio.settings.outsideCommunicationDisabled?c}' : false},
+          subhourAccelerationPoliciesEnabled: ${isProductionBuild ? '${dremio.settings.subhourAccelerationPoliciesEnabled?c}' : false}, 
+          clusterId: ${JSON.stringify('${dremio.clusterId}')},
+          versionInfo: {
+            version: ${JSON.stringify('${dremio.versionInfo.version}')},
+            buildTime: ${isProductionBuild ? '${dremio.versionInfo.buildtime?c}' : 0},
+            commitHash: ${JSON.stringify('${dremio.versionInfo.commit.hash}')},
+            commitTime: ${isProductionBuild ? '${dremio.versionInfo.commit.time?c}' : 0}
+          }
         }`;
 
         htmlPluginData.plugin.options.config = config;

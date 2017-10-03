@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import static com.dremio.exec.store.StoragePluginRegistryImpl.isInternal;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.Collections;
@@ -44,8 +45,6 @@ import com.google.common.collect.ImmutableSet;
 
 public class RootSchema extends AbstractSchema {
 
-  private final String EXPORT_NAME = "$export";
-
   private final NamespaceService ns;
   private final SchemaConfig schemaConfig;
   private final SabotContext sabotContext;
@@ -54,6 +53,7 @@ public class RootSchema extends AbstractSchema {
   private final Supplier<Set<String>> allHomeSpaces;
   private final Supplier<Boolean> userHomeExists;
   private final MetadataStatsCollector metadataStatsCollector;
+  private final boolean isSystemUser;
 
   public RootSchema(final NamespaceService ns, final SabotContext sabotContext, final SchemaConfig schemaConfig,
                     final MetadataStatsCollector metadataStatsCollector) {
@@ -62,12 +62,19 @@ public class RootSchema extends AbstractSchema {
     this.sabotContext = sabotContext;
     this.schemaConfig = schemaConfig;
     this.metadataStatsCollector = metadataStatsCollector;
+    this.isSystemUser = SYSTEM_USERNAME.equals(schemaConfig.getUserName());
     this.sources = Suppliers.memoize(new Supplier<Map<String, SourceConfig>>() {
       @Override
       public Map<String, SourceConfig> get() {
         final ImmutableMap.Builder<String, SourceConfig> builder = ImmutableMap.builder();
         for(final SourceConfig sourceConfig : ns.getSources()) {
-          builder.put(sourceConfig.getName(), sourceConfig);
+          final String sourceName = sourceConfig.getName();
+          if (!isInternal(sourceName) ||
+              "__home".equalsIgnoreCase(sourceName) ||
+              isSystemUser ||
+              schemaConfig.exposeInternalSources()) {
+            builder.put(sourceName, sourceConfig);
+          }
         }
         return builder.build();
       }
@@ -142,17 +149,16 @@ public class RootSchema extends AbstractSchema {
       }
       SourceConfig config = sources.get().get(name);
       MetadataPolicy policy = config.getMetadataPolicy() != null ? config.getMetadataPolicy() : CatalogService.DEFAULT_METADATA_POLICY;
-      return newTopLevelSchema(name, SchemaType.SOURCE, policy, plugin == null ? SchemaMutability.NONE : plugin.getMutability());
+      SimpleSchema.MetadataParam metadataParam = new SimpleSchema.MetadataParam(policy, config.getLastRefreshDate());
+      return newTopLevelSchema(name, SchemaType.SOURCE, metadataParam, plugin == null ? SchemaMutability.NONE : plugin.getMutability());
     }
 
     if (spaces.get().contains(name)) {
       return newTopLevelSchema(name, SchemaType.SPACE, null, SchemaMutability.USER_VIEW);
     }
 
-    if (SYSTEM_USERNAME.equals(schemaConfig.getUserName())) {
-      if (allHomeSpaces.get().contains(name)) {
-        return newTopLevelSchema(name, SchemaType.HOME, null, SchemaMutability.USER_VIEW);
-      }
+    if (isSystemUser && allHomeSpaces.get().contains(name)) {
+      return newTopLevelSchema(name, SchemaType.HOME, null, SchemaMutability.USER_VIEW);
     }
 
     if (userHomeExists.get()) {
@@ -172,7 +178,7 @@ public class RootSchema extends AbstractSchema {
         .addAll(sources.get().keySet())
         .addAll(spaces.get());
 
-    if (SYSTEM_USERNAME.equals(schemaConfig.getUserName())) {
+    if (isSystemUser) {
       // System user has access to all users home spaces
       setBuilder.addAll(allHomeSpaces.get());
     } else if (userHomeExists.get()) {
@@ -187,7 +193,7 @@ public class RootSchema extends AbstractSchema {
     return SchemaMutability.NONE;
   }
 
-  private SimpleSchema newTopLevelSchema(String name, SchemaType type, MetadataPolicy metadata, SchemaMutability schemaMutability) {
+  private SimpleSchema newTopLevelSchema(String name, SchemaType type, SimpleSchema.MetadataParam metadata, SchemaMutability schemaMutability) {
     return new SimpleSchema(sabotContext, ns, metadataStatsCollector, Collections.<String>emptyList(), name, schemaConfig, type, metadata, schemaMutability);
   }
 

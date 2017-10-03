@@ -88,7 +88,7 @@ public class TestDateTypeWithMultipleFormatter extends BaseTestDateTypeWithMulti
       "    \"match_all\" : { }\n" +
       "  },\n" +
       "  \"_source\" : {\n" +
-      "    \"includes\" : [ \"_index\", \"_type\", \"_uid\", \"field\" ],\n" +
+      "    \"includes\" : [ ],\n" +
       "    \"excludes\" : [ ]\n" +
       "  }\n" +
       "}]"});
@@ -114,7 +114,7 @@ public class TestDateTypeWithMultipleFormatter extends BaseTestDateTypeWithMulti
       "    \"match_all\" : { }\n" +
       "  },\n" +
       "  \"_source\" : {\n" +
-      "    \"includes\" : [ \"_index\", \"_type\", \"_uid\", \"field\" ],\n" +
+      "    \"includes\" : [ ],\n" +
       "    \"excludes\" : [ ]\n" +
       "  }\n" +
       "}]"});

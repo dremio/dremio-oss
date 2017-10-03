@@ -56,23 +56,29 @@ message CancelFragments {
   repeated exec.bit.FragmentHandle fragment = 1;
 }
 
+enum FragmentCodec {
+    NONE = 0;
+    SNAPPY = 1;
+}
+
 message PlanFragment {
   optional FragmentHandle handle = 1;
   optional float network_cost = 4;
   optional float cpu_cost = 5;
   optional float disk_cost = 6;
   optional float memory_cost = 7;
-  optional string fragment_json = 8;
+  optional bytes fragment_json = 8;
   optional bool leaf_fragment = 9;
   optional NodeEndpoint assignment = 10;
   optional NodeEndpoint foreman = 11;
   optional int64 mem_initial = 12 [default = 20000000]; // 20 megs
   optional int64 mem_max = 13 [default = 2000000000]; // 20 gigs
   optional exec.shared.UserCredentials credentials = 14;
-  optional string options_json = 15;
+  optional bytes options_json = 15;
   optional QueryContextInformation context = 16;
   repeated Collector collector = 17;
   optional FragmentPriority priority = 18;
+  optional FragmentCodec fragment_codec = 19;
 }
 
 message FragmentPriority {

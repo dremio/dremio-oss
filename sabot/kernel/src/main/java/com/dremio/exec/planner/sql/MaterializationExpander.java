@@ -17,6 +17,9 @@ package com.dremio.exec.planner.sql;
 
 import java.util.List;
 
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.SubstitutionShuttle;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -24,6 +27,7 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.SchemaPlus;
 
@@ -31,6 +35,7 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.acceleration.LogicalPlanDeserializer;
 import com.dremio.exec.planner.logical.ScanConverter;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.OldNamespaceTable;
 import com.google.common.base.Optional;
@@ -50,26 +55,50 @@ public class MaterializationExpander {
   public Optional<DremioRelOptMaterialization> expand(MaterializationDescriptor descriptor) {
 
     final RelNode deserializedPlan = deserializePlan(descriptor.getPlan());
-    final RelNode finalQueryRel = deserializedPlan.accept(ScanConverter.INSTANCE);
-    final RelNode tableRel = expandSchemaPath(descriptor.getPath());
+
+    RelNode queryRel = deserializedPlan.accept(ScanConverter.INSTANCE);
+
+    // for incremental update, we need to rewrite the queryRel so that it propogates the UPDATE_COLUMN and
+    // adds it as a grouping key in aggregates
+    if (descriptor.getIncrementalUpdateSettings().isIncremental()) {
+      RelShuttle shuttle;
+      if (descriptor.getIncrementalUpdateSettings().getUpdateField() == null) {
+        shuttle = IncrementalUpdateUtils.FILE_BASED_SUBSTITUTION_SHUTTLE;
+      } else {
+        shuttle = new SubstitutionShuttle(descriptor.getIncrementalUpdateSettings().getUpdateField());
+      }
+      queryRel = queryRel.accept(shuttle);
+    }
+
+
+    RelNode tableRel = expandSchemaPath(descriptor.getPath());
 
     if (tableRel == null) {
       return Optional.absent();
     }
 
-    final RelNode tableRel2 = tableRel.accept(ScanConverter.INSTANCE);
-    RelNode finalTableRel = tableRel2.accept(new IncrementalUpdateUtils.RemoveDirColumn(finalQueryRel.getRowType()));
+    BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
+
+    tableRel = tableRel.accept(ScanConverter.INSTANCE);
+    tableRel = tableRel.accept(new IncrementalUpdateUtils.RemoveDirColumn(queryRel.getRowType()));
+
+    // Namespace table removes UPDATE_COLUMN from scans, but for incremental materializations, we need to add it back
+    // to the table scan
+    if (descriptor.getIncrementalUpdateSettings().isIncremental()) {
+      tableRel = tableRel.accept(IncrementalUpdateUtils.ADD_MOD_TIME_SHUTTLE);
+    }
 
     // Check that the table rel row type matches that of the query rel,
     // if so, cast the table rel row types to the query rel row types.
-    finalTableRel = MoreRelOptUtil.createCastRel(finalTableRel, finalQueryRel.getRowType());
+    tableRel = MoreRelOptUtil.createCastRel(tableRel, queryRel.getRowType());
 
     return Optional.of(new DremioRelOptMaterialization(
-      finalTableRel,
-      finalQueryRel,
+      tableRel,
+      queryRel,
       descriptor.getIncrementalUpdateSettings(),
       descriptor.getLayoutInfo(),
       descriptor.getMaterializationId(),
+      schema,
       descriptor.getExpirationTimestamp()
     ));
   }

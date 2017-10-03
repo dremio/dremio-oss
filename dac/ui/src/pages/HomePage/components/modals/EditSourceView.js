@@ -20,7 +20,7 @@ import Immutable from 'immutable';
 import mergeWith from 'lodash/mergeWith';
 
 import { createSource, removeSource, loadSource } from 'actions/resources/sources';
-import * as sourceForms from 'components/sourceForms';
+import sourceForms from 'components/sourceForms';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import Message from 'components/Message';
@@ -28,7 +28,7 @@ import Message from 'components/Message';
 import EditSourceViewMixin,
   { mapStateToProps } from 'dyn-load/pages/HomePage/components/modals/EditSourceViewMixin';
 
-import { styles as addSourceStyles } from './AddSourceModal';
+import { styles as addSourceStyles } from './AddSourceModal/AddSourceModal';
 
 export const VIEW_ID = 'EditSourceView';
 
@@ -37,7 +37,7 @@ export const VIEW_ID = 'EditSourceView';
 export class EditSourceView extends Component {
   static propTypes = {
     sourceName: PropTypes.string.isRequired,
-    type: PropTypes.string.isRequired,
+    sourceType: PropTypes.string.isRequired,
     hide: PropTypes.func.isRequired,
     createSource: PropTypes.func.isRequired,
     removeSource: PropTypes.func.isRequired,
@@ -59,34 +59,13 @@ export class EditSourceView extends Component {
     this.props.loadSource(sourceName, VIEW_ID);
   }
 
-  getCurType() {
-    const {type} = this.props;
-    const hash = {
-      MONGO: 'MongoDB',
-      NAS: 'NAS',
-      HDFS: 'HDFS',
-      ELASTIC: 'Elastic',
-      S3: 'S3',
-      POSTGRES: 'PostgreSQL',
-      MYSQL: 'MySQL',
-      ORACLE: 'Oracle',
-      MSSQL: 'SQLserver',
-      MAPRFS: 'MapRFS',
-      HIVE: 'Hive',
-      HBASE: 'HBase',
-      DB2: 'DB2',
-      REDSHIFT: 'Redshift'
-    };
-    return hash[type];
-  }
-
   submitEdit = (form) => {
-    const { type } = this.props;
+    const { sourceType } = this.props;
 
     this.mutateFormValues(form);
 
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.createSource(form, type)
+      this.props.createSource(form, sourceType)
     ).then(() => {
       this.context.router.replace('/sources/list');
     });
@@ -108,17 +87,17 @@ export class EditSourceView extends Component {
   }
 
   render() {
-    const { updateFormDirtyState, initialFormValues, source, viewState, hide } = this.props;
-    const type = this.getCurType();
+    const { updateFormDirtyState, initialFormValues, source, sourceType, viewState, hide } = this.props;
+    const sourceForm = Object.values(sourceForms).find((sf) => sf.sourceType === sourceType);
     return <ViewStateWrapper viewState={viewState} style={styles.viewWrapper}>
       {this.renderMessages()}
       {
-        sourceForms[type] &&
-        React.createElement(sourceForms[type], {
+        sourceForm &&
+        React.createElement(sourceForm, {
           onFormSubmit: this.submitEdit,
           onCancel: hide,
           editing: true,
-          key: type,
+          key: sourceType,
           updateFormDirtyState,
           formBodyStyle: styles.formBody,
           initialValues: mergeWith(

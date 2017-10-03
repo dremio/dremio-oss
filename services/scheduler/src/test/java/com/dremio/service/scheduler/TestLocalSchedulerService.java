@@ -26,10 +26,10 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -42,6 +42,7 @@ import org.threeten.bp.Clock;
 import org.threeten.bp.Instant;
 import org.threeten.bp.temporal.ChronoUnit;
 
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
@@ -56,12 +57,12 @@ public class TestLocalSchedulerService {
    */
   @Test
   public void close() throws Exception {
-    final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
+    final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
     final LocalSchedulerService service = new LocalSchedulerService(executorService);
 
     service.close();
 
-    verify(executorService).shutdown();
+    verify(executorService).close();
   }
 
   /**
@@ -69,8 +70,9 @@ public class TestLocalSchedulerService {
    */
   @Test
   public void newThread() {
+    LocalSchedulerService service = new LocalSchedulerService(1);
     final Runnable runnable = mock(Runnable.class);
-    final Thread thread = LocalSchedulerService.THREAD_FACTORY.newThread(runnable);
+    final Thread thread = service.getExecutorService().getThreadFactory().newThread(runnable);
 
     assertTrue("thread should be a daemon thread", thread.isDaemon());
     assertTrue("thread name should start with scheduler-", thread.getName().startsWith("scheduler-"));
@@ -148,19 +150,18 @@ public class TestLocalSchedulerService {
   @Test
   public void schedule() throws Exception {
     final List<MockScheduledFuture<?>> futures = Lists.newArrayList();
-    final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
+    final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
 
     doAnswer(new Answer<ScheduledFuture<Object>>() {
       @Override
       public ScheduledFuture<Object> answer(InvocationOnMock invocation) throws Throwable {
         final Object[] arguments = invocation.getArguments();
-        MockScheduledFuture<Object> result =  new MockScheduledFuture<Object>(Clock.systemUTC(), Executors.callable((Runnable) arguments[0]), (long) arguments[1], (TimeUnit) arguments[2]);
+        MockScheduledFuture<Object> result =  new MockScheduledFuture<>(Clock.systemUTC(), Executors.callable((Runnable) arguments[0]), (long) arguments[1], (TimeUnit) arguments[2]);
         futures.add(result);
 
         return result;
       }
     }).when(executorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-
 
     //new MockScheduledExecutorService();
     final AtomicInteger runCount = new AtomicInteger(0);
@@ -193,13 +194,13 @@ public class TestLocalSchedulerService {
   @Test
   public void scheduleCancelledBeforeRun() throws Exception {
     final List<MockScheduledFuture<?>> futures = Lists.newArrayList();
-    final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
+    final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
 
     doAnswer(new Answer<ScheduledFuture<Object>>() {
       @Override
       public ScheduledFuture<Object> answer(InvocationOnMock invocation) throws Throwable {
         final Object[] arguments = invocation.getArguments();
-        MockScheduledFuture<Object> result =  new MockScheduledFuture<Object>(Clock.systemUTC(), Executors.callable((Runnable) arguments[0]), (long) arguments[1], (TimeUnit) arguments[2]);
+        MockScheduledFuture<Object> result =  new MockScheduledFuture<>(Clock.systemUTC(), Executors.callable((Runnable) arguments[0]), (long) arguments[1], (TimeUnit) arguments[2]);
         futures.add(result);
 
         return result;
@@ -222,7 +223,11 @@ public class TestLocalSchedulerService {
     // Making a copy as running pending future will alter the list
     ImmutableList<MockScheduledFuture<?>> copyOfFutures = ImmutableList.copyOf(futures);
     for(MockScheduledFuture<?> future: copyOfFutures) {
-      future.call();
+      try {
+        future.call();
+      } catch (IllegalStateException e) {
+        // it should have been cancelled already
+      }
     }
 
     // There should be one future in the list, one set
@@ -232,4 +237,74 @@ public class TestLocalSchedulerService {
     assertEquals(0, runCount.get());
   }
 
+  /**
+   * Verify that cancelling before the task is run prevent it to reschedule itself
+   */
+  @Test
+  public void scheduleCancelledDuringRun() throws Exception {
+    final List<MockScheduledFuture<?>> futures = Lists.newArrayList();
+    final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
+
+    doAnswer(new Answer<ScheduledFuture<Object>>() {
+      @Override
+      public ScheduledFuture<Object> answer(InvocationOnMock invocation) throws Throwable {
+        final Object[] arguments = invocation.getArguments();
+        MockScheduledFuture<Object> result =  new MockScheduledFuture<>(Clock.systemUTC(), Executors.callable((Runnable) arguments[0]), (long) arguments[1], (TimeUnit) arguments[2]);
+        futures.add(result);
+
+        return result;
+      }
+    }).when(executorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+
+    //new MockScheduledExecutorService();
+    final CountDownLatch ready = new CountDownLatch(1);
+    final CountDownLatch done = new CountDownLatch(1);
+    final Runnable runnable = new Runnable() {
+      @Override
+      public void run() {
+        ready.countDown();
+        try {
+          done.await();
+        } catch (InterruptedException e) {
+          // nothing
+        }
+      }
+    };
+
+    @SuppressWarnings("resource")
+    final SchedulerService service = new LocalSchedulerService(executorService);
+    final Cancellable cancellable = service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
+
+    // Making a copy as running pending future will alter the list
+    ImmutableList<MockScheduledFuture<?>> copyOfFutures = ImmutableList.copyOf(futures);
+    for(final MockScheduledFuture<?> future: copyOfFutures) {
+      try {
+        new Thread(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              future.call();
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          }
+        }, "test-TestLocalScheduler").start();
+      } catch (IllegalStateException e) {
+        // it should have been cancelled already
+      }
+    }
+
+
+    ready.await(1, TimeUnit.SECONDS);
+
+    cancellable.cancel();
+
+    done.countDown();
+
+    // There should be one future in the list, one set
+    assertTrue("Cancellable should have been cancelled", cancellable.isCancelled());
+    assertEquals(1, futures.size());
+    assertTrue("1st future should be completed", futures.get(0).isDone());
+  }
 }

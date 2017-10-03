@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
@@ -201,11 +202,11 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
     }
 
     @Override
-    public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+    public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
       calls.add(new ObserverCall(){
         @Override
         public void doCall(AttemptObserver observer) {
-          observer.planRelTransform(phase, before, after, millisTaken);
+          observer.planRelTransform(phase, planner, before, after, millisTaken);
         }});
     }
 

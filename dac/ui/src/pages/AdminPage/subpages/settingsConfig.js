@@ -20,14 +20,14 @@ import DurationField from 'components/Fields/DurationField';
 export const SECTIONS = new Map([
   ['Query Queue Control', new Map([
     ['exec.queue.enable', ''], // todo: ax
-    ['exec.queue.large', 'Large queue size'],
-    ['exec.queue.small', 'Small queue size'],
+    ['exec.queue.large', 'Concurrent queries (large queries)'],
+    ['exec.queue.small', 'Concurrent queries (small queries)'],
     ['exec.queue.timeout_millis', 'Queue timeout']
   ])],
   ['Query Memory Control', new Map([
     ['exec.queue.memory.enable', ''], // todo: ax
-    ['exec.queue.memory.large', 'Maximum memory (large queries)'],
-    ['exec.queue.memory.small', 'Maximum memory (small queries)']
+    ['exec.queue.memory.large', 'Maximum query memory (large queries)'],
+    ['exec.queue.memory.small', 'Maximum query memory (small queries)']
   ])],
   ['Query Thresholds', new Map([
     ['exec.queue.threshold', 'Large query threshold (plan cost)']

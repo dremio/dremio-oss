@@ -16,13 +16,13 @@
 import { Component, PropTypes } from 'react';
 import deepEqual from 'deep-equal';
 import Immutable from 'immutable';
+import uuid from 'uuid';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
 import { parseTextToDataType } from 'constants/DataTypes';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
 import NewFieldSection from 'components/Forms/NewFieldSection';
-import { isEmptyObject } from 'utils/validation';
 import ReplaceValues from '../ContentWithoutCards/ReplaceValues';
 import TransformForm, { formWrapperProps } from '../../../forms/TransformForm';
 import ReplaceFooter from './../ReplaceFooter';
@@ -48,36 +48,14 @@ export class ReplaceValuesForm extends Component {
     dirty: PropTypes.bool
   };
 
-  constructor(props) {
-    super(props);
-
-    this.onValuesChange = this.onValuesChange.bind(this);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    // If user deselects all values, even though it's not a valid transform, request transform
-    // values to update matched/unmatched counts.
-    const newValues = nextProps.values.replaceValues;
-    const oldValues = this.props.values.replaceValues;
-    if (!deepEqual(newValues, oldValues)
-      && isEmptyObject(newValues)) {
-      this.runLoadTransformValues(newValues);
-    }
-  }
-
-  onValuesChange(newValues, oldValues) {
+  onValuesChange = (newValues, oldValues) => {
     if (!deepEqual(newValues.replaceValues, oldValues.replaceValues)) {
       this.runLoadTransformValues(newValues.replaceValues);
     }
   }
 
-  getCheckedValues(values) {
-    return Object.keys(values).filter((value) => values[value]);
-  }
-
   runLoadTransformValues(transformValues) {
-    const values = this.getCheckedValues(transformValues);
-    this.props.loadTransformValuesPreview(values);
+    this.props.loadTransformValuesPreview(transformValues);
   }
 
   submit = (values, submitType) => {
@@ -85,12 +63,28 @@ export class ReplaceValuesForm extends Component {
     const transformType = this.props.transform.get('transformType');
     let { replaceValues, replacementValue } = values;
     replacementValue = parseTextToDataType(replacementValue, columnType);
-    replaceValues = this.getCheckedValues(replaceValues).map((value) => parseTextToDataType(value, columnType));
+
+    let replaceNull = false;
+    const replaceValuesSet = new Set(replaceValues);
+    // note: some APIs don't express null correctly (instead they drop the field)
+    if (replaceValuesSet.delete(null) || replaceValuesSet.delete(undefined)) {
+      // and need to transmit as separate field
+      replaceNull = true;
+    }
+    replaceValues = [...replaceValuesSet].map((value) => parseTextToDataType(value, columnType));
+
+    if (!replaceValues.length && !replaceNull) {
+      return Promise.reject({_error: {
+        message: la('Please select at least one value.'),
+        id: uuid.v4()
+      }});
+    }
 
     const mapValues = {
       ...values,
       replacementValue,
-      replaceValues
+      replaceValues,
+      replaceNull
     };
 
     const data = transformType === 'replace'
@@ -113,7 +107,7 @@ export class ReplaceValuesForm extends Component {
     const { fields, transform, submitForm, valueOptions, sqlSize } = this.props;
     return (
       <TransformForm
-        {...formWrapperProps(this.props)}
+        {...formWrapperProps({...this.props})}
         onFormSubmit={this.submit}
         onValuesChange={this.onValuesChange}
       >
@@ -149,7 +143,7 @@ function mapStateToProps(state, props) {
       replacementValue: '',
       newFieldName: columnName,
       dropSourceField: true,
-      replaceValues: cellText !== undefined ? {[cellText]: true} : {},
+      replaceValues: cellText !== undefined ? [cellText] : [],
       replaceType: 'VALUE',
       replaceSelectionType: 'VALUE'
     }

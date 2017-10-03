@@ -26,7 +26,7 @@ import org.apache.hadoop.fs.Path;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 
@@ -64,7 +64,7 @@ public class Restore {
   }
 
   public static void main(String[] args) {
-    final DacConfig dacConfig = DacConfig.newConfig();
+    final DACConfig dacConfig = DACConfig.newConfig();
     final BackupManagerOptions options = BackupManagerOptions.parse(args);
     String action = "";
     try {

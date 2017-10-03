@@ -34,6 +34,7 @@ import com.dremio.service.accelerator.pipeline.StageException;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.AccelerationContext;
 import com.dremio.service.accelerator.proto.RowType;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
@@ -61,14 +62,18 @@ public class AnalysisStage implements Stage {
     }
   }
 
-  private void tryExecuting(final StageContext context) {
+  private void tryExecuting(final StageContext context) throws NamespaceException {
     final Acceleration acceleration = context.getCurrentAcceleration();
-    final DatasetConfig config = acceleration.getContext().getDataset();
+    final DatasetConfig config = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
     final NamespaceKey path = new NamespaceKey(config.getFullPathList());
 
     final AccelerationAnalyzer analyzer = new AccelerationAnalyzer(context.getJobsService());
     final AccelerationContext accelerationContext = acceleration.getContext();
     final AccelerationAnalysis analysis = analyzer.analyze(path);
+
+    // Update the dataset config as the analysis may have obtained the schema of the dataset
+    DatasetConfig refreshedDatasetConfig = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
+    accelerationContext.setDataset(refreshedDatasetConfig);
 
     // 1. set plan
     final RelNode plan = PlanningStage.removeUpdateColumn(analysis.getPlan());

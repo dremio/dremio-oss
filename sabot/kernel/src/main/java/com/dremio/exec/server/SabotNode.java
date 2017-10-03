@@ -34,6 +34,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogServiceImpl;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
+import com.dremio.exec.store.sys.SystemTablePluginProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
@@ -173,14 +174,18 @@ public class SabotNode implements AutoCloseable {
         false
         ));
 
-    registry.bind(SchedulerService.class, new LocalSchedulerService());
+    // Note: corePoolSize param below should be more than 1 to show any multithreading issues
+    registry.bind(SchedulerService.class, new LocalSchedulerService(2));
+
+    registry.bindSelf(new SystemTablePluginProvider(registry.provider(SabotContext.class)));
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
         registry.getBindingCreator(),
         true,
-        true));
+        true,
+        registry.provider(SystemTablePluginProvider.class)));
 
     registry.bindSelf(
         new FragmentWorkManager(bootstrap,

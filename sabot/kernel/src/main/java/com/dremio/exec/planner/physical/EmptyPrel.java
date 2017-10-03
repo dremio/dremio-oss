@@ -18,12 +18,14 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
@@ -44,6 +46,11 @@ public class EmptyPrel extends AbstractRelNode implements Prel {
     this.schema = schema;
     this.rowType = rowType;
     this.digest = schema.toString();
+  }
+
+  @Override
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    return new EmptyPrel(getCluster(), traitSet, getRowType(), schema);
   }
 
   @Override

@@ -28,6 +28,8 @@ export default class HoverTrigger extends Component {
     style: PropTypes.object
   }
 
+  hoverItem = null;
+
   componentDidMount() {
     this.watchMouseLeave();
   }

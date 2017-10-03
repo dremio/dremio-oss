@@ -572,10 +572,12 @@ public class BaseTestOperator extends ExecTest {
 
     final List<RecordBatchData> data = new ArrayList<>();
     try(
-        T op = newOperator(clazz, pop, batchSize);
         Generator leftGen = left;
         Generator rightGen = right;
         ){
+
+      // op is added to closeable list and will be closed when test finished. no need to close here.
+      T op = newOperator(clazz, pop, batchSize);
 
       final VectorAccessible output = op.setup(leftGen.getOutput(), right.getOutput());
 

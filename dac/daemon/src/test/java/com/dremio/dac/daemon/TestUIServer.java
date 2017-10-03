@@ -34,7 +34,7 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
@@ -57,7 +57,7 @@ public class TestUIServer {
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("TestUIServer.@BeforeClass")) {
       dremioDaemon = DACDaemon.newDremioDaemon(
-        DacConfig
+        DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .autoPort(true)
           .allowTestApis(true)

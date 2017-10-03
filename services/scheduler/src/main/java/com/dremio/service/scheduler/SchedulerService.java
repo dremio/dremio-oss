@@ -21,6 +21,7 @@ import com.dremio.service.Service;
  * Service to schedule periodic tasks
  */
 public interface SchedulerService extends Service {
+
   /**
    * Schedule a periodic task
    *
@@ -34,5 +35,4 @@ public interface SchedulerService extends Service {
    */
   Cancellable schedule(Schedule schedule, Runnable task);
 
-  Cancellable scheduleOnce(Runnable task);
 }

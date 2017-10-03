@@ -29,26 +29,36 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.base.Objects;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Namespace table associated with a particular RelOptCluster.
  */
-public class RelOptNamespaceTable implements RelOptTable {
+public final class RelOptNamespaceTable implements RelOptTable {
 
   private final NamespaceTable table;
   private final RelOptCluster cluster;
 
-
+  private final Supplier<RelDataType> rowType;
   public RelOptNamespaceTable(TableMetadata dataset, RelOptCluster cluster) {
     this(new NamespaceTable(dataset), cluster);
   }
 
-  public RelOptNamespaceTable(NamespaceTable table, RelOptCluster cluster) {
+  public RelOptNamespaceTable(final NamespaceTable table, final RelOptCluster cluster) {
     super();
     this.table = table;
     this.cluster = cluster;
+
+    // rowType might be access frequently but computation is expensive.
+    rowType = Suppliers.memoize(new Supplier<RelDataType>() {
+      @Override
+      public RelDataType get() {
+        return table.getRowType(cluster.getTypeFactory());
+      }
+    });
   }
 
   @Override
@@ -63,7 +73,7 @@ public class RelOptNamespaceTable implements RelOptTable {
 
   @Override
   public RelDataType getRowType() {
-    return table.getRowType(cluster.getTypeFactory());
+    return rowType.get();
   }
 
   @Override

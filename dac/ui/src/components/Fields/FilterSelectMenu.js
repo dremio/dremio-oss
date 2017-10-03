@@ -19,6 +19,8 @@ import Radium from 'radium';
 import { Popover } from 'material-ui/Popover';
 import Immutable from 'immutable';
 
+import EllipsedText from 'components/EllipsedText';
+
 import FontIcon from 'components/Icon/FontIcon';
 import Checkbox from 'components/Fields/Checkbox';
 import { SearchField } from 'components/Fields';
@@ -34,7 +36,7 @@ export function FilterSelectMenuItem({item, onChange, checked}) {
     <Checkbox
       onChange={() => onChange(checked, item.id)}
       label={[
-        item.icon && <FontIcon type={item.icon} theme={{ Container: { height: 24, width: 24 } }}/>,
+        item.icon && <FontIcon type={item.icon} theme={{ Container: { overflow: 'hidden', height: 24, width: 24 }}}/>,
         item.label
       ]}
       checked={checked}
@@ -193,16 +195,13 @@ export default class FilterSelectMenu extends Component {
       : null;
   }
 
-  renderSelectedLabel() {
+  renderSelectedLabel() { // todo: better loc
+    const selectedItems = !this.props.selectedValues.size
+                            ? la(': All')
+                            : this.getSelectedItems().map(item => item.label).join(', ');
     return !this.props.preventSelectedLabel
       ? (
-        <span className='filter-select-label' style={styles.infoLabel}>
-          {
-            !this.props.selectedValues.size
-              ? la(': All')
-              : this.getSelectedItems().map(item => item.label).join(', ')
-          }
-        </span>
+        <EllipsedText className='filter-select-label' style={styles.infoLabel} text={selectedItems}/>
       )
       : null;
   }
@@ -273,9 +272,6 @@ const styles = {
     }
   },
   infoLabel: {
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
     maxWidth: 130
   },
   searchInput: {

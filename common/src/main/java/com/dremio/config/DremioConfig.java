@@ -69,6 +69,7 @@ public class DremioConfig extends NestedConfig {
   public static final String WEB_AUTH_LDAP_CONFIG_FILE = "services.coordinator.web.auth.ldap_config";
   public static final String WEB_PORT_INT = "services.coordinator.web.port";
   public static final String WEB_TOKEN_CACHE_SIZE = "services.coordinator.web.tokens.cache.size";
+  public static final String SCHEDULER_SERVICE_THREAD_COUNT = "services.coordinator.scheduler.threads";
   public static final String WEB_TOKEN_CACHE_EXPIRATION = "services.coordinator.web.tokens.cache.expiration_minutes";
   public static final String KERBEROS_PRINCIPAL = "services.kerberos.principal";
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
@@ -93,6 +94,7 @@ public class DremioConfig extends NestedConfig {
   public static final String SPILLING_PATH_STRING = "paths.spilling";
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
+  public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
 
   /**
    * Path where debug options are located

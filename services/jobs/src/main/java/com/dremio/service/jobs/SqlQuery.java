@@ -64,4 +64,13 @@ public class SqlQuery {
   public SqlQuery cloneWithNewSql(String sql){
     return new SqlQuery(sql, context, username);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder();
+    builder.append("SqlQuery [sql=").append(sql).append(", context=").append(context).append(", username=").append(username).append("]");
+    return builder.toString();
+  }
+
+
 }

@@ -19,6 +19,7 @@ import java.util.Map;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
+import com.dremio.dac.service.admin.VersionInfo;
 
 /**
  * Template parameters for index.html served by IndexServlet
@@ -29,13 +30,17 @@ public class ServerData {
   private final Map<String, Object> config;
   private final Map<String, Object> debug;
   private final ClientSettings settings;
+  private final VersionInfo versionInfo;
+  private final String clusterId;
 
-  public ServerData(String environment, ServerHealthMonitor healthMonitor, DremioConfig dremioConfig, ClientSettings settings) {
+  public ServerData(String environment, ServerHealthMonitor healthMonitor, DremioConfig dremioConfig, ClientSettings settings, VersionInfo versionInfo, String clusterId) {
     this.environment = environment;
     this.healthMonitor = healthMonitor;
     this.config = dremioConfig.getObject(DremioConfig.WEB_UI_SERVICE_CONFIG).unwrapped();
     this.debug = dremioConfig.getObject(DremioConfig.DEBUG_OPTIONS).unwrapped();
     this.settings = settings;
+    this.versionInfo = versionInfo;
+    this.clusterId = clusterId;
   }
 
   public String getEnvironment() {
@@ -58,6 +63,14 @@ public class ServerData {
     return debug;
   }
 
+  public VersionInfo getVersionInfo() {
+    return versionInfo;
+  }
+
+  public String getClusterId() {
+    return clusterId;
+  }
+
   /**
    * Description of settings for ui.
    */
@@ -66,11 +79,14 @@ public class ServerData {
     private final String supportEmailSubjectForJobs;
     private final Boolean outsideCommunicationDisabled;
 
-    public ClientSettings(String supportEmailTo, String supportEmailSubjectForJobs, Boolean outsideCommunicationDisabled) {
+    private final Boolean subhourAccelerationPoliciesEnabled;
+
+    public ClientSettings(String supportEmailTo, String supportEmailSubjectForJobs, Boolean outsideCommunicationDisabled, Boolean subhourAccelerationPoliciesEnabled) {
       super();
       this.supportEmailTo = supportEmailTo;
       this.supportEmailSubjectForJobs = supportEmailSubjectForJobs;
       this.outsideCommunicationDisabled = outsideCommunicationDisabled;
+      this.subhourAccelerationPoliciesEnabled = subhourAccelerationPoliciesEnabled;
     }
 
     public String getSupportEmailTo() {
@@ -83,6 +99,10 @@ public class ServerData {
 
     public Boolean getOutsideCommunicationDisabled() {
       return outsideCommunicationDisabled;
+    }
+
+    public Boolean getSubhourAccelerationPoliciesEnabled() {
+      return subhourAccelerationPoliciesEnabled;
     }
   }
 }

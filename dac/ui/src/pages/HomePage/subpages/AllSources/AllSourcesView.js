@@ -19,6 +19,8 @@ import pureRender from 'pure-render-decorator';
 import Radium from 'radium';
 import { Link } from 'react-router';
 
+import EllipsedText from 'components/EllipsedText';
+
 import LinkButton from 'components/Buttons/LinkButton';
 import ResourcePin from 'components/ResourcePin';
 import AllSourcesMenu from 'components/Menus/HomePage/AllSourcesMenu';
@@ -56,8 +58,8 @@ export default class AllSourcesView extends Component {
             node: () => (
               <div style={allSpacesAndAllSources.listItem}>
                 {icon}
-                <Link style={allSpacesAndAllSources.link} to={item.getIn(['links', 'self'])} >
-                  <span>{item.get('name')}</span>
+                <Link style={allSpacesAndAllSources.link} to={item.getIn(['links', 'self'])}>
+                  <EllipsedText text={item.get('name')} />
                 </Link>
                 <ResourcePin
                   name={item.get('name')}

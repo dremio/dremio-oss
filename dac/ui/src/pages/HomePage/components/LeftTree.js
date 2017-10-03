@@ -61,15 +61,12 @@ export class LeftTree extends Component {
 
   addSampleSource = () => {
     this.setState({isAddingSampleSource: true});
-    return this.props.createSampleSource().then((response) => {
+    return this.props.createSampleSource(this.props.sources, this.props.spaces).then((response) => {
       if (response && !response.error) {
         const nextSource = ApiUtils.getEntityFromResponse('source', response);
         this.context.router.push(nextSource.getIn(['links', 'self']));
       }
       this.setState({isAddingSampleSource: false});
-    }).catch((error) => {
-      this.setState({isAddingSampleSource: false});
-      throw error;
     });
   }
 
@@ -102,28 +99,25 @@ export class LeftTree extends Component {
     const count = this.props.sources.size;
 
     const isEmpty = count === 0;
-    const haveSampleSource = isSampleSource(this.props.sources.toJS()[0]);
+    const haveOnlySampleSource = !isEmpty && this.props.sources.toJS().every(isSampleSource);
+    const haveNonSampleSource = this.props.sources.toJS().some(e => !isSampleSource(e));
 
     // situations...
 
-    // - only sample source, user can't add: show nothing
-    if (count === 1 && haveSampleSource && !this.getCanAddSource()) return null;
+    // - only sample source(s), user can't add: show nothing
+    if (haveOnlySampleSource && !this.getCanAddSource()) return null;
 
-    // - single source (not sample): show nothing
-    if (count === 1 && !haveSampleSource) return null;
-
-    // - multiple sources, user can add: show nothing
-    // - multiple sources, user can't add: show nothing
-    if (count > 1) return null;
+    // - have a non-sample source: show nothing
+    if (haveNonSampleSource) return null;
 
     // - no sources, user can add: show text and both buttons
     // - no sources, user can't add: show text
-    // - only sample source, user can add: show text and add button
+    // - only sample source(s), user can add: show text and add button
     return <div className='button-wrap'>
       <span style={formDescription}>
         {isEmpty ? la('You do not have any sources.') : la('Add your own source:')}
       </span>
-      {this.getCanAddSource() && !haveSampleSource && <SimpleButton
+      {this.getCanAddSource() && isEmpty && <SimpleButton
         buttonStyle='primary'
         submitting={this.state.isAddingSampleSource}
         style={{padding: '0 12px'}}

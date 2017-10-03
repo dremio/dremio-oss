@@ -15,13 +15,14 @@
  */
 import { MAP, LIST, BOOLEAN, TEXT, FLOAT } from 'constants/DataTypes';
 
+// todo: loc
 export const UNMATCHED_CELL_VALUE = '???';
 export const EMPTY_NULL_VALUE = 'null';
 export const EMPTY_STRING_VALUE = 'empty text';
 
 class DataFormatUtils {
   formatValue(value, columnType, row) {
-    if (value === undefined) {
+    if (value === undefined) { // note: some APIs don't express null correctly (instead they drop the field)
       return EMPTY_NULL_VALUE;
     }
     if (value === '') {

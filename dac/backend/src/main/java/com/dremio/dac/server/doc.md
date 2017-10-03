@@ -318,6 +318,7 @@
    > `=>`   
    > file={java.io.InputStream}   
    > file={org.glassfish.jersey.media.multipart.FormDataContentDisposition}   
+   > fileName={com.dremio.file.FileName}   
    > `<=` [com.dremio.file.File](#class-comdremiofilefile)   
 
 
@@ -613,12 +614,6 @@
 
  - GET /users/search?filter={String}   
    > `<=` [com.dremio.dac.model.usergroup.UsersUI](#class-comdremiodacmodelusergroupusersui)   
-
-
-## Resource defined by class com.dremio.dac.service.admin.VersionResource
-
- - GET /version   
-   > `<=` [com.dremio.dac.service.admin.VersionInfo](#class-comdremiodacserviceadminversioninfo)   
 
 
 ## Resource defined by class com.dremio.dac.resource.SQLResource
@@ -1760,6 +1755,8 @@
       {
         datasetConfig: {
           accelerationSettings: {
+            accelerationGracePeriod: 1,
+            accelerationRefreshPeriod: 1,
             accelerationTTL: {
               duration: 1,
               unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
@@ -2138,6 +2135,7 @@
     endpoint: {
       address: "abc",
       fabricPort: 1,
+      maxDirectMemory: 1,
       provisionId: "abc",
       roles: {
         distributedCache: true | false,
@@ -2385,6 +2383,8 @@
 {
   datasetConfig: {
     accelerationSettings: {
+      accelerationGracePeriod: 1,
+      accelerationRefreshPeriod: 1,
       accelerationTTL: {
         duration: 1,
         unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
@@ -2440,10 +2440,8 @@ any
 - Example:
 ```
 {
-  accelerationTTL: { /** TimePeriod **/
-    duration: 1,
-    unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-  },
+  accelerationGracePeriod: 1,
+  accelerationRefreshPeriod: 1,
   config: any,
   contents: { /** NamespaceTree **/
     datasets: [
@@ -2684,7 +2682,9 @@ any
       {
         datasetConfig: {
           accelerationSettings: {
-            accelerationTTL: { /** TimePeriod **/
+            accelerationGracePeriod: 1,
+            accelerationRefreshPeriod: 1,
+            accelerationTTL: {
               duration: 1,
               unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
             },
@@ -2743,7 +2743,8 @@ any
   },
   metadataPolicy: {
     authTTLMillis: 1,
-    datasetDefinitionTTLMillis: 1,
+    datasetDefinitionExpireAfterMillis: 1,
+    datasetDefinitionRefreshAfterMillis: 1,
     namesRefreshMillis: 1,
     updateMode: "PREFETCH" | "PREFETCH_QUERIED" | "INLINE",
   },
@@ -2770,10 +2771,8 @@ any
 {
   sources: [
     {
-      accelerationTTL: { /** TimePeriod **/
-        duration: 1,
-        unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-      },
+      accelerationGracePeriod: 1,
+      accelerationRefreshPeriod: 1,
       config: any,
       contents: { /** NamespaceTree **/
         datasets: [
@@ -3014,7 +3013,9 @@ any
           {
             datasetConfig: {
               accelerationSettings: {
-                accelerationTTL: { /** TimePeriod **/
+                accelerationGracePeriod: 1,
+                accelerationRefreshPeriod: 1,
+                accelerationTTL: {
                   duration: 1,
                   unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
                 },
@@ -3073,7 +3074,8 @@ any
       },
       metadataPolicy: {
         authTTLMillis: 1,
-        datasetDefinitionTTLMillis: 1,
+        datasetDefinitionExpireAfterMillis: 1,
+        datasetDefinitionRefreshAfterMillis: 1,
         namesRefreshMillis: 1,
         updateMode: "PREFETCH" | "PREFETCH_QUERIED" | "INLINE",
       },
@@ -3340,6 +3342,8 @@ any
       {
         datasetConfig: {
           accelerationSettings: {
+            accelerationGracePeriod: 1,
+            accelerationRefreshPeriod: 1,
             accelerationTTL: {
               duration: 1,
               unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
@@ -3657,6 +3661,8 @@ any
       {
         datasetConfig: {
           accelerationSettings: {
+            accelerationGracePeriod: 1,
+            accelerationRefreshPeriod: 1,
             accelerationTTL: {
               duration: 1,
               unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
@@ -3964,6 +3970,8 @@ any
           {
             datasetConfig: {
               accelerationSettings: {
+                accelerationGracePeriod: 1,
+                accelerationRefreshPeriod: 1,
                 accelerationTTL: {
                   duration: 1,
                   unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
@@ -4148,6 +4156,7 @@ any
             },
             ...
           ],
+          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
           partitionFieldList: [
             { /** LayoutFieldApiDescriptor **/
               name: "abc",
@@ -4176,6 +4185,7 @@ any
         },
         latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
         name: "abc",
+        state: "ACTIVE" | "FAILED",
         totalByteSize: 1,
       },
       ...
@@ -4283,6 +4293,7 @@ any
             },
             ...
           ],
+          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
           partitionFieldList: [
             { /** LayoutFieldApiDescriptor **/
               name: "abc",
@@ -4311,6 +4322,7 @@ any
         },
         latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
         name: "abc",
+        state: "ACTIVE" | "FAILED",
         totalByteSize: 1,
       },
       ...
@@ -4441,21 +4453,6 @@ any
     },
     ...
   ],
-}
-```
-
-## `class com.dremio.dac.service.admin.VersionInfo`
-- Example:
-```
-{
-  buildtime: "abc",
-  commit: {
-    builder: "abc",
-    hash: "abc",
-    message: "abc",
-    time: "abc",
-  },
-  version: "abc",
 }
 ```
 
@@ -4735,6 +4732,7 @@ any
             },
             ...
           ],
+          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
           partitionFieldList: [
             { /** LayoutFieldDescriptor **/
               name: "abc",
@@ -4849,6 +4847,7 @@ any
             },
             ...
           ],
+          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
           partitionFieldList: [
             { /** LayoutFieldDescriptor **/
               name: "abc",
@@ -4907,8 +4906,10 @@ any
         duration: 1,
         unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
       },
+      gracePeriod: 1,
       method: "FULL" | "INCREMENTAL",
       refreshField: "abc",
+      refreshPeriod: 1,
     },
     deprecatedDatasetSchema: { /** ByteString **/
       empty: true | false,
@@ -5064,6 +5065,8 @@ any
 - Example:
 ```
 {
+  accelerationGracePeriod: 1,
+  accelerationRefreshPeriod: 1,
   accelerationTTL: {
     duration: 1,
     unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",

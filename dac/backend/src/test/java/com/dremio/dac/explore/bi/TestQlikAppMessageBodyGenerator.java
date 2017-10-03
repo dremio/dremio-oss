@@ -93,7 +93,7 @@ public class TestQlikAppMessageBodyGenerator {
 
     assertTrue(script.contains(" DIMENSION \"testdimension\""));
     assertTrue(script.contains(" MEASURE \"testmeasure\""));
-    assertTrue(script.contains(" FROM \"space.folder.ext\".\"UNTITLED\""));
+    assertTrue(script.contains(" FROM \"space\".\"folder.ext\".\"UNTITLED\""));
   }
 
   @Test
@@ -119,7 +119,33 @@ public class TestQlikAppMessageBodyGenerator {
     // make sure everything is escaped correctly
     assertTrue(script.contains(" DIMENSION \"test dimension\""));
     assertTrue(script.contains(" MEASURE \"test \"\" measure\""));
-    assertTrue(script.contains(" FROM \"space.folder.ext\".\"UNTITLED\""));
+    assertTrue(script.contains(" FROM \"space\".\"folder.ext\".\"UNTITLED\""));
+  }
+
+  @Test
+  public void testQuoteInPathAndDatasetName() throws Exception {
+    QlikAppMessageBodyGenerator generator = new QlikAppMessageBodyGenerator();
+
+    VirtualDataset dataset = new VirtualDataset()
+      .setSqlFieldsList(Arrays.asList(new ViewFieldType("test dimension", "VARCHAR"), new ViewFieldType("test \" measure", "INTEGER")));
+
+    DatasetConfig datasetConfig = new DatasetConfig()
+      .setName("UNTITLED")
+      .setType(DatasetType.VIRTUAL_DATASET)
+      .setFullPathList(Arrays.asList("@dremio", "fol\"der.ext", "foo", "bar"))
+      .setVirtualDataset(dataset);
+
+    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE));
+    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.TEXT_PLAIN_QLIK_APP_TYPE, httpHeaders, baos);
+
+    String script = new String(baos.toByteArray(), UTF_8);
+
+    // make sure everything is escaped correctly
+    assertTrue(script.contains(" DIMENSION \"test dimension\""));
+    assertTrue(script.contains(" MEASURE \"test \"\" measure\""));
+    assertTrue(script.contains(" FROM \"@dremio\".\"fol\"\"der.ext\".\"foo\".\"bar\""));
   }
 
   @Test

@@ -45,53 +45,22 @@ describe('MetadataRefresh', () => {
       const source = Immutable.fromJS({
         metadataPolicy: {
           namesRefreshMillis: 40 * hour,
-          datasetDefinitionTTLMillis: 30 * day,
-          authTTLMillis: 7 * day,
-          updateMode: 'PREFETCH'
+          datasetDefinitionRefreshAfterMillis: 30 * day,
+          datasetDefinitionExpireAfterMillis: 30 * day,
+          authTTLMillis: 6 * day,
+          updateMode: {
+            value: 'PREFETCH'
+          }
         }
       });
       expect(MetadataRefresh.mapToFormFields(source)).to.be.eql({
-        authTTLMillis: {
-          duration: 7,
-          unit: 'DAYS'
-        },
-        datasetDefinitionTTLMillis: {
-          duration: 5,
-          unit: 'WEEKS'
-        },
-        namesRefreshMillis: {
-          duration: 2,
-          unit: 'DAYS'
-        },
-        updateMode: 'PREFETCH'
-      });
-    });
-  });
-
-  describe('#normalizeValues', () => {
-    it('should convert metadataPolicy values according to payload format', () => {
-      const values = {
-        metadataPolicy: {
-          authTTLMillis: {
-            duration: 7,
-            unit: 'DAYS'
-          },
-          datasetDefinitionTTLMillis: {
-            duration: 5,
-            unit: 'WEEKS'
-          },
-          namesRefreshMillis: {
-            duration: 2,
-            unit: 'DAYS'
-          },
-          updateMode: 'PREFETCH'
+        authTTLMillis: 518400000,
+        datasetDefinitionRefreshAfterMillis: 2592000000,
+        datasetDefinitionExpireAfterMillis: 2592000000,
+        namesRefreshMillis: 144000000,
+        updateMode: {
+          value: 'PREFETCH'
         }
-      };
-      expect(MetadataRefresh.normalizeValues(values)).to.be.eql({
-        namesRefreshMillis: 2 * day,
-        datasetDefinitionTTLMillis: 5 * 7 * day,
-        authTTLMillis: 7 * day,
-        updateMode: 'PREFETCH'
       });
     });
   });

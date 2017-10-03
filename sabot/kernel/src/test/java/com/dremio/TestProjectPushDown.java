@@ -204,7 +204,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Test
   public void testEmptyColProjectInTextScan() throws Exception {
     final String sql = "SELECT count(*) cnt from cp.`store/text/data/d1/regions.csv`";
-    final String expected = expectedColumnsString("columns");
+    final String expected = expectedColumnsString();
     // Verify plan
     testPushDown(new PushDownTestInstance(sql, new String[] {expected}));
 
@@ -221,7 +221,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Test
   public void testEmptyColProjectInJsonScan() throws Exception {
     final String sql = "SELECT count(*) cnt from cp.`employee.json`";
-    final String expected = expectedColumnsString("employee_id", "full_name", "first_name", "last_name", "position_id", "position_title", "store_id", "department_id", "birth_date", "hire_date", "salary", "supervisor_id", "education_level", "marital_status", "gender", "management_role");
+    final String expected = expectedColumnsString();
 
     testPushDown(new PushDownTestInstance(sql, new String[] {expected}));
 
@@ -238,7 +238,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Test
   public void testEmptyColProjectInParquetScan() throws Exception {
     final String sql = "SELECT 1 + 1 as val from cp.`tpch/region.parquet`";
-    final String expected = expectedColumnsString("r_regionkey", "r_name", "r_comment");
+    final String expected = expectedColumnsString();
 
     testPushDown(new PushDownTestInstance(sql, new String[] {expected}));
 

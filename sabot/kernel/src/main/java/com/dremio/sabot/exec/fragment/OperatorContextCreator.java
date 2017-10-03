@@ -15,6 +15,10 @@
  */
 package com.dremio.sabot.exec.fragment;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,12 +27,16 @@ import java.util.concurrent.ExecutorService;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.util.Numbers;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -73,7 +81,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   }
 
   @Override
-  public OperatorContext newOperatorContext(PhysicalOperator popConfig) {
+  public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception {
 
     final String allocatorName = String.format("op:%s:%d:%s",
         QueryIdHelper.getFragmentId(handle),
@@ -82,25 +90,27 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
     final BufferAllocator operatorAllocator =
         allocator.newChildAllocator(allocatorName, popConfig.getInitialAllocation(), popConfig.getMaxAllocation());
-
-    final OpProfileDef def = new OpProfileDef(popConfig.getOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig));
-    final OperatorStats stats = this.stats.newOperatorStats(def, operatorAllocator);
-    OperatorContextImpl context = new OperatorContextImpl(
-        config,
-        handle,
-        popConfig,
-        operatorAllocator,
-        compiler,
-        stats,
-        executionControls,
-        executor,
-        funcRegistry,
-        contextInformation,
-        options,
-        namespaceService,
-        4095);
-    operatorContexts.add(context);
-    return context;
+    try(RollbackCloseable closeable = AutoCloseables.rollbackable(operatorAllocator)) {
+      final OpProfileDef def = new OpProfileDef(popConfig.getOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig));
+      final OperatorStats stats = this.stats.newOperatorStats(def, operatorAllocator);
+      OperatorContextImpl context = new OperatorContextImpl(
+          config,
+          handle,
+          popConfig,
+          operatorAllocator,
+          compiler,
+          stats,
+          executionControls,
+          executor,
+          funcRegistry,
+          contextInformation,
+          options,
+          namespaceService,
+          calculateTargetRecordSize(popConfig));
+      operatorContexts.add(context);
+      closeable.commit();
+      return context;
+    }
   }
 
   @Override
@@ -109,5 +119,28 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     AutoCloseables.close(operatorContexts);
   }
 
+  private int calculateTargetRecordSize(PhysicalOperator popConfig) {
+    final BatchSchema schema = checkNotNull(popConfig.getSchema(funcRegistry), "An operator cannot have null schema.");
+    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    final int estimatedRecordSize = schema.estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
+
+    if (estimatedRecordSize == 0) {
+      // If the estimated row size is zero (possible when schema is not known initially for queries containing
+      // convert_from), fall back to max size
+      return (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
+    }
+
+    final int minTargetBatchCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    final int maxTargetBatchCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
+
+    final int maxBatchSizeBytes = (int) options.getOption(ExecConstants.TARGET_BATCH_SIZE_BYTES);
+
+    final int targetBatchSize = max(minTargetBatchCount,
+        min(maxTargetBatchCount, maxBatchSizeBytes/estimatedRecordSize));
+
+    // TODO: may be we should get the closest 2^x - 1
+    return Math.max(1, Numbers.nextPowerOfTwo(targetBatchSize) - 1);
+  }
 
 }

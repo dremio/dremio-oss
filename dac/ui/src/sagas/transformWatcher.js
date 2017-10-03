@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { take, race, call, put, select } from 'redux-saga/effects';
 import invariant from 'invariant';
 import moment from 'moment';
-import { take, race, call, put, select } from 'redux-saga/effects';
 import { delay } from 'redux-saga';
 
 import { getLocation } from 'selectors/routing';

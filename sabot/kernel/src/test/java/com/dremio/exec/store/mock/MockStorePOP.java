@@ -43,7 +43,7 @@ public class MockStorePOP extends AbstractStore {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return null;
   }
 

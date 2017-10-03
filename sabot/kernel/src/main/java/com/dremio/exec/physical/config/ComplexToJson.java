@@ -60,7 +60,7 @@ public class ComplexToJson extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     final SchemaBuilder builder = BatchSchema.newBuilder();
     for(Field f : child.getSchema(context)){
       builder.addField(f.getType().accept(new SchemaConverter(f)));

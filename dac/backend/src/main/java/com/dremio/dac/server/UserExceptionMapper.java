@@ -17,6 +17,7 @@ package com.dremio.dac.server;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static javax.ws.rs.core.Response.Status.CONFLICT;
 
 import java.util.List;
 
@@ -105,6 +106,9 @@ public class UserExceptionMapper implements ExceptionMapper<UserException> {
           // should not happen unless someone is passing an invalid status. In that case, ignore the context
         }
       }
+    }
+    if (uex.getErrorType() == ErrorType.CONCURRENT_MODIFICATION) {
+      return CONFLICT;
     }
     return BAD_REQUEST;
   }

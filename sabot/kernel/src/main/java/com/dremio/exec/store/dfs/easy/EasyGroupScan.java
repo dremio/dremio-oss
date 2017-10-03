@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs.easy;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.SubScan;
@@ -46,14 +47,15 @@ public class EasyGroupScan extends AbstractFileGroupScan {
     }
 
     return new EasySubScan(
-        getDataset().getReadDefinition(),
         getDataset().getFormatSettings(),
         splits,
         getUserName(),
         schema,
         getDataset().getName().getPathComponents(),
         dataset.getStoragePluginId(),
-        columns);
+        columns,
+        getDataset().getReadDefinition().getPartitionColumnsList(),
+        getDataset().getReadDefinition().getExtendedProperty());
   }
 
 

@@ -22,6 +22,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
@@ -33,8 +34,8 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 /**
  * An async task that drops given materialization.
@@ -46,19 +47,25 @@ public class DropTask extends AsyncTask {
   private final Materialization materialization;
   private final JobsService jobsService;
 
-  public DropTask(final Acceleration acceleration, final Materialization materialization, final JobsService jobsService) {
+  private final DatasetConfig dataset;
+
+  public DropTask(final Acceleration acceleration,
+      final Materialization materialization,
+      final JobsService jobsService,
+      final DatasetConfig dataset) {
     Preconditions.checkArgument(materialization.getState() == MaterializationState.DONE,
         "cannot drop a non-completed materialization");
     this.acceleration = acceleration;
     this.materialization = materialization;
     this.jobsService = jobsService;
+    this.dataset = dataset;
   }
 
   @Override
   public void doRun() {
     final String pathString = AccelerationUtils.makePathString(materialization.getPathList());
-    final String query = String.format("DROP TABLE %s", pathString);
-    NamespaceKey datasetPathList = new NamespaceKey(acceleration.getContext().getDataset().getFullPathList());
+    final String query = String.format("DROP TABLE IF EXISTS %s", pathString);
+    NamespaceKey datasetPathList = (dataset !=null)?new NamespaceKey(dataset.getFullPathList()):null;
     DatasetVersion datasetVersion = new DatasetVersion(acceleration.getContext().getDataset().getVersion());
     MaterializationSummary materializationSummary = new MaterializationSummary()
         .setAccelerationId(acceleration.getId().getId())
@@ -66,7 +73,7 @@ public class DropTask extends AsyncTask {
         .setLayoutVersion(materialization.getLayoutVersion())
         .setMaterializationId(materialization.getId().getId());
     final Job job = jobsService.submitJobWithExclusions(new SqlQuery(query, SYSTEM_USERNAME), QueryType.ACCELERATOR_DROP,
-        datasetPathList, datasetVersion, ImmutableList.<String>of(), JobStatusListener.NONE, materializationSummary);
+        datasetPathList, datasetVersion, JobStatusListener.NONE, materializationSummary, SubstitutionSettings.of());
     try {
       job.getData();
     } catch (final Exception e) {

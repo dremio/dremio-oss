@@ -41,6 +41,7 @@ import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.DremioRexBuilder;
@@ -262,6 +263,7 @@ public class SqlConverter {
    */
   public RelRoot toConvertibleRelRoot(final SqlNode validatedNode, boolean expand) {
     final SqlToRelConverter.Config config = SqlToRelConverter.configBuilder()
+      .withInSubQueryThreshold((int) settings.getOptions().getOption(ExecConstants.PLANNER_IN_SUBQUERY_THRESHOLD))
       .withTrimUnusedFields(false)
       .withConvertTableAccess(false)
       .withExpand(expand)
@@ -280,7 +282,9 @@ public class SqlConverter {
     }
     final RelNode rel4 = RelDecorrelator.decorrelateQuery(rel3);
 
-    logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(rel4, SqlExplainLevel.ALL_ATTRIBUTES));
+    if (logger.isDebugEnabled()) {
+      logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(rel4, SqlExplainLevel.ALL_ATTRIBUTES));
+    }
     return RelRoot.of(rel4, rel.kind);
   }
 

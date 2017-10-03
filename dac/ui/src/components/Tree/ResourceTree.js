@@ -25,6 +25,7 @@ import FontIcon from 'components/Icon/FontIcon';
 import DragSource from 'components/DragComponents/DragSource';
 import exploreUtils from 'utils/explore/exploreUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
+import EllipsedText from 'components/EllipsedText';
 
 import Tree from './Tree';
 
@@ -71,12 +72,12 @@ export default class ResourceTree extends Component {
     const iconType = exploreUtils.getIconByEntityType(node.get('type'));
 
     const nodeElement = ResourceTree.isNodeExpandable(node) ?
-      <div style={{ display: 'flex' }}>
+      <div style={{ display: 'flex', minWidth: 0 }}>
         <FontIcon type={iconType} theme={styles.icon}/>
-        <div className='node-text' style={styles.text}>{node.get('name')}</div>
+        <EllipsedText className='node-text' style={styles.text} text={node.get('name')} />
       </div>
       :
-      <div style={{ display: 'flex' }}>
+      <div style={{ display: 'flex', minWidth: 0 }}>
         <DatasetItemLabel
           name={node.get('name')}
           fullPath={node.get('fullPath')}
@@ -158,7 +159,8 @@ const styles = {
   emptyDiv: {
     height: 24,
     width: 15,
-    marginLeft: 5
+    marginLeft: 5,
+    flex: '0 0 auto'
   },
   icon: {
     Icon: {

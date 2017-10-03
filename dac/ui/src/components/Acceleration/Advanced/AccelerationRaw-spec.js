@@ -58,7 +58,8 @@ describe('AccelerationRaw', () => {
       details: {
         displayFieldList: [],
         partitionFieldList: [],
-        sortFieldList: []
+        sortFieldList: [],
+        partitionDistributionStrategy: 'CONSOLIDATED'
       }
     };
     instance.addNewLayout();

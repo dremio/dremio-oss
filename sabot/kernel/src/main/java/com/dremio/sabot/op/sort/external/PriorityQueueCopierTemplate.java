@@ -38,6 +38,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.ValueVector;
 
 public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PriorityQueueCopierTemplate.class);
@@ -153,7 +155,8 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
 
   private void allocateVectors(int targetRecordCount) {
     for (VectorWrapper<?> w: outgoing) {
-      AllocationHelper.allocateNew(w.getValueVector(), targetRecordCount);
+      w.getValueVector().setInitialCapacity(targetRecordCount);
+      w.getValueVector().allocateNew();
     }
   }
 

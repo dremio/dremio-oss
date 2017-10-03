@@ -23,6 +23,7 @@ import $ from 'jquery';
 import { FLEX_COL_START, LINE_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
 import { CELL_EXPANSION_HEADER, WHITE, BLUE } from 'uiTheme/radium/colors';
 import { body, fixedWidthSmall } from 'uiTheme/radium/typography';
+import EllipsedText from 'components/EllipsedText';
 import { MAP, TEXT, LIST } from 'constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import FontIcon from 'components/Icon/FontIcon';
@@ -253,7 +254,6 @@ export default class ExploreCellLargeOverlay extends Component {
   render() {
     const { placement, placementLeft } = this.state;
     const { columnType, fullCell, anchor } = this.props;
-    const headerStyle = columnType !== TEXT ? { justifyContent: 'flex-end' } : {};
     const pointerStyle = placement === 'top' ? { bottom: 0 } : { top: 0 };
     const overlayStyle = placement === 'top' ? styles.top : styles.bottom;
     return (
@@ -272,17 +272,15 @@ export default class ExploreCellLargeOverlay extends Component {
           </div>
           <div style={[styles.header]}>
             <div style={styles.path}>
-              {this.state.currentPath}
               {
-                this.props.onSelect && columnType !== MAP && columnType !== LIST &&
-                  <span onClick={this.handleSelectAll} style={{cursor: 'pointer'}}>
+                this.props.onSelect && columnType !== MAP && columnType !== LIST
+                  ? <span onClick={this.handleSelectAll} style={{cursor: 'pointer'}}>
                     {la('Select all')}
                   </span>
+                  : <EllipsedText text={this.state.currentPath} />
               }
             </div>
-            <div style={[headerStyle]}>
-              <FontIcon type='XSmall' onClick={this.props.hide} theme={styles.close}/>
-            </div>
+            <FontIcon type='XSmall' onClick={this.props.hide} theme={styles.close}/>
           </div>
           <ViewStateWrapper viewState={fullCell}>
             {this.renderContent()}
@@ -316,14 +314,11 @@ const styles = {
     marginTop: 4
   },
   path: {
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
     display: 'inline-block',
-    maxWidth: 300,
-    minWidth: 260,
-    textOverflow: 'ellipsis'
+    flexGrow: 1,
+    minWidth: 0
   },
-  header: {
+  header: { // todo: fix styling/element type for consistent UX
     width: '100%',
     ...LINE_NOWRAP_ROW_BETWEEN_CENTER,
     ...body,

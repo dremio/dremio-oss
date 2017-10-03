@@ -31,23 +31,37 @@ message SourceConfig {
   optional string description = 6;
   optional bytes config = 7; // encoded message specific to SourceType.
   optional int64 version = 8;
-  optional TimePeriod accelerationTTL = 9;
+  optional TimePeriod accelerationTTL = 9 [deprecated = true];
   optional MetadataPolicy metadata_policy = 10;
   optional int64 last_refresh_date = 11; // last refresh date
+  // materialization refresh period
+  optional int64 accelerationRefreshPeriod = 12;
+  // materialization grace period
+  optional int64 accelerationGracePeriod = 13;
 }
 
+// Version notes:
+// - dataset_definition_{refresh,expire}_after_ms added in 1.1.0.
+//   On upgrade, dataset_definition_ttl_ms value stored in dataset_definition_refresh_after_ms
+//               dataset_definition_expire_after_ms computed from dataset_definition_refresh_after_ms and the default TTL value
 message MetadataPolicy {
 
   // how often we should update the names databases/tables associated with a system.
   optional int64 names_refresh_ms = 1;
 
-  // how long can we cache the definition of a dataset before re-checking its authenticity.
   optional UpdateMode dataset_update_mode = 2;
 
-  optional int64 dataset_definition_ttl_ms = 3;
+  // how often should we fetch and cache the dataset definitions
+  optional int64 dataset_definition_ttl_ms = 3 [deprecated = true];
 
   // how long can we cache knowledge of table access rights when using external authorization system via impersonation.
   optional int64 auth_ttl_ms = 4;
+
+  // how often should we fetch and cache the dataset definitions
+  optional int64 dataset_definition_refresh_after_ms = 5;
+
+  // how long can we cache the definition of a dataset before re-checking its authenticity.
+  optional int64 dataset_definition_expire_after_ms = 6;
 }
 
 enum UpdateMode {

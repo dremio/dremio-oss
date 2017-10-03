@@ -44,6 +44,8 @@ const csv = require('csv');
 
 process.chdir(__dirname);
 
+const NO_WRITE = process.argv.includes('--no-write');
+
 const BLESSED = new Set(['MIT', 'CC0-1.0', 'ISC', 'BSD-2-Clause', 'Apache-2.0', 'Unlicense', 'Public Domain', 'BSD-3-Clause', '(OFL-1.1 AND MIT)']);
 
 const NORMALIZED_LICENSES = {
@@ -89,7 +91,7 @@ const KNOWN = {
   'husl@5.0.3': {
     licenses: 'MIT', // Chris confirmed
     // custom tags
-    licenseURL: 'https://github.com/hsluv/hsluv/raw/_legacyjs5.0.3/README.md'
+    licenseURL: 'https://raw.githubusercontent.com/hsluv/hsluv/_legacyjs5.0.3/README.md'
   },
   'options@0.0.6': {
     licenses: 'MIT', // Chris confirmed
@@ -97,6 +99,9 @@ const KNOWN = {
     licenseURL: 'https://github.com/einaros/options.js/raw/65cc69a05e257d6974bb914d47eaf91d92d43ebd/README.md'
   },
   'change-emitter@0.1.3': {
+    noFile: true
+  },
+  'change-emitter@0.1.6': {
     noFile: true
   },
   'mumath@3.3.4': {
@@ -123,6 +128,10 @@ const KNOWN = {
   'regenerator-runtime@0.10.3': {
     // custom tag scheme, and 0.10.3 doesn't have a tag in GH, but file hasn't changed in years so should be same
     licenseURL: 'https://raw.githubusercontent.com/facebook/regenerator/runtime%400.10.4/LICENSE'
+  },
+  'regenerator-runtime@0.10.5': {
+    // custom tag scheme
+    licenseURL: 'https://raw.githubusercontent.com/facebook/regenerator/runtime%400.10.5/LICENSE'
   },
   'ua-parser-js@0.7.12': {
     // strip GPL
@@ -154,6 +163,16 @@ const KNOWN = {
   'hoist-non-react-statics@1.2.0': {
     // just says BSD; checked license file and found BSD 3-clause text
     licenses: 'BSD-3-Clause'
+  },
+  'raf@3.3.2': {
+    // no exact v3.3.2 tag
+    licenseURL: 'https://raw.githubusercontent.com/chrisdickinson/raf/v3.3.0/README.md'
+  },
+  'chain-function@1.0.0': {
+    noFile: true
+  },
+  'react-dom-factories@1.0.1': {
+    noFile: true // cannot find in weird react repo structure
   }
 };
 
@@ -313,10 +332,11 @@ function main() {
       // quick-n-dirty entity swap. may need to improve in the future, but for now this covers
       text = text.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
 
-      fs.writeFileSync('NOTICE_UI_PRODUCTION.txt', text);
+      !NO_WRITE && fs.writeFileSync('NOTICE_UI_PRODUCTION.txt', text);
       console.log('\nNOTICE_UI_PRODUCTION.txt written for production dependencies.');
 
-      if (text.match(/GPL/i)) {
+      const gplMatch = text.match(/.*GPL.*/i);
+      if (gplMatch && gplMatch[0] !== 'Dual licensed under GPLv2 & MIT') {
         console.error('Found "GPL" in the NOTICE_UI_PRODUCTION.');
         process.exit(-1);
       }
@@ -343,7 +363,7 @@ function main() {
       }, (error, text) => {
         if (error) return exitWithError(error);
 
-        fs.writeFileSync('NOTICE_UI_PRODUCTION.csv', text);
+        !NO_WRITE && fs.writeFileSync('NOTICE_UI_PRODUCTION.csv', text);
         console.log('\nNOTICE_UI_PRODUCTION.csv written for production dependencies.');
       });
     }).catch(exitWithError);

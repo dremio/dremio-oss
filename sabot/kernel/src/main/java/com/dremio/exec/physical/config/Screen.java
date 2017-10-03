@@ -48,9 +48,4 @@ public class Screen extends AbstractStore implements Root {
     return CoreOperatorType.SCREEN_VALUE;
   }
 
-  @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
-
 }

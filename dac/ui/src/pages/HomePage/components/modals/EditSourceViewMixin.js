@@ -28,7 +28,8 @@ export const mapStateToProps = (state) => {
     viewState: getViewState(state, VIEW_ID),
     source: createdSource,
     initialFormValues: {
-      accelerationTTL: createdSource && createdSource.toJS().accelerationTTL || DataFreshnessSection.defaultFormValue(),
+      accelerationRefreshPeriod: createdSource && createdSource.toJS().accelerationRefreshPeriod || DataFreshnessSection.defaultFormValueRefreshInterval(),
+      accelerationGracePeriod: createdSource && createdSource.toJS().accelerationGracePeriod || DataFreshnessSection.defaultFormValueGracePeriod(),
       metadataPolicy: MetadataRefresh.mapToFormFields(createdSource)
     }
   };
@@ -37,7 +38,6 @@ export const mapStateToProps = (state) => {
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     mutateFormValues(values) {
-      values.metadataPolicy = MetadataRefresh.normalizeValues(values);
     }
   });
 }

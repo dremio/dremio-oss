@@ -19,16 +19,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -43,9 +33,7 @@ import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.util.ImpersonationUtil;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
 
 public class EasyGroupScanUtils {
@@ -84,24 +72,7 @@ public class EasyGroupScanUtils {
     final FileSystemWrapper dfs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf());
     this.selection = selection;
     BlockMapBuilder b = new BlockMapBuilder(dfs, plugin.getExecutors());
-    this.chunks = b.generateFileWork(selection.getStatuses(dfs), formatPlugin.isBlockSplittable());
-    initFileStatusMap();
-  }
-
-  public Set<String> getFileSet() {
-    try {
-      return FluentIterable.from(selection.getStatuses(ImpersonationUtil.createFileSystem(userName, plugin.getFsConf())))
-      .transform(new Function<FileStatus, String>() {
-
-        @Nullable
-        @Override
-        public String apply(@Nullable FileStatus input) {
-          return Path.getPathWithoutSchemeAndAuthority(input.getPath()).toString();
-        }
-      }).toSet();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    this.chunks = b.generateFileWork(selection.getStatuses(), formatPlugin.isBlockSplittable());
   }
 
   public FileSelection getSelection() {
@@ -136,14 +107,6 @@ public class EasyGroupScanUtils {
     return includeModTime;
   }
 
-  public Map<String, FileStatus> getFileStatusMap() {
-    return fileStatusMap;
-  }
-
-  public FileStatus getFileStatus(String name){
-    return fileStatusMap.get(Path.getPathWithoutSchemeAndAuthority(new Path(name)).toString());
-  }
-
   public ScanStats getScanStats() {
     return formatPlugin.getScanStats(this);
   }
@@ -166,32 +129,6 @@ public class EasyGroupScanUtils {
       return Types.optional(MinorType.BIGINT);
     }
     return null;
-  }
-
-  private Map<String,FileStatus> fileStatusMap;
-
-  private void initFileStatusMap() throws IOException {
-    if (fileStatusMap != null) {
-      return;
-    }
-    List<FileStatus> fileStatuses = selection.getStatuses(new FileSystemWrapper(plugin.getFsConf()));
-    fileStatusMap = FluentIterable.from(fileStatuses).uniqueIndex(new Function<FileStatus, String>() {
-      @Nullable
-      @Override
-      public String apply(@Nullable FileStatus input) {
-        return Path.getPathWithoutSchemeAndAuthority(input.getPath()).toString();
-      }
-    });
-  }
-
-  public void populatePruningVector(ValueVector v, int index, SchemaPath column, String file) {
-    try {
-      initFileStatusMap();
-      Preconditions.checkState(column.getAsUnescapedPath().equals(IncrementalUpdateUtils.UPDATE_COLUMN));
-      ((NullableBigIntVector) v).getMutator().setSafe(index, fileStatusMap.get(file).getModificationTime());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   public boolean canPushdownProjects(List<SchemaPath> columns) {

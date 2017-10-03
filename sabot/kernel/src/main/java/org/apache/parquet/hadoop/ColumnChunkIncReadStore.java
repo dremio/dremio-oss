@@ -47,7 +47,6 @@ import org.apache.parquet.hadoop.util.CompatibilityUtil;
 
 import io.netty.buffer.ByteBuf;
 
-
 public class ColumnChunkIncReadStore implements PageReadStore {
 
   private static ParquetMetadataConverter parquetMetadataConverter = new ParquetMetadataConverter();
@@ -81,7 +80,11 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     private FSDataInputStream in;
     private BytesDecompressor decompressor;
 
-    private ByteBuf lastPage;
+    // Release the data page buffer before reading the next page or in close
+    private ByteBuf lastDataPageUncompressed;
+
+    // Release the dictionary page buffer in close
+    private ByteBuf dictionaryPageUncompressed;
 
     public ColumnChunkIncPageReader(ColumnChunkMetaData metaData, ColumnDescriptor columnDescriptor, FSDataInputStream in) throws IOException {
       this.metaData = metaData;
@@ -104,12 +107,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
             in.seek(pos);
             return null;
           }
-          dictionaryPage =
-                  new DictionaryPage(
-                          decompressor.decompress(BytesInput.from(in, pageHeader.compressed_page_size), pageHeader.getUncompressed_page_size()),
-                          pageHeader.getDictionary_page_header().getNum_values(),
-                          parquetMetadataConverter.getEncoding(pageHeader.dictionary_page_header.encoding)
-                  );
+          dictionaryPage = readDictionaryPageHelper(pageHeader);
         } catch (Exception e) {
           throw new RuntimeException("Error reading dictionary page." +
             "\nFile path: " + path.toUri().getPath() +
@@ -125,6 +123,16 @@ public class ColumnChunkIncReadStore implements PageReadStore {
       return dictionaryPage;
     }
 
+
+    private DictionaryPage readDictionaryPageHelper(PageHeader pageHeader) throws IOException {
+      ByteBuffer data = uncompressPage(pageHeader, false);
+      return new DictionaryPage(
+          BytesInput.from(data, 0, pageHeader.uncompressed_page_size),
+          pageHeader.getDictionary_page_header().getNum_values(),
+          parquetMetadataConverter.getEncoding(pageHeader.dictionary_page_header.encoding)
+      );
+    }
+
     @Override
     public long getTotalValueCount() {
       return metaData.getValueCount();
@@ -134,10 +142,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     public DataPage readPage() {
       PageHeader pageHeader = new PageHeader();
       try {
-        if (lastPage != null) {
-          lastPage.release();
-          lastPage = null;
-        }
+        releasePrevDataPageBuffers();
         while(valueReadSoFar < metaData.getValueCount()) {
           pageHeader = Util.readPageHeader(in);
           int uncompressedPageSize = pageHeader.getUncompressed_page_size();
@@ -145,27 +150,16 @@ public class ColumnChunkIncReadStore implements PageReadStore {
           switch (pageHeader.type) {
             case DICTIONARY_PAGE:
               if (dictionaryPage == null) {
-                dictionaryPage =
-                        new DictionaryPage(
-                                decompressor.decompress(BytesInput.from(in, pageHeader.compressed_page_size), pageHeader.getUncompressed_page_size()),
-                                pageHeader.uncompressed_page_size,
-                                parquetMetadataConverter.getEncoding(pageHeader.dictionary_page_header.encoding)
-                        );
+                dictionaryPage = readDictionaryPageHelper(pageHeader);
               } else {
                 in.skip(pageHeader.compressed_page_size);
               }
               break;
             case DATA_PAGE:
               valueReadSoFar += pageHeader.data_page_header.getNum_values();
-              ByteBuf buf = allocator.buffer(pageHeader.compressed_page_size);
-              lastPage = buf;
-              ByteBuffer buffer = buf.nioBuffer(0, pageHeader.compressed_page_size);
-              int lengthLeftToRead = pageHeader.compressed_page_size;
-              while (lengthLeftToRead > 0) {
-                lengthLeftToRead -= CompatibilityUtil.getBuf(in, buffer, lengthLeftToRead);
-              }
+              ByteBuffer destBuffer = uncompressPage(pageHeader, true);
               return new DataPageV1(
-                      decompressor.decompress(BytesInput.from(buffer, 0, pageHeader.compressed_page_size), pageHeader.getUncompressed_page_size()),
+                      BytesInput.from(destBuffer, 0, pageHeader.uncompressed_page_size),
                       pageHeader.data_page_header.num_values,
                       pageHeader.uncompressed_page_size,
                       fromParquetStatistics(pageHeader.data_page_header.statistics, columnDescriptor.getType()),
@@ -176,29 +170,19 @@ public class ColumnChunkIncReadStore implements PageReadStore {
             // TODO - finish testing this with more files
             case DATA_PAGE_V2:
               valueReadSoFar += pageHeader.data_page_header_v2.getNum_values();
-              buf = allocator.buffer(pageHeader.compressed_page_size);
-              lastPage = buf;
-              buffer = buf.nioBuffer(0, pageHeader.compressed_page_size);
-              lengthLeftToRead = pageHeader.compressed_page_size;
-              while (lengthLeftToRead > 0) {
-                lengthLeftToRead -= CompatibilityUtil.getBuf(in, buffer, lengthLeftToRead);
-              }
+              destBuffer = uncompressPage(pageHeader, true);
               DataPageHeaderV2 dataHeaderV2 = pageHeader.getData_page_header_v2();
               int dataSize = compressedPageSize - dataHeaderV2.getRepetition_levels_byte_length() - dataHeaderV2.getDefinition_levels_byte_length();
-              BytesInput decompressedPageData =
-                  decompressor.decompress(
-                      BytesInput.from(buffer, 0, pageHeader.compressed_page_size),
-                      pageHeader.uncompressed_page_size);
               return new DataPageV2(
                       dataHeaderV2.getNum_rows(),
                       dataHeaderV2.getNum_nulls(),
                       dataHeaderV2.getNum_values(),
-                      BytesInput.from(decompressedPageData.toByteBuffer(), 0, dataHeaderV2.getRepetition_levels_byte_length()),
-                      BytesInput.from(decompressedPageData.toByteBuffer(),
+                      BytesInput.from(destBuffer, 0, dataHeaderV2.getRepetition_levels_byte_length()),
+                      BytesInput.from(destBuffer,
                           dataHeaderV2.getRepetition_levels_byte_length(),
                           dataHeaderV2.getDefinition_levels_byte_length()),
                       parquetMetadataConverter.getEncoding(dataHeaderV2.getEncoding()),
-                      BytesInput.from(decompressedPageData.toByteBuffer(),
+                      BytesInput.from(destBuffer,
                           dataHeaderV2.getRepetition_levels_byte_length() + dataHeaderV2.getDefinition_levels_byte_length(),
                           dataSize),
                       uncompressedPageSize,
@@ -227,9 +211,55 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     }
 
     void close() {
-      if (lastPage != null) {
-        lastPage.release();
-        lastPage = null;
+      try {
+        releasePrevDataPageBuffers();
+      } finally {
+        if (dictionaryPageUncompressed != null) {
+          dictionaryPageUncompressed.release();
+          dictionaryPageUncompressed = null;
+        }
+      }
+    }
+
+    private void releasePrevDataPageBuffers() {
+      if (lastDataPageUncompressed != null) {
+        lastDataPageUncompressed.release();
+        lastDataPageUncompressed = null;
+      }
+    }
+
+    private void readFully(ByteBuffer dest, int size) throws IOException {
+      int lengthLeftToRead = size;
+      while (lengthLeftToRead > 0) {
+        lengthLeftToRead -= CompatibilityUtil.getBuf(in, dest, lengthLeftToRead);
+      }
+
+      // reset the position back to beginning
+      dest.position(0);
+    }
+
+    private ByteBuffer uncompressPage(PageHeader pageHeader, boolean isDataPage) throws IOException {
+      final ByteBuf src = allocator.buffer(pageHeader.compressed_page_size);
+      try {
+        ByteBuffer srcBuffer = src.nioBuffer(0, pageHeader.compressed_page_size);
+        readFully(srcBuffer, pageHeader.compressed_page_size);
+
+        ByteBuf dest = allocator.buffer(pageHeader.uncompressed_page_size);
+        ByteBuffer destBuffer = dest.nioBuffer(0, pageHeader.uncompressed_page_size);
+        decompressor.decompress(
+            srcBuffer,
+            pageHeader.compressed_page_size,
+            destBuffer,
+            pageHeader.uncompressed_page_size
+        );
+        if (isDataPage) {
+          lastDataPageUncompressed = dest;
+        } else {
+          dictionaryPageUncompressed = dest;
+        }
+        return destBuffer;
+      } finally {
+        src.release(); // we don't need this anymore
       }
     }
   }

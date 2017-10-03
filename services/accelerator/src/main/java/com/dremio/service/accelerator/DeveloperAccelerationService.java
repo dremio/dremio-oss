@@ -80,4 +80,9 @@ public interface DeveloperAccelerationService {
    * removes all accelerations which is not associated with a dataset
    */
   void removeOrphanedAccelerations();
+
+  /**
+   * updates the dataset paths of acceleration so that they are in sync with the actual datasets
+   */
+  void syncDatasetPaths();
 }

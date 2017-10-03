@@ -51,12 +51,6 @@ public class ProducerConsumer extends AbstractSingle{
     return size;
   }
 
-
-  @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
-
   @Override
   public int getOperatorType() {
     return CoreOperatorType.PRODUCER_CONSUMER_VALUE;

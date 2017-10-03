@@ -14,9 +14,21 @@
  * limitations under the License.
  */
 import {
-  BINARY, TEXT, INTEGER, FLOAT, DECIMAL, BOOLEAN, DATE, TIME, DATETIME, LIST, MAP, MIXED
+  BINARY,
+  TEXT,
+  INTEGER,
+  FLOAT,
+  DECIMAL,
+  BOOLEAN,
+  DATE,
+  TIME,
+  DATETIME,
+  LIST,
+  MAP,
+  MIXED
 } from 'constants/DataTypes';
 
+// todo: why is this missing some items from constants/DataTypes.js?
 export const ALL_TYPES = [
   TEXT,
   BINARY,
@@ -64,7 +76,10 @@ export const CONVERTIBLE_TYPES = [
   DECIMAL,
   DATE,
   TIME,
-  DATETIME
+  DATETIME,
+  LIST,
+  MAP,
+  BOOLEAN
 ];
 
 

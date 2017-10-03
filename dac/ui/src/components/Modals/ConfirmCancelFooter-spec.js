@@ -23,11 +23,11 @@ describe('ConfirmCancelFooter', () => {
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      cancel: sinon.spy()
     };
     commonProps = {
       ...minimalProps,
-      confirm: sinon.spy()
+      confirm: sinon.spy(),
+      cancel: sinon.spy()
     };
   });
 
@@ -43,6 +43,12 @@ describe('ConfirmCancelFooter', () => {
 
   it('should hide the cancel button when hideCancel is set', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps} hideCancel/>);
+    expect(wrapper.find('SimpleButton')).to.have.length(1);
+    expect(wrapper.find('SimpleButton').first().props()['data-qa']).to.eql('confirm');
+  });
+
+  it('should hide the cancel button when no cancel function', () => {
+    const wrapper = shallow(<ConfirmCancelFooter {...commonProps} cancel={null}/>);
     expect(wrapper.find('SimpleButton')).to.have.length(1);
     expect(wrapper.find('SimpleButton').first().props()['data-qa']).to.eql('confirm');
   });

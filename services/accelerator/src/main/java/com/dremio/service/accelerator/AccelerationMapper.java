@@ -121,7 +121,6 @@ public final class AccelerationMapper {
                 .setDataset(
                     new DatasetConfigDescriptor()
                         .setType(config.getType())
-                        .setPathList(config.getFullPathList())
                         .setVersion(config.getVersion())
                         .setCreatedAt(config.getCreatedAt())
                         .setVirtualDataset(isVirtual ? virtualDataset : null)
@@ -189,8 +188,9 @@ public final class AccelerationMapper {
                 .setMeasureFieldList(toLayoutFieldDescriptors(details.getMeasureFieldList()))
                 .setSortFieldList(toLayoutFieldDescriptors(details.getSortFieldList()))
                 .setDisplayFieldList(toLayoutFieldDescriptors(details.getDisplayFieldList()))
-                .setDistributionFieldList(toLayoutFieldDescriptors(details.getDistributionFieldList())
-                    ));
+                .setDistributionFieldList(toLayoutFieldDescriptors(details.getDistributionFieldList()))
+                .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy())
+        );
 
   }
 

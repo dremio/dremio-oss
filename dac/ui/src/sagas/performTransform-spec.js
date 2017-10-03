@@ -69,6 +69,7 @@ describe('performTransform saga', () => {
 
       gen = performTransform(params);
       next = gen.next();
+      expect(next.value).to.eql(call(getTransformData, dataset, 'select * from foo', undefined, transformData));
       next = gen.next(transformData);
       expect(next.value.CALL.fn).to.equal(doRun);
     });
@@ -125,6 +126,16 @@ describe('performTransform saga', () => {
       expect(next.value).to.eql(put(expandExploreSql()));
       next = gen.next();
       expect(next.done).to.be.true;
+    });
+
+    it('should get sql from dataset if currentSql arg is falsy', () => {
+      const payload = {
+        dataset
+      };
+
+      gen = performTransform(payload);
+      next = gen.next();
+      expect(next.value).to.eql(call(getTransformData, payload.dataset, 'select * from foo', undefined, undefined));
     });
   });
 
@@ -207,7 +218,7 @@ describe('performTransform saga', () => {
     const sql = 'sql';
     const context = Immutable.List(['context']);
 
-    it(`should call performWatchedTransform with newUntitledSql if dataset has not been created, 
+    it(`should call performWatchedTransform with newUntitledSql if dataset has not been created,
         and return created dataset`, () => {
       gen = createDataset(dataset.delete('datasetVersion'), sql, context);
       next = gen.next();

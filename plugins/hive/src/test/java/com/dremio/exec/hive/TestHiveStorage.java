@@ -383,6 +383,24 @@ public class TestHiveStorage extends HiveTestBase {
   }
 
   @Test
+  public void countStar() throws Exception {
+    testPhysicalPlan("SELECT count(*) FROM hive.kv", "columns=[]");
+    testPhysicalPlan("SELECT count(*) FROM hive.kv_parquet", "columns=[]");
+
+    testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM hive.kv")
+        .unOrdered()
+        .sqlBaselineQuery("SELECT count(key) as cnt FROM hive.kv")
+        .go();
+
+    testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM hive.kv_parquet")
+        .unOrdered()
+        .sqlBaselineQuery("SELECT count(key) as cnt FROM hive.kv_parquet")
+        .go();
+  }
+
+  @Test
   public void queryingTablesInNonDefaultFS() throws Exception {
     // Update the default FS settings in Hive test storage plugin to non-local FS
     hiveTest.updatePluginConfig(getSabotContext().getStorage(),

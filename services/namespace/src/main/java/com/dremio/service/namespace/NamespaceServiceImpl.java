@@ -61,7 +61,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
-import com.dremio.service.namespace.proto.TimePeriod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -80,7 +79,6 @@ import com.google.common.collect.Lists;
  */
 public class NamespaceServiceImpl implements NamespaceService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NamespaceServiceImpl.class);
-  private static final TimePeriod DEFAULT_TTL = new TimePeriod().setDuration(6L).setUnit(TimePeriod.TimeUnit.HOURS);
 
   public static final String DAC_NAMESPACE = "dac-namespace";
   public static final String DATASET_SPLITS = "metadata-dataset-splits";
@@ -244,7 +242,10 @@ public class NamespaceServiceImpl implements NamespaceService {
           final String sourceName = datasetPath.getRoot();
           final SourceConfig config = getSource(new NamespaceKey(sourceName));
           physicalDataset.setAccelerationSettings(
-              new AccelerationSettings().setAccelerationTTL(config.getAccelerationTTL()));
+              new AccelerationSettings()
+                .setRefreshPeriod(config.getAccelerationRefreshPeriod())
+                .setGracePeriod(config.getAccelerationGracePeriod())
+          );
         }
       }
       break;
@@ -256,7 +257,10 @@ public class NamespaceServiceImpl implements NamespaceService {
         final PhysicalDataset physicalDataset = dataset.getPhysicalDataset();
         if (physicalDataset.getAccelerationSettings() == null) {
           physicalDataset.setAccelerationSettings(
-              new AccelerationSettings().setAccelerationTTL(DEFAULT_TTL));
+              new AccelerationSettings()
+                .setRefreshPeriod(INFINITE_REFRESH_PERIOD)
+                .setGracePeriod(INFINITE_REFRESH_PERIOD)
+          );
         }
       }
       break;

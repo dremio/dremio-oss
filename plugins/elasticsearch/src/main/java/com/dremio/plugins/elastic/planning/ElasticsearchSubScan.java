@@ -26,11 +26,12 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+
+import io.protostuff.ByteString;
 
 /**
  * Elasticsearch sub-scan.
@@ -41,23 +42,23 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
   private final ElasticsearchScanSpec spec;
   private final List<DatasetSplit> splits;
   private final StoragePluginId pluginId;
-  private final ReadDefinition readDefinition;
+  private final ByteString extendedProperty;
 
   @JsonCreator
   public ElasticsearchSubScan(
       @JsonProperty("userName") String userName,
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("spec") ElasticsearchScanSpec spec,
-      @JsonProperty("readDefinition") ReadDefinition readDefinition,
       @JsonProperty("splits") List<DatasetSplit> splits,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("tableSchemaPath") List<String> tableSchemaPath,
-      @JsonProperty("schema") BatchSchema schema){
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("extendedProperty") ByteString extendedProperty){
     super(userName, schema, tableSchemaPath, columns);
     this.pluginId = pluginId;
-    this.readDefinition = readDefinition;
     this.splits = splits;
     this.spec = spec;
+    this.extendedProperty = extendedProperty;
   }
 
   public StoragePluginId getPluginId(){
@@ -72,11 +73,7 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
     Preconditions.checkArgument(children.isEmpty());
-    return new ElasticsearchSubScan(getUserName(), pluginId, spec, readDefinition, splits, getColumns(), getTableSchemaPath(), getSchema());
-  }
-
-  public ReadDefinition getReadDefinition() {
-    return readDefinition;
+    return new ElasticsearchSubScan(getUserName(), pluginId, spec, splits, getColumns(), getTableSchemaPath(), getSchema(), extendedProperty);
   }
 
   public ElasticsearchScanSpec getSpec() {
@@ -85,6 +82,10 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
 
   public List<DatasetSplit> getSplits() {
     return splits;
+  }
+
+  public ByteString getExtendedProperty() {
+    return extendedProperty;
   }
 
   @Override

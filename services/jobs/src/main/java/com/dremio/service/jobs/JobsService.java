@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.MaterializationSummary;
@@ -49,12 +50,12 @@ public interface JobsService extends Service {
    * @param queryType type of query.
    * @param datasetPath dataset path job will run on.
    * @param version version of dataset job will run on.
-   * @param exclusions list of materialization identifiers that shall be excluded from acceleration.
    * @param statusListener a listener to notify for change of status. Must not be null.
    * @param materializationSummary information related to materialization like materializationId and layoutId
+   * @param materializationsettings settings related to materialization.
    * @return Job associated for given query and dataset.
    */
-  Job submitJobWithExclusions(SqlQuery query, QueryType queryType, NamespaceKey datasetPath, DatasetVersion version, List<String> exclusions, JobStatusListener statusListener, MaterializationSummary materializationSummary);
+  Job submitJobWithExclusions(SqlQuery query, QueryType queryType, NamespaceKey datasetPath, DatasetVersion version, JobStatusListener statusListener, MaterializationSummary materializationSummary, SubstitutionSettings materializationsettings);
 
   /**
    * Run sql query directly.
@@ -153,6 +154,17 @@ public interface JobsService extends Service {
    * @return The list of jobs.
    */
   Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, final DatasetVersion version, int limit);
+
+  /**
+   * Get list of jobs run for a given path and version and user
+   *
+   * @param datasetPath
+   * @param version
+   * @param user
+   * @param limit
+   * @return
+   */
+  Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, final DatasetVersion version, String user, int limit);
 
   /**
    * Get list of jobs that have the provided parent

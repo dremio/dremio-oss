@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Struct;
@@ -55,7 +56,6 @@ import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.dremio.service.namespace.proto.TimePeriod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
@@ -72,7 +72,8 @@ import io.protostuff.ByteString;
  * Test driver for spaces service.
  */
 public class TestNamespaceService {
-  private static final TimePeriod ACCELERATION_TTL = new TimePeriod().setDuration(24L).setUnit(TimePeriod.TimeUnit.HOURS);
+  private static final long REFRESH_PERIOD_MS = TimeUnit.HOURS.toMillis(24);
+  private static final long GRACE_PERIOD_MS = TimeUnit.HOURS.toMillis(48);
 
   @Test
   public void testSources() throws Exception {
@@ -229,15 +230,17 @@ public class TestNamespaceService {
     }
   }
   public static SourceConfig addSource(NamespaceService ns, String name) throws Exception {
-    return addSourceWithTTL(ns, name, ACCELERATION_TTL);
+    return addSourceWithRefreshAndGracePeriod(ns, name, REFRESH_PERIOD_MS, GRACE_PERIOD_MS);
   }
 
-  public static SourceConfig addSourceWithTTL(NamespaceService ns, String name, TimePeriod ttl) throws Exception {
-    final SourceConfig src = new SourceConfig();
-    src.setName(name);
-    src.setCtime(100L);
-    src.setType(SourceType.NAS);
-    src.setAccelerationTTL(ttl);
+  public static SourceConfig addSourceWithRefreshAndGracePeriod(NamespaceService ns, String name, long refreshPeriod,
+                                                                long gracePeriod) throws Exception {
+    final SourceConfig src = new SourceConfig()
+      .setName(name)
+      .setCtime(100L)
+      .setType(SourceType.NAS)
+      .setAccelerationRefreshPeriod(refreshPeriod)
+      .setAccelerationGracePeriod(gracePeriod);
     ns.addOrUpdateSource(new NamespaceKey(name), src);
     return src;
   }
@@ -502,10 +505,12 @@ public class TestNamespaceService {
       Assert.assertEquals("src2.foo.bar.\"tee.json\"", p2.toString());
       Assert.assertEquals("src2.foo.bar", p2.getParent().toString());
 
-      final TimePeriod sourceOneTTL = new TimePeriod().setDuration(100L).setUnit(TimePeriod.TimeUnit.HOURS);
-      final TimePeriod sourceTwoTTL = new TimePeriod().setDuration(200L).setUnit(TimePeriod.TimeUnit.HOURS);
-      addSourceWithTTL(ns, "src2", sourceTwoTTL);
-      addSourceWithTTL(ns, "src1", sourceOneTTL);
+      final long sourceOneRefresh = TimeUnit.HOURS.toMillis(100);
+      final long sourceOneGrace = TimeUnit.HOURS.toMillis(200);
+      final long sourceTwoRefresh = TimeUnit.HOURS.toMillis(10);
+      final long sourceTwoGrace = TimeUnit.HOURS.toMillis(20);
+      addSourceWithRefreshAndGracePeriod(ns, "src1", sourceOneRefresh, sourceOneGrace);
+      addSourceWithRefreshAndGracePeriod(ns, "src2", sourceTwoRefresh, sourceTwoGrace);
       addPhysicalDS(ns, "src1.foo.bar", PHYSICAL_DATASET_SOURCE_FOLDER, null);
       addPhysicalDS(ns, "src1.foo.bar.\"a.json\"");
       addPhysicalDS(ns, "src1.\"b.json\"");
@@ -544,12 +549,14 @@ public class TestNamespaceService {
 
       for (final NamespaceKey key : ns.getAllDatasets(new NamespaceKey("src1"))) {
         final DatasetConfig config = ns.getDataset(key);
-        assertEquals(sourceOneTTL, config.getPhysicalDataset().getAccelerationSettings().getAccelerationTTL());
+        assertEquals((Long) sourceOneRefresh, config.getPhysicalDataset().getAccelerationSettings().getRefreshPeriod());
+        assertEquals((Long) sourceOneGrace, config.getPhysicalDataset().getAccelerationSettings().getGracePeriod());
       }
 
       for (final NamespaceKey key : sourceTwoDatasets) {
         final DatasetConfig config = ns.getDataset(key);
-        assertEquals(sourceTwoTTL, config.getPhysicalDataset().getAccelerationSettings().getAccelerationTTL());
+        assertEquals((Long) sourceTwoRefresh, config.getPhysicalDataset().getAccelerationSettings().getRefreshPeriod());
+        assertEquals((Long) sourceTwoGrace, config.getPhysicalDataset().getAccelerationSettings().getGracePeriod());
       }
 
 //      assertEquals(0, ns.listPhysicalDatasets(new NamespaceKey(PathUtils.parseFullPath("src2.\"a.json\""))).size());

@@ -19,6 +19,7 @@ import { Overlay } from 'react-overlays';
 import Radium from 'radium';
 
 import Tooltip from 'components/Tooltip';
+import HoverHelp from 'components/HoverHelp';
 
 import forms from 'uiTheme/radium/forms';
 
@@ -37,19 +38,18 @@ export default class FieldWithError extends Component {
     style: PropTypes.object,
     labelStyle: PropTypes.object,
     children: PropTypes.node.isRequired,
-    name: PropTypes.string
+    name: PropTypes.string,
+    hoverHelpText: PropTypes.string
   };
 
   render() {
-    const {style, label, children, touched, error, errorPlacement, name} = this.props;
+    const {style, children, touched, error, errorPlacement, name} = this.props;
 
     const showError = Boolean(touched && error);
 
-    // todo: <label> is not correctly associated with the input here (i.e. it is broken and doing nothing)
-
     return (
       <div className='field-with-error' data-qa={name} style={{...style, position:'relative'}}>
-        {label && <label style={[forms.label, this.props.labelStyle]}>{label}</label>}
+        {this.renderLabel()}
         {React.cloneElement(React.Children.only(children), {ref: 'target'})}
         <Overlay
           show={showError}
@@ -60,6 +60,27 @@ export default class FieldWithError extends Component {
         </Overlay>
       </div>
     );
+  }
 
+  renderLabel() {
+    const {label, hoverHelpText} = this.props;
+
+    const hoverHelp = hoverHelpText ? <HoverHelp content={hoverHelpText} tooltipInnerStyle={styles.hoverTip} /> : null;
+
+    // todo: <label> is not correctly associated with the input here (i.e. it is broken and doing nothing)
+    // todo: hoverHelp should not be inside the <label>
+    return label && <label style={[forms.label, styles.label, this.props.labelStyle]}>{label}{hoverHelp}</label>;
   }
 }
+
+const styles = {
+  hoverTip: {
+    textAlign: 'left',
+    width: 300,
+    whiteSpace: 'pre-line'
+  },
+  label: {
+    display: 'flex',
+    alignItems: 'center'
+  }
+};

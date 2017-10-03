@@ -126,7 +126,11 @@ export class TransformForm extends Component {
   }
 
   autoPeek(previewValues) {
-    this.props.onFormSubmit(previewValues, 'autoPeek'); // skip handleSubmit to not set submitting
+    return this.props.onFormSubmit(previewValues, 'autoPeek').catch(function(e) {
+      if (!e || !e._error) {
+        return Promise.reject(e);
+      }
+    }); // skip handleSubmit to not set submitting
   }
 
   updateCard(props) {

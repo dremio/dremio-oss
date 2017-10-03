@@ -377,6 +377,13 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     return this.wrappers.size();
   }
 
+  public void setInitialCapacity(int initialCapacity) {
+    for (VectorWrapper<?> w : wrappers) {
+      final ValueVector vv = w.getValueVector();
+      vv.setInitialCapacity(initialCapacity);
+    }
+  }
+
   public void allocateNew() {
     for (VectorWrapper<?> w : wrappers) {
       w.getValueVector().allocateNew();

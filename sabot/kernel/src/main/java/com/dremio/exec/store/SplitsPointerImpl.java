@@ -105,7 +105,7 @@ public class SplitsPointerImpl implements SplitsPointer {
       materializedSplits = ImmutableList.copyOf(getSplitIterable());
       splitsMaterialized = true;
       stopwatch.stop();
-      logger.debug("materializing {} splits took {} ms" + materializedSplits.size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      logger.debug("materializing {} splits took {} ms", materializedSplits.size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
   }
 

@@ -15,18 +15,18 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.slf4j.Logger;
+
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import org.slf4j.Logger;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Implementation of {@link FragmentParallelizer} where fragment requires running on a given set of endpoints. Width

@@ -61,8 +61,9 @@ import org.apache.hadoop.util.Progressable;
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 /**
@@ -273,6 +274,22 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   public FileStatus getFileStatus(Path f) throws IOException {
     try {
       return underlyingFs.getFileStatus(f);
+    } catch(FSError e) {
+      throw propagateFSError(e);
+    }
+  }
+
+  /**
+   * Attempt to retrieve the status for the file at the designated path. If it doesn't exist, return an empty value.
+   * @param f Path to access
+   * @return Optional.absent() or a Optional<FileStatus>.of(FileStatus)
+   * @throws IOException
+   */
+  public Optional<FileStatus> getFileStatusSafe(Path f) throws IOException {
+    try {
+      return Optional.fromNullable(underlyingFs.getFileStatus(f));
+    } catch(FileNotFoundException e) {
+      return Optional.<FileStatus>absent();
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -1201,41 +1218,49 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return isMapRfs;
   }
 
-  public List<FileStatus> list(boolean recursive, Path... paths) throws IOException {
+  public ImmutableList<FileStatus> listRecursive(Path path, boolean includeHiddenFiles) throws IOException {
     try {
-      if (recursive) {
-        List<FileStatus> statuses = Lists.newArrayList();
-        for (Path p : paths) {
-          addRecursiveStatus(underlyingFs.getFileStatus(p), statuses);
-        }
-        return statuses;
-
+      final ImmutableList.Builder<FileStatus> files = ImmutableList.builder();
+      final FileStatus[] inputStatuses;
+      if(includeHiddenFiles) {
+        inputStatuses = underlyingFs.globStatus(path);
       } else {
-        return Lists.newArrayList(underlyingFs.listStatus(paths));
+        inputStatuses = underlyingFs.globStatus(path, DefaultPathFilter.INSTANCE);
       }
+      populateRecursiveStatus(inputStatuses, files, true, includeHiddenFiles);
+      return files.build();
     } catch(FSError e) {
       throw propagateFSError(e);
     }
   }
 
-
-  private void addRecursiveStatus(FileStatus parent, List<FileStatus> listToFill) throws IOException {
+  public ImmutableList<FileStatus> list(Path path, boolean includeHiddenFiles) throws IOException {
     try {
-      if (parent.isDirectory()) {
-        Path pattern = new Path(parent.getPath(), "*");
-        FileStatus[] sub = underlyingFs.globStatus(pattern, new DefaultPathFilter());
-        for(FileStatus s : sub){
-          if (s.isDirectory()) {
-            addRecursiveStatus(s, listToFill);
-          } else {
-            listToFill.add(s);
-          }
-        }
-      } else {
-        listToFill.add(parent);
-      }
+      final ImmutableList.Builder<FileStatus> files = ImmutableList.builder();
+      final FileStatus[] statuses = includeHiddenFiles ? underlyingFs.listStatus(path) :  underlyingFs.listStatus(path, DefaultPathFilter.INSTANCE);
+      files.add(statuses);
+      return files.build();
     } catch(FSError e) {
       throw propagateFSError(e);
+    }
+  }
+
+  private void populateRecursiveStatus(FileStatus[] inputPaths, ImmutableList.Builder<FileStatus> outputPaths, boolean recursive, boolean includeHiddenFiles) throws FileNotFoundException, IOException {
+    if(inputPaths == null || inputPaths.length == 0) {
+      return;
+    }
+
+    for(FileStatus input : inputPaths) {
+      outputPaths.add(input);
+      if(recursive && input.isDirectory()) {
+        final FileStatus[] statuses;
+        if(includeHiddenFiles) {
+          statuses = underlyingFs.listStatus(input.getPath());
+        } else {
+          statuses = underlyingFs.listStatus(input.getPath(), DefaultPathFilter.INSTANCE);
+        }
+        populateRecursiveStatus(statuses, outputPaths, recursive, includeHiddenFiles);
+      }
     }
   }
 

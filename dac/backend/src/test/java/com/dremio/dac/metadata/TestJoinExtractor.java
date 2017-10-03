@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,7 +67,7 @@ public class TestJoinExtractor extends BaseTestQuery {
           public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
             return new RemoteAttemptObserver(id, connection) {
               @Override
-              public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+              public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
                 if (definitions.isEmpty()) {
                   if (phase == LOGICAL) {
                     definitions = JoinExtractor.getJoins(before);

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -30,9 +28,8 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemStoragePlugin2;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
+import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
-import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -42,9 +39,10 @@ import com.dremio.sabot.op.spi.ProducerOperator.Creator;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
-import com.dremio.service.namespace.file.proto.ParquetDatasetXAttr;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
+import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 
 /**
@@ -58,7 +56,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   public static final String ENABLE_TIME_READ_COUNTER = "parquet.benchmark.time.read";
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, ParquetSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
     final FileSystemStoragePlugin2 registry = (FileSystemStoragePlugin2) fragmentExecContext.getStoragePlugin(config.getPluginId());
     final FileSystemPlugin fsPlugin = registry.getFsPlugin();
 
@@ -71,12 +69,12 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
     final Stopwatch watch = Stopwatch.createStarted();
 
-    boolean disableDirColumn = config.getPluginId().getName().equals("__accelerator");
+    boolean isAccelerator = config.getPluginId().getName().equals("__accelerator");
 
     final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
     // TODO (AH )Fix implicit columns with mod time and global dictionaries
-    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptions(), fs, config.getColumns(), disableDirColumn);
+    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptions(), fs, config.getColumns(), isAccelerator);
     // load global dictionaries, globalDictionaries must be closed by the last reader
     final GlobalDictionaries globalDictionaries = GlobalDictionaries.create(context, fs,  config.getGlobalDictionaryEncodedColumns());
     final boolean vectorize = context.getOptions().getOption(ExecConstants.PARQUET_READER_VECTORIZE);
@@ -85,9 +83,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     final boolean enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
     final CodecFactory codec = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
 
-    List<RecordReader> readers = new ArrayList<>();
-    List<String> paths = new ArrayList<>();
-    Map<String, GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns = Maps.newHashMap();
+    final Map<String, GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns = Maps.newHashMap();
 
     if (globalDictionaries != null) {
       for (GlobalDictionaryFieldInfo fieldInfo : config.getGlobalDictionaryEncodedColumns()) {
@@ -95,48 +91,34 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
     }
 
-    ParquetDatasetXAttr parquetDatasetXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_XATTR_SERIALIZER.revert(config.getReadDefinition().getExtendedProperty().toByteArray());
+    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getPartitionColumns());
 
-    for(DatasetSplit split: config.getSplits()) {
-      ParquetDatasetSplitXAttr datasetSplitXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray());
-      RowGroupReadEntry rowGroupReadEntry = new RowGroupReadEntry(
-        datasetSplitXAttr.getPath(), datasetSplitXAttr.getStart(), datasetSplitXAttr.getLength(), datasetSplitXAttr.getRowGroupIndex());
-      paths.add(rowGroupReadEntry.getPath());
-      UnifiedParquetReader reader = new UnifiedParquetReader(
-        context,
-        readerFactory,
-        finder.getRealFields(),
-        config.getColumns(),
-        globalDictionaryEncodedColumns,
-        config.getConditions(),
-        fsPlugin.getFooterCache(),
-        rowGroupReadEntry,
-        fs,
-        globalDictionaries,
-        codec,
-        autoCorrectCorruptDates,
-        readInt96AsTimeStamp,
-        vectorize,
-        enableDetailedTracing
-      );
+    FluentIterable<RecordReader> readers = FluentIterable.from(config.getSplits()).transform(new Function<DatasetSplit, RecordReader>(){
 
-      readers.add(reader);
-    }
+      @Override
+      public RecordReader apply(DatasetSplit split) {
+        ParquetDatasetSplitXAttr datasetSplitXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray());
+        UnifiedParquetReader inner = new UnifiedParquetReader(
+          context,
+          readerFactory,
+          finder.getRealFields(),
+          config.getColumns(),
+          globalDictionaryEncodedColumns,
+          config.getConditions(),
+          fsPlugin.getFooterCache(),
+          datasetSplitXAttr,
+          fs,
+          globalDictionaries,
+          codec,
+          autoCorrectCorruptDates,
+          readInt96AsTimeStamp,
+          vectorize,
+          enableDetailedTracing
+        );
+        return readerConfig.wrapIfNecessary(context.getAllocator(), inner, split);
+      }});
 
-    if(!finder.hasImplicitColumns()){
-      final ScanOperator scan = new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), globalDictionaries);
-      logger.debug("Took {} ms to create Parquet Scan SqlOperatorImpl.", watch.elapsed(TimeUnit.MILLISECONDS));
-      return scan;
-    }
-
-    final List<RecordReader> wrappedReaders = new ArrayList<>();
-    List<List<NameValuePair<?>>> implicitFields = finder.getImplicitFields(parquetDatasetXAttr.getSelectionRoot(), paths);
-
-    for(int i = 0; i < readers.size(); i++) {
-      wrappedReaders.add(new AdditionalColumnsRecordReader(readers.get(i), implicitFields.get(i)));
-    }
-
-    final ScanOperator scan = new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, wrappedReaders.iterator(), globalDictionaries);
+    final ScanOperator scan = new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), globalDictionaries);
     logger.debug("Took {} ms to create Parquet Scan SqlOperatorImpl.", watch.elapsed(TimeUnit.MILLISECONDS));
     return scan;
   }

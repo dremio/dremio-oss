@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>1.1.0-201708121825170680-436784e</version>
+    <version>1.2.1-201710030121530889-8e49316</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -562,68 +562,68 @@
           </artifactSet>
           <relocations>
             <!-- Relocate Dremio classes to minimize classloader hell. -->
-            <relocation><pattern>com.dremio.exec.</pattern><shadedPattern>oadd.com.dremio.exec.</shadedPattern></relocation>
-            <relocation><pattern>com.dremio.common.</pattern><shadedPattern>oadd.com.dremio.common.</shadedPattern></relocation>
-            <relocation><pattern>com.dremio.config.</pattern><shadedPattern>oadd.com.dremio.config.</shadedPattern></relocation>
-            <relocation><pattern>com.dremio.sabot.</pattern><shadedPattern>oadd.com.dremio.sabot.</shadedPattern></relocation>
-            <relocation><pattern>com.dremio.service.</pattern><shadedPattern>oadd.com.dremio.service.</shadedPattern></relocation>
-            <relocation><pattern>com.dremio.services.</pattern><shadedPattern>oadd.com.dremio.services.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.exec.</pattern><shadedPattern>cdjd.com.dremio.exec.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.common.</pattern><shadedPattern>cdjd.com.dremio.common.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.config.</pattern><shadedPattern>cdjd.com.dremio.config.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.sabot.</pattern><shadedPattern>cdjd.com.dremio.sabot.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.service.</pattern><shadedPattern>cdjd.com.dremio.service.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.services.</pattern><shadedPattern>cdjd.com.dremio.services.</shadedPattern></relocation>
 
             <!-- Move dependencies out of path -->
-            <relocation><pattern>antlr.</pattern><shadedPattern>oadd.antlr.</shadedPattern></relocation>
-            <relocation><pattern>antlr.</pattern><shadedPattern>oadd.antlr.</shadedPattern></relocation>
-            <relocation><pattern>io.</pattern><shadedPattern>oadd.io.</shadedPattern></relocation>
-            <relocation><pattern>javacc.</pattern><shadedPattern>oadd.javacc.</shadedPattern></relocation>
-            <relocation><pattern>java_cup.</pattern><shadedPattern>oadd.java_cup.</shadedPattern></relocation>
-            <relocation><pattern>javassist.</pattern><shadedPattern>oadd.javassist.</shadedPattern></relocation>
-            <relocation><pattern>jline.</pattern><shadedPattern>oadd.jline.</shadedPattern></relocation>
-            <relocation><pattern>license.</pattern><shadedPattern>oadd.license.</shadedPattern></relocation>
-            <relocation><pattern>net.</pattern><shadedPattern>oadd.net.</shadedPattern></relocation>
-            <relocation><pattern>parquet.</pattern><shadedPattern>oadd.parquet.</shadedPattern></relocation>
-            <relocation><pattern>test.</pattern><shadedPattern>oadd.test.</shadedPattern></relocation>
-            <relocation><pattern>trax.</pattern><shadedPattern>oadd.trax.</shadedPattern></relocation>
-            <relocation><pattern>org.antlr.</pattern><shadedPattern>oadd.org.antlr.</shadedPattern></relocation>
-            <relocation><pattern>org.codehaus.</pattern><shadedPattern>oadd.org.codehaus.</shadedPattern></relocation>
-            <relocation><pattern>org.eigenbase.</pattern><shadedPattern>oadd.org.eigenbase.</shadedPattern></relocation>
-            <relocation><pattern>org.hamcrest.</pattern><shadedPattern>oadd.org.hamcrest.</shadedPattern></relocation>
-            <relocation><pattern>org.jboss.</pattern><shadedPattern>oadd.org.jboss.</shadedPattern></relocation>
-            <relocation><pattern>org.joda.</pattern><shadedPattern>oadd.org.joda.</shadedPattern></relocation>
-            <relocation><pattern>org.json.</pattern><shadedPattern>oadd.org.json.</shadedPattern></relocation>
-            <relocation><pattern>org.mockito.</pattern><shadedPattern>oadd.org.mockito.</shadedPattern></relocation>
-            <relocation><pattern>org.msgpack.</pattern><shadedPattern>oadd.org.msgpack.</shadedPattern></relocation>
-            <relocation><pattern>org.objectweb.</pattern><shadedPattern>oadd.org.objectweb.</shadedPattern></relocation>
-            <relocation><pattern>org.objensis.</pattern><shadedPattern>oadd.org.objensis.</shadedPattern></relocation>
-            <relocation><pattern>org.pentaho.</pattern><shadedPattern>oadd.org.pentaho.</shadedPattern></relocation>
-            <relocation><pattern>org.reflections.</pattern><shadedPattern>oadd.org.reflections.</shadedPattern></relocation>
-            <relocation><pattern>org.tukaani.</pattern><shadedPattern>oadd.org.tukaani.</shadedPattern></relocation>
-            <relocation><pattern>org.xerial.</pattern><shadedPattern>oadd.org.xerial.</shadedPattern></relocation>
-            <relocation><pattern>com.beust.</pattern><shadedPattern>oadd.com.beust.</shadedPattern></relocation>
-            <relocation><pattern>com.carrotsearch.</pattern><shadedPattern>oadd.com.carrotsearch.</shadedPattern></relocation>
-            <relocation><pattern>com.codahale.</pattern><shadedPattern>oadd.com.codahale.</shadedPattern></relocation>
-            <relocation><pattern>com.dyuproject.</pattern><shadedPattern>oadd.com.dyuproject.</shadedPattern></relocation>
-            <relocation><pattern>com.fasterxml.</pattern><shadedPattern>oadd.com.fasterxml.</shadedPattern></relocation>
-            <relocation><pattern>com.google.</pattern><shadedPattern>oadd.com.google.</shadedPattern></relocation>
-            <relocation><pattern>com.thoughtworks.</pattern><shadedPattern>oadd.com.thoughtworks.</shadedPattern></relocation>
-            <relocation><pattern>com.typesafe.</pattern><shadedPattern>oadd.com.typesafe.</shadedPattern></relocation>
-            <relocation><pattern>com.univocity.</pattern><shadedPattern>oadd.com.univocity.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.avro.</pattern><shadedPattern>oadd.org.apache.avro.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.bcel.</pattern><shadedPattern>oadd.org.apache.bcel.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.arrow.</pattern><shadedPattern>oadd.org.apache.arrow.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.calcite.</pattern><shadedPattern>oadd.org.apache.calcite.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.commons.</pattern><shadedPattern>oadd.org.apache.commons.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.curator.</pattern><shadedPattern>oadd.org.apache.curator.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.html.</pattern><shadedPattern>oadd.org.apache.html.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.jute.</pattern><shadedPattern>oadd.org.apache.jute.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.log4j.</pattern><shadedPattern>oadd.org.apache.log4j.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.regexp.</pattern><shadedPattern>oadd.org.apache.regexp.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.velocity.</pattern><shadedPattern>oadd.org.apache.velocity.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.wml.</pattern><shadedPattern>oadd.org.apache.wml.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.xalan.</pattern><shadedPattern>oadd.org.apache.xalan.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.xerces.</pattern><shadedPattern>oadd.org.apache.xerces.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.xml.</pattern><shadedPattern>oadd.org.apache.xml.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.xmlcommons.</pattern><shadedPattern>oadd.org.apache.xmlcommons.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.xpath.</pattern><shadedPattern>oadd.org.apache.xpath.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.zookeeper.</pattern><shadedPattern>oadd.org.apache.zookeeper.</shadedPattern></relocation>
+            <relocation><pattern>antlr.</pattern><shadedPattern>cdjd.antlr.</shadedPattern></relocation>
+            <relocation><pattern>antlr.</pattern><shadedPattern>cdjd.antlr.</shadedPattern></relocation>
+            <relocation><pattern>io.</pattern><shadedPattern>cdjd.io.</shadedPattern></relocation>
+            <relocation><pattern>javacc.</pattern><shadedPattern>cdjd.javacc.</shadedPattern></relocation>
+            <relocation><pattern>java_cup.</pattern><shadedPattern>cdjd.java_cup.</shadedPattern></relocation>
+            <relocation><pattern>javassist.</pattern><shadedPattern>cdjd.javassist.</shadedPattern></relocation>
+            <relocation><pattern>jline.</pattern><shadedPattern>cdjd.jline.</shadedPattern></relocation>
+            <relocation><pattern>license.</pattern><shadedPattern>cdjd.license.</shadedPattern></relocation>
+            <relocation><pattern>net.</pattern><shadedPattern>cdjd.net.</shadedPattern></relocation>
+            <relocation><pattern>parquet.</pattern><shadedPattern>cdjd.parquet.</shadedPattern></relocation>
+            <relocation><pattern>test.</pattern><shadedPattern>cdjd.test.</shadedPattern></relocation>
+            <relocation><pattern>trax.</pattern><shadedPattern>cdjd.trax.</shadedPattern></relocation>
+            <relocation><pattern>org.antlr.</pattern><shadedPattern>cdjd.org.antlr.</shadedPattern></relocation>
+            <relocation><pattern>org.codehaus.</pattern><shadedPattern>cdjd.org.codehaus.</shadedPattern></relocation>
+            <relocation><pattern>org.eigenbase.</pattern><shadedPattern>cdjd.org.eigenbase.</shadedPattern></relocation>
+            <relocation><pattern>org.hamcrest.</pattern><shadedPattern>cdjd.org.hamcrest.</shadedPattern></relocation>
+            <relocation><pattern>org.jboss.</pattern><shadedPattern>cdjd.org.jboss.</shadedPattern></relocation>
+            <relocation><pattern>org.joda.</pattern><shadedPattern>cdjd.org.joda.</shadedPattern></relocation>
+            <relocation><pattern>org.json.</pattern><shadedPattern>cdjd.org.json.</shadedPattern></relocation>
+            <relocation><pattern>org.mockito.</pattern><shadedPattern>cdjd.org.mockito.</shadedPattern></relocation>
+            <relocation><pattern>org.msgpack.</pattern><shadedPattern>cdjd.org.msgpack.</shadedPattern></relocation>
+            <relocation><pattern>org.objectweb.</pattern><shadedPattern>cdjd.org.objectweb.</shadedPattern></relocation>
+            <relocation><pattern>org.objensis.</pattern><shadedPattern>cdjd.org.objensis.</shadedPattern></relocation>
+            <relocation><pattern>org.pentaho.</pattern><shadedPattern>cdjd.org.pentaho.</shadedPattern></relocation>
+            <relocation><pattern>org.reflections.</pattern><shadedPattern>cdjd.org.reflections.</shadedPattern></relocation>
+            <relocation><pattern>org.tukaani.</pattern><shadedPattern>cdjd.org.tukaani.</shadedPattern></relocation>
+            <relocation><pattern>org.xerial.</pattern><shadedPattern>cdjd.org.xerial.</shadedPattern></relocation>
+            <relocation><pattern>com.beust.</pattern><shadedPattern>cdjd.com.beust.</shadedPattern></relocation>
+            <relocation><pattern>com.carrotsearch.</pattern><shadedPattern>cdjd.com.carrotsearch.</shadedPattern></relocation>
+            <relocation><pattern>com.codahale.</pattern><shadedPattern>cdjd.com.codahale.</shadedPattern></relocation>
+            <relocation><pattern>com.dyuproject.</pattern><shadedPattern>cdjd.com.dyuproject.</shadedPattern></relocation>
+            <relocation><pattern>com.fasterxml.</pattern><shadedPattern>cdjd.com.fasterxml.</shadedPattern></relocation>
+            <relocation><pattern>com.google.</pattern><shadedPattern>cdjd.com.google.</shadedPattern></relocation>
+            <relocation><pattern>com.thoughtworks.</pattern><shadedPattern>cdjd.com.thoughtworks.</shadedPattern></relocation>
+            <relocation><pattern>com.typesafe.</pattern><shadedPattern>cdjd.com.typesafe.</shadedPattern></relocation>
+            <relocation><pattern>com.univocity.</pattern><shadedPattern>cdjd.com.univocity.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.avro.</pattern><shadedPattern>cdjd.org.apache.avro.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.bcel.</pattern><shadedPattern>cdjd.org.apache.bcel.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.arrow.</pattern><shadedPattern>cdjd.org.apache.arrow.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.calcite.</pattern><shadedPattern>cdjd.org.apache.calcite.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.commons.</pattern><shadedPattern>cdjd.org.apache.commons.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.curator.</pattern><shadedPattern>cdjd.org.apache.curator.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.html.</pattern><shadedPattern>cdjd.org.apache.html.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.jute.</pattern><shadedPattern>cdjd.org.apache.jute.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.log4j.</pattern><shadedPattern>cdjd.org.apache.log4j.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.regexp.</pattern><shadedPattern>cdjd.org.apache.regexp.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.velocity.</pattern><shadedPattern>cdjd.org.apache.velocity.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.wml.</pattern><shadedPattern>cdjd.org.apache.wml.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.xalan.</pattern><shadedPattern>cdjd.org.apache.xalan.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.xerces.</pattern><shadedPattern>cdjd.org.apache.xerces.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.xml.</pattern><shadedPattern>cdjd.org.apache.xml.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.xmlcommons.</pattern><shadedPattern>cdjd.org.apache.xmlcommons.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.xpath.</pattern><shadedPattern>cdjd.org.apache.xpath.</shadedPattern></relocation>
+            <relocation><pattern>org.apache.zookeeper.</pattern><shadedPattern>cdjd.org.apache.zookeeper.</shadedPattern></relocation>
           </relocations>
           <transformers>
             <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">

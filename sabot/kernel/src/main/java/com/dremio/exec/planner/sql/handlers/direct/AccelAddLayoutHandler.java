@@ -17,8 +17,10 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.planner.sql.SchemaUtilities;
@@ -43,15 +45,24 @@ public class AccelAddLayoutHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlAddLayout addLayout = SqlNodeUtil.unwrap(sqlNode, SqlAddLayout.class);
     final TableWithPath table = SchemaUtilities.verify(defaultSchema, addLayout.getTblName());
-    final LayoutDefinition layout = new LayoutDefinition(
+    SqlIdentifier identifier = addLayout.getName();
+    String name = null;
+    if(identifier != null) {
+      name = identifier.toString();
+    } else {
+      name = "Unnamed-" + ThreadLocalRandom.current().nextLong();
+    }
+
+    final LayoutDefinition layout = new LayoutDefinition(name,
         addLayout.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE,
-            table.qualifyColumns(addLayout.getDisplayList()),
-            table.qualifyColumnsWithGranularity(addLayout.getDimensionList()),
-            table.qualifyColumns(addLayout.getMeasureList()),
-            table.qualifyColumns(addLayout.getSortList()),
-            table.qualifyColumns(addLayout.getDistributionList()),
-            table.qualifyColumns(addLayout.getPartitionList())
-        );
+        table.qualifyColumns(addLayout.getDisplayList()),
+        table.qualifyColumnsWithGranularity(addLayout.getDimensionList()),
+        table.qualifyColumns(addLayout.getMeasureList()),
+        table.qualifyColumns(addLayout.getSortList()),
+        table.qualifyColumns(addLayout.getDistributionList()),
+        table.qualifyColumns(addLayout.getPartitionList()),
+        addLayout.getPartitionDistributionStrategy()
+    );
     accel.addLayout(table.getPath(), layout);
     return Collections.singletonList(SimpleCommandResult.successful("Layout added."));
   }

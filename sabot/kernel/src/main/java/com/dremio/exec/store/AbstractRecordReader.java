@@ -46,17 +46,15 @@ public abstract class AbstractRecordReader implements RecordReader {
 
   public AbstractRecordReader(final OperatorContext context, final List<SchemaPath> columns) {
     this.context = context;
-    if (context == null
-            || context.getOptions() == null
-            || context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_SIZE) == null) {
-      this.numRowsPerBatch = ExecConstants.OPERATOR_TARGET_BATCH_SIZE_VALIDATOR.getDefault().num_val;
+    if (context == null) {
+      this.numRowsPerBatch = ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().num_val;
     } else {
-      this.numRowsPerBatch = context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_SIZE).num_val;
+      this.numRowsPerBatch = context.getTargetBatchSize();
     }
 
     if (context == null
-            || context.getOptions() == null
-            || context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES) == null) {
+      || context.getOptions() == null
+      || context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES) == null) {
       this.numBytesPerBatch = ExecConstants.OPERATOR_TARGET_BATCH_BYTES_VALIDATOR.getDefault().num_val;
     } else {
       this.numBytesPerBatch = context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES).num_val;
@@ -74,10 +72,6 @@ public abstract class AbstractRecordReader implements RecordReader {
 
   public long getNumRowsPerBatch() {
     return numRowsPerBatch;
-  }
-
-  public long getNumBytesPerBatch() {
-    return numBytesPerBatch;
   }
 
   @Override

@@ -19,6 +19,7 @@ package com.dremio.service.accelerator;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
+import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.planner.sql.MaterializationDescriptor.LayoutInfo;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.AccelerationContextDescriptor;
 import com.dremio.service.accelerator.proto.AccelerationDescriptor;
@@ -39,13 +43,17 @@ import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.LayoutContainer;
 import com.dremio.service.accelerator.proto.LayoutContainerDescriptor;
 import com.dremio.service.accelerator.proto.LayoutDescriptor;
+import com.dremio.service.accelerator.proto.LayoutDetails;
 import com.dremio.service.accelerator.proto.LayoutDetailsDescriptor;
+import com.dremio.service.accelerator.proto.LayoutDimensionField;
 import com.dremio.service.accelerator.proto.LayoutDimensionFieldDescriptor;
+import com.dremio.service.accelerator.proto.LayoutField;
 import com.dremio.service.accelerator.proto.LayoutFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.LogicalAggregationDescriptor;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationId;
+import com.dremio.service.accelerator.proto.MaterializationMetrics;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializatonFailure;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
@@ -59,6 +67,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -329,5 +338,63 @@ public final class AccelerationUtils {
 
   public static LayoutId newRandomId() {
     return new LayoutId(UUID.randomUUID().toString());
+  }
+  /**
+   * Creates and returns MaterializationDescriptor
+   * @param acceleration
+   * @param layout
+   * @param materialization
+   * @return
+   */
+  static MaterializationDescriptor getMaterializationDescriptor(final Acceleration acceleration,
+      final Layout layout, final Materialization materialization, final boolean complete) {
+    final byte[] planBytes = layout.getLogicalPlan().toByteArray();
+    final List<String> fullPath = ImmutableList.<String>builder()
+        .addAll(materialization.getPathList())
+        .build();
+    return new MaterializationDescriptor(
+        acceleration.getId().getId(),
+        AccelerationUtils.toLayoutInfo(layout),
+        materialization.getId().getId(),
+        materialization.getUpdateId(),
+        materialization.getExpiration(),
+        planBytes,
+        fullPath,
+        Optional.fromNullable(materialization.getMetrics()).or(new MaterializationMetrics()).getOriginalCost(),
+        new IncrementalUpdateSettings(Optional.fromNullable(layout.getIncremental()).or(false), layout.getRefreshField()),
+        complete
+        );
+  }
+
+  private static LayoutInfo toLayoutInfo(Layout layout){
+    String id = layout.getId().getId();
+    LayoutDetails details = layout.getDetails();
+    return new LayoutInfo(id,
+        layout.getName(),
+        getNames(Optional.fromNullable(details.getSortFieldList()).or(Collections.<LayoutField>emptyList())),
+        getNames(Optional.fromNullable(details.getPartitionFieldList()).or(Collections.<LayoutField>emptyList())),
+        getNames(Optional.fromNullable(details.getDistributionFieldList()).or(Collections.<LayoutField>emptyList())),
+        getDimensionNames(Optional.fromNullable(details.getDimensionFieldList()).or(Collections.<LayoutDimensionField>emptyList())),
+        getNames(Optional.fromNullable(details.getMeasureFieldList()).or(Collections.<LayoutField>emptyList())),
+        getNames(Optional.fromNullable(details.getDisplayFieldList()).or(Collections.<LayoutField>emptyList()))
+    );
+  }
+
+  private static List<String> getNames(List<LayoutField> fields){
+    return FluentIterable.from(fields).transform(new Function<LayoutField, String>(){
+      @Override
+      public String apply(LayoutField input) {
+        return input.getName();
+      }}).toList();
+  }
+
+  private static List<String> getDimensionNames(List<LayoutDimensionField> fields){
+    return FluentIterable.from(fields).transform(new Function<LayoutDimensionField, String>(){
+      @Nullable
+      @Override
+      public String apply(@Nullable LayoutDimensionField input) {
+        return input.getName();
+      }
+    }).toList();
   }
 }

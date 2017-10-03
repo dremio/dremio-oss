@@ -155,6 +155,7 @@ public class ProjectOperator implements SingleInputOperator {
     }
 
     outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
     initialSchema = outgoing.getSchema();
 

@@ -195,6 +195,41 @@ public class CleanData {
     return false;
   }
 
+  public static boolean castToBoolean(FieldReader reader, NullableBitHolder out) {
+    Object o = reader.readObject();
+    if (o instanceof Number) {
+      out.value = ((Number) o).doubleValue() != 0 ? 1 : 0;
+      return true;
+    } else if (o instanceof Boolean) {
+      out.value = ((Boolean) o).booleanValue() ? 1 : 0;
+      return true;
+    } else if (o instanceof LocalDateTime) {
+      out.value = toMillis((LocalDateTime) o) != 0 ? 1 : 0;
+      return true;
+    } else if (o instanceof Text) {
+      try {
+        String s = Text.decode(((Text) o).getBytes(), 0, ((Text) o).getLength());
+        if((s == null)
+          || (s.length() == 0)
+          || ("false".equalsIgnoreCase(s))
+          || ("f".equalsIgnoreCase(s))
+          || ("0".equals(s))
+          || ("0.0".equals(s))) {
+          out.value = 0;
+          return true;
+        } else {
+          out.value = 1;
+          return true;
+        }
+      } catch (CharacterCodingException e) {
+        logger.warn("Can't decode text", e);
+        return false;
+      }
+    }
+
+    return false;
+  }
+
   /**
    * Is clean data?
    */
@@ -387,6 +422,47 @@ public class CleanData {
   }
 
   /**
+   * Clean data to BOOLEAN
+   */
+  @FunctionTemplate(name = "clean_data_to_BOOLEAN", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class CleanDataBoolean implements SimpleFunction {
+
+    @Param private UnionHolder in;
+    @Param(constant=true) private NullableIntHolder castWhenPossibleHolder;
+    @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
+    @Param(constant=true) private NullableBitHolder defaultValueHolder;
+    @Output private NullableBitHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      if (in.isSet == 0) {
+        out.isSet = 0;
+        return;
+      }
+
+      final com.dremio.dac.proto.model.dataset.DataType booleanType =
+        com.dremio.dac.proto.model.dataset.DataType.BOOLEAN;
+      final com.dremio.dac.proto.model.dataset.DataType dataType =
+        com.dremio.dac.explore.DataTypeUtil.getDataType(in.reader.getMinorType());
+      if (((dataType == booleanType) || castWhenPossibleHolder.value == 1) &&
+          com.dremio.dac.explore.udfs.CleanData.castToBoolean(in.reader, out)) {
+        out.isSet = 1;
+      } else {
+        if (replaceWithNullHolder.value == 1) {
+          out.isSet = 0;
+        } else {
+          out.value = defaultValueHolder.value;
+          out.isSet = 1;
+        }
+      }
+    }
+  }
+
+  /**
    * Get Dremio data type of expression
    */
   @FunctionTemplate(name = "dremio_type_of", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
@@ -458,7 +534,7 @@ public class CleanData {
   }
 
   /**
-   * Clean data to FLOAT
+   * convert to FLOAT
    */
   @FunctionTemplate(name = "convert_to_FLOAT", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
   public static class ConvertToFloat implements SimpleFunction {
@@ -498,7 +574,7 @@ public class CleanData {
   }
 
   /**
-   * Is clean data?
+   * Is convertible data?
 
    */
   @FunctionTemplate(name = "is_convertible_data", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)

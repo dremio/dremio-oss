@@ -80,7 +80,6 @@ const styles = {
     ...formDefault,
     cursor: 'pointer', // todo: use css to make all <label>s cursor:pointer?
     display: 'inline-flex',
-    alignItems: 'center',
     position: 'relative',
     ':focus': {}  // need empty object so that radium listens to focus events
   },
@@ -100,7 +99,8 @@ const styles = {
     border: '1px solid #bbb',
     borderRadius: 1,
     background: '#fff',
-    verticalAlign: 'text-bottom'
+    verticalAlign: 'text-bottom',
+    alignSelf: 'center' // DX-8124 needed for FF<=50 checkbox style issue
   },
   checked: {
     border: `1px solid ${BLUE}`,

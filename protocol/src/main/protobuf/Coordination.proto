@@ -32,6 +32,8 @@ message NodeEndpoint {
   optional Roles roles = 5;
   optional int64 startTime = 101;
   optional string provision_id = 102;
+  // direct memory capacity in bytes
+  optional int64 max_direct_memory = 103;
 }
 
 message DremioServiceInstance {

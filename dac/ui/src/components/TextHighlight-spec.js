@@ -32,18 +32,20 @@ describe('TextHighlight-spec', () => {
 
   it('minimal props', () => {
     const wrapper = mount(<TextHighlight {...minimalProps} />);
-    expect(wrapper.find('.textHighlighting')).have.length(1);
+    expect(wrapper.find('.TextHighlight')).have.length(1);
   });
 
   it('render elements', () => {
-    const wrapper = mount(<TextHighlight {...commonProps} />);
-    expect(wrapper.find('.textHighlighting')).have.length(1);
+    const wrapper = mount(<TextHighlight {...commonProps} inputValue={null} />);
+    expect(wrapper.find('.TextHighlight')).have.length(1);
+    expect(wrapper.find('.TextHighlight').html().replace(/<!--.*?-->/g, ''))
+      .equal('<span class="TextHighlight">Some text here</span>');
   });
 
   it('check selected', () => {
     const wrapper = mount(<TextHighlight {...commonProps} />);
-    expect(wrapper.find('.textHighlighting').html())
-      .equal('<span class="textHighlighting">Some <b style="font-weight: bold;">text</b> here</span>');
+    expect(wrapper.find('.TextHighlight').html().replace(/<!--.*?-->/g, ''))
+      .equal('<span class="TextHighlight">Some <b>text</b> here</span>');
   });
 
 });

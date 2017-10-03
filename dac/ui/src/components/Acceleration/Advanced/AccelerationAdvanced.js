@@ -28,7 +28,9 @@ export class AccelerationAdvanced extends Component {
   static propTypes = {
     acceleration: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
+    updateFormDirtyState: PropTypes.func.isRequired,
+    values: PropTypes.object.isRequired
   };
 
   static getFields() {
@@ -49,6 +51,25 @@ export class AccelerationAdvanced extends Component {
     activeTab: null
   }
 
+  initialLayouts = null;
+
+  constructor(props) {
+    super(props);
+
+    this.initialLayouts = Immutable.fromJS({
+      aggregationLayouts: this.props.values.aggregationLayouts,
+      rawLayouts: this.props.values.rawLayouts
+    });
+  }
+
+  componentWillReceiveProps(nextProps) {
+    const { values, updateFormDirtyState } = nextProps;
+    const aggregationLayouts = Immutable.fromJS(values.aggregationLayouts);
+    const rawLayouts = Immutable.fromJS(values.rawLayouts);
+
+    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts));
+  }
+
   getActiveTab() {
     if (this.state.activeTab) return this.state.activeTab;
 
@@ -62,6 +83,46 @@ export class AccelerationAdvanced extends Component {
     return found ? 'AGGREGATION' : 'RAW';
   }
 
+  areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts) {
+    // tracks field's dirty state because of issue in redux-form
+    // we need to check dirty state differently since currently we handle array fields at 1 level deep
+    // because of fields data come in random order we need to sort them to check dirty state,
+    // only exception is sortFieldList in this case we need to keep order
+    const sortByName = (arr) => arr.sortBy((value) => value.get('name'));
+    const areEnabledFieldEqual = (layoutGroup, layoutName) => {
+      return layoutGroup.get('enabled') === this.initialLayouts.getIn([layoutName, 'enabled']);
+    };
+
+    if (!areEnabledFieldEqual(aggregationLayouts, 'aggregationLayouts')
+      || !areEnabledFieldEqual(rawLayouts, 'rawLayouts')) {
+      return false;
+    }
+
+    const areLayoutListEqual = (layoutList, layoutListName) => {
+      return !layoutList.some((layoutListValue, i) => {
+        if (!this.initialLayouts.getIn([layoutListName, 'layoutList', i])) return true;
+
+        const currentLayoutDetails = layoutListValue.get('details');
+        const initialLayoutDetails = this.initialLayouts.getIn([layoutListName, 'layoutList', i, 'details']);
+
+        return currentLayoutDetails.some((layoutDetails, layoutDetailsName) => {
+          if (!Immutable.Iterable.isIterable(layoutDetails)) {
+            return layoutDetails !== initialLayoutDetails.get(layoutDetailsName);
+          }
+
+          if (layoutDetailsName === 'sortFieldList') {
+            return !layoutDetails.equals(initialLayoutDetails.get(layoutDetailsName));
+          }
+
+          return !sortByName(layoutDetails).equals(sortByName(initialLayoutDetails.get(layoutDetailsName)));
+        });
+      });
+    };
+
+    return areLayoutListEqual(aggregationLayouts.get('layoutList'), 'aggregationLayouts')
+      && areLayoutListEqual(rawLayouts.get('layoutList'), 'rawLayouts');
+  }
+
   renderTableQueries() {
     const { fields, acceleration } = this.props;
     return this.getActiveTab() === 'AGGREGATION'
@@ -72,7 +133,7 @@ export class AccelerationAdvanced extends Component {
   render() {
     const activeTab = this.getActiveTab();
     return (
-      <div data-qa='acceleration-advanced'>
+      <div data-qa='acceleration-advanced' style={styles.base}>
         <div style={styles.tabs}>
           <div
             data-qa='raw-queries-tab'
@@ -108,9 +169,9 @@ export default connect(mapStateToProps)(AccelerationAdvanced);
 
 const styles = {
   base: {
-    padding: '0 3px',
-    width: '100%',
-    overflow: 'hidden'
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1
   },
   tabs: {
     display: 'flex',

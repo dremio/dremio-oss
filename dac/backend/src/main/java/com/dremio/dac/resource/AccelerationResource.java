@@ -110,7 +110,7 @@ public class AccelerationResource extends BaseAccelerationResource {
     }
 
     final AccelerationEntry newEntry = createDatasetAcceleration(namespaceService, accelerationService, path, AccelerationState.NEW_ADMIN);
-    return mapper.toApiMessage(newEntry.getDescriptor());
+    return mapper.toApiMessage(newEntry.getDescriptor(), path.toPathList());
   }
 
 
@@ -122,8 +122,9 @@ public class AccelerationResource extends BaseAccelerationResource {
     final String message = String.format("unable to find acceleration at %s", id.getId());
     final AccelerationEntry accelerationEntry = getOrFailChecked(accelerationService.getAccelerationEntryById(id), message);
     final Optional<Acceleration> acceleration = accelerationService.getAccelerationById(id);
+    DatasetConfig ds = namespaceService.findDatasetByUUID(id.getId());
     checkForDatasetOutOfDate(acceleration, accelerationEntry.getDescriptor());
-    return augment(mapper.toApiMessage(accelerationEntry.getDescriptor()));
+    return augment(mapper.toApiMessage(accelerationEntry.getDescriptor(), ds.getFullPathList()));
   }
 
   @PUT
@@ -156,7 +157,8 @@ public class AccelerationResource extends BaseAccelerationResource {
     Validators.validate(newDescriptor);
 
     final AccelerationEntry newEntryOpt = accelerationService.update(entry);
-    return augment(mapper.toApiMessage(newEntryOpt.getDescriptor()));
+    DatasetConfig ds = namespaceService.findDatasetByUUID(id.getId());
+    return augment(mapper.toApiMessage(newEntryOpt.getDescriptor(), ds.getFullPathList()));
   }
 
   @DELETE

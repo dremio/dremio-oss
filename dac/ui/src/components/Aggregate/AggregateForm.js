@@ -163,8 +163,9 @@ const styles = {
   base: {
     display: 'flex',
     flexWrap: 'wrap',
-    alignContent: 'space-between',
+    flexGrow: 1,
     backgroundColor: WHITE,
-    padding: 5
+    padding: 5,
+    overflow: 'hidden'
   }
 };

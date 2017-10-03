@@ -16,6 +16,7 @@
 package com.dremio.service.accelerator;
 
 import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import com.dremio.common.utils.SqlUtils;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.accel.AccelerationInfo;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.LayoutInfo;
@@ -37,10 +39,14 @@ import com.dremio.service.accelerator.proto.LayoutDimensionField;
 import com.dremio.service.accelerator.proto.LayoutField;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.Materialization;
+import com.dremio.service.accelerator.proto.MaterializedLayout;
 import com.dremio.service.accelerator.store.AccelerationStore;
 import com.dremio.service.accelerator.store.MaterializationStore;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 
 /**
@@ -50,16 +56,27 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   private final AccelerationStore accelerationStore;
   private final MaterializationStore materializationStore;
+  private Provider<SabotContext> contextProvider;
+  private Provider<NamespaceService> namespaceService;
 
-  public AccelerationListManagerImpl(Provider<KVStoreProvider> storeProvider) {
+  public AccelerationListManagerImpl(Provider<KVStoreProvider> storeProvider,
+      final Provider<SabotContext> contextProvider) {
     this.accelerationStore = new AccelerationStore(storeProvider);
     this.materializationStore = new MaterializationStore(storeProvider);
+    this.contextProvider = contextProvider;
   }
 
   @Override
   public void start() throws Exception {
     accelerationStore.start();
     materializationStore.start();
+
+    this.namespaceService = new Provider<NamespaceService>() {
+      @Override
+      public NamespaceService get() {
+        return contextProvider.get().getNamespaceService(SYSTEM_USERNAME);
+      }
+    };
   }
 
   @Override
@@ -83,9 +100,10 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
       .transform(new Function<Acceleration, AccelerationInfo>(){
         @Override
         public AccelerationInfo apply(Acceleration input) {
+          DatasetConfig ds = namespaceService.get().findDatasetByUUID(input.getId().getId());
           return new AccelerationInfo(
             input.getId().getId(),
-            SqlUtils.quotedCompound(input.getContext().getDataset().getFullPathList()),
+            SqlUtils.quotedCompound(ds.getFullPathList()),
             input.getState().name(),
             selfOrEmpty(input.getRawLayouts().getLayoutList()).size(),
             input.getRawLayouts().getEnabled(),
@@ -100,10 +118,12 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
     List<LayoutInfo> layouts = new ArrayList<>();
     for(Acceleration accel : getAccelerations(new IndexedStore.FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery()))) {
       for(Layout l : selfOrEmpty(accel.getAggregationLayouts().getLayoutList())){
-        layouts.add(toInfo(accel.getId().getId(), l));
+        Optional<MaterializedLayout> materializedLayoutIf = materializationStore.get(l.getId());
+        layouts.add(toInfo(accel.getId().getId(), l, materializedLayoutIf));
       }
       for(Layout l : selfOrEmpty(accel.getRawLayouts().getLayoutList())){
-        layouts.add(toInfo(accel.getId().getId(), l));
+        Optional<MaterializedLayout> materializedLayoutIf = materializationStore.get(l.getId());
+        layouts.add(toInfo(accel.getId().getId(), l, materializedLayoutIf));
       }
     }
 
@@ -135,13 +155,13 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
       accel.getId().getId(),
       l.getId().getId(),
       m.getId().getId(),
-      m.getJob() != null ? new Timestamp(m.getJob().getJobEnd()) : null,
+      m.getJob() != null && m.getJob().getJobEnd() != null ? new Timestamp(m.getJob().getJobEnd()) : null,
       m.getExpiration() != null ? new Timestamp(m.getExpiration()) : null,
       m.getJob() != null ? m.getJob().getOutputBytes() : null
     );
   }
 
-  private LayoutInfo toInfo(String accelerationId, Layout l){
+  private LayoutInfo toInfo(String accelerationId, Layout l, Optional<MaterializedLayout> materializedLayoutIf){
     return new LayoutInfo(
       accelerationId,
       l.getId().getId(),
@@ -151,7 +171,8 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
       toString(l.getDetails().getMeasureFieldList()),
       toString(l.getDetails().getPartitionFieldList()),
       toString(l.getDetails().getDistributionFieldList()),
-      toString(l.getDetails().getSortFieldList())
+      toString(l.getDetails().getSortFieldList()),
+      materializedLayoutIf.isPresent() && materializedLayoutIf.get().getState() != null ? materializedLayoutIf.get().getState().name():null
     );
   }
 

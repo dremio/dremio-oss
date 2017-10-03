@@ -15,13 +15,16 @@
  */
 package com.dremio.sabot.op.join.hash;
 
+import static com.dremio.sabot.op.common.hashtable.HashTable.BUILD_RECORD_LINK_SIZE;
+
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 
+import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 import java.util.BitSet;
 import java.util.List;
 import javax.inject.Named;
@@ -41,10 +44,10 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
   private int remainderBuildElementIndex = -1;
 
   private int nextProbeIndex = 0;
-  private int remainderBuildCompositeIndex = -1;
+  private long remainderBuildCompositeIndex = -1;
 
-  private SelectionVector4[] links;
-  private SelectionVector4[] starts;
+  private ArrowBuf[] links;
+  private ArrowBuf[] starts;
   private BitSet[] matches;
   private int[] matchMaxes;
 
@@ -57,10 +60,10 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       HashTable hashTable,
       JoinRelType joinRelType,
       List<BuildInfo> buildInfos,
-      List<SelectionVector4> startIndices,
+      List<ArrowBuf> startIndices,
       int targetRecordsPerBatch) {
 
-    links = new SelectionVector4[buildInfos.size()];
+    links = new ArrowBuf[buildInfos.size()];
     matches = new BitSet[buildInfos.size()];
     matchMaxes = new int[buildInfos.size()];
 
@@ -70,7 +73,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       matchMaxes[i] = buildInfos.get(i).getRecordCount();
     }
 
-    starts = new SelectionVector4[startIndices.size()];
+    starts = new ArrowBuf[startIndices.size()];
     for (int i = 0; i < starts.length; i++) {
       starts[i] = startIndices.get(i);
     }
@@ -148,8 +151,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
     final boolean projectUnmatchedBuild = this.projectUnmatchedBuild;
     final BitSet[] matches = this.matches;
-    final SelectionVector4[] starts = this.starts;
-    final SelectionVector4[] links = this.links;
+    final ArrowBuf[] starts = this.starts;
+    final ArrowBuf[] links = this.links;
 
     final HashTable hashTable = this.hashTable;
 
@@ -157,7 +160,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
     final int probeMax = probeBatch.getRecordCount();
     int outputRecords = 0;
     int currentProbeIndex = this.nextProbeIndex;
-    int currentCompositeBuildIdx = remainderBuildCompositeIndex;
+    long currentCompositeBuildIdx = remainderBuildCompositeIndex;
     while (outputRecords < targetRecordsPerBatch && currentProbeIndex < probeMax) {
 
       // If we don't have a composite index, we're done with the current probe record and need to get another.
@@ -176,7 +179,11 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
           /* The current probe record has a key that matches. Get the index
            * of the first row in the build side that matches the current key
            */
-          currentCompositeBuildIdx = starts[indexInBuild / HashTable.BATCH_SIZE].get(indexInBuild % HashTable.BATCH_SIZE);
+          final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
+              ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
+
+          currentCompositeBuildIdx = PlatformDependent.getInt(memStart);
+          currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | PlatformDependent.getShort(memStart + 4);
         }
 
       }
@@ -186,7 +193,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
        * join we keep track of which records we need to project at the end
        */
       if(projectUnmatchedBuild){
-        matches[currentCompositeBuildIdx >>> SHIFT_SIZE].set(currentCompositeBuildIdx & HashTable.BATCH_MASK);
+        matches[(int)(currentCompositeBuildIdx >>> SHIFT_SIZE)].set((int)(currentCompositeBuildIdx & HashTable.BATCH_MASK));
       }
 
       projectBuildRecord(currentCompositeBuildIdx, outputRecords);
@@ -196,13 +203,18 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       /* Projected single row from the build side with matching key but there
        * may be more build rows with the same key. Check if that's the case
        */
-      currentCompositeBuildIdx = links[currentCompositeBuildIdx >>> SHIFT_SIZE].get(currentCompositeBuildIdx & HashTable.BATCH_MASK);
+      final long memStart = links[(int)(currentCompositeBuildIdx >>> SHIFT_SIZE)].memoryAddress() +
+          ((int)(currentCompositeBuildIdx & HashTable.BATCH_MASK)) * BUILD_RECORD_LINK_SIZE;
 
+      currentCompositeBuildIdx = PlatformDependent.getInt(memStart);
       if (currentCompositeBuildIdx == -1) {
         /* We only had one row in the build side that matched the current key
          * from the probe side. Drain the next row in the probe side.
          */
         currentProbeIndex++;
+      } else {
+        // read the rest of the index including offset in batch.
+        currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | PlatformDependent.getShort(memStart + 4);
       }
     }
 
@@ -227,7 +239,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       @Named("probeBatch") VectorAccessible probeBatch,
       @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract void projectBuildRecord(@Named("buildIndex") int buildIndex, @Named("outIndex") int outIndex);
+  public abstract void projectBuildRecord(@Named("buildIndex") long buildIndex, @Named("outIndex") int outIndex);
 
   public abstract void projectProbeRecord(@Named("probeIndex") int probeIndex, @Named("outIndex") int outIndex);
 

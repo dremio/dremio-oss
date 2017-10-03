@@ -392,29 +392,6 @@ public class DateTypeFunctions {
         }
     }
 
-    /* Dummy function template to allow Optiq to validate this function call.
-     * At RexToExpr time we rewrite all date_part() functions to extract functions,
-     * since they are essentially the same
-     */
-    @SuppressWarnings("unused")
-    @FunctionTemplate(names = "date_part", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
-    public static class DatePartFunction implements SimpleFunction {
-        @Param VarCharHolder left;
-        @Param DateMilliHolder right;
-        @Output BigIntHolder out;
-
-        @Override
-        public void setup() {
-        }
-
-        @Override
-        public void eval() {
-            if (1 == 1) {
-                throw new UnsupportedOperationException("date_part function should be rewritten as extract() functions");
-            }
-        }
-    }
-
     @FunctionTemplate(name = "castTIME", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
     public static class CastTimeStampToTime implements SimpleFunction {
         @Param TimeStampMilliHolder in;

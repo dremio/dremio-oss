@@ -25,9 +25,10 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
-import com.dremio.exec.physical.base.OldAbstractGroupScan;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OldAbstractGroupScan;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
@@ -106,16 +107,6 @@ public class SystemTableScan extends OldAbstractGroupScan<CompleteWork> implemen
   @JsonIgnore
   public int getMinParallelizationWidth() {
     return table.isDistributed() ? plugin.getContext().getExecutors().size() : 1;
-  }
-
-  @Override
-  public long getInitialAllocation() {
-    return initialAllocation;
-  }
-
-  @Override
-  public long getMaxAllocation() {
-    return maxAllocation;
   }
 
   @Override
@@ -216,8 +207,7 @@ public class SystemTableScan extends OldAbstractGroupScan<CompleteWork> implemen
   }
 
   @Override
-  @JsonIgnore
-  public BatchSchema getSchema() {
+  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
     return table.getSchema();
   }
 

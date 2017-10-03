@@ -22,6 +22,7 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 import { FLEX_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
 import { body } from 'uiTheme/radium/typography';
+import EllipsedText from 'components/EllipsedText';
 
 const MAX_WIDTH = 262;
 
@@ -51,10 +52,9 @@ export class ValueItem extends Component {
 
   render() {
     const { item, onRemove } = this.props;
-    const tooltipVal = this.state.textWidth ? item.value : null;
     return (
       <div style={styles.item}>
-        <span style={styles.itemText} title={tooltipVal} alt={tooltipVal} ref='target'>{item.value}</span>&nbsp;
+        <EllipsedText style={styles.itemText} text={item.value} ref='target'/>
         {onRemove && <RemoveButton style={{margin: '2px 10px 0 0'}} onClick={onRemove}/>}
       </div>
     );
@@ -148,10 +148,7 @@ const styles = {
   },
   itemText: {
     ...body,
-    marginLeft: 10,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
+    marginLeft: 10
   },
   addButton: {
     padding: '7px 10px'

@@ -62,6 +62,7 @@ import com.dremio.dac.proto.model.source.PostgresConfig;
 import com.dremio.dac.proto.model.source.Property;
 import com.dremio.dac.proto.model.source.S3Config;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.file.FileName;
 
 /**
  * general bean validation
@@ -90,6 +91,7 @@ public class InputValidation {
     configureTransforms();
     configureSources();
     configureSpace();
+    configureGeneral();
   }
 
   /**
@@ -225,6 +227,11 @@ public class InputValidation {
     constraints.type(TransformGroupBy.class).constraint(new TransformGroupByConstraintDef());
   }
 
+  public void configureGeneral() {
+    constraints.type(FileName.class)
+      .property("name", FIELD).constraint(new PatternDef().regexp("^[^@:{/]+$").message("File name cannot contain a colon, forward slash, at sign, or open curly bracket."))
+      .constraint(new PatternDef().regexp("^[^.].*$").message("File name cannot start with period"));
+  }
 
   /**
    * validate the input

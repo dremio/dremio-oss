@@ -72,6 +72,7 @@ import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.server.InputValidation;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -212,8 +213,17 @@ public class HomeResource {
   public File uploadFile(@PathParam("path") String path,
                          @FormDataParam("file") InputStream fileInputStream,
                          @FormDataParam("file") FormDataContentDisposition contentDispositionHeader,
+                         @FormDataParam("fileName") FileName fileName,
                          @QueryParam("extension") String extension) throws Exception {
-    final FilePath filePath = FilePath.fromURLPath(homeName, path);
+    // add some validation
+    InputValidation inputValidation = new InputValidation();
+    inputValidation.validate(fileName);
+
+    List<String> pathList = PathUtils.toPathComponents(path);
+    pathList.add(SqlUtils.quoteIdentifier(fileName.getName()));
+
+    final FilePath filePath = FilePath.fromURLPath(homeName, PathUtils.toFSPathString(pathList));
+
     final FileConfig config = new FileConfig();
     try {
       // upload file to staging area

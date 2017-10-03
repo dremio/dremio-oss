@@ -56,7 +56,7 @@ export class ExploreTableController extends Component {
   static propTypes = {
     pageType: PropTypes.string,
     dataset: PropTypes.instanceOf(Immutable.Map),
-    tableData: PropTypes.instanceOf(Immutable.Map),
+    tableData: PropTypes.instanceOf(Immutable.Map).isRequired,
     previewVersion: PropTypes.string,
     paginationUrl: PropTypes.string,
     isDumbTable: PropTypes.bool,
@@ -399,7 +399,7 @@ function mapStateToProps(state, ownProps) {
   }
 
   return {
-    tableData,
+    tableData: tableData || Immutable.fromJS({rows: [], columns: []}),
     previewVersion,
     paginationUrl,
     location,

@@ -17,9 +17,6 @@ package com.dremio.exec.store.hive;
 
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -63,8 +60,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DateTimes;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
@@ -92,9 +87,6 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.proto.EntityId;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Stopwatch;
@@ -594,7 +586,8 @@ class DatasetBuilder implements SourceTableDefinition {
           .setIsDir(true)
           .build());
 
-        for (FileStatus fileStatus : fs.list(isRecursive, rootLocation)) {
+        List<FileStatus> statuses = isRecursive ? fs.listRecursive(rootLocation, false) : fs.list(rootLocation, false);
+        for (FileStatus fileStatus : statuses) {
           final Path filePath = fileStatus.getPath();
           if (fileStatus.isDirectory()) {
             cachedEntities.add(FileSystemCachedEntity.newBuilder()

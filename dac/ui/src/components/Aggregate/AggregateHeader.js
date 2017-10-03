@@ -20,6 +20,7 @@ import Immutable from 'immutable';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
 import { body } from 'uiTheme/radium/typography';
+import EllipsedText from 'components/EllipsedText';
 
 const CLEAR_ALL_HEIGHT = 20;
 
@@ -53,17 +54,16 @@ class AggregateHeader extends Component {
   }
 
   render() {
+    // todo: loc
     const tableName = this.props.dataset.getIn(['displayFullPath', -1]);
     const text = tableName && tableName !== '"UNTITLED"'
-      ? `“${tableName}” Dataset `
-      : 'Available ';
+      ? `“${tableName}” dataset`
+      : 'Available';
     return (
       <div
         className='aggregate-header'
         style={[styles.base, this.props.style]}>
-        <div style={styles.left}>
-          <span style={styles.leftText}>{text}Fields</span>
-        </div>
+        <div style={styles.left}><EllipsedText text={`${text} fields:`}/></div>
         <div style={styles.center}>
           {la('Dimensions')}
           {this.renderClearAll(this.props.onClearAllDimensions)}
@@ -92,14 +92,9 @@ const styles = {
     height: 30,
     display: 'flex',
     alignItems: 'center',
-    paddingLeft: 10,
+    padding: '0 10px',
     borderRight: '1px solid rgba(0,0,0,0.10)',
     ...body
-  },
-  leftText: {
-    overflow: 'hidden',
-    textOverflow: 'ellipsis', //can be applied only to block containers https://drafts.csswg.org/css-ui-3/#text-overflow
-    whiteSpace: 'nowrap'
   },
   center: {
     width: '100%',

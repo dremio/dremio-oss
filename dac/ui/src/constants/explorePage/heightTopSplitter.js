@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const DEFAULT_HEIGHT_SQL = 171;
+
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+
+const DEFAULT_HEIGHT_SQL = localStorageUtils.getDefaultSqlHeight() || 206; // 11 lines of text
 //const DEFAULT_HEIGHT_SUBPAGE = 220;
 const DEFAULT_HEIGHT_SORT = 293;
 const LARGE_HEIGHT_SUBPAGE = 252;

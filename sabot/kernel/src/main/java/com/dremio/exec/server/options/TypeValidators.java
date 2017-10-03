@@ -21,6 +21,7 @@ import java.util.Set;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.server.options.OptionValue.Kind;
 import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.google.common.base.Enums;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -201,6 +202,30 @@ public class TypeValidators {
       super(name, def);
       for (String value : values) {
         valuesSet.add(value.toLowerCase());
+      }
+    }
+
+    @Override
+    public void validate(final OptionValue v) {
+      super.validate(v);
+      if (!valuesSet.contains(v.string_val.toLowerCase())) {
+        throw UserException.validationError()
+            .message(String.format("Option %s must be one of: %s.", getOptionName(), valuesSet))
+            .build(logger);
+      }
+    }
+  }
+
+  /**
+   * Validator that checks if the given value is included in a list of acceptable values. Case insensitive.
+   */
+  public static class EnumValidator<E extends Enum<E>> extends StringValidator {
+    private final Set<String> valuesSet = new HashSet<>();
+
+    public EnumValidator(String name, Class<E> clazz, E def) {
+      super(name, def.toString().toLowerCase());
+      for (E value : clazz.getEnumConstants()) {
+        valuesSet.add(value.toString().toLowerCase());
       }
     }
 

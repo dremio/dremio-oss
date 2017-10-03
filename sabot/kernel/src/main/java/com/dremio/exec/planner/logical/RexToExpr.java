@@ -449,20 +449,6 @@ public class RexToExpr {
         trimArgs.add(args.get(1));
 
         return FunctionCallFactory.createExpression(trimFunc, trimArgs);
-      } else if (functionName.equals("date_part")) {
-        // Rewrite DATE_PART functions as extract functions
-        // assert that the function has exactly two arguments
-        assert argsSize == 2;
-
-        /* Based on the first input to the date_part function we rewrite the function as the
-         * appropriate extract function. For example
-         * date_part('year', date '2008-2-23') ------> extractYear(date '2008-2-23')
-         */
-        assert args.get(0) instanceof QuotedString;
-
-        QuotedString extractString = (QuotedString) args.get(0);
-        String functionPostfix = extractString.value.substring(0, 1).toUpperCase() + extractString.value.substring(1).toLowerCase();
-        return FunctionCallFactory.createExpression("extract" + functionPostfix, args.subList(1, 2));
       } else if (functionName.equals("concat")) {
 
         if (argsSize == 1) {
@@ -525,7 +511,7 @@ public class RexToExpr {
       assert args.get(0) instanceof ValueExpressions.QuotedString;
 
       // Get the unit of time to be extracted
-      String timeUnitStr = ((ValueExpressions.QuotedString)args.get(0)).value;
+      String timeUnitStr = ((ValueExpressions.QuotedString)args.get(0)).value.toUpperCase();
 
       switch (timeUnitStr){
         case ("YEAR"):

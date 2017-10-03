@@ -21,11 +21,9 @@ import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -124,7 +122,6 @@ public class TypeInferenceUtils {
       .build();
 
   private static final ImmutableMap<String, SqlReturnTypeInference> funcNameToInference = ImmutableMap.<String, SqlReturnTypeInference> builder()
-      .put("DATE_PART", DatePartSqlReturnTypeInference.INSTANCE)
       .put("CONCAT", ConcatSqlReturnTypeInference.INSTANCE)
       .put("LENGTH", LengthSqlReturnTypeInference.INSTANCE)
       .put("LPAD", PadTrimSqlReturnTypeInference.INSTANCE)
@@ -439,34 +436,6 @@ public class TypeInferenceUtils {
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       // The result of IS [NOT] DISTINCT FROM is NOT NULL because it can only return TRUE or FALSE.
       return opBinding.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
-    }
-  }
-
-  private static class DatePartSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final DatePartSqlReturnTypeInference INSTANCE = new DatePartSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-
-      final SqlNode firstOperand = ((SqlCallBinding) opBinding).operand(0);
-      if(!(firstOperand instanceof SqlCharStringLiteral)) {
-        return createCalciteTypeWithNullability(factory,
-            SqlTypeName.ANY,
-            opBinding.getOperandType(1).isNullable());
-      }
-
-      final String part = ((SqlCharStringLiteral) firstOperand)
-          .getNlsString()
-          .getValue()
-          .toUpperCase();
-
-      final SqlTypeName sqlTypeName = getSqlTypeNameForTimeUnit(part);
-      final boolean isNullable = opBinding.getOperandType(1).isNullable();
-      return createCalciteTypeWithNullability(
-          factory,
-          sqlTypeName,
-          isNullable);
     }
   }
 

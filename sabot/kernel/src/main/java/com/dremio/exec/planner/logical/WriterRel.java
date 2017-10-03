@@ -26,18 +26,13 @@ import org.apache.calcite.plan.RelTraitSet;
 
 public class WriterRel extends WriterRelBase implements Rel {
 
-  private final boolean isSingleWriter;
-
-  public WriterRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, CreateTableEntry createTableEntry,
-      final boolean isSingleWriter) {
+  public WriterRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, CreateTableEntry createTableEntry) {
     super(LOGICAL, cluster, traitSet, input, createTableEntry);
-    setRowType();
-    this.isSingleWriter = isSingleWriter;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterRel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), isSingleWriter());
+    return new WriterRel(getCluster(), traitSet, sole(inputs), getCreateTableEntry());
   }
 
   @Override
@@ -48,9 +43,5 @@ public class WriterRel extends WriterRelBase implements Rel {
         .setInput(childOp)
         .setCreateTableEntry(getCreateTableEntry())
         .build();
-  }
-
-  public boolean isSingleWriter() {
-    return isSingleWriter;
   }
 }

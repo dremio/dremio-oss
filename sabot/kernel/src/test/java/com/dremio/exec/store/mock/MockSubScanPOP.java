@@ -99,7 +99,7 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     return getSchema();
   }
 

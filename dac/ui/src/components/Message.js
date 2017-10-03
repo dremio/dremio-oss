@@ -244,13 +244,15 @@ const styles = {
     'MozUserSelect': 'text',
     'WebkitUserSelect': 'text',
     'UserSelect': 'text',
-    maxHeight: 300,
     position: 'relative',
-    overflowY: 'auto',
     zIndex: 3 // needs to be above disabled table overlay
   },
   messageText: {
-    flexGrow: 1
+    flexGrow: 1,
+    maxHeight: 100,
+    overflowY: 'auto',
+    padding: '5px 0', // add our own padding for scroll reasons
+    margin: '-5px 0' // ... and offset the padding on `base`
   },
   stackTrace: {
     whiteSpace: 'pre',

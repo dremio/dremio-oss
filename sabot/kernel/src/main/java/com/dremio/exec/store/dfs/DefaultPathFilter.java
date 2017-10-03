@@ -16,9 +16,15 @@
 package com.dremio.exec.store.dfs;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapred.Utils;
 
-public class DefaultPathFilter extends Utils.OutputFileUtils.OutputFilesFilter {
+public final class DefaultPathFilter extends Utils.OutputFileUtils.OutputFilesFilter {
+
+  public static PathFilter INSTANCE = new DefaultPathFilter();
+
+  private DefaultPathFilter() {}
+
   @Override
   public boolean accept(Path path) {
     if (path.getName().startsWith(FileSystemWrapper.HIDDEN_FILE_PREFIX)) {

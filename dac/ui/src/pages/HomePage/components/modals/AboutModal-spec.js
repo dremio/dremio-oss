@@ -16,17 +16,19 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
-import { AboutModal, VIEW_ID } from './AboutModal';
+import AboutModal from './AboutModal';
 
 describe('AboutModal', () => {
 
   let minimalProps;
   let commonProps;
+
   beforeEach(() => {
     minimalProps = {
       loadVersion: sinon.stub().returns(Promise.resolve()),
       viewState: new Immutable.Map()
     };
+
     commonProps = {
       isOpen: true,
       ...minimalProps
@@ -38,10 +40,8 @@ describe('AboutModal', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should loadVersion on mount and isOpen', () => {
+  it('should render with common props without exploding', () => {
     const wrapper = shallow(<AboutModal {...commonProps} />);
-    const instance = wrapper.instance();
-    instance.componentDidMount();
-    expect(commonProps.loadVersion).to.have.been.calledWith({ viewId: VIEW_ID });
+    expect(wrapper).to.have.length(1);
   });
 });

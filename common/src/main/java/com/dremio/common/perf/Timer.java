@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Utility to trace time spent in services
@@ -45,9 +46,46 @@ public final class Timer {
   private Timer() {
   }
 
-  private static long nextAsyncId = 0;
+  private static final AtomicLong nextAsyncId = new AtomicLong(0);
+
+  private static final TimedBlock NO_OP_TIMED_BLOCK =
+      new TimedBlock(
+          "no-op-timed-block",
+          new Ticker() {
+            @Override
+            public void addID(String id) {
+            }
+
+            @Override
+            public int nextId() {
+              return 0;
+            }
+
+            @Override
+            public void tick(String name, int id) {
+            }
+
+            @Override
+            public void tock(String name, int id) {
+            }
+
+            @Override
+            public void log(long reqId, String message) {
+            }
+          }) {
+        @Override
+        public void addID(String id) {
+        }
+
+        @Override
+        public void close() {
+        }
+      };
 
   public static TimedBlock time(final String name) {
+    if (!enabled()) {
+      return NO_OP_TIMED_BLOCK;
+    }
     Ticker currentTicker = tickerPerThread.get();
     if (currentTicker != null) {
       return new TimedBlock(name, currentTicker);
@@ -57,7 +95,7 @@ public final class Timer {
         @Override
         public void close() {
           super.close();
-          newTicker.log(nextAsyncId++, "async " + name);
+          newTicker.log(nextAsyncId.incrementAndGet(), "async " + name);
           release();
         }
       };
@@ -109,7 +147,7 @@ public final class Timer {
   /**
    * to track trace events
    */
-  public static final class Ticker {
+  public static class Ticker {
     private final List<Event> events = new ArrayList<>();
 
     private int nextId = 0;
@@ -145,6 +183,7 @@ public final class Timer {
     }
 
     public void log(long reqId, String message) {
+      // Only log if trace level is enabled
       if (!logger.isTraceEnabled()) {
         return;
       }

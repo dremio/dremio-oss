@@ -71,4 +71,14 @@ public abstract class BaseJsonProcessor implements JsonProcessor {
     UserException.Builder exceptionBuilder = UserException.dataReadError(e);
     return getExceptionWithContext(exceptionBuilder, field, msg, args);
   }
+
+  @Override
+  public void resetDataSizeCounter() {
+    // no-op
+  }
+
+  @Override
+  public long getDataSizeCounter() {
+    return 0;
+  }
 }

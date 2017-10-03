@@ -16,6 +16,7 @@
 package com.dremio;
 
 import static com.dremio.TestBuilder.mapOf;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -30,20 +31,57 @@ public class TestSchemaChange extends BaseTestQuery {
   @Test
   public void testMultiFilesWithDifferentSchema() throws Exception {
     test("ALTER SYSTEM SET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "` = true");
-    final String query = String.format("select * from dfs_root.`%s/schemachange/multi/` order by id", TEST_RES_PATH);
-    test(query);
+    try {
+      final String query = String.format("select * from dfs_root.`%s/schemachange/multi/` order by id", TEST_RES_PATH);
+      test(query);
+    } finally {
+      test("ALTER SYSTEM RESET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "`");
+    }
   }
 
   @Test
   public void testNewNestedColumn() throws Exception {
     test("ALTER SYSTEM SET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "` = true");
-    final String query = String.format("select a from dfs_root.`%s/schemachange/nested/` order by id", TEST_RES_PATH);
-    testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("a")
-      .baselineValues(mapOf("b", mapOf("c1", 1L)))
-      .baselineValues(mapOf("b", mapOf("c2", 2L)))
-      .go();
+    try {
+      final String query = String.format("select a from dfs_root.`%s/schemachange/nested/` order by id", TEST_RES_PATH);
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("a")
+        .baselineValues(mapOf("b", mapOf("c1", 1L)))
+        .baselineValues(mapOf("b", mapOf("c2", 2L)))
+        .go();
+    } finally {
+      test("ALTER SYSTEM RESET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "`");
+    }
+  }
+
+  @Test
+  public void keepLearningSchemaAcrossFiles() throws Exception {
+    test("ALTER SYSTEM SET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "` = true");
+    try {
+      final String query = String.format("select * from dfs_root.`%s/schemachange/differentschemas/`", TEST_RES_PATH);
+      try {
+        testBuilder()
+          .sqlQuery(query)
+          .unOrdered()
+          .jsonBaselineFile("results/differentschemas.json")
+          .build()
+          .run();
+      } catch (Exception e) {
+        // first attempt may fail as a batch may have been sent to the user, so if it does, this must be the message ..
+        assertTrue(e.getMessage()
+          .contains("New schema found and recorded. Please reattempt the query."));
+      }
+      // .. but the second attempt must not fail, full schema must have been learnt at this point
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .jsonBaselineFile("results/differentschemas.json")
+        .build()
+        .run();
+    } finally {
+      test("ALTER SYSTEM RESET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "`");
+    }
   }
 }

@@ -59,7 +59,7 @@ public class Project extends AbstractSingle{
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     final BatchSchema childSchema = child.getSchema(context);
     return ExpressionTreeMaterializer.materializeFields(getExprs(), childSchema, context, true)
         .setSelectionVectorMode(childSchema.getSelectionVectorMode())

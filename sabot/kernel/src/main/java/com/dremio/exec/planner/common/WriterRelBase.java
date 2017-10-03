@@ -29,15 +29,13 @@ public abstract class WriterRelBase extends SingleRel {
 
   private final CreateTableEntry createTableEntry;
 
-  protected void setRowType(){
-    this.rowType = RecordWriter.SCHEMA.toCalciteRecordType(this.getCluster().getTypeFactory());
-  }
-
   public WriterRelBase(Convention convention, RelOptCluster cluster, RelTraitSet traitSet, RelNode input,
       CreateTableEntry createTableEntry) {
     super(cluster, traitSet, input);
     assert input.getConvention() == convention;
     this.createTableEntry = createTableEntry;
+
+    rowType = RecordWriter.SCHEMA.toCalciteRecordType(getCluster().getTypeFactory());
   }
 
   public CreateTableEntry getCreateTableEntry() {

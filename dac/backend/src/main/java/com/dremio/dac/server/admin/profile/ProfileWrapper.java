@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -31,6 +32,7 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.google.common.base.Strings;
 
 /**
  * Wrapper class for a {@link #profile query profile}, so it to be presented through web UI.
@@ -117,6 +119,15 @@ public class ProfileWrapper {
     return profile.hasError() && profile.getError() != null;
   }
 
+  @SuppressWarnings("unused")
+  public String getQuerySchema() {
+    final String schema = profile.getFullSchema();
+    if (Strings.isNullOrEmpty(schema)) {
+      return null;
+    }
+    return schema;
+  }
+
   public QueryProfile getProfile() {
     return profile;
   }
@@ -125,9 +136,17 @@ public class ProfileWrapper {
     return id;
   }
 
+  public String getPlanText() {
+    return StringEscapeUtils.escapeJson(profile.getPlan());
+  }
+
   @SuppressWarnings("unused")
   public List<FragmentWrapper> getFragmentProfiles() {
     return fragmentProfiles;
+  }
+
+  public int getFragmentProfilesSize() {
+    return fragmentProfiles.size();
   }
 
   @SuppressWarnings("unused")

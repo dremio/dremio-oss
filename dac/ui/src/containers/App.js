@@ -93,7 +93,7 @@ export class App extends Component {
     };
     // use window.onerror here instead of addEventListener('error') because ErrorEvent.error is
     // experimental according to mdn. Can get both file url and error from either.
-    window.onerror = this.handleGlobalError;
+    window.onerror = this.handleGlobalError.bind(this, window.onerror);
     window.onunhandledrejection = this.handleUnhandledRejection;
 
     if (config.shouldEnableBugFiling || config.shouldEnableRSOD) {
@@ -114,7 +114,9 @@ export class App extends Component {
     App.redirectForServerStatus(props);
   }
 
-  handleGlobalError = (msg, url, lineNo, columnNo, error) => {
+  handleGlobalError = (prevOnerror, msg, url, lineNo, columnNo, error) => {
+    prevOnerror && prevOnerror.call(window, msg, url, lineNo, columnNo, error);
+
     if (url && urlParse(url).origin !== this._getWindowOrigin()) return;
 
     console.error('Uncaught Error', error || msg);

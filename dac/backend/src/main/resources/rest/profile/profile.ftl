@@ -24,7 +24,9 @@
 <script>
     var globalconfig = {
         "queryid" : "${model.getQueryId()}",
-        "operators" : ${model.getOperatorsJSON()}
+        "operators" : ${model.getOperatorsJSON()},
+        "planText": "${model.getPlanText()}",
+        "fragmentProfileSize": ${model.getFragmentProfilesSize()}
     };
 </script>
 </#macro>
@@ -49,110 +51,157 @@
       <svg id="query-visual-canvas" class="center-block"></svg>
     </div>
     <div id="query-acceleration" class="tab-pane">
-      <h3>Summary</h3>
+      <h3>Reflection Outcome</h3>
       <#if model.profile.hasAccelerationProfile() && model.profile.getAccelerationProfile().getAccelerated()>
-        <p><pre>query was accelerated</pre></p>
+        <p>Query was accelerated</p>
       <#else>
-        <p><pre>query was NOT accelerated</pre></p>
+        <p>Query was NOT accelerated</p>
       </#if>
+      <#if model.profile.hasAccelerationProfile() && model.profile.getAccelerationProfile().getLayoutProfilesCount() != 0>
+        <ul>
+          <#list model.profile.getAccelerationProfile().getLayoutProfilesList() as layout>
+            <#if layout.name?? && layout.name?trim?has_content >
+              <#assign layoutName = layout.name>
+            <#else>
+              <#assign layoutName = layout.layoutId>
+            </#if>
+            <li>${layoutName} (<#if layout.displayColumnsList?has_content>raw<#else>agg</#if>): considered<#if layout.numSubstitutions != 0>, matched<#if layout.numUsed != 0>, chosen<#else>, not chosen</#if><#else>, not matched</#if>.</li>
+          </#list>
+        </ul>
+      </#if>
+
       <#if model.profile.hasAccelerationProfile()>
         <p>
-        Number of Matching Substitutions:   ${model.getProfile().getAccelerationProfile().getNumSubstitutions()}
+        Time To Find Reflections:   ${model.getProfile().getAccelerationProfile().getMillisTakenGettingMaterializations()} ms
         <br>
-        Time To Find Materializations:   ${model.getProfile().getAccelerationProfile().getMillisTakenGettingMaterializations()} ms
+        Time To Canonicalize:   ${model.getProfile().getAccelerationProfile().getMillisTakenNormalizing()} ms
         <br>
-        Time To Normalize:   ${model.getProfile().getAccelerationProfile().getMillisTakenNormalizing()} ms
-        <br>
-        Time To Substitute:   ${model.getProfile().getAccelerationProfile().getMillisTakenSubstituting()} ms
+        Time To Match:   ${model.getProfile().getAccelerationProfile().getMillisTakenSubstituting()} ms
         </p>
       <#else>
         <p>
-        Number of Matching Substitutions:   0
+        Time To Find Reflections:   --
         <br>
-        Time To Find Materializations:   --
+        Time To Canonicalize:   --
         <br>
-        Time To Normalize:   --
-        <br>
-        Time To Substitute:   --
+        Time To Match:   --
         </p>
       </#if>
-      <h3>Layout Details</h3>
+      <h3>Reflection Details</h3>
         <#if model.profile.hasAccelerationProfile() && model.profile.getAccelerationProfile().getLayoutProfilesCount() != 0>
           <#list model.profile.getAccelerationProfile().getLayoutProfilesList() as layout>
+
+          <#if layout.name?? && layout.name?trim?has_content >
+          <#assign layoutName = layout.name>
+          <#else>
+          <#assign layoutName = layout.layoutId>
+          </#if>
+          <h4>Reflection Definition: ${layoutName}</h4>
           <p>
-          <b>Layout Id:   ${layout.getLayoutId()}</b>
-          <br>
-          <b>Materialization Id:   ${layout.getMaterializationId()}</b>
-          <br>
-          Expiration Timestamp:   ${layout.getMaterializationExpirationTimestamp()}
-          <br>
-          Number of Times Selected/Used:  ${layout.getNumUsed()}
-          <br>
-          Number of Substitutions:   ${layout.getNumSubstitutions()}
-          <br>
-          Time To Substitute:   ${layout.getMillisTakenSubstituting()} ms
-          <br>
-          <i>Materialization Definition:</i>
-          <p>Dimensions:
+          Matched:   ${layout.getNumSubstitutions()}, Chosen:  ${layout.getNumUsed()}, Match Latency:   ${layout.getMillisTakenSubstituting()} ms<br>
+          </p>
+          <p>
+          Reflection Id: ${layout.getLayoutId()}, Materialization Id: ${layout.getMaterializationId()}<br>
+          Expiration:   ${layout.materializationExpirationTimestamp?number_to_datetime?iso_utc}<br>
+          <#if layout.dimensionsList?has_content >
+          Dimensions:
             <#list layout.getDimensionsList() as dim>
               ${dim},
             </#list>
-          </p>
-          <p>Measures:
+          <br />
+          </#if>
+
+          <#if layout.measuresList?has_content >
+          Measures:
             <#list layout.getMeasuresList() as measures>
               ${measures},
             </#list>
-          </p>
-          <p>Sorted:
-            <#list layout.getSortedColumnsList() as sorted>
-              ${sorted},
-            </#list>
-          </p>
-          <p>Partitioned:
-            <#list layout.getPartitionedColumnsList() as partitioned>
-              ${partitioned},
-            </#list>
-          </p>
-          <p>Distributed:
-            <#list layout.getDistributionColumnsList() as dist>
-              ${dist},
-            </#list>
-          </p>
-          <p>Display:
+          <br />
+          </#if>
+
+          <#if layout.displayColumnsList?has_content >
+          Display:
             <#list layout.getDisplayColumnsList() as display>
               ${display},
             </#list>
+          <br />
+          </#if>
+
+          <#if layout.sortedColumnsList?has_content >
+          Sorted:
+            <#list layout.getSortedColumnsList() as sorted>
+              ${sorted},
+            </#list>
+          <br />
+          </#if>
+
+          <#if layout.partitionedColumnsList?has_content >
+          Partitioned:
+            <#list layout.getPartitionedColumnsList() as partitioned>
+              ${partitioned},
+            </#list>
+          <br />
+          </#if>
+
+          <#if layout.distributionColumnsList?has_content >
+          Distributed:
+            <#list layout.getDistributionColumnsList() as dist>
+              ${dist},
+            </#list>
+          <br />
+          </#if>
           </p>
-          <p>Original Materialization Plan:
+
+          <p>Canonicalized User Query Alternative(s):
+            <#list layout.getNormalizedQueryPlansList() as planNorm>
+              <#if planNorm?has_content >
+              <p><pre>${planNorm}</pre></p>
+              </#if>
+            </#list>
+          </p>
+
+          <#if layout.plan?has_content >
+          <p>Reflection Plan:
             <pre>${layout.getPlan()}</pre>
           </p>
-          <p>Normalized Materialization Plan:
+          </#if>
+
+          <p>Canonicalized Reflection Plans:
             <#list layout.getNormalizedPlansList() as planNorm>
+            <#if planNorm?has_content >
               <p><pre>${planNorm}</pre></p>
+            </#if>
             </#list>
           </p>
-          <p>Normalized Query Plan:
-            <#list layout.getNormalizedQueryPlansList() as planNorm>
-              <p><pre>${planNorm}</pre></p>
-            </#list>
-          </p>Substitutions:
+
+          <p>Replacement Plans:
             <#list layout.getSubstitutionsList() as substitution>
+              <#if substitution?has_content >
               <p><pre>${substitution.getPlan()}</pre></p>
+              </#if>
             </#list>
           </p>
           </#list>
+          <hr />
         <#else>
-          <p>No materializations/layouts were applicable</p>
+          <p>No Reflections Were Applicable.</p>
         </#if>
     </div>
     <div id="query-plan" class="tab-pane">
-      <#if model.profile.getPlanPhasesCount() != 0>
-        <#list model.profile.getPlanPhasesList() as planPhase>
-        <h3>${planPhase.getPhaseName()} (${planPhase.getDurationMillis()} ms)</h3>
-        <p><pre>${planPhase.getPlan()}</pre></p>
+      <#if model.profile.planPhasesCount != 0>
+        <#list model.profile.planPhasesList as planPhase>
+          <p>
+          ${planPhase.getPhaseName()} (${planPhase.getDurationMillis()} ms)<br />
+          <#if planPhase.plan?has_content><p><pre>${planPhase.plan}</pre></p></#if>
+          <#if planPhase.plannerDump?has_content><p><pre>${planPhase.plannerDump}</pre></p></#if>
+          </p>
         </#list>
       <#else>
         <p>No planning phase information to show</p>
+      </#if>
+      <#if model.querySchema?has_content>
+        <h3>Query Output Schema</h3>
+        <p><pre>${model.querySchema}</pre></p>
       </#if>
     </div>
 
@@ -165,19 +214,10 @@
       </p>
       <p>Failure node: ${model.getProfile().errorNode}</p>
       <p>Error ID: ${model.getProfile().errorId}</p>
-
-        <h3 class="panel-title">
-          <a data-toggle="collapse" href="#error-verbose">
-            Verbose Error Message...
-          </a>
-        </h3>
-      <div id="error-verbose" class="panel-collapse collapse">
-        <div class="panel-body">
-        <p></p><p></p>
-          <pre>
-            ${model.getProfile().verboseError?trim}
-          </pre>
-        </div>
+      <p></p><p>Verbose:</p>
+      <p><pre>
+         ${model.getProfile().verboseError?trim}
+      </pre></p>
     </div>
     </#if>
   </div>
@@ -205,8 +245,7 @@
       </div>
       <div id="fragment-overview" class="panel-collapse collapse">
         <div class="panel-body">
-          <svg id="fragment-overview-canvas" class="center-block"></svg>
-          ${model.getFragmentsOverview()}
+          ${model.getFragmentsOverview()?no_esc}
         </div>
       </div>
     </div>
@@ -221,7 +260,7 @@
       </div>
       <div id="${frag.getId()}" class="panel-collapse collapse">
         <div class="panel-body">
-          ${frag.getContent()}
+          ${frag.getContent()?no_esc}
         </div>
       </div>
     </div>
@@ -241,7 +280,7 @@
       </div>
       <div id="operator-overview" class="panel-collapse collapse">
         <div class="panel-body">
-          ${model.getOperatorsOverview()}
+          ${model.getOperatorsOverview()?no_esc}
         </div>
       </div>
     </div>
@@ -257,7 +296,7 @@
       </div>
       <div id="${op.getId()}" class="panel-collapse collapse">
         <div class="panel-body">
-          ${op.getContent()}
+          ${op.getContent()?no_esc}
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
@@ -268,7 +307,7 @@
             </div>
             <div id="${op.getId()}-metrics" class="panel-collapse collapse">
               <div class="panel-body">
-                ${op.getMetricsTable()}
+                ${op.getMetricsTable()?no_esc}
               </div>
             </div>
           </div>

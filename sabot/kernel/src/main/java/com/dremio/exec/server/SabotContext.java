@@ -78,6 +78,8 @@ public class SabotContext implements AutoCloseable {
   private final Provider<CatalogService> catalogService;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
 
+  private final ClusterResourceInformation clusterInfo;
+
   public SabotContext(
       NodeEndpoint endpoint,
       SabotConfig config,
@@ -125,6 +127,8 @@ public class SabotContext implements AutoCloseable {
     this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
+
+    this.clusterInfo = new ClusterResourceInformation(coord);
   }
 
   protected NamespaceService.Factory getNamespaceServiceFactory() {
@@ -177,6 +181,10 @@ public class SabotContext implements AutoCloseable {
 
   public Collection<NodeEndpoint> getExecutors() {
     return coord.getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
+  }
+
+  public ClusterResourceInformation getClusterResourceInformation() {
+    return clusterInfo;
   }
 
   public BufferAllocator getAllocator() {

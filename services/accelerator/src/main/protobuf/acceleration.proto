@@ -128,6 +128,8 @@ message LayoutDetails {
   repeated LayoutField displayField = 5;
   // distribution fields
   repeated LayoutField distributionField = 6;
+  // distribution strategy for partitions
+  optional PartitionDistributionStrategy partitionDistributionStrategy = 7 [default = CONSOLIDATED];
 }
 
 message LayoutField {
@@ -187,4 +189,6 @@ message SystemSettings {
   required bool accelerateRaw = 3;
   // interval within which orphaned accelerations needs to be cleaned up
   required uint64 orphanCleanupInterval = 4;
+  // failure threshold to stop refreshing a reflection
+  required int32 layoutRefreshMaxAttempts = 5;
 }

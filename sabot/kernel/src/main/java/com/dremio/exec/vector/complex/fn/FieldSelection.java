@@ -160,6 +160,9 @@ public class FieldSelection {
     if(containsStar(fields)){
       return ALL_VALID;
     }else{
+      if (fields.size() == 0) {
+        return INVALID_NODE;
+      }
       FieldSelection root = new FieldSelection();
       for(SchemaPath p : fields){
         root.add(p.getRootSegment());

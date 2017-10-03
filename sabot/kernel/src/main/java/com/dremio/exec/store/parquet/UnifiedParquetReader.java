@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
 import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
@@ -54,6 +56,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 
@@ -63,7 +66,7 @@ public class UnifiedParquetReader implements RecordReader {
 
   private final OperatorContext context;
   private final ParquetFooterCache footerCache;
-  private final RowGroupReadEntry readEntry;
+  private final ParquetDatasetSplitXAttr readEntry;
   private final boolean autoCorrectCorruptDates;
   private final boolean readInt96AsTimeStamp;
   private final boolean vectorize;
@@ -93,7 +96,7 @@ public class UnifiedParquetReader implements RecordReader {
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<FilterCondition> filterConditions,
       ParquetFooterCache footerCache,
-      RowGroupReadEntry readEntry,
+      ParquetDatasetSplitXAttr readEntry,
       FileSystem fs,
       GlobalDictionaries dictionaries,
       CodecFactory codecFactory,
@@ -426,6 +429,44 @@ public class UnifiedParquetReader implements RecordReader {
         }
         return returnList;
       }
+    },
+
+    SKIPALL {
+      @Override
+      public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
+        final ParquetMetadata footer = unifiedReader.footerCache.getFooter(unifiedReader.readEntry.getPath());
+        long counter = 0;
+        for(final BlockMetaData rowGroup : footer.getBlocks()) {
+          counter += rowGroup.getRowCount();
+        }
+        final long rowCount = counter;
+        final RecordReader reader = new AbstractRecordReader(unifiedReader.context, Collections.<SchemaPath>emptyList()) {
+          private long remainingRowCount = rowCount;
+
+          @Override
+          public void setup(OutputMutator output) throws ExecutionSetupException {
+
+          }
+
+          @Override
+          public int next() {
+            if (numRowsPerBatch > remainingRowCount) {
+              int toReturn = (int) remainingRowCount;
+              remainingRowCount = 0;
+              return toReturn;
+            }
+
+            remainingRowCount -= numRowsPerBatch;
+            return (int)numRowsPerBatch;
+          }
+
+          @Override
+          public void close() throws Exception {
+
+          }
+        };
+        return Collections.singletonList(reader);
+      }
     };
 
     /**
@@ -443,6 +484,10 @@ public class UnifiedParquetReader implements RecordReader {
     }
     if (!determineFilterConditions(vectorizableReaderColumns, nonVectorizableReaderColumns) || !vectorize) {
       return ExecutionPath.ROWWISE;
+    }
+
+    if (vectorizableReaderColumns.isEmpty() && nonVectorizableReaderColumns.isEmpty()) {
+      return ExecutionPath.SKIPALL;
     }
     return ExecutionPath.VECTORIZED;
   }

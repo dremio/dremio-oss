@@ -38,6 +38,7 @@ public class MaterializationDescriptor {
   private final List<String> path;
   private final double originalCost;
   private final IncrementalUpdateSettings incrementalUpdateSettings;
+  private final boolean complete;
 
   @VisibleForTesting
   public MaterializationDescriptor(final String accelerationId,
@@ -47,8 +48,9 @@ public class MaterializationDescriptor {
                                    final long expirationTimestamp,
                                    final byte[] planBytes,
                                    final List<String> path,
-                                   final @Nullable Double originalCost) {
-    this(accelerationId, layout, materializationId, updateId, expirationTimestamp, planBytes, path, originalCost, IncrementalUpdateSettings.NON_INCREMENTAL);
+                                   final @Nullable Double originalCost,
+                                   final boolean complete) {
+    this(accelerationId, layout, materializationId, updateId, expirationTimestamp, planBytes, path, originalCost, IncrementalUpdateSettings.NON_INCREMENTAL, complete);
   }
 
   public MaterializationDescriptor(final String accelerationId,
@@ -59,16 +61,18 @@ public class MaterializationDescriptor {
                                    final byte[] planBytes,
                                    final List<String> path,
                                    final @Nullable Double originalCost,
-                                   final IncrementalUpdateSettings incrementalUpdateSettings) {
-    this.accelerationId = Preconditions.checkNotNull(accelerationId, "request id is required");
-    this.layout = Preconditions.checkNotNull(layout, "acceleration id is required");
-    this.materializationId = Preconditions.checkNotNull(materializationId);
+                                   final IncrementalUpdateSettings incrementalUpdateSettings,
+                                   final boolean complete) {
+    this.accelerationId = Preconditions.checkNotNull(accelerationId, "acceleration id is required");
+    this.layout = Preconditions.checkNotNull(layout, "layout is required");
+    this.materializationId = Preconditions.checkNotNull(materializationId, "materialization id is required");
     this.updateId = updateId;
     this.expirationTimestamp = expirationTimestamp;
     this.planBytes = Preconditions.checkNotNull(planBytes, "plan is required");
     this.path = ImmutableList.copyOf(Preconditions.checkNotNull(path, "path is required"));
     this.originalCost = originalCost == null ? 0 : originalCost;
     this.incrementalUpdateSettings = incrementalUpdateSettings;
+    this.complete = complete;
   }
 
   public long getExpirationTimestamp() {
@@ -107,6 +111,10 @@ public class MaterializationDescriptor {
     return incrementalUpdateSettings;
   }
 
+  public boolean isComplete() {
+    return complete;
+  }
+
   /**
    * Returns original cost of running raw query defined at {@link #getPlan()} if defined or zero.
    */
@@ -142,6 +150,7 @@ public class MaterializationDescriptor {
 
   public static class LayoutInfo {
     private final String layoutId;
+    private final String name;
     private final List<String> sortColumns;
     private final List<String> partitionColumns;
     private final List<String> distributionColumns;
@@ -149,14 +158,17 @@ public class MaterializationDescriptor {
     private final List<String> measures;
     private final List<String> displayColumns;
 
-    public LayoutInfo(String layoutId,
-                      List<String> sortColumns,
-                      List<String> partitionColumns,
-                      List<String> distributionColumns,
-                      List<String> dimensions,
-                      List<String> measures,
-                      List<String> displayColumns) {
+    public LayoutInfo(
+        String layoutId,
+        String name,
+        List<String> sortColumns,
+        List<String> partitionColumns,
+        List<String> distributionColumns,
+        List<String> dimensions,
+        List<String> measures,
+        List<String> displayColumns) {
       super();
+      this.name = name;
       this.layoutId = layoutId;
       this.sortColumns = sortColumns == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(sortColumns);
       this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(partitionColumns);;
@@ -186,6 +198,10 @@ public class MaterializationDescriptor {
       return sortColumns;
     }
 
+    public String getName() {
+      return name;
+    }
+
     public List<String> getPartitionColumns() {
       return partitionColumns;
     }
@@ -193,7 +209,6 @@ public class MaterializationDescriptor {
     public List<String> getDistributionColumns() {
       return distributionColumns;
     }
-
 
     @Override
     public boolean equals(final Object o) {
@@ -210,12 +225,13 @@ public class MaterializationDescriptor {
           Objects.deepEquals(partitionColumns, that.partitionColumns) &&
           Objects.equals(distributionColumns, that.distributionColumns) &&
           Objects.equals(dimensions, that.dimensions) &&
-          Objects.equals(measures, that.measures);
+          Objects.equals(measures, that.measures) &&
+          Objects.equals(name, that.name);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(layoutId, sortColumns, partitionColumns, distributionColumns);
+      return Objects.hash(layoutId, sortColumns, partitionColumns, distributionColumns, name);
     }
 
   }

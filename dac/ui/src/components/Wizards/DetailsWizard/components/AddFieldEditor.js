@@ -45,6 +45,10 @@ export class AddFieldEditor extends Component {
     onChange: PropTypes.func,
     style: PropTypes.object
   };
+  static defaultProps = {
+    sqlHeight: 150,
+    blockHeight: 112
+  };
 
   constructor(props) {
     super(props);
@@ -54,12 +58,10 @@ export class AddFieldEditor extends Component {
     this.toggleFunctionsHelpPanel = this.toggleFunctionsHelpPanel.bind(this);
     this.onDropFunc = this.onDropFunc.bind(this);
     this.state = {
-      sqlState: true,
       funcHelpPanel: true,
       dropFunc: '',
       dropDownVisible:false
     };
-    this.preSqlSize = 0;
   }
 
   onDropFunc = (e) => {
@@ -68,13 +70,12 @@ export class AddFieldEditor extends Component {
 
   getFunctionsPanel() {
     return (
-      <div>
-        <FunctionsHelpPanel
-          height={this.props.functionPaneHeight}
-          isVisible={this.state.funcHelpPanel}
-          dragType={this.props.dragType}
-          addFuncToSqlEditor={this.addFuncToSqlEditor}/>
-      </div>
+      <FunctionsHelpPanel
+        height={this.props.functionPaneHeight}
+        isVisible={this.state.funcHelpPanel}
+        dragType={this.props.dragType}
+        addFuncToSqlEditor={this.addFuncToSqlEditor}
+      />
     );
   }
 
@@ -107,32 +108,28 @@ export class AddFieldEditor extends Component {
   render() {
     const { name, onBlur, onFocus, onChange } = this.props;
     const inputProps = { name, onBlur, onFocus, onChange };
-    const sqlBlock = this.state.sqlState
-      ? <div>
-        <SqlAutoComplete
-          pageType={this.props.pageType}
-          onChange={inputProps.onChange}
-          tooltip={this.props.tooltip}
-          defaultValue={this.props.initialValue}
-          ref='editor'
-          hideDropDown={this.hideDropDown}
-          height={this.props.sqlHeight  || 150}
-          disableAutocomplete
-          sqlSize={this.props.sqlHeight  || 150}
-          style={{marginLeft: 12}}/>
-      </div>
-      : <div/>;
 
     return (
-      <div style={{width: '100%'}}>
-        <div style={{height: this.props.blockHeight || 116, position: 'relative', marginTop: 10}}>
+      <div style={styles.base}>
+        <div style={{height: this.props.blockHeight, position: 'relative', marginTop: 10}}>
           <div className='sql-part add-field-editor'
             onClick={this.hideDropDown}
             style={[styles.base, this.props.style]}>
-            {this.getFunctionsPanel()}
             <DragTarget dragType={this.props.dragType} onDrop={this.onDropFunc}>
-              {sqlBlock}
+              <SqlAutoComplete
+                pageType={this.props.pageType}
+                onChange={inputProps.onChange}
+                tooltip={this.props.tooltip}
+                defaultValue={this.props.initialValue}
+                ref='editor'
+                hideDropDown={this.hideDropDown}
+                height={this.props.sqlHeight}
+                disableAutocomplete
+                sqlSize={this.props.sqlHeight}
+                style={styles.sqlEditorStyle}
+              />
             </DragTarget>
+            {this.getFunctionsPanel()}
           </div>
         </div>
       </div>
@@ -151,5 +148,10 @@ export default connect(mapStateToProps)(AddFieldEditor);
 const styles = {
   base: {
     width: '100%'
+  },
+  sqlEditorStyle: {
+    marginLeft: 12,
+    width: 'calc(50% - 29px)',
+    borderRight: 'none'
   }
 };

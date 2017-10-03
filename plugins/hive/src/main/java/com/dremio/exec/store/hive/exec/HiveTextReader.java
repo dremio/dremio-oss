@@ -40,9 +40,9 @@ import org.apache.hadoop.mapred.RecordReader;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.collect.Lists;
 
 public class HiveTextReader extends HiveAbstractReader {
@@ -52,11 +52,12 @@ public class HiveTextReader extends HiveAbstractReader {
   private Object key;
   private SkipRecordsInspector skipRecordsInspector;
 
-  public HiveTextReader(ReadDefinition def, DatasetSplit split, List<SchemaPath> projectedColumns,
-      OperatorContext context, final HiveConf hiveConf) throws ExecutionSetupException {
-    super(def, split, projectedColumns, context, hiveConf);
+  public HiveTextReader(HiveTableXattr tableAttr, DatasetSplit split, List<SchemaPath> projectedColumns,
+      List<String> partitionColumns, OperatorContext context, final HiveConf hiveConf) throws ExecutionSetupException {
+    super(tableAttr, split, projectedColumns, partitionColumns, context, hiveConf);
   }
 
+  @Override
   public void internalInit(Properties tableProperties, RecordReader<Object, Object> reader) {
     key = reader.createKey();
     skipRecordsInspector = new SkipRecordsInspector(tableProperties, reader);

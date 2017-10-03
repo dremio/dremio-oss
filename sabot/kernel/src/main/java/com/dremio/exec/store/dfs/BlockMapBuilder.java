@@ -108,7 +108,7 @@ public class BlockMapBuilder {
           ImmutableRangeMap<Long, BlockLocation> rangeMap = getBlockMap(status);
           for (Entry<Range<Long>, BlockLocation> l : rangeMap.asMapOfRanges().entrySet()) {
             work.add(new CompleteFileWork(getEndpointByteMap(new FileStatusWork(status, l.getValue().getOffset(), l.getValue().getLength())),
-                    l.getValue().getOffset(), l.getValue().getLength(), status.getPath().toString()));
+                    l.getValue().getOffset(), l.getValue().getLength(), status));
           }
         } catch (IOException e) {
           logger.warn("failure while generating file work.", e);
@@ -118,7 +118,7 @@ public class BlockMapBuilder {
 
 
       if (!blockify || error || compressed(status)) {
-        work.add(new CompleteFileWork(getEndpointByteMap(new FileStatusWork(status)), 0, status.getLen(), status.getPath().toString()));
+        work.add(new CompleteFileWork(getEndpointByteMap(new FileStatusWork(status)), 0, status.getLen(), status));
       }
 
       // This if-condition is specific for empty CSV file
@@ -126,7 +126,7 @@ public class BlockMapBuilder {
       // And if this CSV file is empty, rangeMap would be empty also
       // Therefore, at the point before this if-condition, work would not be populated
       if(work.isEmpty()) {
-        work.add(new CompleteFileWork(getEndpointByteMap(new FileStatusWork(status)), 0, 0, status.getPath().toString()));
+        work.add(new CompleteFileWork(getEndpointByteMap(new FileStatusWork(status)), 0, 0, status));
       }
 
       return work;
@@ -157,8 +157,8 @@ public class BlockMapBuilder {
     }
 
     @Override
-    public String getPath() {
-      return status.getPath().toString();
+    public FileStatus getStatus() {
+      return status;
     }
 
     @Override
@@ -173,11 +173,6 @@ public class BlockMapBuilder {
 
 
 
-  }
-
-  private ImmutableRangeMap<Long,BlockLocation> buildBlockMap(Path path) throws IOException {
-    FileStatus status = fs.getFileStatus(path);
-    return buildBlockMap(status);
   }
 
   /**
@@ -201,14 +196,6 @@ public class BlockMapBuilder {
     return blockMap;
   }
 
-  private ImmutableRangeMap<Long,BlockLocation> getBlockMap(Path path) throws IOException{
-    ImmutableRangeMap<Long,BlockLocation> blockMap  = blockMapMap.get(path);
-    if(blockMap == null) {
-      blockMap = buildBlockMap(path);
-    }
-    return blockMap;
-  }
-
   private ImmutableRangeMap<Long,BlockLocation> getBlockMap(FileStatus status) throws IOException{
     ImmutableRangeMap<Long,BlockLocation> blockMap  = blockMapMap.get(status.getPath());
     if (blockMap == null) {
@@ -226,10 +213,10 @@ public class BlockMapBuilder {
    */
   public EndpointByteMap getEndpointByteMap(FileWork work) throws IOException {
     Stopwatch watch = Stopwatch.createStarted();
-    Path fileName = new Path(work.getPath());
 
 
-    ImmutableRangeMap<Long,BlockLocation> blockMap = getBlockMap(fileName);
+
+    ImmutableRangeMap<Long,BlockLocation> blockMap = getBlockMap(work.getStatus());
     EndpointByteMapImpl endpointByteMap = new EndpointByteMapImpl();
     long start = work.getStart();
     long end = start + work.getLength();
@@ -261,7 +248,7 @@ public class BlockMapBuilder {
       }
     }
 
-    logger.debug("FileWork group ({},{}) max bytes {}", work.getPath(), work.getStart(), endpointByteMap.getMaxBytes());
+    logger.debug("FileWork group ({},{}) max bytes {}", work.getStatus().getPath(), work.getStart(), endpointByteMap.getMaxBytes());
 
     logger.debug("Took {} ms to set endpoint bytes", watch.stop().elapsed(TimeUnit.MILLISECONDS));
     return endpointByteMap;

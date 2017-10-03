@@ -42,6 +42,10 @@ public interface HashTable extends AutoCloseable {
    */
   static final public float DEFAULT_LOAD_FACTOR = 0.75f;
 
+  // Build side batch record link. Each link is 6 bytes.
+  // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
+  int BUILD_RECORD_LINK_SIZE = 6;
+
   static public enum PutStatus {KEY_PRESENT, KEY_ADDED, PUT_FAILED;}
 
   /**

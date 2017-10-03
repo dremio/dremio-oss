@@ -24,17 +24,15 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.annotations.VisibleForTesting;
 
 @JsonTypeName("external-sort")
 public class ExternalSort extends Sort {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalSort.class);
 
-  private long initialAllocation = 20000000;
-
   @JsonCreator
   public ExternalSort(@JsonProperty("child") PhysicalOperator child, @JsonProperty("orderings") List<Ordering> orderings, @JsonProperty("reverse") boolean reverse) {
     super(child, orderings, reverse);
+    setInitialAllocation(20000000);
   }
 
   @Override
@@ -64,18 +62,10 @@ public class ExternalSort extends Sort {
     return CoreOperatorType.EXTERNAL_SORT_VALUE;
   }
 
-  public void setMaxAllocation(long maxAllocation) {
-    this.maxAllocation = Math.max(initialAllocation, maxAllocation);
-  }
-
-  @VisibleForTesting
-  public void setInitialAllocation(long initialAllocation) {
-    this.initialAllocation = initialAllocation;
-  }
 
   @Override
-  public long getInitialAllocation() {
-    return initialAllocation;
+  public void setMaxAllocation(long maxAllocation) {
+    super.setMaxAllocation(Math.max(getInitialAllocation(), maxAllocation));
   }
 
 }

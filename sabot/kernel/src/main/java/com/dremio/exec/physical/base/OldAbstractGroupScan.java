@@ -30,8 +30,8 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.schedule.CompleteWork;
@@ -60,11 +60,13 @@ public abstract class OldAbstractGroupScan<T extends CompleteWork> extends Abstr
     this.tablePath = that.tablePath;
   }
 
+  @Override
   public List<String> getTableSchemaPath(){
     return tablePath;
   }
 
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  @Override
+  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
     try(VectorContainer c = new VectorContainer(FakeAllocator.INSTANCE)){
       schema.materializeVectors(getColumns(), new VectorContainerMutator(c));
       c.buildSchema(SelectionVectorMode.NONE);
@@ -72,6 +74,7 @@ public abstract class OldAbstractGroupScan<T extends CompleteWork> extends Abstr
     }
   }
 
+  @Override
   @Deprecated
   public Convention getStoragePluginConvention(){
     if(getPlugin() != null){
@@ -80,6 +83,7 @@ public abstract class OldAbstractGroupScan<T extends CompleteWork> extends Abstr
     return null;
   }
 
+  @Override
   public BatchSchema getSchema() {
     return schema;
   }
@@ -117,18 +121,6 @@ public abstract class OldAbstractGroupScan<T extends CompleteWork> extends Abstr
   @JsonIgnore
   public ScanStats getScanStats() {
     throw new UnsupportedOperationException("This should be implemented.");
-  }
-
-  @Override
-  @JsonIgnore
-  public long getInitialAllocation() {
-    return 0;
-  }
-
-  @Override
-  @JsonIgnore
-  public long getMaxAllocation() {
-    return 0;
   }
 
   @Override

@@ -69,7 +69,8 @@ export class AccelerationUpdatesForm extends Component {
     const { refreshField } = values;
     const requiredValues = {
       method: values.method,
-      accelerationTTL: values.accelerationTTL
+      accelerationRefreshPeriod: values.accelerationRefreshPeriod,
+      accelerationGracePeriod: values.accelerationGracePeriod
     };
     if (this.requiresIncrementalFieldSelection(values)) {
       return {
@@ -173,13 +174,14 @@ const styles = {
 
 const mapStateToProps = (state, ownProps) => {
   const settings = ownProps.accelerationSettings || Immutable.Map({});
-  const accelerationTTL = settings.get('accelerationTTL') && settings.get('accelerationTTL').toJS()
-    || DataFreshnessSection.defaultFormValue();
+  const accelerationRefreshPeriod = settings.get('accelerationRefreshPeriod') || DataFreshnessSection.defaultFormValueRefreshInterval();
+  const accelerationGracePeriod = settings.get('accelerationGracePeriod') || DataFreshnessSection.defaultFormValueGracePeriod();
   return {
     initialValues: {
       method: settings.get('method') || 'FULL',
       refreshField: settings.get('refreshField') || ownProps.datasetFields.getIn([0, 'name']) || '',
-      accelerationTTL
+      accelerationRefreshPeriod,
+      accelerationGracePeriod
     }
   };
 };

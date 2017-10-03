@@ -18,10 +18,10 @@ package com.dremio.sabot.op.join.hash;
 
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 
+import io.netty.buffer.ArrowBuf;
 import java.util.List;
 
 import org.apache.calcite.rel.core.JoinRelType;
@@ -49,7 +49,7 @@ public interface HashJoinProbe {
       HashTable hashTable,
       JoinRelType joinRelType,
       List<BuildInfo> buildInfos,
-      List<SelectionVector4> startIndices,
+      List<ArrowBuf> startIndices,
       int targetRecordsPerBatch);
 
 

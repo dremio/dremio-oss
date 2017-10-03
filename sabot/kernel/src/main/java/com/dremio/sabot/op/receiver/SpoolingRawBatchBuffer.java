@@ -19,7 +19,6 @@ import static com.dremio.exec.cache.VectorAccessibleSerializable.readIntoArrowBu
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -32,7 +31,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.AutoCloseables;
@@ -44,8 +42,9 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.store.LocalSyncableFileSystem;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
+import com.dremio.sabot.op.sort.external.SpillManager;
+import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -107,11 +106,11 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private AtomicReference<SpoolingState> spoolingState = new AtomicReference<>(SpoolingState.PAUSE_SPOOLING);
   private volatile long currentBatchesInMemory = 0;
 
-  private FileSystem fs;
-  private Path path;
+  private SpillFile spillFile;
   private FSDataOutputStream outputStream;
   private final FragmentWorkQueue workQueue;
   private final DeferredException deferred = new DeferredException();
+  private SpillManager spillManager;
 
   public SpoolingRawBatchBuffer(SharedResource resource, final SabotConfig config, FragmentWorkQueue workQueue, FragmentHandle handle, BufferAllocator allocator, int fragmentCount, int oppositeId, int bufferIndex) {
     super(resource, config, handle, allocator, fragmentCount);
@@ -137,13 +136,17 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     if (directories.isEmpty()) {
       throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
     }
-    // pick a random path (so each fragment will be potentially on a different disk/path)
-    final String spillDir = directories.get(ThreadLocalRandom.current().nextInt(directories.size()));
 
     try {
-      fs = FileSystemWrapper.get(new URI(spillDir), SPOOLING_CONFIG);
-      path = getPath(spillDir);
-      outputStream = fs.create(path);
+       final String qid = QueryIdHelper.getQueryId(handle.getQueryId());
+       final int majorFragmentId = handle.getMajorFragmentId();
+       final int minorFragmentId = handle.getMinorFragmentId();
+       final String id =  Joiner.on(Path.SEPARATOR).join(qid, majorFragmentId, minorFragmentId);
+       final String fileName = String.format("%s.%s", oppositeId, bufferIndex);
+
+       this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG);
+       this.spillFile = spillManager.getSpillFile(fileName);
+       outputStream = spillFile.create();
     } catch(Exception ex) {
       throw Throwables.propagate(ex);
     }
@@ -251,14 +254,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       @Override
       public void close() throws Exception {
         if (config.getBoolean(ExecConstants.SPOOLING_BUFFER_DELETE)) {
-          try {
-            if (fs != null) {
-              fs.delete(path, false);
-              logger.debug("Deleted file {}", path.toString());
-            }
-          } catch (IOException e) {
-            logger.warn("Failed to delete temporary files", e);
-          }
+          spillFile.close();
         }
       }};
 
@@ -268,7 +264,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         SpoolingRawBatchBuffer.super.close();
       }};
 
-    AutoCloseables.close(allocator, outputStream, deleteCloser, superCloser, deferred);
+    AutoCloseables.close(allocator, outputStream, deleteCloser, superCloser, deferred, spillFile, this.spillManager);
   }
 
 
@@ -360,7 +356,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
           buf.getBytes(0, stream, bodyLength);
         }
         stream.hsync();
-        FileStatus status = fs.getFileStatus(path);
+        FileStatus status = spillFile.getFileStatus();
         long len = status.getLen();
         logger.debug("After spooling batch, stream at position {}. File length {}", stream.getPos(), len);
         long t = watch.elapsed(TimeUnit.MICROSECONDS);
@@ -390,7 +386,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         // Sometimes, the file isn't quite done writing when we attempt to read it. As such, we need to wait and retry.
         Thread.sleep(duration);
 
-        try(final FSDataInputStream stream = fs.open(path);
+        try(final FSDataInputStream stream = spillFile.open();
             final ArrowBuf buf = allocator.buffer(bodyLength)) {
           stream.seek(start);
           final long currentPos = stream.getPos();
@@ -409,8 +405,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
           tryAgain = false;
           state = BatchState.AVAILABLE;
         } catch (EOFException e) {
-          FileStatus status = fs.getFileStatus(path);
-          logger.warn("EOF reading from file {} at pos {}. Current file size: {}", path, pos, status.getLen());
+          FileStatus status = spillFile.getFileStatus();
+          logger.warn("EOF reading from file {} at pos {}. Current file size: {}", spillFile.getPath(), pos, status.getLen());
           duration = Math.max(1, duration * 2);
           if (duration < 60000) {
             continue;
@@ -427,16 +423,5 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         }
       }
     }
-  }
-
-  private Path getPath(String spillDir) {
-    String qid = QueryIdHelper.getQueryId(handle.getQueryId());
-
-    int majorFragmentId = handle.getMajorFragmentId();
-    int minorFragmentId = handle.getMinorFragmentId();
-
-    String fileName = Joiner.on(Path.SEPARATOR).join(spillDir, qid, majorFragmentId, minorFragmentId, oppositeId, bufferIndex);
-
-    return new Path(fileName);
   }
 }

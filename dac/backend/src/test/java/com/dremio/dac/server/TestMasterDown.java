@@ -103,7 +103,7 @@ public class TestMasterDown extends BaseClientUtils {
     Assume.assumeTrue(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
       masterDremioDaemon = DACDaemon.newDremioDaemon(
-        DacConfig
+        DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .autoPort(false)
           .addDefaultUser(true)
@@ -121,7 +121,7 @@ public class TestMasterDown extends BaseClientUtils {
 
       // remote node
       currentDremioDaemon = DACDaemon.newDremioDaemon(
-        DacConfig
+        DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .autoPort(false)
           .allowTestApis(true)

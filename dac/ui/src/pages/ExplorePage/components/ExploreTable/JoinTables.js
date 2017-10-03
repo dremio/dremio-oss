@@ -19,6 +19,7 @@ import Radium from 'radium';
 import { connect } from 'react-redux';
 import pureRender from 'pure-render-decorator';
 
+import EllipsedText from 'components/EllipsedText';
 import { formLabel, body, formDescription } from 'uiTheme/radium/typography';
 import { getJoinTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
@@ -112,11 +113,7 @@ export class JoinTables extends Component {
     return (
       <div style={[styles.base]}>
         <div style={[styles.tableBlock, tableBlockStyle]}>
-          <div style={[styles.header, {}]}>
-            <span style={styles.headerText}>
-              {fullPath}
-            </span>
-          </div>
+          <div style={styles.header}><EllipsedText text={fullPath} /></div>
           <ExploreTableController
             pageType={this.props.pageType}
             dataset={this.props.dataset}
@@ -129,10 +126,8 @@ export class JoinTables extends Component {
           />
         </div>
         <div style={[styles.tableBlock, { marginLeft: 5}, !this.shouldRenderSecondTable() ? { display: 'none'} : {} ]}>
-          <div style={[styles.header]}>
-            <span style={styles.headerText}>
-              {this.props.joinDatasetFullPath || la('No selected table')}
-            </span>
+          <div style={[styles.header, !this.props.joinDatasetFullPath && {fontStyle: 'italic'}]}>
+            <EllipsedText text={this.props.joinDatasetFullPath || la('No table selected.')}/>
           </div>
           {this.renderSecondTable()}
         </div>
@@ -169,18 +164,15 @@ const styles = {
     position: 'relative'
   },
   header: {
+    ...formLabel,
     height: 25,
     backgroundColor: '#F3F3F3',
     zIndex: 1,
     display: 'flex',
-    alignItems: 'center'
-  },
-  headerText: {
-    ...formLabel,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    margin: '0 10px'
+    alignItems: 'center',
+    padding: '0 10px',
+    marginRight: -5, // hack for alignment
+    flexGrow: 0
   },
   emptyTable: {
     display: 'flex',

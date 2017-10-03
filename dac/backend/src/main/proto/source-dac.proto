@@ -73,13 +73,13 @@ message MongoConfig {
   repeated Property property = 6;
   optional AuthenticationType authenticationType = 7;
   optional string auth_database = 8;
-  
-  // Storage plugin configuration 
+
+  // Storage plugin configuration
   optional int32 authenticationTimeoutMillis = 9; // (mongo defaults to 30 secs) default 2secs
-  repeated string databases = 10; // empty by default. Provides the list of databases if we don't have access to it. 
+  repeated string databases = 10; // empty by default. Provides the list of databases if we don't have access to it.
   optional bool secondaryReadsOnly = 11; // limit reads to read-only secondaries (no reads from writable primaries) If you have no secondaries the queries will fail.
   optional int32 subpartitionSize = 12; // if different from 0 it will increase query paralellism. the number of records to be read by query fragments.
-  
+
 }
 
 message Host {
@@ -100,6 +100,8 @@ message ElasticConfig {
   optional int32 readTimeoutMillis = 9;
   optional int32 scrollTimeoutMillis = 10;
   optional bool usePainless = 11 [default = true];
+  optional bool useWhitelist = 12 [default = false];
+  optional int32 scrollSize = 13 [default = 4000];
 }
 
 message OracleConfig {
@@ -107,7 +109,7 @@ message OracleConfig {
   optional string hostname = 1;
   optional string port = 2; // Default is 1521
   optional string instance = 3; // Default is ORCL
-  optional string username = 4; 
+  optional string username = 4;
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
   optional uint32 fetchSize = 7;
@@ -234,5 +236,5 @@ message ClassPathConfig {
 
 message Property {
   optional string name = 1;
-  optional string value = 2; 
+  optional string value = 2;
 }

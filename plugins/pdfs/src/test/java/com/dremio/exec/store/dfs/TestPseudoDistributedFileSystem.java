@@ -95,7 +95,7 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
   public void setUpLocalFS() throws IOException {
     final FileStatus rootStatus = new FileStatus(4096, true, 0, 0, 37, 42, FsPermission.createImmutable((short) 0555), "root", "wheel", new Path("sabot://10.0.0.1:1234/"));
     final FileStatus fooStatus = new FileStatus(38214, true, 0, 0, 45, 67, FsPermission.createImmutable((short) 0755), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo"));
-    final FileStatus fooBarStatus = new FileStatus(67128, true, 1, 4096, 49, 68, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar"));
+    final FileStatus fooBarStatus = new FileStatus(67128, true, 1, 4096, 69, 68, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar"));
     final FileStatus fooBarDirStatus = new FileStatus(47, true, 0, 0, 1234, 3645, FsPermission.createImmutable((short) 0755), "admin", "admin", new Path("sabot://10.0.0.1:1234/foo/bar/dir"));
     final FileStatus fooBarFile1Status = new FileStatus(1024, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar/file1"));
     final FileStatus fooBarFile2Status = new FileStatus(2048, false, 1, 4096, 37, 42, FsPermission.createImmutable((short) 0644), "root", "wheel", new Path("sabot://10.0.0.1:1234/foo/bar/file2"));
@@ -195,6 +195,8 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     FileStatus status = fs.getFileStatus(path);
     assertEquals(new Path("pdfs:/foo/bar"), status.getPath());
     assertTrue(status.isDirectory());
+    assertEquals(69, status.getModificationTime());
+    assertEquals(90, status.getAccessTime());
   }
 
   @Test

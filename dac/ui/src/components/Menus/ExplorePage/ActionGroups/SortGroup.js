@@ -16,7 +16,6 @@
 import { Component, PropTypes } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
-import Divider from 'material-ui/Divider';
 
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 
@@ -27,10 +26,9 @@ import { SORTABLE_TYPES } from './../../../../constants/columnTypeGroups';
 export default class SortGroup extends Component {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    isAvailable: PropTypes.func.isRequired,
     columnType: PropTypes.string
   }
-  renderMenuItems(columnType) {
+  static renderMenuItems(columnType, onClick) {
     return [
       <ColumnMenuItem
         key='ASC'
@@ -38,7 +36,7 @@ export default class SortGroup extends Component {
         columnType={columnType}
         title={la('Sort Ascending')}
         availableTypes={SORTABLE_TYPES}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />,
       <ColumnMenuItem
         key='DESC'
@@ -46,7 +44,7 @@ export default class SortGroup extends Component {
         columnType={columnType}
         title={la('Sort Descending')}
         availableTypes={SORTABLE_TYPES}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />,
       <ColumnMenuItem
         key='MULTIPLE'
@@ -54,18 +52,16 @@ export default class SortGroup extends Component {
         columnType={columnType}
         title={la('Sort Multiple...')}
         availableTypes={SORTABLE_TYPES}
-        onClick={this.props.makeTransform}
+        onClick={onClick}
       />
     ];
   }
   render() {
-    const { columnType, isAvailable } = this.props;
-    const menuItems = this.renderMenuItems(columnType);
-    const shouldShowDivider = isAvailable(menuItems, columnType);
+    const { columnType, makeTransform } = this.props;
+    const menuItems = SortGroup.renderMenuItems(columnType, makeTransform);
     return (
       <div>
         {menuItems}
-        {shouldShowDivider && <Divider style={{marginTop: 5, marginBottom: 5}} />}
       </div>
     );
   }

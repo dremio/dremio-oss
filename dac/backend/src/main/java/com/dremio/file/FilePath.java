@@ -17,6 +17,7 @@ package com.dremio.file;
 
 import java.util.List;
 
+import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -25,7 +26,6 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.TempSpace;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -41,7 +41,7 @@ public final class FilePath extends NamespacePath {
    * @return a new FilePath instance
    */
   public static FilePath fromURLPath(RootEntity root, String path) {
-    List<String> components = Splitter.on('/').omitEmptyStrings().splitToList(path);
+    List<String> components = PathUtils.toPathComponents(path);
 
     return new FilePath(ImmutableList.<String> builder().add(root.getName()).addAll(components).build());
   }

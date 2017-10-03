@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
+import Keys from 'constants/Keys.json';
 
 import ModalForm from './ModalForm';
 
@@ -31,7 +32,13 @@ describe('ModalForm', () => {
   it('should render form', () => {
     const wrapper = shallow(<ModalForm {...commonProps} />);
     expect(wrapper.type()).to.eql('form');
-    expect(wrapper.prop('onSubmit')).to.equal(commonProps.onSubmit);
+    expect(wrapper.prop('onSubmit')).to.equal(wrapper.instance().handleSubmissionEvent);
+  });
+
+  it('should render div if isNestedForm', () => {
+    const wrapper = shallow(<ModalForm {...commonProps} isNestedForm />);
+    expect(wrapper.type()).to.eql('div');
+    expect(wrapper.prop('onKeyDown')).to.equal(wrapper.instance().handleSubmissionEvent);
   });
 
   it('should pass props to ConfirmCancelFooter', () => {
@@ -57,5 +64,34 @@ describe('ModalForm', () => {
     wrapper.instance().handleDismissMessage();
     wrapper.update();
     expect(wrapper.find('Message').first().prop('dismissed')).to.be.true;
+  });
+
+  describe('#handleSubmissionEvent()', () => {
+    it('no event object', () => {
+      const instance = shallow(<ModalForm {...commonProps} />).instance();
+      instance.handleSubmissionEvent();
+      expect(commonProps.onSubmit).to.have.been.called;
+    });
+    it('with event object', () => {
+      const instance = shallow(<ModalForm {...commonProps} />).instance();
+      const evt = {preventDefault: sinon.spy()};
+      instance.handleSubmissionEvent(evt);
+      expect(evt.preventDefault).to.have.been.called;
+      expect(commonProps.onSubmit).to.have.been.called;
+    });
+    it('keydown Enter', () => {
+      const instance = shallow(<ModalForm {...commonProps} />).instance();
+      const evt = {preventDefault: sinon.spy(), type: 'keydown', keyCode: Keys.ENTER};
+      instance.handleSubmissionEvent(evt);
+      expect(evt.preventDefault).to.have.been.called;
+      expect(commonProps.onSubmit).to.have.been.called;
+    });
+    it('keydown non-Enter', () => {
+      const instance = shallow(<ModalForm {...commonProps} />).instance();
+      const evt = {preventDefault: sinon.spy(), type: 'keydown', keyCode: 1};
+      instance.handleSubmissionEvent(evt);
+      expect(evt.preventDefault).to.not.have.been.called;
+      expect(commonProps.onSubmit).to.not.have.been.called;
+    });
   });
 });

@@ -448,6 +448,24 @@ public class TestNewDateFunctions extends BaseTestQuery {
       .go();
   }
 
+  @Test
+  public void datePart() throws Exception {
+    final String query = "SELECT " +
+        "date_part('minute', interval '1 2:30:45.100' day to second) e1," +
+        "date_part('hour', interval '1 2:30:45.100' day to second) e2," +
+        "date_part('day', interval '1 2:30:45.100' day to second) e3," +
+        "date_part('year', interval '2-5' YEAR TO MONTH) e4, " +
+        "date_part('month', interval '1-4' YEAR TO MONTH) e5, " +
+        "date_part('year', interval '45' YEAR) e6, " +
+        "date_part('month', interval '45' YEAR) e7 " +
+        "from sys.version";
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("e1", "e2", "e3", "e4", "e5", "e6", "e7")
+        .baselineValues(30L, 2L, 1L, 2L, 4L, 45L, 0L)
+        .go();
+  }
 
   private static Period newPeriod(int days, int millis) {
     return new Period(0, 0, 0, days, 0, 0, 0, millis);

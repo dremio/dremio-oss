@@ -76,7 +76,7 @@ class FieldsMappers {
   })
 
   getReplaceValues = (values, columnType) => ({
-    replaceNull: values.replaceType === 'NULL',
+    replaceNull: values.hasOwnProperty('replaceNull') ? values.replaceNull : values.replaceType === 'NULL',
     replacementValue: this.getReplacementValue(values),
     replacedValuesList:  values.replaceValues,
     replacementType: columnType

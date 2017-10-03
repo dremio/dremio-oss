@@ -19,6 +19,7 @@ import { startCase } from 'lodash/string';
 
 import Checkbox from 'components/Fields/Checkbox';
 import FontIcon from 'components/Icon/FontIcon';
+import Meter from 'components/Meter';
 import { body, formDescription } from 'uiTheme/radium/typography';
 import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
 import { applyValidators, notEmptyArray } from 'utils/validation';
@@ -88,12 +89,8 @@ export class SplitTypeForm extends Component {
                   ]}
                 />
               </td>
-              <td>
-                {/* todo: this is not a progress element, semantically. see <meter> */}
-                <progress
-                  style={styles.progress}
-                  value={option.matchingPercent}
-                  max={maxMatchingPercent}/>
+              <td style={styles.progressWrap}>
+                <Meter value={option.matchingPercent} max={maxMatchingPercent}/>
               </td>
               <td style={styles.percent}>{`${option.matchingPercent.toPrecision(2)}%`}</td>
             </tr>)
@@ -157,21 +154,20 @@ const styles = {
   typeList: {
     ...FLEX_COL_START,
     height: 199,
-    width: 450,
+    maxWidth: 450,
     overflowY: 'scroll',
     marginLeft: 10
   },
   checkbox: {
     marginTop: -8
   },
-  progress: {
+  progressWrap: {
     width: 300,
-    paddingRight: 10,
-    verticalAlign: 0
+    paddingRight: 10
   },
   percent: {
     ...formDescription,
-    marginLeft: 10
+    paddingRight: 5
   },
   text: {
     ...body,

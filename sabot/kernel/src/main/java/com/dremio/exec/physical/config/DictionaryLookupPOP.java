@@ -73,7 +73,7 @@ public class DictionaryLookupPOP extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     final BatchSchema childSchema = child.getSchema(context);
     SchemaBuilder b = BatchSchema.newBuilder();
     for (Field field : childSchema.getFields()) {

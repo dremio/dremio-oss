@@ -37,9 +37,7 @@ import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
-import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
 import com.dremio.exec.proto.UserProtos.RpcType;
-import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.CloseableThreadPool;
@@ -214,7 +212,6 @@ public class ForemenWorkManager implements Service {
     private final TerminationListenerRegistry registry;
 
     public ManagedForeman(final TerminationListenerRegistry registry, final Foreman foreman) {
-      super();
       this.foreman = Preconditions.checkNotNull(foreman, "foreman is null");
       registry.addTerminationListener(closeListener);
       this.registry = registry;
@@ -384,8 +381,9 @@ public class ForemenWorkManager implements Service {
                 .newBuilder()
                 .setUserName(config.getUsername())
                 .build())
+            .exposeInternalSources(config.exposeInternalSources())
             .withDefaultSchema(config.getSqlContext())
-            .withExclusions(config.getExclusions())
+            .withMaterializationSettings(config.getMaterializationSettings())
             .withOptionManager(options)
             .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
             .build();

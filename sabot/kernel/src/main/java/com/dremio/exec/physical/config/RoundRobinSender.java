@@ -55,9 +55,4 @@ public class RoundRobinSender extends AbstractSender {
   public int getOperatorType() {
     return CoreOperatorType.ROUND_ROBIN_SENDER_VALUE;
   }
-
-  @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
 }

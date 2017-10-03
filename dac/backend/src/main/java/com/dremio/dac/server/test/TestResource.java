@@ -81,6 +81,8 @@ public class TestResource {
   @POST
   @Path("create")
   public void createTestDataset() throws Exception {
+    context.getStorage().updateNamespace(Sets.newHashSet("cp"), CatalogService.REFRESH_EVERYTHING_NOW);
+
     // TODO: Clean up this mess
     SampleDataPopulator.addDefaultFirstUser(userService, new NamespaceServiceImpl(provider));
     NamespaceService nsWithAuth = context.getNamespaceService(DEFAULT_USER_NAME);
@@ -104,7 +106,7 @@ public class TestResource {
   @Path("clear")
   public void clearTestDataset() throws Exception {
     ((LocalKVStoreProvider) provider).deleteEverything();
-    context.getStorage().updateNamespace(Sets.newHashSet("cp", "__jobResultsStore", "__home", "__accelerator", "__datasetDownload", "$scratch"),
+    context.getStorage().updateNamespace(Sets.newHashSet("__jobResultsStore", "__home", "__accelerator", "__datasetDownload", "$scratch"),
       CatalogService.REFRESH_EVERYTHING_NOW);
   }
 

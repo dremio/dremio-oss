@@ -89,6 +89,7 @@ public class WriterOperator implements SingleInputOperator {
     metadataVector = output.addOrGet(RecordWriter.METADATA);
     partitionNumberVector = output.addOrGet(RecordWriter.PARTITION);
     output.buildSchema();
+    output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
     return output;
   }
@@ -104,11 +105,11 @@ public class WriterOperator implements SingleInputOperator {
         recordWriter.startPartition(partition);
       }
       recordWriter.writeBatch(0, records);
+      moveToCanProduceStateIfOutputExists();
       return;
     }
 
     // we're partitioning.
-    final boolean isFirst = partition == null;
 
     // always need to keep the masked container in alignment.
     maskedContainer.setRecordCount(records);
@@ -126,15 +127,14 @@ public class WriterOperator implements SingleInputOperator {
         start = pointer;
         recordWriter.startPartition(partition);
 
-        if(!isFirst){
-          state = State.CAN_PRODUCE;
-        }
+        moveToCanProduceStateIfOutputExists();
       }
       pointer++;
     }
 
     // write any remaining to existing partition.
     recordWriter.writeBatch(start, pointer - start);
+    moveToCanProduceStateIfOutputExists();
   }
 
   @Override
@@ -197,6 +197,12 @@ public class WriterOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(recordWriter, output);
+  }
+
+  private void moveToCanProduceStateIfOutputExists() {
+    if (listener.entries.size() > 0) {
+      state = State.CAN_PRODUCE;
+    }
   }
 
   private class Listener implements OutputEntryListener {

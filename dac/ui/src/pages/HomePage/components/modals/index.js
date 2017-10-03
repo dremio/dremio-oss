@@ -20,5 +20,5 @@ export DatasetSettingsModal from './DatasetSettings/DatasetSettingsModal';
 
 export AddFolderModal from './AddFolderModal';
 export SpaceModal from './SpaceModal';
-export AddSourceModal from './AddSourceModal';
+export AddSourceModal from './AddSourceModal/AddSourceModal';
 export EditSourceModal from './EditSourceModal';

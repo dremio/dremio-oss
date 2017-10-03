@@ -22,7 +22,7 @@ import StateIconTypes from 'constants/jobPage/StateIconType.json';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
 import jobsUtils from 'utils/jobsUtils';
-
+import timeUtils from 'utils/timeUtils';
 
 import { body, fixedWidthSmall } from 'uiTheme/radium/typography';
 import { PALE_ORANGE } from 'uiTheme/radium/colors';
@@ -93,7 +93,7 @@ export default class JobTr extends Component {
               <TextHighlight text={job.get('user')} inputValue={containsTextValue}/>
             </div>
             <div className='startTime'>
-              {jobsUtils.formatJobTime(jobStartTime)}
+              {timeUtils.formatTime(jobStartTime)}
             </div>
             <div style={styles.durationStyle} className='duration'>
               {jobDuration}

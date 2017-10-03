@@ -61,11 +61,6 @@ public class Sort extends AbstractSingle{
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
-
-  @Override
   public int getOperatorType() {
     return CoreOperatorType.OLD_SORT_VALUE;
   }

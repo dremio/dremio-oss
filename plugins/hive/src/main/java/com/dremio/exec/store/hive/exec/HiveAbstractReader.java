@@ -71,7 +71,7 @@ import com.dremio.hive.proto.HiveReaderProto.SerializedInputSplit;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -105,21 +105,23 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   // Converter which converts data from partition schema to table schema.
   protected Converter partTblObjectInspectorConverter;
 
-  private final ReadDefinition def;
   private final DatasetSplit split;
-
+  private final HiveTableXattr tableAttr;
+  private final List<String> partitionColumns;
   protected OperatorContext context;
   protected String defaultPartitionValue;
 
   public HiveAbstractReader(
-      ReadDefinition def,
+      HiveTableXattr tableAttr,
       DatasetSplit split,
       List<SchemaPath> projectedColumns,
+      List<String> partitionColumns,
       OperatorContext context,
       final HiveConf hiveConf) throws ExecutionSetupException {
     super(context, projectedColumns);
-    this.def = def;
+    this.tableAttr = tableAttr;
     this.split = split;
+    this.partitionColumns = partitionColumns != null ? ImmutableList.copyOf(partitionColumns) : null;
     this.hiveConf = hiveConf;
     this.context = context;
   }
@@ -136,10 +138,8 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     this.managedBuffer = context.getManagedBuffer(256);
-    final HiveTableXattr tableAttr;
     final HiveSplitXattr splitAttr;
     try {
-      tableAttr = HiveTableXattr.parseFrom(def.getExtendedProperty().toByteArray());
       splitAttr = HiveSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
     } catch (InvalidProtocolBufferException e) {
       throw new ExecutionSetupException("Failure deserializing Hive extended attributes.");
@@ -159,7 +159,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
       final SerDe tableSerDe = createSerDe(job, tableAttr.getSerializationLib(), tableProperties);
       final StructObjectInspector tableOI = getStructOI(tableSerDe);
 
-      boolean isPartitioned = def.getPartitionColumnsList() != null && !def.getPartitionColumnsList().isEmpty();
+      boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
       if(isPartitioned){
         final Properties partitionProperties = addProperties(addProperties(new Properties(),
           tableAttr.getPartitionProperties(splitAttr.getPartitionId()).getPartitionPropertyList()), tableAttr.getTablePropertyList());
@@ -294,7 +294,18 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   public void close() throws IOException {
     if(reader != null){
       reader.close();
+      reader = null;
     }
+
+    selectedStructFieldRefs = null;
+    selectedColumnObjInspectors = null;
+    selectedColumnFieldConverters = null;
+    vectors = null;
+    hiveConf = null;
+    partitionSerDe = null;
+    partitionOI = null;
+    finalOI = null;
+    partTblObjectInspectorConverter = null;
   }
 
   public static InputSplit deserializeInputSplit(SerializedInputSplit split) throws IOException, ReflectiveOperationException{

@@ -30,8 +30,9 @@ public class UIMetadataPolicy {
 
   private final UIUpdateMode updateMode;
   private final long namesRefreshMillis;
-  private final long datasetDefinitionTTLMillis;
   private final long authTTLMillis;
+  private final long datasetDefinitionRefreshAfterMillis;
+  private final long datasetDefinitionExpireAfterMillis;
 
   /**
    * Enumeration describing the types of updates available.
@@ -71,15 +72,16 @@ public class UIMetadataPolicy {
   public UIMetadataPolicy(
       @JsonProperty("updateMode") UIUpdateMode updateMode,
       @JsonProperty("namesRefreshMillis") long namesRefreshMillis,
-      @JsonProperty("datasetDefinitionTTLMillis") long datasetDefinitionTTLMillis,
-      @JsonProperty("authTTLMillis") long authTTLMillis) {
+      @JsonProperty("authTTLMillis") long authTTLMillis,
+      @JsonProperty("datasetDefinitionRefreshAfterMillis") long datasetDefinitionRefreshAfterMillis,
+      @JsonProperty("datasetDefinitionExpireAfterMillis") long datasetDefinitionExpireAfterMillis) {
     super();
     this.updateMode = updateMode;
     this.namesRefreshMillis = namesRefreshMillis;
-    this.datasetDefinitionTTLMillis = datasetDefinitionTTLMillis;
     this.authTTLMillis = authTTLMillis;
+    this.datasetDefinitionRefreshAfterMillis = datasetDefinitionRefreshAfterMillis;
+    this.datasetDefinitionExpireAfterMillis = datasetDefinitionExpireAfterMillis;
   }
-
 
   public static UIMetadataPolicy getDefaultUimetadataPolicy() {
     return DEFAULT_UIMETADATA_POLICY;
@@ -93,14 +95,17 @@ public class UIMetadataPolicy {
     return namesRefreshMillis;
   }
 
-  public long getDatasetDefinitionTTLMillis() {
-    return datasetDefinitionTTLMillis;
-  }
-
   public long getAuthTTLMillis() {
     return authTTLMillis;
   }
 
+  public long getDatasetDefinitionRefreshAfterMillis() {
+    return datasetDefinitionRefreshAfterMillis;
+  }
+
+  public long getDatasetDefinitionExpireAfterMillis() {
+    return datasetDefinitionExpireAfterMillis;
+  }
 
   public static UIMetadataPolicy of(MetadataPolicy policy){
     if(policy == null){
@@ -109,8 +114,9 @@ public class UIMetadataPolicy {
     return new UIMetadataPolicy(
         UIUpdateMode.of(policy.getDatasetUpdateMode()),
         policy.getNamesRefreshMs(),
-        policy.getDatasetDefinitionTtlMs(),
-        policy.getAuthTtlMs()
+        policy.getAuthTtlMs(),
+        policy.getDatasetDefinitionRefreshAfterMs(),
+        policy.getDatasetDefinitionExpireAfterMs()
         );
   }
 
@@ -118,7 +124,8 @@ public class UIMetadataPolicy {
     return new MetadataPolicy()
         .setDatasetUpdateMode(updateMode.asUpdateMode())
         .setNamesRefreshMs(namesRefreshMillis)
-        .setDatasetDefinitionTtlMs(datasetDefinitionTTLMillis)
-        .setAuthTtlMs(authTTLMillis);
+        .setAuthTtlMs(authTTLMillis)
+        .setDatasetDefinitionRefreshAfterMs(datasetDefinitionRefreshAfterMillis)
+        .setDatasetDefinitionExpireAfterMs(datasetDefinitionExpireAfterMillis);
   }
 }

@@ -310,14 +310,17 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
     stats.startWait();
     for (MinorFragmentEndpoint destination : config.getDestinations()) {
-      ExecRPC.FragmentStreamComplete completion = ExecRPC.FragmentStreamComplete.newBuilder()
-        .setQueryId(handle.getQueryId())
-        .setSendingMajorFragmentId(handle.getMajorFragmentId())
-        .setSendingMinorFragmentId(handle.getMinorFragmentId())
-        .setReceivingMajorFragmentId(config.getOppositeMajorFragmentId())
-        .addReceivingMinorFragmentId(destination.getId())
-        .build();
-      tunnelProvider.getExecTunnel(destination.getEndpoint()).sendStreamComplete(completion);
+      // don't send termination message if the receiver fragment is already terminated.
+      if (remainingReceivers.get(destination.getId()) == 0) {
+        ExecRPC.FragmentStreamComplete completion = ExecRPC.FragmentStreamComplete.newBuilder()
+            .setQueryId(handle.getQueryId())
+            .setSendingMajorFragmentId(handle.getMajorFragmentId())
+            .setSendingMinorFragmentId(handle.getMinorFragmentId())
+            .setReceivingMajorFragmentId(config.getOppositeMajorFragmentId())
+            .addReceivingMinorFragmentId(destination.getId())
+            .build();
+        tunnelProvider.getExecTunnel(destination.getEndpoint()).sendStreamComplete(completion);
+      }
     }
     stats.stopWait();
   }
@@ -360,14 +363,16 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
    */
   private int calculateBucketSize(VectorAccessible incoming) {
     final OptionManager options = context.getOptions();
-    final int configuredTargetRecordCount = (int)context.getOptions().getOption(ExecConstants.PARTITION_SENDER_BATCH_TARGET_RECORDS);
+    final int configuredTargetRecordCount = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
     if (!options.getOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE)) {
       return configuredTargetRecordCount;
     }
 
-    final int estimatedRecordSize = incoming.getSchema().estimateRecordSize();
+    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
 
-    final int minTargetBucketRecordCount = (int) options.getOption(ExecConstants.PARTITION_SENDER_BATCH_MIN_RECORDS);
+    final int minTargetBucketRecordCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
     final int targetOutgoingBatchSize = (int) Math.min(
         options.getOption(ExecConstants.PARTITION_SENDER_MAX_BATCH_SIZE),
         options.getOption(ExecConstants.PARTITION_SENDER_MAX_MEM) / numReceivers);
@@ -375,7 +380,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     final int newBucketSize = Math.min(configuredTargetRecordCount,
         Math.max(targetOutgoingBatchSize/estimatedRecordSize, minTargetBucketRecordCount));
 
-    return Numbers.nextPowerOfTwo(newBucketSize) - 1;
+    return Math.max(1, Numbers.nextPowerOfTwo(newBucketSize) - 1);
   }
 
   @Override

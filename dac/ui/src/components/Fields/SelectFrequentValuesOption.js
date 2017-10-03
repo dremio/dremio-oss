@@ -16,8 +16,8 @@
 import { Component, PropTypes } from 'react';
 
 import Checkbox from 'components/Fields/Checkbox';
-
-import EllipsisIcon from 'pages/ExplorePage/components/EllipsisIcon';
+import EllipsedText from 'components/EllipsedText';
+import Meter from 'components/Meter';
 
 import { formDescription, body } from 'uiTheme/radium/typography';
 
@@ -26,73 +26,32 @@ import dataFormatUtils from 'utils/dataFormatUtils';
 export default class SelectFrequentValuesOption extends Component {
   static propTypes = {
     option: PropTypes.shape({
-      percent: PropTypes.any,
+      percent: PropTypes.number,
       value: PropTypes.any
-    }),
-    maxPercent: PropTypes.number,
-    field: PropTypes.object,
-    onShowMore: PropTypes.func,
-    onCheck: PropTypes.func
+    }).isRequired,
+    maxPercent: PropTypes.number.isRequired,
+    checked: PropTypes.bool.isRequired,
+    onShowMore: PropTypes.func, // todo: what's this supposed to do?
+    onCheck: PropTypes.func.isRequired
   };
 
-  constructor(props) {
-    super(props);
-
-    this.onEllipsisClick = this.onEllipsisClick.bind(this);
-    this.onMouseEnter = this.onMouseEnter.bind(this);
-
-    this.state = {
-      cellStringBiggerThanCell: false
-    };
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    const { option, field } = this.props;
-    return (option.value !== nextProps.option.value)
-      || (field.value[option.value] !== nextProps.field.value[option.value])
-      || (this.state.cellStringBiggerThanCell !== nextState.cellStringBiggerThanCell);
-  }
-
-  onEllipsisClick(anchor) {
-    const { onShowMore, option } = this.props;
-
-    onShowMore(option.value, anchor);
-  }
-
-  onMouseEnter(e) {
-    const elem = $(e.target);
-    const cellStringBiggerThanCell = elem.width() < elem.prop('scrollWidth');
-
-    if (cellStringBiggerThanCell) {
-      this.setState({
-        cellStringBiggerThanCell
-      });
-    }
-  }
-
-  shouldShowEllipsis() {
-    return this.state.cellStringBiggerThanCell;
+  shouldComponentUpdate(nextProps) {
+    const { option, checked } = this.props;
+    return option.value !== nextProps.option.value || checked !== nextProps.checked;
   }
 
   renderLabelValue() {
     const { option } = this.props;
     const correctText = dataFormatUtils.formatValue(option.value);
+    // note: some APIs don't express null correctly (instead they drop the field)
     const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
-       ? {...styles.nullwrap}
-       : {...styles.wrap};
-    return (
-      <span
-        onMouseEnter={this.onMouseEnter}
-        style={{...correctTextStyle, marginLeft: 10 }}
-      >
-        {correctText}
-      </span>
-    );
+       ? styles.emptyTextWrap
+       : {};
+    return <EllipsedText text={correctText} style={{ ...correctTextStyle, marginLeft: 10 }} />;
   }
 
   render() {
-    const { option, field, maxPercent } = this.props;
-    const isChecked = field.value[option.value];
+    const { option, maxPercent, checked } = this.props;
 
     return (
       <tr>
@@ -100,29 +59,15 @@ export default class SelectFrequentValuesOption extends Component {
           <Checkbox
             data-qa={`checkbox${option.value}`}
             style={styles.checkbox}
-            checked={isChecked}
-            label={
-              <div
-                className={'container-cell' + (this.shouldShowEllipsis() ? ' explore-cell-overflow' : '')}
-                style={styles.container}
-              >
-                <div className='cell-data'>
-                  { this.renderLabelValue() }
-                </div>
-                { this.shouldShowEllipsis() && <EllipsisIcon
-                  onClick={this.onEllipsisClick}
-                  containerStyle={{ lineHeight: '18px' }}
-                />}
-              </div>
-            }
-            onChange={() => {
-              this.props.onCheck(option.value);
+            checked={checked}
+            label={this.renderLabelValue()}
+            onChange={(event) => {
+              this.props.onCheck(option.value, event.target.checked);
             }}
           />
         </td>
         <td style={styles.progressWrap}>
-          {/* todo: this is not a progress element, semantically. see <meter> */}
-          <progress value={option.percent} max={maxPercent} style={styles.progress} />
+          <Meter value={option.percent} max={maxPercent}/>
         </td>
         <td>
           <div style={styles.percent}>
@@ -140,15 +85,9 @@ const styles = {
     alignItems: 'flex-start',
     position: 'relative'
   },
-  wrap: {
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis'
-  },
-  nullwrap: {
+  emptyTextWrap: {
     color: '#aaa',
     fontStyle: 'italic',
-    textAlign: 'center',
     width: '95%'
   },
   checkbox: {
@@ -158,17 +97,12 @@ const styles = {
     overflow: 'hidden'
   },
   progressWrap: {
-    width: '100%'
-  },
-  progress: {
-    marginLeft: 5,
     width: '100%',
-    position: 'relative',
-    top: -4
+    paddingLeft: 10
   },
   percent: {
     ...formDescription,
-    marginLeft: 5,
+    marginLeft: 10,
     textAlign: 'right'
   }
 };

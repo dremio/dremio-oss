@@ -27,6 +27,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.schedule.AssignmentCreator;
 import com.dremio.exec.store.schedule.AssignmentCreator2;
 import com.dremio.exec.store.schedule.CompleteWork;
+import com.dremio.exec.store.schedule.HardAssignmentCreator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
@@ -112,11 +113,16 @@ public class Wrapper {
     final Map<GroupScan, List<CompleteWork>> splitMap = stats.getSplitMap();
     for(GroupScan scan : splitMap.keySet()){
       final ListMultimap<Integer, CompleteWork> assignments;
-      if(parameters.useNewAssignmentCreator()){
-        assignments = AssignmentCreator2.getMappings(endpoints, splitMap.get(scan),
-          parameters.getAssignmentCreatorBalanceFactor());
+      if (stats.getDistributionAffinity() == DistributionAffinity.HARD) {
+        assignments = HardAssignmentCreator.INSTANCE.getMappings(endpoints, splitMap.get(scan));
       } else {
-        assignments = AssignmentCreator.getMappings(endpoints, splitMap.get(scan));
+        if (parameters.useNewAssignmentCreator()) {
+          assignments = AssignmentCreator2.getMappings(endpoints, splitMap.get(scan),
+              parameters.getAssignmentCreatorBalanceFactor()
+          );
+        } else {
+          assignments = AssignmentCreator.getMappings(endpoints, splitMap.get(scan));
+        }
       }
       splitSets.put(scan, assignments);
     }

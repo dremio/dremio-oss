@@ -49,6 +49,7 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
   protected static final String TIMEOUT_HANDLER = "timeout-handler";
+  protected static final String PROTOCOL_ENCODER = "protocol-encoder";
 
   private final ServerBootstrap b;
   private final ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
@@ -121,7 +122,7 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
     connection.setChannelCloseHandler(getCloseHandler(ch, connection));
 
     final ChannelPipeline pipeline = ch.pipeline();
-    pipeline.addLast("protocol-encoder", new RpcEncoder("s-" + rpcConfig.getName()));
+    pipeline.addLast(PROTOCOL_ENCODER, new RpcEncoder("s-" + rpcConfig.getName()));
     pipeline.addLast("message-decoder", getDecoder(connection.getAllocator()));
     pipeline.addLast("handshake-handler", getHandshakeHandler(connection));
 

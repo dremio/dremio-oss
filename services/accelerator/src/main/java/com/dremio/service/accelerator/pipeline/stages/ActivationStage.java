@@ -25,11 +25,12 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.service.accelerator.AccelerationService;
 import com.dremio.service.accelerator.AccelerationUtils;
-import com.dremio.service.accelerator.AsyncTask;
+import com.dremio.service.accelerator.ChainExecutor;
 import com.dremio.service.accelerator.DropTask;
-import com.dremio.service.accelerator.MaterializationTask;
+import com.dremio.service.accelerator.MaterializationTask.MaterializationContext;
 import com.dremio.service.accelerator.RebuildRefreshGraph;
 import com.dremio.service.accelerator.pipeline.PipelineUtils;
 import com.dremio.service.accelerator.pipeline.PipelineUtils.VersionedLayoutId;
@@ -40,12 +41,12 @@ import com.dremio.service.accelerator.proto.AccelerationMode;
 import com.dremio.service.accelerator.proto.AccelerationState;
 import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.LayoutContainer;
-import com.dremio.service.accelerator.proto.LayoutType;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
 import com.dremio.service.accelerator.store.MaterializationStore;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -66,12 +67,20 @@ public class ActivationStage implements Stage {
   private final AccelerationState finalState;
   private final AccelerationMode finalMode;
 
+  private final int layoutMaxRefreshAttempts;
+
   protected ActivationStage(final boolean rawEnabled, final boolean aggregationEnabled, final AccelerationState state,
       final AccelerationMode finalMode) {
+    this(rawEnabled, aggregationEnabled, state, finalMode, 0);
+  }
+
+  protected ActivationStage(final boolean rawEnabled, final boolean aggregationEnabled, final AccelerationState state,
+      final AccelerationMode finalMode, final int layoutMaxRefreshAttempts) {
     this.rawEnabled = rawEnabled;
     this.aggregationEnabled = aggregationEnabled;
     this.finalState = state;
     this.finalMode = finalMode;
+    this.layoutMaxRefreshAttempts = layoutMaxRefreshAttempts;
   }
 
   @Override
@@ -85,11 +94,11 @@ public class ActivationStage implements Stage {
 
     context.commit(acceleration);
 
-    dropOldLayouts(context);
-    materializeNewLayouts(context);
+    boolean materializationsDropped = dropOldLayouts(context);
+    materializeNewLayouts(context, materializationsDropped);
   }
 
-  private void dropOldLayouts(final StageContext context) {
+  private boolean dropOldLayouts(final StageContext context) {
     final MaterializationStore materializationStore = context.getMaterializationStore();
     final JobsService jobsService = context.getJobsService();
     final ExecutorService executor = context.getExecutorService();
@@ -138,40 +147,51 @@ public class ActivationStage implements Stage {
           }
         });
 
+    DatasetConfig dataset = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
     for (final Materialization materialization : droppedMaterializations) {
-      executor.execute(new DropTask(acceleration, materialization, jobsService));
+      executor.execute(new DropTask(acceleration, materialization, jobsService, dataset));
     }
+    boolean materializationsDropped = droppedLayouts.iterator().hasNext();
 
     for (final Layout layout : droppedLayouts) {
       materializationStore.remove(layout.getId());
     }
+    return materializationsDropped;
  }
 
 
-  private void materializeNewLayouts(final StageContext context) {
+  private void materializeNewLayouts(final StageContext context, boolean rebuildRequired) {
     final Acceleration acceleration = context.getCurrentAcceleration();
-    final List<Layout> newLayouts = findNewLayouts(context, acceleration);
-    if (newLayouts.isEmpty()) {
-      return;
-    }
-
+    // make sure RAW layouts precede AGGREGATE layouts in the list so that they get materialized first
+    final List<Layout> newLayouts = FluentIterable.from(findNewLayouts(context, acceleration))
+      .toSortedList(new Comparator<Layout>() {
+        @Override
+        public int compare(Layout o1, Layout o2) {
+          return o1.getLayoutType().compareTo(o2.getLayoutType());
+        }
+      });
     final MaterializationStore store = context.getMaterializationStore();
     final JobsService jobsService = context.getJobsService();
     final AccelerationService accelerationService = context.getAccelerationService();
     final ExecutorService executor = context.getExecutorService();
 
-    AsyncTask next = RebuildRefreshGraph.of(accelerationService);
-
-    // note that new layout has aggregation layouts first in this loop we create tasks in reverse order so as to
-    // materialize raw layouts before aggregation layouts
-    for (final Layout layout : newLayouts) {
-      MaterializationTask task = MaterializationTask.create(context.getAcceleratorStorageName(), store, jobsService,
-        context.getNamespaceService(), context.getCatalogService(), layout, executor, acceleration, context.getAcceleratorStoragePlugin());
-      task.setNext(next);
-      next = task;
+    if (newLayouts.isEmpty()) {
+      if (rebuildRequired) {
+        executor.submit(RebuildRefreshGraph.of(accelerationService));
+      }
+      return;
     }
 
-    executor.submit(next);
+    final MaterializationContext materializationContext = new MaterializationContext(context.getAcceleratorStorageName(),
+      store, jobsService, context.getNamespaceService(), context.getCatalogService(), executor, accelerationService,
+      context.getAcceleratorStoragePlugin());
+
+    // once the chain of materializations is done, rebuild the refresh graph
+
+    final ChainExecutor chainExecutor = new ChainExecutor(newLayouts, materializationContext, true,
+        layoutMaxRefreshAttempts>0?layoutMaxRefreshAttempts:accelerationService.getSettings().getLayoutRefreshMaxAttempts());
+
+    executor.submit(chainExecutor);
   }
 
   private List<Layout> findNewLayouts(final StageContext context, final Acceleration acceleration) {
@@ -194,25 +214,21 @@ public class ActivationStage implements Stage {
               }
             }).isPresent();
           }
-        })
-        .toSortedList(new Comparator<Layout>() {
-          @Override
-          public int compare(Layout o1, Layout o2) {
-            if (o1.getLayoutType() == o2.getLayoutType()) {
-              return 0;
-            }
-            return o1.getLayoutType() == LayoutType.RAW ? 1 : -1;
-          }
-        });
+        }).toList();
   }
 
 
   public static ActivationStage of() {
-    return of(false, false, AccelerationState.DISABLED, AccelerationMode.AUTO);
+    return of(false, false, AccelerationState.DISABLED, AccelerationMode.AUTO, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
   }
 
   public static ActivationStage of(final boolean rawEnabled, final boolean aggregationEnabled,
-      final AccelerationState finalState, final AccelerationMode finalMode) {
+      final AccelerationState finalState,final AccelerationMode finalMode) {
     return new ActivationStage(rawEnabled, aggregationEnabled, finalState, finalMode);
+  }
+
+  public static ActivationStage of(final boolean rawEnabled, final boolean aggregationEnabled,
+      final AccelerationState finalState,final AccelerationMode finalMode, final int layoutRefreshMaxAttempts) {
+    return new ActivationStage(rawEnabled, aggregationEnabled, finalState, finalMode, layoutRefreshMaxAttempts);
   }
 }

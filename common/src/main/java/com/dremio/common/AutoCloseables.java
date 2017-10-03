@@ -55,7 +55,7 @@ public class AutoCloseables {
    * @param t the throwable to add suppressed exception to
    * @param autoCloseables the closeables to close
    */
-  public static void close(Throwable t, Collection<? extends AutoCloseable> autoCloseables) {
+  public static void close(Throwable t, Iterable<? extends AutoCloseable> autoCloseables) {
     try {
       close(autoCloseables);
     } catch (Exception e) {

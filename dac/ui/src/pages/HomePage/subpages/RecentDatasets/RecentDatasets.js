@@ -136,15 +136,15 @@ export class RecentDatasets extends Component {
     function filter(day) {
       return day.id !== id;
     }
+
+    const days = {...this.state.days};
     for (const key in this.state.days) {
-      this.state.days[key] = this.state.days[key].filter(filter);
-      if (this.state.days[key].length === 0) {
-        delete this.state.days[key];
+      days[key] = days[key].filter(filter);
+      if (days[key].length === 0) {
+        delete days[key];
       }
     }
-    this.setState({
-      days: this.state.days
-    });
+    this.setState({days});
     this.props.removeFromHistory(id);
   }
 

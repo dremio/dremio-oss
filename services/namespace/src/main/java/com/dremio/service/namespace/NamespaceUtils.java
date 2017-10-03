@@ -22,7 +22,9 @@ import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
 import java.util.List;
 
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -109,5 +111,28 @@ public final class NamespaceUtils {
   static<T> T firstElement(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.get(0);
+  }
+
+  /**
+   * Carry over few properties from old dataset config to new one
+   * @param oldConfig old dataset config from namespace
+   * @param newConfig new dataset config thats about to be saved in namespace
+   */
+  public static void copyFromOldConfig(DatasetConfig oldConfig, DatasetConfig newConfig) {
+    newConfig.setId(oldConfig.getId());
+    newConfig.setVersion(oldConfig.getVersion());
+    newConfig.setCreatedAt(oldConfig.getCreatedAt());
+    newConfig.setType(oldConfig.getType());
+    newConfig.setFullPathList(oldConfig.getFullPathList());
+    newConfig.setOwner(oldConfig.getOwner());
+    // make sure to copy the acceleration settings from old to new config
+    // newConfig may contain upgrade fileFormat physical settings
+    if (oldConfig.getPhysicalDataset() != null) {
+      if (newConfig.getPhysicalDataset() == null) {
+        newConfig.setPhysicalDataset(new PhysicalDataset());
+      }
+
+      newConfig.getPhysicalDataset().setAccelerationSettings(oldConfig.getPhysicalDataset().getAccelerationSettings());
+    }
   }
 }

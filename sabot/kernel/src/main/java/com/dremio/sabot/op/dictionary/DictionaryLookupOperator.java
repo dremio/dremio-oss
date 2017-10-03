@@ -131,6 +131,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       }
     }
     outgoing.buildSchema(incoming.getSchema().getSelectionVectorMode());
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
     return outgoing;
   }

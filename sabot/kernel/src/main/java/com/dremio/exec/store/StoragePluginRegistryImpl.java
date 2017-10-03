@@ -59,8 +59,7 @@ import com.dremio.exec.store.ischema.InfoSchemaConfig;
 import com.dremio.exec.store.ischema.InfoSchemaStoragePlugin;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
-import com.dremio.exec.store.sys.SystemTablePlugin;
-import com.dremio.exec.store.sys.SystemTablePluginConfig;
+import com.dremio.exec.store.sys.SystemTablePluginProvider;
 import com.dremio.exec.store.sys.store.KVPersistentStore.PersistentStoreCreator;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -72,7 +71,6 @@ import com.dremio.service.namespace.TableInstance;
 import com.dremio.service.namespace.TableInstance.TableParamDef;
 import com.dremio.service.namespace.TableInstance.TableSignature;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.proto.TimePeriod;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceType;
@@ -96,7 +94,8 @@ import com.google.common.io.Resources;
 
 public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StoragePluginRegistryImpl.class);
-  private static final TimePeriod DEFAULT_TTL = new TimePeriod().setDuration(6L).setUnit(TimePeriod.TimeUnit.HOURS);
+  private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(2);
+  private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(6);
   private static final long STORAGE_PLUGIN_STARTUP_WAIT_MILLIS = 15_000;
 
   private Map<Class<?>, Constructor<? extends StoragePlugin<?>>> availablePlugins = Collections.emptyMap();
@@ -107,17 +106,23 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   private final PersistentStore<StoragePluginConfig> pluginSystemTable;
   private final LogicalPlanPersistence lpPersistence;
   private final ScanResult classpathScan;
+  private final SystemTablePluginProvider sysPluginProvider;
+
   private final ConcurrentHashMap<String, Integer> manuallyAddedPlugins = new ConcurrentHashMap<>();
   private final LoadingCache<StoragePluginConfig, StoragePlugin<?>> ephemeralPlugins;
   private HashMap<String, SourceType> pluginSourceTypes = new HashMap<String, SourceType>(); // recording the source type of each entry in 'plugins'
   private static final ImmutableSet<SourceType> singleInstanceTypes = ImmutableSet.of(SourceType.HDFS, SourceType.MAPRFS);
 
   //TODO do we actually need to pass SabotContext ?
-  public StoragePluginRegistryImpl(SabotContext context, CatalogService catalog, final PersistentStoreProvider provider) {
+  public StoragePluginRegistryImpl(final SabotContext context,
+                                   final CatalogService catalog,
+                                   final PersistentStoreProvider provider,
+                                   final SystemTablePluginProvider sysPluginProvider) {
     this.context = checkNotNull(context);
     this.catalog = catalog;
     this.lpPersistence = checkNotNull(context.getLpPersistence());
     this.classpathScan = checkNotNull(context.getClasspathScan());
+    this.sysPluginProvider = sysPluginProvider;
     try {
       this.pluginSystemTable = provider.getOrCreateStore(PSTORE_NAME, StoragePluginCreator.class,
         new JacksonSerializer<>(lpPersistence.getMapper(), StoragePluginConfig.class));
@@ -199,8 +204,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
               INFORMATION_SCHEMA_PLUGIN);
       activePlugins.put(INFORMATION_SCHEMA_PLUGIN, infoSchema);
       manuallyAddedPlugins.put(INFORMATION_SCHEMA_PLUGIN, 0);
-      StoragePlugin<?> sysPlugin = new SystemTablePlugin(SystemTablePluginConfig.INSTANCE, context, SYS_PLUGIN);
-      activePlugins.put(SYS_PLUGIN, sysPlugin);
+      activePlugins.put(SYS_PLUGIN, sysPluginProvider.provide());
       manuallyAddedPlugins.put(SYS_PLUGIN, 0);
 
       StoragePluginStarter starter = new StoragePluginStarter(pluginSystemTable, STORAGE_PLUGIN_STARTUP_WAIT_MILLIS,
@@ -381,10 +385,11 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
 
   private SourceConfig decorate(SourceConfig sourceConfig) {
     return sourceConfig
-            .setAccelerationTTL(Optional.fromNullable(sourceConfig.getAccelerationTTL()).or(DEFAULT_TTL))
-            .setCtime(System.currentTimeMillis())
-            .setDescription("")
-            .setImg("");
+      .setAccelerationRefreshPeriod(Optional.fromNullable(sourceConfig.getAccelerationRefreshPeriod()).or(DEFAULT_REFRESH_PERIOD))
+      .setAccelerationGracePeriod(Optional.fromNullable(sourceConfig.getAccelerationGracePeriod()).or(DEFAULT_GRACE_PERIOD))
+      .setCtime(System.currentTimeMillis())
+      .setDescription("")
+      .setImg("");
   }
 
   public static boolean isInternal(SourceConfig sourceConfig) {
@@ -402,11 +407,13 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig, SourceConfig sourceConfig, boolean atRestart) throws ExecutionSetupException {
     // name could be null if this is a ephemeral storage plugin.
 
-    StoragePlugin<?> plugin = null;
+    StoragePlugin<?> plugin;
     boolean updateSourceInNamespace = false;
     // if sourceConfig is null, that means
     if (sourceConfig != null) {
-      sourceConfig.setAccelerationTTL(Optional.fromNullable(sourceConfig.getAccelerationTTL()).or(DEFAULT_TTL));
+      sourceConfig
+        .setAccelerationRefreshPeriod(Optional.fromNullable(sourceConfig.getAccelerationRefreshPeriod()).or(DEFAULT_REFRESH_PERIOD))
+        .setAccelerationGracePeriod(Optional.fromNullable(sourceConfig.getAccelerationGracePeriod()).or(DEFAULT_GRACE_PERIOD));
       updateSourceInNamespace = true;
     }
     Constructor<? extends StoragePlugin<?>> c = availablePlugins.get(pluginConfig.getClass());
@@ -443,11 +450,19 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
             catalog.registerSource(sourceKey, plugin.getStoragePlugin2());
           }
         }
-      } catch (NamespaceException | ConcurrentModificationException ce) {
+      } catch (ConcurrentModificationException ce) {
         if (sourceConfig == null) {
           logger.debug("Exception", ce);
         } else {
-          throw ce;
+          throw UserException.concurrentModificationError()
+            .message("Source updated concurrently either by another user, or by a background refresh. Please refresh and try again.")
+            .build(logger);
+        }
+      } catch (NamespaceException ne) {
+        if (sourceConfig == null) {
+          logger.debug("Exception", ne);
+        } else {
+          throw ne;
         }
       }
       if (updateSourceInNamespace) {

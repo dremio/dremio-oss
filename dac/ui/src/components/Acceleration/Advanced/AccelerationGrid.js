@@ -20,8 +20,14 @@ import Immutable from 'immutable';
 
 import FontIcon from 'components/Icon/FontIcon';
 import { Column, Table } from 'fixed-data-table-2';
+import { AutoSizer } from 'react-virtualized';
 import SearchField from 'components/Fields/SearchField';
 import PrevalidatedTextField from 'components/Fields/PrevalidatedTextField';
+import Select from 'components/Fields/Select';
+import FieldWithError from 'components/Fields/FieldWithError';
+import Modal from 'components/Modals/Modal';
+import ModalForm from 'components/Forms/ModalForm';
+import FormBody from 'components/Forms/FormBody';
 
 import { h4, formLabel, formDescription, formContext } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
@@ -35,7 +41,6 @@ import './AccelerationGrid.less';
 
 const HEADER_HEIGHT = 90;
 const COLUMN_WIDTH = 70;
-const MAX_HEIGHT = 325; // fits in min supported window height
 const GRID_PADDING = 20;
 
 @Radium
@@ -59,7 +64,8 @@ export class AccelerationGrid extends Component {
   }
 
   state = {
-    tableWidth: 900
+    tableWidth: 900,
+    visibleLayoutExtraSettingsIndex: -1
   }
 
   componentDidMount() {
@@ -123,6 +129,10 @@ export class AccelerationGrid extends Component {
       </div>; // these are styled different intentionally
     }
 
+    // todo: proper string sub loc
+    const placeholderName = `Reflection #${columnIndex + 1}`;
+    const name = this.props.layoutFields[columnIndex].name.value || placeholderName;
+
     return (
       <div data-qa={`reflection_${columnIndex}`} style={{
         ...styles.flexEnd,
@@ -137,22 +147,53 @@ export class AccelerationGrid extends Component {
             <ValidityIndicator isValid={layoutData && layoutData.get('hasValidMaterialization')}/>
             {/*
               use PrevalidatedTextField as a buffer against expensive rerender as you type
-              todo: proper string sub loc
             */}
             <PrevalidatedTextField {...this.props.layoutFields[columnIndex].name}
-              placeholder={`Reflection #${columnIndex + 1}`}
+              placeholder={placeholderName}
               style={{...h4, flex: 1, border: '1px solid transparent', background: 'none', marginLeft: 5}} />
             { this.props.layoutFields.length > 1 &&
               <FontIcon type='Minus'
-                style={{flex: '0 0', cursor: 'pointer', height: 24}}
-                onClick={this.props.removeLayout.bind(this, columnIndex)}/>
+                style={styles.layoutHeaderIcon}
+                onClick={this.props.removeLayout.bind(this, columnIndex)} />
             }
+            <FontIcon
+              type='SettingsMediumFilled'
+              style={styles.layoutHeaderIcon}
+              onClick={() => this.setState({visibleLayoutExtraSettingsIndex: columnIndex})} />
           </div>
         </div>
         {status}
         {this.renderSubCellHeaders()}
+        {this.renderExtraLayoutSettingsModal(columnIndex, name)}
       </div>
     );
+  }
+
+  renderExtraLayoutSettingsModal(columnIndex, name) {
+    const hide = () => {
+      this.setState({visibleLayoutExtraSettingsIndex: -1});
+    };
+    return <Modal
+      size='smallest'
+      title={la('Settings: ') + name} //todo: text sub loc
+      isOpen={this.state.visibleLayoutExtraSettingsIndex === columnIndex}
+      hide={hide}
+    >
+      <ModalForm onSubmit={hide} confirmText={la('Close')} isNestedForm>
+        <FormBody>
+          <FieldWithError label={la('Reflection execution strategy:')}>
+            <Select
+              {...this.props.layoutFields[columnIndex].details.partitionDistributionStrategy}
+              style={{width: 250}}
+              items={[
+                {label: la('Minimize Number of Files Produced'), option: 'CONSOLIDATED'},
+                {label: la('Minimize Refresh Time'), option: 'STRIPED'}
+              ]}
+            />
+          </FieldWithError>
+        </FormBody>
+      </ModalForm>
+    </Modal>;
   }
 
   renderSubCellHeaders() {
@@ -208,25 +249,29 @@ export class AccelerationGrid extends Component {
     return (
       <div
         className='grid-acceleration'
+        style={{ width: '100%' }}
         ref={(wrap) => this.gridWrapper = wrap}
       >
-        <Table
-          rowHeight={30}
-          rowsCount={columns.size}
-          isColumnResizing={false}
-          headerHeight={HEADER_HEIGHT}
-          width={this.state.tableWidth}
-          height={MAX_HEIGHT}
-          scrollToColumn={jumpToIndex + 1}>
-          <Column
-            header={this.renderLeftHeaderCell()}
-            width={COLUMN_WIDTH * 4 /* both raw/aggregrate show 4-wide field list */}
-            fixed
-            allowCellsRecycling
-            cell={(props) => this.renderLeftSideCell(props.rowIndex, props.columnIndex)}
-          />
-          { columnNodes }
-        </Table>
+        <AutoSizer>
+          { ({height}) => (
+            <Table
+              rowHeight={30}
+              rowsCount={columns.size}
+              isColumnResizing={false}
+              headerHeight={HEADER_HEIGHT}
+              width={this.state.tableWidth}
+              height={height}
+              scrollToColumn={jumpToIndex + 1}>
+              <Column
+                header={this.renderLeftHeaderCell()}
+                width={COLUMN_WIDTH * 4 /* both raw/aggregrate show 4-wide field list */}
+                fixed
+                allowCellsRecycling
+                cell={(props) => this.renderLeftSideCell(props.rowIndex, props.columnIndex)}
+              />
+              { columnNodes }
+            </Table>) }
+        </AutoSizer>
       </div>
     );
   }
@@ -326,6 +371,12 @@ const styles = {
       height: 21,
       width: 24
     }
+  },
+  layoutHeaderIcon: { // todo: ax, hover
+    flexGrow: 0,
+    flexShrink: 0,
+    cursor: 'pointer',
+    height: 24
   }
 };
 styles.status = {

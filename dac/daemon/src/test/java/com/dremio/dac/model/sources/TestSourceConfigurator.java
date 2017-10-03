@@ -338,8 +338,8 @@ public class TestSourceConfigurator {
     JdbcStorageConfig jdbcspc = (JdbcStorageConfig)pluginConfig;
     assertEquals("oracle.jdbc.OracleDriver", jdbcspc.getDriver());
     assertEquals("jdbc:oracle:thin:username/password@hostname1:1234/instance", jdbcspc.getUrl());
-    assertEquals(null, jdbcspc.getUsername());
-    assertEquals(null, jdbcspc.getPassword());
+    assertEquals("username", jdbcspc.getUsername());
+    assertEquals("password", jdbcspc.getPassword());
   }
 
   @Test

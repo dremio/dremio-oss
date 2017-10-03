@@ -258,7 +258,7 @@ public class ElasticsearchCluster implements Closeable {
       hosts = "127.0.0.1:" + port;
     }
 
-    this.pool = new ElasticConnectionPool(hosts, sslEnabled, null, null, 10000);
+    this.pool = new ElasticConnectionPool(hosts, sslEnabled, null, null, 10000, false);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();
@@ -437,7 +437,8 @@ public class ElasticsearchCluster implements Closeable {
         showIDColumn,
         null, /* username */
         null, /* password */
-        sslEnabled
+        sslEnabled,
+        false
         );
 
     return config;

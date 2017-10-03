@@ -22,45 +22,53 @@ import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+
+import io.protostuff.ByteString;
 
 /**
  * Easy sub scan.
  */
 @JsonTypeName("easy-sub-scan")
 public class EasySubScan extends SubScanWithProjection {
-  private final ReadDefinition definition;
   private final FileConfig fileConfig;
   private final List<DatasetSplit> splits;
   private final StoragePluginId pluginId;
+  private final ByteString extendedProperty;
+  private final List<String> partitionColumns;
 
   @JsonCreator
   public EasySubScan(
-    @JsonProperty("readDefinition") ReadDefinition definition,
     @JsonProperty("settings") FileConfig config,
     @JsonProperty("splits") List<DatasetSplit> splits,
     @JsonProperty("userName") String userName,
     @JsonProperty("schema") BatchSchema schema,
     @JsonProperty("tableSchemaPath") List<String> tablePath,
     @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns) {
+    @JsonProperty("columns") List<SchemaPath> columns,
+    @JsonProperty("partitionColumns") List<String> partitionColumns,
+    @JsonProperty("extendedProperty") ByteString extendedProperty) {
     super(userName, schema, tablePath, columns);
-    this.definition = definition;
     this.fileConfig = config;
     this.splits = splits;
     this.pluginId = pluginId;
-  }
-
-  public ReadDefinition getReadDefinition() {
-    return definition;
+    this.extendedProperty = extendedProperty;
+    this.partitionColumns = partitionColumns;
   }
 
   public List<DatasetSplit> getSplits() {
     return splits;
+  }
+
+  public List<String> getPartitionColumns() {
+    return partitionColumns;
+  }
+
+  public ByteString getExtendedProperty() {
+    return extendedProperty;
   }
 
   public StoragePluginId getPluginId() {

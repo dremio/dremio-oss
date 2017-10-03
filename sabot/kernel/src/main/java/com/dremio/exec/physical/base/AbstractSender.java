@@ -68,11 +68,6 @@ public abstract class AbstractSender extends AbstractSingle implements Sender {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
-
-  @Override
   @JsonProperty("schema")
   public BatchSchema getSchema() {
     return schema;

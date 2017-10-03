@@ -24,13 +24,16 @@ import actionUtils from 'utils/actionUtils/actionUtils';
 import sourceSchema from 'dyn-load/schemas/source';
 
 import sourcesMapper from 'utils/mappers/sourcesMapper';
+import { getUniqueName } from 'utils/pathUtils';
+import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 
 export const ADD_NEW_SOURCE_START = 'ADD_NEW_SOURCE_START';
 export const ADD_NEW_SOURCE_SUCCESS = 'ADD_NEW_SOURCE_SUCCESS';
 export const ADD_NEW_SOURCE_FAILURE = 'ADD_NEW_SOURCE_FAILURE';
 
-function postCreateSource(sourceModel, _shouldShowFailureNotification = false) {
-  const meta = {
+function postCreateSource(sourceModel, meta, _shouldShowFailureNotification = false) {
+  meta = {
+    ...meta,
     source: Immutable.fromJS(sourceModel).merge({resourcePath: `/source/${sourceModel.name}`}),
     invalidateViewIds: ['AllSources']
   };
@@ -50,15 +53,21 @@ function postCreateSource(sourceModel, _shouldShowFailureNotification = false) {
   };
 }
 
-export function createSource(data, type) {
-  const sourceModel = sourcesMapper.newSource(type, data);
+export function createSource(data, sourceType) {
+  const sourceModel = sourcesMapper.newSource(sourceType, data);
   return (dispatch) => {
     return dispatch(postCreateSource(sourceModel));
   };
 }
 
 
-export function createSampleSource() {
+export function createSampleSource(sources, spaces, meta) {
+  const existingNames = new Set([...sources, ...spaces].map(e => e.get('name')));
+
+  const name = getUniqueName(la('Samples'), (nameTry) => {
+    return !existingNames.has(nameTry);
+  });
+
   const sourceModel = {
     'config': {
       'externalBucketList': [
@@ -67,21 +76,13 @@ export function createSampleSource() {
       'secure': false,
       'propertyList': []
     },
-    'name': la('Samples'),
-    'accelerationTTL': {
-      'unit': 'DAYS',
-      'duration': 1
-    },
-    'metadataPolicy': {
-      'updateMode': 'PREFETCH_QUERIED',
-      'namesRefreshMillis': 1800000,
-      'datasetDefinitionTTLMillis': 1800000,
-      'authTTLMillis': 1800000
-    },
+    name,
+    'accelerationRefreshPeriod': DataFreshnessSection.defaultFormValueRefreshInterval(),
+    'accelerationGracePeriod': DataFreshnessSection.defaultFormValueGracePeriod(),
     'type': 'S3'
   };
   return (dispatch) => {
-    return dispatch(postCreateSource(sourceModel, true));
+    return dispatch(postCreateSource(sourceModel, meta, true));
   };
 }
 export function isSampleSource(source) {

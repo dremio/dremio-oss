@@ -18,7 +18,9 @@ package com.dremio.service.jobs;
 import static com.dremio.common.perf.Timer.time;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -38,14 +40,16 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.FinalizablePhantomReference;
+import com.google.common.base.FinalizableReference;
+import com.google.common.base.FinalizableReferenceQueue;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * Stores and manages job results for max 30 days (default).
@@ -54,11 +58,14 @@ import com.google.common.collect.Lists;
 public class JobResultsStore implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsStore.class);
 
+  private static final FinalizableReferenceQueue FINALIZABLE_REFERENCE_QUEUE = new FinalizableReferenceQueue();
+
   private final String storageName;
   private final Path jobStoreLocation;
   private final FileSystem dfs;
   private final BufferAllocator allocator;
-  private final LoadingCache<JobId, JobDataImpl> jobResults;
+  private final Set<FinalizableReference> jobResultReferences = Sets.newConcurrentHashSet();
+  private final LoadingCache<JobId, JobData> jobResults;
   private final IndexedStore<JobId, JobResult> store;
 
   public JobResultsStore(final FileSystemPlugin plugin, final IndexedStore<JobId, JobResult> store,
@@ -72,22 +79,13 @@ public class JobResultsStore implements Service {
 
     this.jobResults = CacheBuilder.newBuilder()
         .maximumSize(100)
-        .removalListener(new RemovalListener<JobId, JobDataImpl>() {
-          @Override
-          public void onRemoval(RemovalNotification<JobId, JobDataImpl> notification) {
-            try {
-              notification.getValue().close();
-            } catch (Exception e) {
-              logger.warn(String.format("Failed to close the data object for job %s", notification.getValue().getJobId()), e);
-            }
-          }
-        })
         .expireAfterAccess(15, TimeUnit.MINUTES)
         .build(
-            new CacheLoader<JobId, JobDataImpl>() {
+            new CacheLoader<JobId, JobData>() {
               @Override
-              public JobDataImpl load(JobId key) throws Exception {
-                return new JobDataImpl(new LateJobLoader(key), key);
+              public JobData load(JobId key) throws Exception {
+                final JobDataImpl jobDataImpl = new JobDataImpl(new LateJobLoader(key), key);
+                return newJobDataReference(jobDataImpl);
               }
             });
   }
@@ -121,9 +119,31 @@ public class JobResultsStore implements Service {
     }
   }
 
-  void cacheNewJob(JobId jobId, JobDataImpl data){
+  private JobData newJobDataReference(final JobData delegate) {
+    final JobData result = new JobDataWrapper(delegate);
+    FinalizableReference ref = new FinalizablePhantomReference<JobData>(result, FINALIZABLE_REFERENCE_QUEUE) {
+      @Override
+      public void finalizeReferent() {
+        jobResultReferences.remove(this);
+        try {
+          delegate.close();
+        } catch (Exception e) {
+          logger.warn(String.format("Failed to close the data object for job %s", delegate.getJobId()), e);
+        }
+      }
+    };
+
+    jobResultReferences.add(ref);
+
+    return result;
+  }
+
+  JobData cacheNewJob(JobId jobId, JobData data){
     // put this in cache so that others who want it, won't try to read it before it is done running.
-    jobResults.put(jobId, data);
+    final JobData jobDataRef = newJobDataReference(data);
+    jobResults.put(jobId, jobDataRef);
+
+    return jobDataRef;
   }
 
   private static JobInfo getLastAttempt(JobResult jobResult) {
@@ -209,7 +229,7 @@ public class JobResultsStore implements Service {
     }
   }
 
-  public JobDataImpl get(JobId jobId) {
+  public JobData get(JobId jobId) {
     try{
       return jobResults.get(jobId);
     }catch(ExecutionException ex){
@@ -255,5 +275,14 @@ public class JobResultsStore implements Service {
 
 
     jobResults.invalidateAll();
+    jobResults.cleanUp();
+
+    // Closing open references
+    Iterator<FinalizableReference> iterator = jobResultReferences.iterator();
+    while(iterator.hasNext()) {
+      FinalizableReference ref = iterator.next();
+
+      ref.finalizeReferent();
+    }
   }
 }

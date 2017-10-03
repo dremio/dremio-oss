@@ -164,6 +164,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
     cg.getBlock("resetValues")._return(JExpr.TRUE);
 
     outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     aggregator = cg.getCodeGenerator().getImplementationClass();
     aggregator.setup(context.getFunctionContext(), onDeckInput, atBatInput, outgoing, context.getTargetBatchSize(), new TransferOnDeckAtBat());
 

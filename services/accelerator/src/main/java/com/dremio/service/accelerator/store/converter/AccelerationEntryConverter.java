@@ -45,9 +45,6 @@ public class AccelerationEntryConverter implements KVStoreProvider.DocumentConve
     writer.write(AccelerationIndexKeys.TOTAL_REQUESTS, totalRequests);
 
     final DatasetConfigDescriptor dataset = entry.getDescriptor().getContext().getDataset();
-    final String path = AccelerationUtils.makePathString(dataset.getPathList());
-    writer.write(AccelerationIndexKeys.DATASET_PATH, path);
-
 
     final DatasetType type = dataset.getType();
     if (type == DatasetType.VIRTUAL_DATASET) {

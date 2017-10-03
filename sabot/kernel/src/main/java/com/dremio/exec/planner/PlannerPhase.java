@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.volcano.AbstractConverter.ExpandConversionRule;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
@@ -329,21 +328,21 @@ public enum PlannerPhase {
   /**
    * Planner rule that pushes predicates from a Filter into the Join below.
    */
-  static final FilterJoinRule FILTER_INTO_JOIN_CALCITE_RULE =
+  public static final FilterJoinRule FILTER_INTO_JOIN_CALCITE_RULE =
     new FilterIntoJoinRule(true, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
       FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
 
   /**
    * Planner rule that pushes predicates in a Join into the inputs to the Join.
    */
-  static final FilterJoinRule JOIN_CONDITION_PUSH_CALCITE_RULE =
+  public static final FilterJoinRule JOIN_CONDITION_PUSH_CALCITE_RULE =
     new JoinConditionPushRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER,
       FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
 
   /**
    * Planner rule that pushes a {@link LogicalProject} past a {@link LogicalFilter}.
    */
-  static final ProjectFilterTransposeRule PUSH_PROJECT_PAST_FILTER_CALCITE_RULE =
+  public static final ProjectFilterTransposeRule PUSH_PROJECT_PAST_FILTER_CALCITE_RULE =
     new ProjectFilterTransposeRule(LogicalProject.class, LogicalFilter.class,
       DremioRelFactories.CALCITE_LOGICAL_BUILDER, Conditions.PRESERVE_ITEM_CASE);
 

@@ -22,6 +22,7 @@ import CopyButton from 'components/Buttons/CopyButton';
 import Immutable from 'immutable';
 import DocumentTitle from 'react-document-title';
 
+import EllipsedText from 'components/EllipsedText';
 import modelUtils from 'utils/modelUtils';
 import { constructFullPath } from 'utils/pathUtils';
 
@@ -340,7 +341,7 @@ export class ExploreInfoHeader extends PureComponent {
 
   renderCopyToClipBoard(fullPath) {
     return fullPath
-      ? <CopyButton text={fullPath} title={la('Copy Path')}/>
+      ? <CopyButton text={fullPath} title={la('Copy Path')} style={{transform: 'translateY(1px)'}}/>
       : null;
   }
 
@@ -351,13 +352,13 @@ export class ExploreInfoHeader extends PureComponent {
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(dataset);
     return (
       <DatasetItemLabel
-        customNode={
+        customNode={ // todo: string replace loc
           <div>
-            <div style={[style.dbName, formLabel]} data-qa={nameForDisplay}>
-              <span style={nameStyle}>
+            <div style={{...style.dbName, ...formLabel}} data-qa={nameForDisplay}>
+              <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? ` (${la('edited')})` : ''}`}>
                 <span>{nameForDisplay}</span>
-                <span data-qa='dataset-edited'>{`${isEditedDataset ? ` (${la('edited')})` : ''}`}</span>
-              </span>
+                <span data-qa='dataset-edited'>{isEditedDataset ? ` (${la('edited')})` : ''}</span>
+              </EllipsedText>
               {this.renderCopyToClipBoard(constructFullPath(fullPath))}
             </div>
             {fullPath && <BreadCrumbs
@@ -551,9 +552,6 @@ const style = {
     alignItems: 'center'
   },
   dbName: {
-    textOverflow: 'ellipsis',
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
     maxWidth: 300,
     display: 'flex',
     alignItems: 'center'

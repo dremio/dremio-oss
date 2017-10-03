@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
-
-import org.codehaus.jackson.map.ObjectMapper;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -40,6 +39,7 @@ import com.dremio.exec.server.options.OptionList;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.util.MemoryAllocationUtilities;
 import com.dremio.exec.work.foreman.ExecutionPlan;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class ExecutionPlanCreator {
 
@@ -59,7 +59,8 @@ class ExecutionPlanCreator {
     }
 
     // control memory settings for sorts.
-     MemoryAllocationUtilities.setupSortMemoryAllocations(plan, queryContext.getOptions(), queryContext.getConfig());
+     MemoryAllocationUtilities.setupSortMemoryAllocations(plan, queryContext.getOptions(),
+         queryContext.getClusterResourceInformation());
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
@@ -121,10 +122,11 @@ class ExecutionPlanCreator {
         String jsonString = "<<malformed JSON>>";
         sb.append("  fragment_json: ");
         final ObjectMapper objectMapper = new ObjectMapper();
-        try
+        try(InputStream is = PhysicalPlanReader.toInputStream(planFragment.getFragmentJson(), planFragment.getFragmentCodec()))
         {
-          final Object json = objectMapper.readValue(planFragment.getFragmentJson(), Object.class);
-          jsonString = objectMapper.defaultPrettyPrintingWriter().writeValueAsString(json);
+
+          final Object json = objectMapper.readValue(is, Object.class);
+          jsonString = objectMapper.writeValueAsString(json);
         } catch(final Exception e) {
           // we've already set jsonString to a fallback value
         }

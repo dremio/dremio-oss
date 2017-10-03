@@ -31,8 +31,8 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 
 public class SequenceFileFormatPlugin extends EasyFormatPlugin<SequenceFileFormatConfig> {
   public SequenceFileFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig, FileSystemPlugin fsPlugin) {
@@ -53,10 +53,10 @@ public class SequenceFileFormatPlugin extends EasyFormatPlugin<SequenceFileForma
   @Override
   public RecordReader getRecordReader(OperatorContext context,
                                       FileSystemWrapper dfs,
-                                      FileWork fileWork,
+                                      EasyDatasetSplitXAttr splitAttributes,
                                       List<SchemaPath> columns) throws ExecutionSetupException {
-    final Path path = dfs.makeQualified(new Path(fileWork.getPath()));
-    final FileSplit split = new FileSplit(path, fileWork.getStart(), fileWork.getLength(), new String[]{""});
+    final Path path = dfs.makeQualified(new Path(splitAttributes.getPath()));
+    final FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
     return new SequenceFileRecordReader(context, split, dfs);
   }
 

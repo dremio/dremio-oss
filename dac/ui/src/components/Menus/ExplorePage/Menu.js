@@ -26,10 +26,6 @@ class ExploreMenu extends Component {
     children: PropTypes.node
   }
 
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     return (
       <Menu

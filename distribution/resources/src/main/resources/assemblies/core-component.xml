@@ -28,7 +28,7 @@
         <exclude>com.dremio.*:*-shade</exclude>
         <exclude>com.dremio.*:*-shaded</exclude>
         <exclude>com.dremio.jdbc:*</exclude>
-        <exclude>com.dremio:dremio-jdbc:*</exclude>
+        <exclude>com.dremio.client:*</exclude>
         <exclude>com.dremio.distribution:*</exclude>
         <exclude>com.dremio.provision:dremio-shimloader:jar</exclude>
       </excludes>

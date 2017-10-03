@@ -16,6 +16,7 @@
 import { Component, PropTypes } from 'react';
 import pureRender from 'pure-render-decorator';
 
+import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import { h2White } from 'uiTheme/radium/typography';
 import { modalPadding } from 'uiTheme/radium/modal';
@@ -41,7 +42,7 @@ export default class ModalHeader extends Component {
     const {title, hide, hideCloseButton} = this.props;
     return (
       <div className='modal-header' style={styles.base}>
-        <span style={styles.title}>{title}</span>
+        <EllipsedText style={styles.title} text={title} />
         {!hideCloseButton && <FontIcon
           type='XBigWhite'
           onClick={hide}

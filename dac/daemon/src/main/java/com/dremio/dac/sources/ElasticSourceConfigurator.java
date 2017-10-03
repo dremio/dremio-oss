@@ -23,7 +23,6 @@ import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.dac.proto.model.source.AuthenticationType;
 import com.dremio.dac.proto.model.source.ElasticConfig;
 import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
-import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.google.common.base.Preconditions;
 
@@ -52,7 +51,7 @@ public class ElasticSourceConfigurator extends SingleSourceToStoragePluginConfig
 
     ElasticsearchStoragePluginConfig config = new ElasticsearchStoragePluginConfig(
       getHosts(checkNotNull(elastic.getHostList(), "missing hostList"), ','),
-      ElasticsearchConstants.ES_CONFIG_DEFAULT_BATCH_SIZE,
+      elastic.getScrollSize(),
       elastic.getScrollTimeoutMillis(),
       elastic.getReadTimeoutMillis(),
       getBooleanElseFalse(elastic.getShowHiddenIndices()),
@@ -61,7 +60,8 @@ public class ElasticSourceConfigurator extends SingleSourceToStoragePluginConfig
       getBooleanElseFalse(elastic.getShowIdColumn()),
       username,
       password,
-      getBooleanElseFalse(elastic.getSslEnabled()));
+      getBooleanElseFalse(elastic.getSslEnabled()),
+      getBooleanElseFalse(elastic.getUseWhitelist()));
     return config;
   }
 

@@ -95,6 +95,7 @@ public class TopNOperator implements SingleInputOperator {
     this.incoming = incoming;
     this.outgoing = new VectorContainer(context.getAllocator());
     outgoing.addSchema(incoming.getSchema());
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
     outgoing.allocateNew();
     outgoing.buildSchema(SelectionVectorMode.NONE);
 

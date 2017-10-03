@@ -29,5 +29,6 @@ export default { // defaults, and defaults for unit tests
   shouldEnableRSOD: true,
   showUserAndUserProperties: true,
   outsideCommunicationDisabled: false,
+  versionInfo: {},
   ...((window && window.dremioConfig) || {})
 };

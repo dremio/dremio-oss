@@ -69,10 +69,11 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
 
   private class ComplexExpressionAware implements ArgHandler<SqlNode>  {
-    boolean update;
-    SqlNode[] clonedOperands;
-    RewriteType[] rewriteTypes;
+    private final SqlNode[] clonedOperands;
+    private final RewriteType[] rewriteTypes;
     private final SqlCall call;
+
+    private boolean update;
 
     public ComplexExpressionAware(SqlCall call) {
       this.call = call;
@@ -80,6 +81,13 @@ public class CompoundIdentifierConverter extends SqlShuttle {
       final List<SqlNode> operands = call.getOperandList();
       this.clonedOperands = operands.toArray(new SqlNode[operands.size()]);
       rewriteTypes = REWRITE_RULES.get(call.getClass());
+
+      // TODO: this check is reasonable, but there are regressions, so fix the rules and uncomment
+      // if (rewriteTypes != null) {
+      //   Preconditions.checkArgument(rewriteTypes.length == clonedOperands.length,
+      //       "Rewrite rule for %s is incomplete in CompoundIdentifierConverter#REWRITE_RULES (%s types and %s operands)",
+      //       call.getClass().getSimpleName(), rewriteTypes.length, clonedOperands.length);
+      // }
     }
 
     @Override
@@ -150,7 +158,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     Map<Class<? extends SqlCall>, RewriteType[]> rules = Maps.newHashMap();
 
     rules.put(SqlSelect.class, R(D, E, D, E, E, E, E, E, D, D));
-    rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, D, E, D, D));
+    rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, E, D, D));
     rules.put(SqlCreateView.class, R(D, E, E, D));
     rules.put(SqlDescribeTable.class, R(D, D, E));
     rules.put(SqlDropView.class, R(D, D));
@@ -163,7 +171,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlSetOption.class, R(D, D, D));
     rules.put(SqlAccelEnable.class, R(D));
     rules.put(SqlAccelDisable.class, R(D));
-    rules.put(SqlAddLayout.class, R(D,D,D,D,D,D,D,D));
+    rules.put(SqlAddLayout.class, R(D,D,D,D,D,D,D,D,D,D));
     rules.put(SqlDropLayout.class, R(D,D));
     rules.put(SqlAccelToggle.class, R(D,D, D));
     rules.put(SqlForgetTable.class, R(D));

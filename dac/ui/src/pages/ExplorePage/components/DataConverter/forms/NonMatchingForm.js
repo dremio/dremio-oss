@@ -32,7 +32,7 @@ const SECTIONS = [NewFieldSection];
 
 function validate(values) {
   if (values.actionForNonMatchingValue === 'REPLACE_WITH_DEFAULT') {
-    return applyValidators(values, [isRequired('defaultValue', 'value')]);
+    return applyValidators(values, [isRequired('defaultValue', 'Value')]);
   }
 }
 

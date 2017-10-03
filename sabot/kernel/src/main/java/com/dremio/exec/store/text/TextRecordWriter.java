@@ -33,6 +33,7 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 
 public class TextRecordWriter extends StringOutputRecordWriter {
@@ -76,9 +77,32 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     this.fs = FileSystemWrapper.get(conf);
   }
 
+  public static final String NEWLINE = "\n";
+  public static final char QUOTE = '"';
+  public static final String QUOTE_WITH_ESCAPE = "\"\""; // csv files escape quotes with double quotes
+  /*
+   * Enclose 'value' in quotes while escaping any quotes that are already in it
+   */
+  private String quote(String value) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(QUOTE);
+    sb.append(CharMatcher.is(QUOTE).replaceFrom(value, QUOTE_WITH_ESCAPE));
+    sb.append(QUOTE);
+    return sb.toString();
+  }
+
   @Override
   public void addField(int fieldId, String value) throws IOException {
-    currentRecord.append(value + fieldDelimiter);
+    if (value != null) {
+      // Note: even if newline (\n) is not a line delimiter, external tools (google docs, etc.) treat it as one.
+      // Thus, we should escape it
+      if (value.contains(fieldDelimiter) || value.contains(lineDelimiter) || value.contains(NEWLINE)) {
+        currentRecord.append(quote(value));
+      } else {
+        currentRecord.append(value);
+      }
+    }
+    currentRecord.append(fieldDelimiter);
   }
 
   @Override

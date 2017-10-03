@@ -44,7 +44,8 @@ export class AccelerationForm extends Component {
     updateFormDirtyState: PropTypes.func,
     showConfirmationDialog: PropTypes.func,
     showClearReflectionsDialog: PropTypes.func,
-    submitFailed: PropTypes.bool
+    submitFailed: PropTypes.bool,
+    values: PropTypes.object
   };
 
   static defaultProps = {
@@ -182,7 +183,7 @@ export class AccelerationForm extends Component {
   }
 
   renderAccelerationMode() {
-    const { acceleration, location, fullPath } = this.props;
+    const { acceleration, fields, location, fullPath, values, updateFormDirtyState } = this.props;
     const { mode } = this.state;
 
     if (!mode) {
@@ -199,7 +200,11 @@ export class AccelerationForm extends Component {
         />
       );
     } else if (mode === 'MANUAL') {
-      return <AccelerationAdvanced acceleration={acceleration} fields={this.props.fields}/>;
+      return <AccelerationAdvanced
+        acceleration={acceleration}
+        fields={fields}
+        values={values}
+        updateFormDirtyState={updateFormDirtyState}/>;
     }
   }
 
@@ -297,11 +302,11 @@ export class AccelerationForm extends Component {
 const styles = {
   base: {
     height: '100%',
-    flexGrow: 1,
     display: 'flex',
     flexDirection: 'column'
   },
   formBody: {
+    height: '100%',
     display: 'flex',
     flexDirection: 'column'
   },

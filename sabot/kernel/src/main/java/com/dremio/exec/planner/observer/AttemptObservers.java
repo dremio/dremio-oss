@@ -18,6 +18,7 @@ package com.dremio.exec.planner.observer;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
@@ -97,9 +98,9 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
     for (final AttemptObserver observer : observers) {
-      observer.planRelTransform(phase, before, after, millisTaken);
+      observer.planRelTransform(phase, planner, before, after, millisTaken);
     }
   }
 

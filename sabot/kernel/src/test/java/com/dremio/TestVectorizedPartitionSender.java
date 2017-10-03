@@ -15,26 +15,33 @@
  */
 package com.dremio;
 
+import java.util.concurrent.TimeUnit;
+
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+
+import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class TestVectorizedPartitionSender extends BaseTestQuery {
 
+  // As we are setting the max batch size to 128, we end up with lot of small batches from scan which causes the tests
+  // to timeout. Increase the default timeouts.
+  @ClassRule
+  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(2000, TimeUnit.SECONDS);
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
+
   private static void testDistributed(final String fileName) throws Exception {
     final String query = getFile(fileName).replace(";", " ");
-    setSessionOption(ExecConstants.SLICE_TARGET_OPTION, "10");
-    setSessionOption(ExecConstants.PARTITION_SENDER_BATCH_TARGET_RECORDS, "128");
-    testBuilder()
-      .unOrdered()
-      .optionSettingQueriesForBaseline("SET `exec.operator.partitioner.vectorize` = false")
-      .sqlBaselineQuery(query)
-      .optionSettingQueriesForTestQuery("SET `exec.operator.partitioner.vectorize` = true")
-      .sqlQuery(query)
-      .go();
-
-    try (AutoCloseable ac = withOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE, true)) {
+    try (AutoCloseable op1 = withOption(ExecConstants.SLICE_TARGET_OPTION, 10L);
+         AutoCloseable op2 = withOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 128L)
+    ) {
       testBuilder()
           .unOrdered()
           .optionSettingQueriesForBaseline("SET `exec.operator.partitioner.vectorize` = false")
@@ -42,6 +49,16 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
           .optionSettingQueriesForTestQuery("SET `exec.operator.partitioner.vectorize` = true")
           .sqlQuery(query)
           .go();
+
+      try (AutoCloseable ac = withOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE, true)) {
+        testBuilder()
+            .unOrdered()
+            .optionSettingQueriesForBaseline("SET `exec.operator.partitioner.vectorize` = false")
+            .sqlBaselineQuery(query)
+            .optionSettingQueriesForTestQuery("SET `exec.operator.partitioner.vectorize` = true")
+            .sqlQuery(query)
+            .go();
+      }
     }
   }
 

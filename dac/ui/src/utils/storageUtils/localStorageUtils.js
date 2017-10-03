@@ -160,6 +160,14 @@ export class LocalStorageUtils {
     return localStorage.getItem('sqlState') === 'true';
   }
 
+  setDefaultSqlHeight(sqlHeight) {
+    this._safeSave('sqlHeight', sqlHeight);
+  }
+
+  getDefaultSqlHeight() {
+    return +localStorage.getItem('sqlHeight') || 0;
+  }
+
   _safeParse(data) {
     try {
       return JSON.parse(data) || emptyApp;

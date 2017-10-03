@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
+import static com.dremio.sabot.op.common.hashtable.HashTable.BUILD_RECORD_LINK_SIZE;
+
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
@@ -28,12 +30,11 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 import com.dremio.sabot.op.common.ht2.PivotDef;
-import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier4;
+import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier4;
+import com.dremio.sabot.op.copier.FieldBufferCopier6;
 import com.dremio.sabot.op.join.hash.BuildInfo;
 import com.google.common.base.Stopwatch;
 
@@ -47,13 +48,13 @@ public class VectorizedProbe implements AutoCloseable {
   public static final int SKIP = -1;
 
   private final BufferAllocator allocator;
-  private final SelectionVector4[] links;
-  private final SelectionVector4[] starts;
+  private final ArrowBuf[] links;
+  private final ArrowBuf[] starts;
   private final BitSet[] matches;
   private final int[] matchMaxes;
   private ArrowBuf projectProbeSv2;
-  private ArrowBuf projectBuildSv4;
-  private final long buildSv4Addr;
+  private ArrowBuf projectBuildOffsetBuf;
+  private final long projectBuildOffsetAddr;
   private final long probeSv2Addr;
 
   private final JoinTable table;
@@ -73,7 +74,7 @@ public class VectorizedProbe implements AutoCloseable {
   private int remainderBuildSetIndex = -1;
   private int remainderBuildElementIndex = -1;
   private int nextProbeIndex = 0;
-  private int remainderBuildCompositeIndex = -1;
+  private long remainderBuildCompositeIndex = -1;
 
   public VectorizedProbe(
       BufferAllocator allocator,
@@ -83,7 +84,7 @@ public class VectorizedProbe implements AutoCloseable {
       final List<FieldVector> buildOutputs,
       JoinRelType joinRelType,
       List<BuildInfo> buildInfos,
-      List<SelectionVector4> startIndices,
+      List<ArrowBuf> startIndices,
       JoinTable table,
       PivotDef pivot,
       int targetRecordsPerBatch,
@@ -93,7 +94,7 @@ public class VectorizedProbe implements AutoCloseable {
     this.pivot = pivot;
     this.allocator = allocator;
     this.table = table;
-    this.links = new SelectionVector4[buildInfos.size()];
+    this.links = new ArrowBuf[buildInfos.size()];
     this.matches = new BitSet[buildInfos.size()];
     this.matchMaxes = new int[buildInfos.size()];
 
@@ -103,7 +104,7 @@ public class VectorizedProbe implements AutoCloseable {
       matchMaxes[i] = buildInfos.get(i).getRecordCount();
     }
 
-    this.starts = new SelectionVector4[startIndices.size()];
+    this.starts = new ArrowBuf[startIndices.size()];
     for (int i = 0; i < starts.length; i++) {
       starts[i] = startIndices.get(i);
     }
@@ -113,13 +114,14 @@ public class VectorizedProbe implements AutoCloseable {
     this.targetRecordsPerBatch = targetRecordsPerBatch;
     this.projectProbeSv2 = allocator.buffer(targetRecordsPerBatch * 2);
     this.probeSv2Addr = projectProbeSv2.memoryAddress();
-    this.projectBuildSv4 = allocator.buffer(targetRecordsPerBatch * 4); // we may use two byte offsets, either way this should work.
-    this.buildSv4Addr = projectBuildSv4.memoryAddress();
+    // first 4 bytes (int) are for batch index and rest 2 bytes are offset within the batch
+    this.projectBuildOffsetBuf = allocator.buffer(targetRecordsPerBatch * BUILD_RECORD_LINK_SIZE);
+    this.projectBuildOffsetAddr = projectBuildOffsetBuf.memoryAddress();
 
     if(table.size() > 0){
       this.buildCopiers = projectUnmatchedProbe  ?
-          ConditionalFieldBufferCopier4.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs) :
-          FieldBufferCopier4.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
+          ConditionalFieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs) :
+          FieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
     }else {
       this.buildCopiers = Collections.emptyList();
     }
@@ -157,14 +159,14 @@ public class VectorizedProbe implements AutoCloseable {
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
     final boolean projectUnmatchedBuild = this.projectUnmatchedBuild;
     final BitSet[] matches = this.matches;
-    final SelectionVector4[] starts = this.starts;
-    final SelectionVector4[] links = this.links;
+    final ArrowBuf[] starts = this.starts;
+    final ArrowBuf[] links = this.links;
 
     // we have two incoming options: we're starting on a new batch or we're picking up an existing batch.
     final int probeMax = records;
     int outputRecords = 0;
     int currentProbeIndex = this.nextProbeIndex;
-    int currentCompositeBuildIdx = remainderBuildCompositeIndex;
+    long currentCompositeBuildIdx = remainderBuildCompositeIndex;
 
     if(currentProbeIndex == 0){
       // when this is a new batch, we need to pivot the incoming data and then find all the matches.
@@ -172,7 +174,7 @@ public class VectorizedProbe implements AutoCloseable {
     }
 
     final long foundAddr = this.probed.memoryAddress();
-    final long buildSv4Addr = this.buildSv4Addr;
+    final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
     final long probeSv2Addr = this.probeSv2Addr;
 
     probeFind2Watch.start();
@@ -185,7 +187,7 @@ public class VectorizedProbe implements AutoCloseable {
         if (indexInBuild == -1) { // not a matching key.
           if (projectUnmatchedProbe) {
             PlatformDependent.putShort(probeSv2Addr + outputRecords * 2, (short) currentProbeIndex);
-            PlatformDependent.putInt(buildSv4Addr + outputRecords * 4, SKIP);
+            PlatformDependent.putInt(projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
             outputRecords++;
           }
           currentProbeIndex++;
@@ -195,9 +197,12 @@ public class VectorizedProbe implements AutoCloseable {
           /* The current probe record has a key that matches. Get the index
            * of the first row in the build side that matches the current key
            */
-          currentCompositeBuildIdx = starts[indexInBuild / HashTable.BATCH_SIZE].get(indexInBuild % HashTable.BATCH_SIZE);
-        }
+          final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
+              ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
+          currentCompositeBuildIdx = PlatformDependent.getInt(memStart);
+          currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | PlatformDependent.getShort(memStart + 4);
+        }
       }
 
       /* Record in the build side at currentCompositeBuildIdx has a matching record in the probe
@@ -205,29 +210,36 @@ public class VectorizedProbe implements AutoCloseable {
        * join we keep track of which records we need to project at the end
        */
       if(projectUnmatchedBuild){
-        matches[currentCompositeBuildIdx >>> SHIFT_SIZE].set(currentCompositeBuildIdx & HashTable.BATCH_MASK);
+        matches[(int)(currentCompositeBuildIdx >>> SHIFT_SIZE)].set((int)(currentCompositeBuildIdx & HashTable.BATCH_MASK));
       }
       PlatformDependent.putShort(probeSv2Addr + outputRecords * 2, (short) currentProbeIndex);
-      PlatformDependent.putInt(buildSv4Addr + outputRecords * 4, currentCompositeBuildIdx);
+      final long projectBuildOffsetAddrStar = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
+      PlatformDependent.putInt(projectBuildOffsetAddrStar, (int) (currentCompositeBuildIdx >>> SHIFT_SIZE));
+      PlatformDependent.putShort(projectBuildOffsetAddrStar + 4, (short) (currentCompositeBuildIdx & HashTable.BATCH_MASK));
       outputRecords++;
 
       /* Projected single row from the build side with matching key but there
        * may be more build rows with the same key. Check if that's the case
        */
-      currentCompositeBuildIdx = links[currentCompositeBuildIdx >>> SHIFT_SIZE].get(currentCompositeBuildIdx & HashTable.BATCH_MASK);
+      final long memStart = links[(int)(currentCompositeBuildIdx >>> SHIFT_SIZE)].memoryAddress() +
+          ((int)(currentCompositeBuildIdx & HashTable.BATCH_MASK)) * BUILD_RECORD_LINK_SIZE;
 
+      currentCompositeBuildIdx = PlatformDependent.getInt(memStart);
       if (currentCompositeBuildIdx == -1) {
         /* We only had one row in the build side that matched the current key
          * from the probe side. Drain the next row in the probe side.
          */
         currentProbeIndex++;
+      } else {
+        // read the rest of the index including offset in batch.
+        currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | PlatformDependent.getShort(memStart + 4);
       }
 
     }
     probeFind2Watch.stop();
 
     projectProbe(probeSv2Addr, outputRecords);
-    projectBuild(buildSv4Addr, outputRecords);
+    projectBuild(projectBuildOffsetAddr, outputRecords);
 
     if(outputRecords == targetRecordsPerBatch){ // batch was full
       if(currentProbeIndex < probeMax){
@@ -260,7 +272,7 @@ public class VectorizedProbe implements AutoCloseable {
 
     BitSet currentBitset = remainderBuildSetIndex < 0 ? null : matches[remainderBuildSetIndex];
 
-    final long buildSv4addr = this.buildSv4Addr;
+    final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
     // determine the next set of unmatched bits.
     while(outputRecords < targetRecordsPerBatch) {
       if(nextClearIndex == -1){
@@ -284,8 +296,9 @@ public class VectorizedProbe implements AutoCloseable {
         if(nextClearIndex >= matchMaxes[remainderBuildSetIndex]){
           nextClearIndex = -1;
         }else{
-          int composite = (remainderBuildSetIndex << SHIFT_SIZE) | (nextClearIndex & HashTable.BATCH_MASK);
-          PlatformDependent.putInt(buildSv4addr + outputRecords * 4, composite);
+          final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
+          PlatformDependent.putInt(projectBuildOffsetAddrStart, remainderBuildSetIndex);
+          PlatformDependent.putShort(projectBuildOffsetAddrStart + 4, (short)(nextClearIndex & HashTable.BATCH_MASK));
           outputRecords++;
           nextClearIndex++;
         }
@@ -295,7 +308,7 @@ public class VectorizedProbe implements AutoCloseable {
     projectBuildNonMatchesWatch.stop();
 
     allocateOnlyProbe(outputRecords);
-    projectBuild(buildSv4addr, outputRecords);
+    projectBuild(projectBuildOffsetAddr, outputRecords);
 
     this.remainderBuildSetIndex = remainderBuildSetIndex;
     this.remainderBuildElementIndex = nextClearIndex;
@@ -314,13 +327,13 @@ public class VectorizedProbe implements AutoCloseable {
 
   /**
    * Project the build data (including keys from the probe)
-   * @param sv4Addr
+   * @param offsetAddr
    * @param count
    */
-  private void projectBuild(final long sv4Addr, final int count){
+  private void projectBuild(final long offsetAddr, final int count){
     buildCopyWatch.start();
     for(FieldBufferCopier c : buildCopiers){
-      c.copy(sv4Addr, count);
+      c.copy(offsetAddr, count);
     }
     buildCopyWatch.stop();
   }
@@ -357,9 +370,9 @@ public class VectorizedProbe implements AutoCloseable {
   @Override
   public void close() throws Exception {
     try{
-      AutoCloseables.close(projectBuildSv4, projectProbeSv2, probed);
+      AutoCloseables.close(projectBuildOffsetBuf, projectProbeSv2, probed);
     } finally {
-      projectBuildSv4 = null;
+      projectBuildOffsetBuf = null;
       projectProbeSv2 = null;
       probed = null;
     }

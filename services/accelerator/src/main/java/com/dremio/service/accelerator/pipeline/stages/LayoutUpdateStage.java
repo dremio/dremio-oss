@@ -78,13 +78,14 @@ public class LayoutUpdateStage implements Stage {
                 .setName(input.getName())
                 .setDetails(
                     new LayoutDetails()
-                    .setDimensionFieldList(mapper.toLayoutDimensionFields(details.getDimensionFieldList()))
-                    .setMeasureFieldList(mapper.toLayoutFields(details.getMeasureFieldList()))
-                    .setPartitionFieldList(mapper.toLayoutFields(details.getPartitionFieldList()))
-                    .setSortFieldList(mapper.toLayoutFields(details.getSortFieldList()))
-                    .setDisplayFieldList(mapper.toLayoutFields(details.getDisplayFieldList()))
-                    .setDistributionFieldList(mapper.toLayoutFields(details.getDistributionFieldList()))
-                    );
+                        .setDimensionFieldList(mapper.toLayoutDimensionFields(details.getDimensionFieldList()))
+                        .setMeasureFieldList(mapper.toLayoutFields(details.getMeasureFieldList()))
+                        .setPartitionFieldList(mapper.toLayoutFields(details.getPartitionFieldList()))
+                        .setSortFieldList(mapper.toLayoutFields(details.getSortFieldList()))
+                        .setDisplayFieldList(mapper.toLayoutFields(details.getDisplayFieldList()))
+                        .setDistributionFieldList(mapper.toLayoutFields(details.getDistributionFieldList()))
+                        .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy())
+                );
           }
         })
         .toSet();
@@ -105,13 +106,14 @@ public class LayoutUpdateStage implements Stage {
                 .setName(input.getName())
                 .setDetails(
                     new LayoutDetails()
-                    .setDimensionFieldList(mapper.toLayoutDimensionFields(details.getDimensionFieldList()))
-                    .setMeasureFieldList(mapper.toLayoutFields(details.getMeasureFieldList()))
-                    .setPartitionFieldList(mapper.toLayoutFields(details.getPartitionFieldList()))
-                    .setSortFieldList(mapper.toLayoutFields(details.getSortFieldList()))
-                    .setDisplayFieldList(mapper.toLayoutFields(details.getDisplayFieldList()))
-                    .setDistributionFieldList(mapper.toLayoutFields(details.getDistributionFieldList()))
-                    );
+                        .setDimensionFieldList(mapper.toLayoutDimensionFields(details.getDimensionFieldList()))
+                        .setMeasureFieldList(mapper.toLayoutFields(details.getMeasureFieldList()))
+                        .setPartitionFieldList(mapper.toLayoutFields(details.getPartitionFieldList()))
+                        .setSortFieldList(mapper.toLayoutFields(details.getSortFieldList()))
+                        .setDisplayFieldList(mapper.toLayoutFields(details.getDisplayFieldList()))
+                        .setDistributionFieldList(mapper.toLayoutFields(details.getDistributionFieldList()))
+                        .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy())
+                );
           }
         })
         .toSet();

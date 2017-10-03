@@ -55,9 +55,4 @@ public class BroadcastSender extends AbstractSender {
   public int getOperatorType() {
     return CoreOperatorType.BROADCAST_SENDER_VALUE;
   }
-
-  @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
 }

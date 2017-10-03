@@ -106,7 +106,6 @@ class ExtractPattern extends Component {
             {...pattern}
             errorPlacement='bottom'
             label='Regular Expression'
-            labelStyle={styles.label}
             >
             <TextField
               data-qa='PatternExpression'

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.observer;
 
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
@@ -91,11 +92,12 @@ public interface AttemptObserver {
   /**
    * Called multiple times, describing transformations that occurred during planning.
    * @param phase The phase of planning that was run.
+   * @param planner The planner used to do this transformation.
    * @param before The graph before the transformation occurred.
    * @param after The graph after the planning transformation took place
    * @param millisTaken The amount of time taken to complete the planning.
    */
-  void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken);
+  void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken);
 
   /**
    * The text of the final query plan was produced.

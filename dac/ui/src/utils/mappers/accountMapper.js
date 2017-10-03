@@ -27,15 +27,6 @@ class AccountMapper {
       };
     });
   }
-  mapAllUsers(json) {
-    return json.map((item) => {
-      return {
-        id: uuid.v4(),
-        name: item.name,
-        email: item.name
-      };
-    });
-  }
 }
 
 const accountMapper = new AccountMapper();

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>1.1.0-201708121825170680-436784e</version>
+    <version>1.2.1-201710030121530889-8e49316</version>
   </parent>
 
   <artifactId>dremio-hive-exec-shaded</artifactId>
@@ -96,6 +96,14 @@
                 <relocation>
                   <pattern>org.apache.calcite.</pattern>
                   <shadedPattern>hive.org.apache.calcite.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons.lang3.</pattern>
+                  <shadedPattern>hive.org.apache.commons.lang3.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons.lang.</pattern>
+                  <shadedPattern>hive.org.apache.commons.lang.</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

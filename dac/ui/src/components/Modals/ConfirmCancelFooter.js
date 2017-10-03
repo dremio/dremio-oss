@@ -42,7 +42,7 @@ export default class ConfirmCancelFooter extends Component {
     canSubmit: PropTypes.bool,
     hideCancel: PropTypes.bool,
     confirm: PropTypes.func, // optional because you can use type=submit
-    cancel: PropTypes.func.isRequired,
+    cancel: PropTypes.func,
     modalFooter: PropTypes.bool,
     footerChildren: PropTypes.node,
     style: PropTypes.object
@@ -61,19 +61,19 @@ export default class ConfirmCancelFooter extends Component {
   }
 
   render() {
-    const { confirmText, cancelText, submitForm, submitting, canSubmit, hideCancel, footerChildren } = this.props;
+    const { confirmText, cancel, cancelText, submitForm, submitting, canSubmit, hideCancel, footerChildren } = this.props;
     return (
       <div className='confirm-cancel-footer'
         style={[this.props.modalFooter ? modalFooter : styles.nonModalFooter, styles.base, this.props.style]}>
         <div style={[body, {alignSelf: 'center'}]}>{footerChildren}</div>
         {
-            !hideCancel &&
+          cancel && !hideCancel &&
             <SimpleButton
               data-qa='cancel'
               type='button'
               buttonStyle='secondary'
               onClick={this.onCancel}>{cancelText}</SimpleButton>
-          }
+        }
         <SimpleButton
           data-qa='confirm'
           type={submitForm ? 'submit' : undefined}

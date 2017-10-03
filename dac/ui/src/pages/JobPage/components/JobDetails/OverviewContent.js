@@ -18,6 +18,7 @@ import PureRender from 'pure-render-decorator';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import jobsUtils from 'utils/jobsUtils';
+import timeUtils from 'utils/timeUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
 import SettingsBtn from 'components/Buttons/SettingsBtn';
@@ -290,7 +291,7 @@ class OverviewContent extends Component {
                 <span>{this.renderJobDuration()}</span>
               </ListItem>
               <ListItem label={la('Start Time')}>
-                <span>{jobsUtils.formatJobTime(jobDetails.get('startTime'))}</span>
+                <span>{timeUtils.formatTime(jobDetails.get('startTime'))}</span>
               </ListItem>
               <ListItem label={la('End Time')}>
                 <span>{endTime}</span>

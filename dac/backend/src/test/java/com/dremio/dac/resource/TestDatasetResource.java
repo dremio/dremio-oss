@@ -18,6 +18,8 @@ package com.dremio.dac.resource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.concurrent.TimeUnit;
+
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 
@@ -40,7 +42,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
-import com.dremio.service.namespace.proto.TimePeriod;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -49,7 +50,8 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestDatasetResource extends BaseTestServer {
   private static final String SOURCE_NAME = "mysrc";
-  private static final TimePeriod DEFAULT_TTL = new TimePeriod().setDuration(12L).setUnit(TimePeriod.TimeUnit.HOURS);
+  private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(4);
+  private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(12);
   private static final DatasetPath DATASET_PATH = new DatasetPath(ImmutableList.of(SOURCE_NAME, "ds1"));
 
   @Rule
@@ -81,7 +83,8 @@ public class TestDatasetResource extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName(SOURCE_NAME);
     source.setCtime(System.currentTimeMillis());
-    source.setAccelerationTTL(DEFAULT_TTL);
+    source.setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD);
+    source.setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD);
     source.setConfig(nas);
     getSourceService().registerSourceWithRuntime(source);
     addPhysicalDataset(DATASET_PATH, DatasetType.PHYSICAL_DATASET);
@@ -89,7 +92,7 @@ public class TestDatasetResource extends BaseTestServer {
 
   @After
   public void clear() throws Exception {
-    getNamespaceService().deleteSource(new SourcePath(SOURCE_NAME).toNamespaceKey(), 0);
+    getNamespaceService().deleteSource(new SourcePath(SOURCE_NAME).toNamespaceKey(), 1);
   }
 
   @Test
@@ -101,8 +104,8 @@ public class TestDatasetResource extends BaseTestServer {
           AccelerationSettingsDescriptor.class
       );
 
-      assertNotNull(descriptor.getAccelerationTTL());
-      assertEquals(DEFAULT_TTL, descriptor.getAccelerationTTL());
+      assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
+      assertEquals((Long) DEFAULT_GRACE_PERIOD, descriptor.getAccelerationGracePeriod());
     }
   }
 
@@ -110,8 +113,9 @@ public class TestDatasetResource extends BaseTestServer {
   public void testUpdateSettingsInFullMode() throws Exception {
     {
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-          .setAccelerationTTL(DEFAULT_TTL)
-          .setMethod(RefreshMethod.FULL);
+        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+        .setMethod(RefreshMethod.FULL);
 
       expectSuccess(
           getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -123,7 +127,8 @@ public class TestDatasetResource extends BaseTestServer {
       );
 
       assertNotNull(newDescriptor);
-      assertEquals(descriptor.getAccelerationTTL(), newDescriptor.getAccelerationTTL());
+      assertEquals(descriptor.getAccelerationRefreshPeriod(), newDescriptor.getAccelerationRefreshPeriod());
+      assertEquals(descriptor.getAccelerationGracePeriod(), newDescriptor.getAccelerationGracePeriod());
       assertEquals(descriptor.getMethod(), newDescriptor.getMethod());
       assertEquals(descriptor.getRefreshField(), newDescriptor.getRefreshField());
     }
@@ -133,9 +138,10 @@ public class TestDatasetResource extends BaseTestServer {
   public void testUpdateSettingsInIncrementalMode() throws Exception {
     {
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-          .setAccelerationTTL(DEFAULT_TTL)
-          .setMethod(RefreshMethod.INCREMENTAL)
-          .setRefreshField("test-field");
+        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+        .setMethod(RefreshMethod.INCREMENTAL)
+        .setRefreshField("test-field");
 
       expectSuccess(
           getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -147,7 +153,8 @@ public class TestDatasetResource extends BaseTestServer {
       );
 
       assertNotNull(newDescriptor);
-      assertEquals(descriptor.getAccelerationTTL(), newDescriptor.getAccelerationTTL());
+      assertEquals(descriptor.getAccelerationRefreshPeriod(), newDescriptor.getAccelerationRefreshPeriod());
+      assertEquals(descriptor.getAccelerationGracePeriod(), newDescriptor.getAccelerationGracePeriod());
       assertEquals(descriptor.getMethod(), newDescriptor.getMethod());
       assertEquals(descriptor.getRefreshField(), newDescriptor.getRefreshField());
     }
@@ -157,8 +164,9 @@ public class TestDatasetResource extends BaseTestServer {
   public void testValidation() throws Exception {
     {
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-          .setAccelerationTTL(DEFAULT_TTL)
-          .setMethod(RefreshMethod.INCREMENTAL);
+        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+        .setMethod(RefreshMethod.INCREMENTAL);
 
       expectStatus(Response.Status.BAD_REQUEST,
           getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -167,9 +175,10 @@ public class TestDatasetResource extends BaseTestServer {
 
     {
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-          .setAccelerationTTL(DEFAULT_TTL)
-          .setMethod(RefreshMethod.FULL)
-          .setRefreshField("some-field");
+        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+        .setMethod(RefreshMethod.FULL)
+        .setRefreshField("some-field");
 
       expectStatus(Response.Status.BAD_REQUEST,
           getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
@@ -181,9 +190,10 @@ public class TestDatasetResource extends BaseTestServer {
       addPhysicalDataset(path2, DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
 
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-          .setAccelerationTTL(DEFAULT_TTL)
-          .setMethod(RefreshMethod.INCREMENTAL)
-          .setRefreshField("some-field");
+        .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+        .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+        .setMethod(RefreshMethod.INCREMENTAL)
+        .setRefreshField("some-field");
 
       expectStatus(Response.Status.BAD_REQUEST,
           getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", path2.toPathString())))

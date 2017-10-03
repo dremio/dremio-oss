@@ -16,6 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import jobsUtils from '../../../../utils/jobsUtils';
+import timeUtils from '../../../../utils/timeUtils';
 
 import JobTr from './JobTr';
 
@@ -57,8 +58,8 @@ describe('JobsTr-spec', () => {
   it('Job Row content', () => {
     const wrapper = shallow(<JobTr {...commonProps}/>);
     expect(wrapper.find('.user').find('TextHighlight').prop('text')).to.equal(commonProps.job.get('user'));
-    expect(wrapper.find('.startTime').text()).to.eql(jobsUtils.formatJobTime(commonProps.job.get('startTime')));
-    expect(wrapper.find('.endTime').text()).to.eql(jobsUtils.formatJobTime(commonProps.job.get('endTime')));
+    expect(wrapper.find('.startTime').text()).to.eql(timeUtils.formatTime(commonProps.job.get('startTime')));
+    expect(wrapper.find('.endTime').text()).to.eql(timeUtils.formatTime(commonProps.job.get('endTime')));
     expect(wrapper.find('.duration').text()).to.eql(
       jobsUtils.getJobDuration(commonProps.job.get('startTime'), commonProps.job.get('endTime'))
     );

@@ -23,25 +23,45 @@ export default class MultiplierField extends Component {
 
   static propTypes = {
     error: PropTypes.string,
-    onChange: PropTypes.func,
+    onChange: PropTypes.func.isRequired,
     touched: PropTypes.bool,
     disabled: PropTypes.bool, // todo: add a #readonly/readOnly(?) and switch existing uses of #disabled as appropriate)
     value: PropTypes.number,
     style: PropTypes.object,
-    unitMultipliers: PropTypes.instanceOf(Map).isRequired
+    unitMultipliers: PropTypes.instanceOf(Map).isRequired,
+    min: PropTypes.number.isRequired // this UI only enforces the units displayed, your form should have its own validation (BE and/or FE)
   };
+
+  static defaultProps = {
+    min: 0
+  }
 
   state = {
     unit: null
   }
 
   handleTextChange = (value) => {
-    this.setState({unit: this.getUnit()}); // need to lock in the unit once the user starts making changes
-    this.props.onChange(+value * this.props.unitMultipliers.get(this.state.unit));
+    const unit = this.getUnit();
+    this.setState({unit}); // need to lock in the unit once the user starts making changes
+    this.props.onChange(+value * this.props.unitMultipliers.get(unit));
   }
 
   handleSelectChange = (unit) => {
+    // keep the same displayed number even when changing units (DX-9129)
+    this.props.onChange(this.getConvertedNumberForDisplay() * this.props.unitMultipliers.get(unit));
     this.setState({unit});
+  }
+
+  getFilteredUnitMultipliers() {
+    const unitMultipliersArray = [...this.props.unitMultipliers];
+    let i = unitMultipliersArray.length;
+    while (i--) {
+      const unitMultiplier = unitMultipliersArray[i];
+      const multiplier = unitMultiplier[1];
+      if (this.props.min >= multiplier) break;
+    }
+
+    return new Map(unitMultipliersArray.slice(Math.max(0, i)));
   }
 
   getUnit() {
@@ -49,13 +69,13 @@ export default class MultiplierField extends Component {
 
     const { value } = this.props;
 
-    let unit = Array.from(this.props.unitMultipliers.keys())[0];
+    let unit = Array.from(this.getFilteredUnitMultipliers().keys())[0];
 
     if (typeof value !== 'number' || Number.isNaN(value)) {
       return unit;
     }
 
-    for (const [key, multiplier] of this.props.unitMultipliers) {
+    for (const [key, multiplier] of this.getFilteredUnitMultipliers()) {
       if (value < multiplier) break;
       if (stringifyWithoutExponent(value / multiplier).match(/\.[0-9]{3}/)) break;
       unit = key;
@@ -63,31 +83,33 @@ export default class MultiplierField extends Component {
     return unit;
   }
 
-  render() {
+  getConvertedNumberForDisplay() {
     let convertedValue = this.props.value / this.props.unitMultipliers.get(this.getUnit());
     if (Number.isNaN(convertedValue)) {
-      convertedValue = '0';
-    } else {
-      convertedValue = stringifyWithoutExponent(convertedValue);
+      convertedValue = 0;
     }
+    return convertedValue;
+  }
 
-    return <span style={{display: 'inline-flex', ...this.props.style}}>
+  render() {
+    return <span style={{...styles.base, ...this.props.style}}>
       <PrevalidatedTextField
         type='number'
-        value={convertedValue}
+        value={stringifyWithoutExponent(this.getConvertedNumberForDisplay())}
         error={this.props.error}
         touched={this.props.touched}
         disabled={this.props.disabled}
         onChange={this.handleTextChange}
-        style={{width: 180}}
+        style={styles.textField}
       />
       <span style={{display: 'inline-block'}}>
         <Select
-          items={Array.from(this.props.unitMultipliers.keys()).map(size => ({label: size}))}
+          items={Array.from(this.getFilteredUnitMultipliers().keys()).map(size => ({label: size}))}
           value={this.getUnit()}
           disabled={this.props.disabled}
           onChange={this.handleSelectChange}
-          style={{width: 120}}
+          buttonStyle={{ textAlign: 'left' }}
+          style={styles.select}
         />
       </span>
     </span>;
@@ -98,3 +120,17 @@ export default class MultiplierField extends Component {
 function stringifyWithoutExponent(number) {
   return number.toFixed(20).replace(/\.?0+$/, '');
 }
+
+const styles = {
+  base: {
+    display: 'inline-flex',
+    width: 310
+  },
+  textField: {
+    flexGrow: 1,
+    width: 0 // override any preset width
+  },
+  select: {
+    width: 164
+  }
+};

@@ -45,6 +45,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.AbstractSchema;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.pojo.PojoDataType;
@@ -58,6 +59,7 @@ import com.dremio.sabot.op.scan.VectorContainerMutator;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
+import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -97,7 +99,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     observer.execStarted(null);
     final BatchSchema schema = PojoRecordReader.getSchema(handler.getResultType());
     final CollectingOutcomeListener listener = new CollectingOutcomeListener();
-    Writer writer = getWriter(context.getOptions(), context.getRootSchema());
+    Writer writer = getWriter(context.getOptions(), context.getSchemaInfoProvider());
     //TODO: non-trivial expense. Move elsewhere.
     OperatorCreatorRegistry registry = new OperatorCreatorRegistry(context.getScanResult());
     OperatorContextImpl ocx = createContext(writer);
@@ -150,12 +152,18 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     return "execute and store; direct";
   }
 
-  private Writer getWriter(OptionManager options, SchemaPlus rootSchema) throws IOException{
+  private Writer getWriter(OptionManager options, SchemaConfig.SchemaInfoProvider infoProvider) throws IOException{
     final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).string_val;
     final List<String> storeTable = new StrTokenizer(storeTablePath, '.', ParserConfig.QUOTING.string.charAt(0))
         .setIgnoreEmptyTokens(true).getTokenList();
 
-    final AbstractSchema schema = SchemaUtilities.resolveToMutableSchemaInstance(rootSchema,
+    // store query results as the system user
+    final SchemaPlus systemUserSchema = context.getRootSchema(
+        SchemaConfig
+            .newBuilder(SystemUser.SYSTEM_USERNAME)
+            .setProvider(infoProvider)
+            .build());
+    final AbstractSchema schema = SchemaUtilities.resolveToMutableSchemaInstance(systemUserSchema,
         Util.skipLast(storeTable), true, MutationType.TABLE);
 
     // Query results are stored in arrow format. If need arises, we can change

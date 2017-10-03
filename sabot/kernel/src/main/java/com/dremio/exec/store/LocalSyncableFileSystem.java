@@ -120,7 +120,10 @@ public class LocalSyncableFileSystem extends FileSystem {
   @Override
   public FileStatus getFileStatus(Path path) throws IOException {
     File file = new File(Path.getPathWithoutSchemeAndAuthority(path).toString());
-    return new FileStatus(file.length(), file.isDirectory(), 1, 0, file.lastModified(), path);
+    if (file.exists()) {
+      return new FileStatus(file.length(), file.isDirectory(), 1, 0, file.lastModified(), path);
+    }
+    return null;
   }
 
   public class LocalSyncableOutputStream extends OutputStream implements Syncable {

@@ -19,24 +19,29 @@ import ColumnActionMenu from './ColumnActionMenu';
 describe('ColumnActionMenu', () => {
   let minimalProps;
   let commonProps;
+  let wrapper;
+  let instance;
   beforeEach(() => {
-    minimalProps = {};
+    minimalProps = {
+      onRename: sinon.spy()
+    };
     commonProps = {
       ...minimalProps,
       columnType: 'TEXT',
       columnName: 'user',
-      columnsNumber: 1,
+      columnsCount: 1,
       makeTransform: sinon.spy(),
       openDetailsWizard: sinon.spy(),
       hideDropdown: sinon.spy()
     };
+    wrapper = shallow(<ColumnActionMenu {...commonProps}/>);
+    instance = wrapper.instance();
   });
   it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ColumnActionMenu {...minimalProps}/>);
+    wrapper = shallow(<ColumnActionMenu {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
   });
   it('should render ExploreMenu, SortGroup, MainActionGroup, SqlGroup, ReplaceGroup, OtherGroup', () => {
-    const wrapper = shallow(<ColumnActionMenu {...commonProps}/>);
     expect(wrapper.find('ExploreMenu')).to.have.length(1);
     expect(wrapper.find('SortGroup')).to.have.length(1);
     expect(wrapper.find('MainActionGroup')).to.have.length(1);
@@ -44,9 +49,30 @@ describe('ColumnActionMenu', () => {
     expect(wrapper.find('ReplaceGroup')).to.have.length(1);
     expect(wrapper.find('OtherGroup')).to.have.length(1);
   });
+
+  describe('#makeTransform', () => {
+    it('should call props.makeTransform for one step items', () => {
+      instance.makeTransform('ASC');
+      expect(commonProps.onRename).to.not.be.called;
+      expect(commonProps.makeTransform).to.be.called;
+    });
+
+    it('should call props.onRename if actionType == RENAME', () => {
+      instance.makeTransform('RENAME');
+      expect(commonProps.onRename).to.be.called;
+      expect(commonProps.makeTransform).to.not.be.called;
+    });
+
+    it('should otherwise call openDetailsWizard', () => {
+      instance.makeTransform('FOO');
+      expect(commonProps.onRename).to.not.be.called;
+      expect(commonProps.makeTransform).to.not.be.called;
+      expect(commonProps.openDetailsWizard).to.be.called;
+    });
+  });
+
   describe('#isAvailable', () => {
     it('should return true only if for one of the menuItems columnType is available', () => {
-      const instance = shallow(<ColumnActionMenu {...commonProps}/>).instance();
       const menuItems = [
         { props: { availableTypes: ['TEXT'] }},
         { props: { availableTypes: ['FLOAT'] }}

@@ -20,7 +20,7 @@ import Immutable from 'immutable';
 import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
 import DragSortColumn from './DragSortColumn';
 
-const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click "Add Another"';
+const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click “Add a Sort Field”';
 
 @Radium
 class SortDragArea extends Component {

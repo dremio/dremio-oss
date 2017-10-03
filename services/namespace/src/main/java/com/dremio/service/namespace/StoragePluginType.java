@@ -16,6 +16,7 @@
 package com.dremio.service.namespace;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -40,10 +41,15 @@ public final class StoragePluginType {
     this.rulesFactoryClass = rulesFactory;
   }
 
-  @Override
   @JsonProperty("name")
-  public String toString() {
+  public String name() {
     return name;
+  }
+
+  @Override
+  @JsonIgnore
+  public String toString() {
+    return name();
   }
 
   /**

@@ -87,7 +87,7 @@ public class HashAggregate extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     final BatchSchema childSchema = child.getSchema(context);
     List<NamedExpression> exprs = new ArrayList<>();
     exprs.addAll(groupByExprs);

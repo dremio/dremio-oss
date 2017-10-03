@@ -16,7 +16,7 @@
 import { createSelector } from 'reselect';
 import Immutable from 'immutable';
 
-import { getEntityType, getRootEntityType } from 'utils/pathUtils';
+import { getEntityType, getRootEntityType, constructFullPathAndEncode } from 'utils/pathUtils';
 import {humanSorter} from 'utils/sort';
 
 import { datasetTypeToEntityType } from 'constants/datasetTypes';
@@ -145,7 +145,6 @@ export function denormalizeFile(state, fileId) {
 
 // for explore page which unfortunately has url for 'dataset' but not id
 export function findDatasetForDatasetType(state, datasetType, datasetUrl) {
-
   const entityType = datasetTypeToEntityType[datasetType];
   if (!entityType) {
     throw Error('unknown datasetType ' + datasetType);
@@ -153,3 +152,10 @@ export function findDatasetForDatasetType(state, datasetType, datasetUrl) {
   return state.resources.entities.get(entityType).find(e => e.getIn(['links', 'self']) === datasetUrl);
 }
 
+export const getDatasetAcceleration = (state, fullPath) => {
+  const constructedFullPath = constructFullPathAndEncode(fullPath);
+  const allAccelerations = state.resources.entities.get('datasetAcceleration', Immutable.Map());
+  return allAccelerations.find((item) => {
+    return item.get('fullPath') === constructedFullPath;
+  });
+};

@@ -78,27 +78,6 @@ export function generateApiKey() {
   };
 }
 
-export const LOAD_USERS_START = 'LOAD_USERS_START';
-export const LOAD_USERS_SUCCESS = 'LOAD_USERS_SUCCESS';
-export const LOAD_USERS_FAILURE = 'LOAD_USERS_FAILURE';
-
-function fetchAllUsers() {
-  return {
-    [CALL_API]: {
-      types: [LOAD_USERS_START, LOAD_USERS_SUCCESS, LOAD_USERS_FAILURE],
-      method: 'GET',
-      endpoint: API_URL + '/users'
-    }
-  };
-}
-
-export function loadAllUsers() {
-  return (dispatch) => {
-    return dispatch(fetchAllUsers());
-  };
-}
-
-
 export const CONNECT_BI_TOOL_START = 'CONNECT_BI_TOOL_START';
 export const CONNECT_BI_TOOL_SUCCESS = 'CONNECT_BI_TOOL_SUCCESS';
 export const CONNECT_BI_TOOL_FAILURE = 'CONNECT_BI_TOOL_FAILURE';

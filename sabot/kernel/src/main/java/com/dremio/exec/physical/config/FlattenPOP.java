@@ -76,7 +76,7 @@ public class FlattenPOP extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
     SchemaBuilder builder = BatchSchema.newBuilder();
     BatchSchema batchSchema = child.getSchema(context);
     // flatten operator currently puts the flattened field first

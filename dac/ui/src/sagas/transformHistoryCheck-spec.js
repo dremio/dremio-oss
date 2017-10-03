@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
 import { call } from 'redux-saga/effects';
+import Immutable from 'immutable';
+
 import { SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
 import {
   handleTransformHistoryCheck, transformHistoryCheck, shouldShowWarningModal, confirmTransform

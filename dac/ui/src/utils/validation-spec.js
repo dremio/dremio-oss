@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import {
+  applyValidators,
   isRequired, isNumber, isInteger, isWholeNumber,
   isRegularExpression, isEmail, confirmPassword
 } from './validation';
@@ -93,6 +94,14 @@ describe('validation', () => {
     });
   });
 
+  describe('applyValidators', () => {
+    it('should call and merge results of multiple validators', () => {
+      expect(applyValidators({}, [
+        isRequired('foo.a'),
+        isRequired('foo.b')]
+      )).to.eql({foo: {a: 'Foo.a is required', b: 'Foo.b is required'}});
+    });
+  });
 });
 
 

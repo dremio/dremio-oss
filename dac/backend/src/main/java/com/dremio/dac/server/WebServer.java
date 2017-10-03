@@ -43,6 +43,7 @@ import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.socket.SocketServlet;
 import com.dremio.dac.server.tokens.TokenManager;
+import com.dremio.dac.support.SupportService;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.Service;
@@ -116,7 +117,7 @@ public class WebServer implements Service {
   private final Provider<RestServerV2> restServerProvider;
   private final Server embeddedJetty = new Server();
   private final Provider<ServerHealthMonitor> serverHealthMonitor;
-  private final DacConfig config;
+  private final DACConfig config;
   private final Provider<NodeEndpoint> endpointProvider;
   private final Provider<SabotContext> context;
   private final String uiType;
@@ -128,7 +129,7 @@ public class WebServer implements Service {
 
   public WebServer(
       SingletonRegistry registry,
-      DacConfig config,
+      DACConfig config,
       Provider<ServerHealthMonitor> serverHealthMonitor,
       Provider<NodeEndpoint> endpointProvider,
       Provider<SabotContext> context,
@@ -225,8 +226,9 @@ public class WebServer implements Service {
     if (config.serveUI) {
       final String basePath = "rest/dremio_static/";
       final String markerPath = String.format("META-INF/%s.properties", uiType);
+      final SupportService support = registry.lookup(SupportService.class);
 
-      final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", new DremioServlet(config, serverHealthMonitor.get(), context.get().getOptionManager()));
+      final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", new DremioServlet(config, serverHealthMonitor.get(), context.get().getOptionManager(), support));
       addStaticPath(fallbackServletHolder, basePath, markerPath);
       servletContextHandler.addServlet(fallbackServletHolder, "/*");
 

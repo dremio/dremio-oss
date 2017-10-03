@@ -19,8 +19,10 @@ import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import pureRender from 'pure-render-decorator';
 import Radium from 'radium';
+import Meter from 'components/Meter';
+import { TEAL, BLACK } from 'uiTheme/radium/colors';
 
-import './Selection.less';
+const PROGRESS_WIDTH = 455;
 
 @pureRender
 @Radium
@@ -50,25 +52,32 @@ export default class CardFooter extends Component {
       Icon: styles.iconTheme,
       Container: {...styles.mathed, height: 15}
     };
-    return  <div className='match-panel' style={[styles.progress, styles.labels, style]}>
+    let progressWidth;
+    if (style instanceof Array) {
+      const propsWidthObject = style && style.find(item => item.width);
+      progressWidth = propsWidthObject.width ? {width: propsWidthObject.width} : {width: PROGRESS_WIDTH};
+    } else {
+      progressWidth = style && style.width ? {width: style.width} : {width: PROGRESS_WIDTH};
+    }
+    return  <div className='match-panel' style={[progressWidth, styles.labels, style]}>
       <FontIcon type='fa-stop' theme={themeUnmathed}/>
       <span style={[styles.text, {marginLeft: 5}]}>{card.get && card.get('matchedCount')}</span>
       <span style={[styles.text]}>matched values</span>
       <FontIcon type='fa-stop' theme={themeMathed}/>
       <span style={[styles.text, {marginLeft: 5}]}>{card.get && card.get('unmatchedCount')}</span>
       <span style={[styles.text]}>unmatched values</span>
-      {/* todo: this is not a progress element, semantically. see <meter> */}
-      <progress
-        className='matching-status'
-        style={[styles.progress, {height: 7}, style && style.width ? {width: style.width} : {}]}
+      <Meter
         value={value}
-        max={max}/>
+        max={max}
+        background={BLACK}
+        style={{ ...styles.progress, ...progressWidth }}
+      />
     </div>;
   }
 
   render() {
     return (
-      <div className='transform-card-footer' style={[styles.base, this.props.style]}>
+      <div style={[styles.base, this.props.style]}>
         {this.renderFooter()}
       </div>
     );
@@ -81,7 +90,7 @@ const styles = {
   },
   mathed: {
     margin: '-2px 0 4px 10px',
-    color: '#5ED7B9'
+    color: TEAL
   },
   iconTheme: {
     fontSize: 8,
@@ -93,7 +102,7 @@ const styles = {
     flexWrap: 'wrap'
   },
   progress: {
-    width: 455
+    height: 7
   },
   text: {
     marginLeft: 5,

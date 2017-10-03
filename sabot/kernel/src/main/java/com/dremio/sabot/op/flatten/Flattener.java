@@ -34,7 +34,9 @@ public interface Flattener {
       VectorAccessible incoming,
       VectorAccessible outgoing,
       List<TransferPair> transfers,
-      ComplexWriterCreator writerCreator
+      ComplexWriterCreator writerCreator,
+      long outputMemoryLimit,
+      long outputBatchSize
       );
 
   public interface Monitor {

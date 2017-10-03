@@ -104,6 +104,7 @@ public class ElasticConnectionPool implements AutoCloseable {
   private final String username;
   private final String password;
   private final int readTimeoutMillis;
+  private final boolean useWhitelist;
 
   /**
    * Rather than maintain an exact matrix of what is supported in each version,
@@ -136,12 +137,14 @@ public class ElasticConnectionPool implements AutoCloseable {
       boolean enableSsl,
       String username,
       String password,
-      int readTimeoutMillis){
+      int readTimeoutMillis,
+      boolean useWhitelist){
     this.protocol = enableSsl ? "https" : "http";
     this.delimitedHosts = delimitedHosts;
     this.username = username;
     this.password = password;
     this.readTimeoutMillis = readTimeoutMillis;
+    this.useWhitelist = useWhitelist;
 
   }
 
@@ -245,6 +248,22 @@ public class ElasticConnectionPool implements AutoCloseable {
   }
 
   public ElasticConnection getConnection(List<String> hosts) {
+    //if whitelist then only keep the hosts in the list
+    if(useWhitelist) {
+      List<String> whitelistedHosts = new ArrayList<>();
+      for (String host : hosts) {
+        if (clients.containsKey(host)) {
+          whitelistedHosts.add(host);
+        }
+      }
+
+      if(whitelistedHosts.size() == 0) {
+        return getRandomConnection();
+      }
+
+      hosts = whitelistedHosts;
+    }
+
     final int index = ThreadLocalRandom.current().nextInt(hosts.size());
     final String host = hosts.get(index);
     WebTarget target = clients.get(host);
@@ -292,6 +311,16 @@ public class ElasticConnectionPool implements AutoCloseable {
   private List<HostAndAddress> getHostList(String initialHost) throws IOException {
     final List<HostAndAddress> hosts = new ArrayList<>();
 
+    //check if this is a valid host if whitelist is enabled
+    if(useWhitelist) {
+      boolean validHost = false;
+      for (String givenHost : delimitedHosts.split(",")) {
+        hosts.add(new HostAndAddress(givenHost.split(":")[0], givenHost));
+      }
+
+      return hosts;
+    }
+
     final Result nodesResult;
 
     NodesInfo nodesInfo = new NodesInfo();
@@ -318,6 +347,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     for (Entry<String, JsonElement> entry : nodes.entrySet()) {
       final JsonObject nodeObject = entry.getValue().getAsJsonObject();
       final String host = nodeObject.get("host").getAsString();
+
       // From 5.0.0v onwards, elasticsearch nodes api has changed and returns a slightly different response.
       // https://github.com/elastic/elasticsearch/pull/19218
       // So instead of using http_address, use publish_address always.
@@ -343,6 +373,7 @@ public class ElasticConnectionPool implements AutoCloseable {
       }
 
       hosts.add(new HostAndAddress(host, http));
+
     }
 
     // Assert minimum version for Elasticsearch
@@ -526,7 +557,6 @@ public class ElasticConnectionPool implements AutoCloseable {
     public <T> T execute(ElasticAction2<T> action){
       final ContextListenerImpl listener = new ContextListenerImpl();
       final Invocation invocation = action.buildRequest(target, listener);
-
       try {
         return invocation.invoke(action.getResponseClass());
       } catch (Exception e){

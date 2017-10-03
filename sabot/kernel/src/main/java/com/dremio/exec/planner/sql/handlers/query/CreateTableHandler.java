@@ -36,6 +36,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
+import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SchemaUtilities;
@@ -65,12 +66,19 @@ public class CreateTableHandler implements SqlToPlanHandler {
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     try{
       SqlCreateTable sqlCreateTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateTable.class);
+
+      // TODO: fix parser to disallow this
+      if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns().isEmpty()) {
+        throw UserException.unsupportedError()
+            .message("Cannot partition data and write to a single file at the same time.")
+            .build(logger);
+      }
+
       final String newTblName = sqlCreateTable.getName();
 
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlCreateTable.getQuery());
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-
 
       final RelNode newTblRelNode =
           SqlHandlerUtil.resolveNewTableRel(false, sqlCreateTable.getFieldNames(), validatedRowType, queryRelNode);
@@ -91,13 +99,14 @@ public class CreateTableHandler implements SqlToPlanHandler {
 
       PrelTransformer.log("Calcite", newTblRelNodeWithPCol, logger, null);
 
-      WriterOptions options = new WriterOptions(
-        (int) ringCount,
-        sqlCreateTable.getPartitionColumns(),
-        sqlCreateTable.isHashPartition(),
-        sqlCreateTable.isRoundRobinPartition(),
-        sqlCreateTable.getSortColumns(),
-        sqlCreateTable.getDistributionColumns());
+      final WriterOptions options = new WriterOptions(
+          (int) ringCount,
+          sqlCreateTable.getPartitionColumns(),
+          sqlCreateTable.getSortColumns(),
+          sqlCreateTable.getDistributionColumns(),
+          sqlCreateTable.getPartitionDistributionStrategy(),
+          sqlCreateTable.isSingleWriter());
+
       // Convert the query to Dremio Logical plan and insert a writer operator on top.
       Rel drel = convertToDrel(
           config,
@@ -106,8 +115,7 @@ public class CreateTableHandler implements SqlToPlanHandler {
           newTblName,
           options,
           newTblRelNode.getRowType(),
-          createStorageOptionsMap(config, sqlCreateTable.getFormatOptions()),
-          sqlCreateTable.isSingleWriter());
+          createStorageOptionsMap(config, sqlCreateTable.getFormatOptions()));
 
       final Pair<Prel, String> convertToPrel = PrelTransformer.convertToPrel(config, drel);
       final Prel prel = convertToPrel.getKey();
@@ -130,8 +138,7 @@ public class CreateTableHandler implements SqlToPlanHandler {
       String tableName,
       WriterOptions options,
       RelDataType queryRowType,
-      final Map<String, Object> storageOptions,
-      final boolean singleWriter)
+      final Map<String, Object> storageOptions)
       throws RelConversionException, SqlUnsupportedException {
 
     Rel convertedRelNode = PrelTransformer.convertToDrel(config, relNode);
@@ -141,10 +148,12 @@ public class CreateTableHandler implements SqlToPlanHandler {
     convertedRelNode = queryRowType.getFieldCount() == convertedRelNode.getRowType().getFieldCount() ?
         PrelTransformer.addRenamedProject(config, convertedRelNode, queryRowType) : convertedRelNode;
 
-    convertedRelNode = SqlHandlerUtil.addWriterRel(convertedRelNode,
-        schema.createNewTable(tableName, options, storageOptions), singleWriter);
+    convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
+        convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
+        convertedRelNode, schema.createNewTable(tableName, options, storageOptions));
 
-    convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(), config.getContext(), config.getConverter().getRootSchema(), convertedRelNode);
+    convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
+        config.getContext(), convertedRelNode);
 
     return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
   }

@@ -19,14 +19,12 @@ import java.util.Date;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.memory.BufferAllocator;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.dremio.common.CatastrophicFailure;
 import com.dremio.common.EventProcessor;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.ops.BackwardsCompatObserver;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
@@ -100,7 +98,6 @@ public class AttemptManager implements Runnable {
   private final String queryIdString;
   private final UserRequest queryRequest;
   private final QueryContext queryContext;
-  private final BufferAllocator backwardCompatAllocator;
   private final QueryManager queryManager; // handles lower-level details of query execution
   private final SabotContext sabotContext;
   private final Cache<Long, PreparedPlan> plans;
@@ -111,6 +108,7 @@ public class AttemptManager implements Runnable {
   private final StateSwitch stateSwitch = new StateSwitch();
   private final AttemptResult foremanResult = new AttemptResult();
   private final boolean queuingEnabled;
+  private final boolean reflectionQueuingEnabled;
   private Object extraResultData;
   private final CoordToExecTunnelCreator tunnelCreator;
   private final AttemptObservers observers;
@@ -145,9 +143,7 @@ public class AttemptManager implements Runnable {
     final QueryPriority priority = queryRequest.getPriority();
     final long maxAllocation = queryRequest.getMaxAllocation();
     this.queryContext = new QueryContext(session, sabotContext, queryId, priority, maxAllocation);
-    this.backwardCompatAllocator = queryContext.getAllocator()
-      .newChildAllocator("backward-compatibility", 0, Long.MAX_VALUE);
-    this.observers = AttemptObservers.of(BackwardsCompatObserver.wrapIfOld(session, observer, backwardCompatAllocator));
+    this.observers = AttemptObservers.of(observer);
     this.queryManager = new QueryManager(queryId, queryContext, new CompletionListenerImpl(), prepareId,
       observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), queryContext.getSchemaTreeProvider());
 
@@ -156,6 +152,7 @@ public class AttemptManager implements Runnable {
       options.applyOptions(optionManager);
     }
     this.queuingEnabled = optionManager.getOption(ExecConstants.ENABLE_QUEUE);
+    this.reflectionQueuingEnabled = optionManager.getOption(ExecConstants.REFLECTION_ENABLE_QUEUE);
 
     final QueryState initialState = queuingEnabled ? QueryState.ENQUEUED : QueryState.STARTING;
     recordNewState(initialState);
@@ -283,7 +280,7 @@ public class AttemptManager implements Runnable {
       case ASYNC_QUERY:
         Preconditions.checkState(command instanceof AsyncCommand, "Asynchronous query must be an AsyncCommand");
         command.plan();
-        acquireQuerySemaphoreIfNecessary(((AsyncCommand) command).getQueueType());
+        acquireQuerySemaphoreIfNecessary(((AsyncCommand<?>) command).getQueueType());
         if(queuingEnabled){
           moveToState(QueryState.STARTING, null);
         }
@@ -538,7 +535,6 @@ public class AttemptManager implements Runnable {
           .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
           .removeNodeStatusListener(queryManager.getNodeStatusListener());
 
-      suppressingClose(backwardCompatAllocator);
       suppressingClose(queryContext);
 
       /*
@@ -728,10 +724,19 @@ public class AttemptManager implements Runnable {
       return;
     }
 
-    final OptionManager optionManager = queryContext.getOptions();
-    final long queueThreshold = optionManager.getOption(ExecConstants.QUEUE_THRESHOLD_SIZE);
+    // switch back to regular queues if the reflection queuing is disabled
+    QueueType adjustedQueueType = queueType;
+    if (!reflectionQueuingEnabled) {
+      if (queueType == QueueType.REFLECTION_LARGE) {
+        adjustedQueueType = QueueType.LARGE;
+      } else if (queueType == QueueType.REFLECTION_SMALL){
+        adjustedQueueType = QueueType.SMALL;
+      }
+    }
 
-    final long queueTimeout = optionManager.getOption(ExecConstants.QUEUE_TIMEOUT);
+    final OptionManager optionManager = queryContext.getOptions();
+
+    long queueTimeout = optionManager.getOption(ExecConstants.QUEUE_TIMEOUT);
     final String queueName;
 
     try {
@@ -740,21 +745,32 @@ public class AttemptManager implements Runnable {
       final DistributedSemaphore distributedSemaphore;
 
       // get the appropriate semaphore
-      switch (queueType) {
-        case LARGE:
-          final int largeQueue = (int) optionManager.getOption(ExecConstants.LARGE_QUEUE_SIZE);
-          distributedSemaphore = clusterCoordinator.getSemaphore("query.large", largeQueue);
-          queueName = "large";
-          break;
-        case SMALL:
-          final int smallQueue = (int) optionManager.getOption(ExecConstants.SMALL_QUEUE_SIZE);
-          distributedSemaphore = clusterCoordinator.getSemaphore("query.small", smallQueue);
-          queueName = "small";
-          break;
-        default:
-          throw new ForemanSetupException("Unsupported Queue type: " + queueType);
+      switch (adjustedQueueType) {
+      case LARGE:
+        final int largeQueue = (int) optionManager.getOption(ExecConstants.LARGE_QUEUE_SIZE);
+        distributedSemaphore = clusterCoordinator.getSemaphore("query.large", largeQueue);
+        queueName = "large";
+        break;
+      case SMALL:
+        final int smallQueue = (int) optionManager.getOption(ExecConstants.SMALL_QUEUE_SIZE);
+        distributedSemaphore = clusterCoordinator.getSemaphore("query.small", smallQueue);
+        queueName = "small";
+        break;
+      case REFLECTION_LARGE:
+        final int reflectionLargeQueue = (int) optionManager.getOption(ExecConstants.REFLECTION_LARGE_QUEUE_SIZE);
+        distributedSemaphore = clusterCoordinator.getSemaphore("reflection.query.large", reflectionLargeQueue);
+        queueName = "reflection_large";
+        queueTimeout = optionManager.getOption(ExecConstants.REFLECTION_QUEUE_TIMEOUT);
+        break;
+      case REFLECTION_SMALL:
+        final int reflectionSmallQueue = (int) optionManager.getOption(ExecConstants.REFLECTION_SMALL_QUEUE_SIZE);
+        distributedSemaphore = clusterCoordinator.getSemaphore("reflection.query.small", reflectionSmallQueue);
+        queueName = "reflection_small";
+        queueTimeout = optionManager.getOption(ExecConstants.REFLECTION_QUEUE_TIMEOUT);
+        break;
+      default:
+        throw new ForemanSetupException("Unsupported Queue type: " + adjustedQueueType);
       }
-
       lease = distributedSemaphore.acquire(queueTimeout, TimeUnit.MILLISECONDS);
     } catch (final Exception e) {
       throw new ForemanSetupException("Unable to acquire slot for query.", e);

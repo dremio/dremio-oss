@@ -225,9 +225,6 @@ public class PrelUtil {
     }
 
     public boolean isStarQuery() {
-      if (columns == null || columns.size() == 0) {
-        return true;
-      }
       for (SchemaPath column : columns) {
         if (column.getRootSegment().getPath().startsWith("*")) {
           return true;

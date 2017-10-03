@@ -43,9 +43,9 @@
 |Apache Parquet Hadoop                                       |1.8.1-fast-201704081924160565-5949da6|Apache 2.0          |
 |Apache Parquet Jackson                                      |1.8.1-fast-201704081924160565-5949da6|Apache 2.0          |
 |Apache PDFBox                                               |1.8.10              |Apache 2.0          |
-|Apache POI                                                  |3.14                |Apache 2.0          |
-|Apache POI                                                  |3.14                |Apache 2.0          |
 |Apache POI                                                  |3.13                |Apache 2.0          |
+|Apache POI                                                  |3.14                |Apache 2.0          |
+|Apache POI                                                  |3.14                |Apache 2.0          |
 |Apache POI                                                  |3.13                |Apache 2.0          |
 |Apache Thrift                                               |0.9.2               |Apache 2.0          |
 |Apache Thrift                                               |0.9.2               |Apache 2.0          |
@@ -66,7 +66,7 @@
 |Arrow Format                                                |0.2.1-201705011705160440-f112849-dremioARROW824|Apache 2.0          |
 |Arrow Memory                                                |0.2.1-201705011705160440-f112849-dremioARROW824|Apache 2.0          |
 |Arrow Vectors                                               |0.2.1-201705011705160440-f112849-dremioARROW824|Apache 2.0          |
-|asap                                                        |2.0.5               |MIT                 |
+|asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
 |ASM All                                                     |5.0.2               |BSD 3-clause        |
@@ -77,24 +77,22 @@
 |babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-polyfill                                              |6.23.0              |MIT                 |
 |babel-runtime                                               |5.8.38              |MIT                 |
-|babel-runtime                                               |6.23.0              |MIT                 |
-|balanced-match                                              |0.4.2               |MIT                 |
+|babel-runtime                                               |6.25.0              |MIT                 |
 |base16                                                      |1.0.0               |MIT                 |
 |Bean Validation API                                         |1.1.0.Final         |Apache 2.0          |
-|binary-search-bounds                                        |1.0.0               |MIT                 |
 |BoneCP :: Core Library                                      |0.8.0.RELEASE       |Apache 2.0          |
 |Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs|1.52                |MIT                 |
 |Bouncy Castle Provider                                      |1.52                |MIT                 |
 |Bouncy Castle S/MIME API                                    |1.52                |MIT                 |
-|bowser                                                      |1.6.0               |MIT                 |
-|brace-expansion                                             |1.1.6               |MIT                 |
+|bowser                                                      |1.7.1               |MIT                 |
 |c3                                                          |0.4.11              |MIT                 |
 |Calcite Core                                                |1.12.0-20170418222444-252bd40|Apache 2.0          |
 |Calcite Linq4j                                              |1.12.0-20170418222444-252bd40|Apache 2.0          |
-|change-emitter                                              |0.1.3               |MIT                 |
+|chain-function                                              |1.0.0               |MIT                 |
+|change-emitter                                              |0.1.6               |MIT                 |
 |ClassMate                                                   |1.1.0               |Apache 2.0          |
 |classnames                                                  |2.2.5               |MIT                 |
-|codemirror                                                  |5.25.0              |MIT                 |
+|codemirror                                                  |5.28.0              |MIT                 |
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
 |color-space                                                 |1.14.7              |MIT                 |
 |Commons BeanUtils Core                                      |1.8.0               |Apache 2.0          |
@@ -109,17 +107,17 @@
 |Commons DBCP                                                |1.4                 |Apache 2.0          |
 |Commons IO                                                  |2.4                 |Apache 2.0          |
 |Commons Lang                                                |2.6                 |Apache 2.0          |
-|Commons Math                                                |2.2                 |Apache 2.0          |
 |Commons Math                                                |3.1.1               |Apache 2.0          |
+|Commons Math                                                |2.2                 |Apache 2.0          |
 |Commons Net                                                 |3.1                 |Apache 2.0          |
 |Commons Pool                                                |1.5.4               |Apache 2.0          |
 |commons-beanutils                                           |1.7.0               |Apache 2.0          |
 |Compress-LZF                                                |1.0.2               |Apache 2.0          |
-|concat-map                                                  |0.0.1               |MIT                 |
 |config                                                      |1.2.1               |Apache 2.0          |
-|copy-to-clipboard                                           |3.0.5               |MIT                 |
+|copy-to-clipboard                                           |3.0.8               |MIT                 |
 |core-js                                                     |1.2.7               |MIT                 |
-|core-js                                                     |2.4.1               |MIT                 |
+|core-js                                                     |2.5.0               |MIT                 |
+|create-react-class                                          |15.6.0              |BSD-3-Clause        |
 |csprng                                                      |0.1.2               |MIT                 |
 |Curator Client                                              |2.7.1               |Apache 2.0          |
 |Curator Framework                                           |2.7.1               |Apache 2.0          |
@@ -136,9 +134,9 @@
 |deep-equal                                                  |1.0.1               |MIT                 |
 |Digester                                                    |1.8                 |Apache 2.0          |
 |disposables                                                 |1.0.1               |Apache-2.0          |
-|dnd-core                                                    |2.3.0               |MIT                 |
-|dom-helpers                                                 |2.4.0               |MIT                 |
+|dnd-core                                                    |2.4.0               |MIT                 |
 |dom-helpers                                                 |3.2.1               |MIT                 |
+|dom-helpers                                                 |2.4.0               |MIT                 |
 |Dremio Fast Threads                                         |1.0                 |Dremio Free Software License 1.0|
 |Dremio Parquet Accelerator                                  |1.0                 |Dremio Free Software License 1.0|
 |Dremio Pushdown Pack                                        |1.0                 |Dremio Free Software License 1.0|
@@ -149,21 +147,19 @@
 |element-closest                                             |2.0.2               |CC0-1.0             |
 |encoding                                                    |0.1.12              |MIT                 |
 |error-stack-parser                                          |1.3.6               |Unlicense           |
+|exenv                                                       |1.2.2               |BSD-3-Clause        |
 |exenv                                                       |1.2.0               |BSD-3-Clause        |
-|exenv                                                       |1.2.1               |BSD-3-Clause        |
 |fastutil                                                    |6.5.7               |Apache 2.0          |
-|fbjs                                                        |0.8.12              |BSD-3-Clause        |
+|fbjs                                                        |0.8.14              |BSD-3-Clause        |
 |file-saver                                                  |1.3.3               |MIT                 |
 |Findbugs Annotations under Apache License                   |1.3.9-1             |Apache 2.0          |
 |FindBugs-Annotations                                        |3.0.1               |LGPL v2             |
 |FindBugs-jsr305                                             |3.0.1               |Apache 2.0          |
-|fixed-data-table-2                                          |0.7.13              |BSD-3-Clause        |
+|fixed-data-table-2                                          |0.7.17              |BSD-3-Clause        |
 |FlatBuffers Java API                                        |1.2.0-3f79e055      |Apache 2.0          |
 |font-awesome                                                |4.7.0               |(OFL-1.1 AND MIT)   |
 |foodmart-data-json                                          |0.4                 |Apache 2.0          |
 |FreeMarker                                                  |2.3.23              |Apache 2.0          |
-|fs.realpath                                                 |1.0.0               |ISC                 |
-|glob                                                        |7.1.1               |ISC                 |
 |Gson                                                        |2.2.4               |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |18                  |Apache 2.0          |
 |hadoop-mapreduce-client-app                                 |2.7.1               |Apache 2.0          |
@@ -186,21 +182,18 @@
 |HK2 API module                                              |2.4.0-b34           |CDDL 1.1            |
 |HK2 Implementation Utilities                                |2.4.0-b34           |CDDL 1.1            |
 |hoconfig-js                                                 |0.1.12              |MIT                 |
-|hoist-non-react-statics                                     |1.1.0               |BSD-3-Clause        |
 |hoist-non-react-statics                                     |1.2.0               |BSD-3-Clause        |
+|hoist-non-react-statics                                     |1.1.0               |BSD-3-Clause        |
 |HPPC Collections                                            |0.7.1               |Apache 2.0          |
 |htrace-core                                                 |3.1.0-incubating    |Apache 2.0          |
-|HttpClient                                                  |3.1                 |Apache 2.0          |
 |HttpClient                                                  |4.2.5               |Apache 2.0          |
+|HttpClient                                                  |3.1                 |Apache 2.0          |
 |humanable                                                   |0.0.2               |MIT                 |
 |husl                                                        |5.0.3               |MIT                 |
 |hyphenate-style-name                                        |1.0.2               |BSD-3-Clause        |
-|iconv-lite                                                  |0.4.15              |MIT                 |
+|iconv-lite                                                  |0.4.18              |MIT                 |
 |immutable                                                   |3.8.1               |BSD-3-Clause        |
-|inflight                                                    |1.0.6               |ISC                 |
-|inherits                                                    |2.0.3               |ISC                 |
 |inline-style-prefixer                                       |2.0.5               |MIT                 |
-|interval-tree-1d                                            |1.0.3               |MIT                 |
 |invariant                                                   |2.2.2               |BSD-3-Clause        |
 |is-promise                                                  |2.1.0               |MIT                 |
 |is-stream                                                   |1.1.0               |MIT                 |
@@ -275,9 +268,8 @@
 |JPam                                                        |1.1                 |Apache 2.0          |
 |jquery                                                      |2.2.4               |MIT                 |
 |jquery-param                                                |0.2.0               |MIT                 |
-|js-tokens                                                   |3.0.1               |MIT                 |
+|js-tokens                                                   |3.0.2               |MIT                 |
 |JSch                                                        |0.1.42              |BSD 3-clause        |
-|json-stringify-safe                                         |5.0.1               |ISC                 |
 |jsp-api                                                     |2.1                 |GPL v2 w/ CPE       |
 |jsplumb                                                     |2.1.4               |MIT                 |
 |JSR166e                                                     |1.1.0               |CC0 1.0 Universal   |
@@ -287,7 +279,7 @@
 |juniversalchardet                                           |1.0.3               |MPL 1.1             |
 |JVM Integration for Metrics                                 |3.0.1               |Apache 2.0          |
 |kafka                                                       |0.8.0               |Apache 2.0          |
-|keycode                                                     |2.1.8               |MIT                 |
+|keycode                                                     |2.1.9               |MIT                 |
 |Koloboke Collections API                                    |1.0.0               |Apache 2.0          |
 |Koloboke Collections Implementation                         |1.0.0               |Apache 2.0          |
 |Koloboke Collections Implementation Commons (for Implementation Library and Koloboke Compile)|1.0.0               |Apache 2.0          |
@@ -300,9 +292,6 @@
 |lilith-sender                                               |0.9.44              |Apache 2.0          |
 |lodash                                                      |4.17.4              |MIT                 |
 |lodash-es                                                   |4.17.4              |MIT                 |
-|lodash._basefor                                             |3.0.3               |MIT                 |
-|lodash._getnative                                           |3.9.1               |MIT                 |
-|lodash._root                                                |3.0.1               |MIT                 |
 |lodash.assign                                               |4.2.0               |MIT                 |
 |lodash.curry                                                |4.1.1               |MIT                 |
 |lodash.debounce                                             |3.1.1               |MIT                 |
@@ -317,6 +306,9 @@
 |lodash.keysin                                               |3.0.8               |MIT                 |
 |lodash.merge                                                |4.6.0               |MIT                 |
 |lodash.throttle                                             |4.1.1               |MIT                 |
+|lodash._basefor                                             |3.0.3               |MIT                 |
+|lodash._getnative                                           |3.9.1               |MIT                 |
+|lodash._root                                                |3.0.1               |MIT                 |
 |Log4j Implemented Over SLF4J                                |1.7.10              |MIT                 |
 |Logback Access Module                                       |1.1.3               |EPL 1.0             |
 |Logback Classic Module                                      |1.0.13              |EPL 1.0             |
@@ -348,13 +340,12 @@
 |Metrics Core                                                |3.0.1               |Apache 2.0          |
 |Metrics Core Library                                        |2.2.0               |Apache 2.0          |
 |MIME streaming extension                                    |1.9.6               |GPL v2 w/ CPE       |
-|minimatch                                                   |3.0.3               |ISC                 |
 |MinLog                                                      |1.3.0               |BSD 3-clause        |
 |Mockito                                                     |1.10.19             |MIT                 |
 |Module: Language: Groovy                                    |2.2.1               |Apache 2.0          |
 |moment                                                      |2.18.1              |MIT                 |
 |MongoDB Java Driver                                         |3.2.0               |Apache 2.0          |
-|mousetrap                                                   |1.6.0               |Apache-2.0          |
+|mousetrap                                                   |1.6.1               |Apache-2.0          |
 |mumath                                                      |3.3.4               |Unlicense           |
 |Netty/Buffer                                                |4.0.41.Final        |Apache 2.0          |
 |Netty/Codec                                                 |4.0.41.Final        |Apache 2.0          |
@@ -363,105 +354,113 @@
 |Netty/TomcatNative [OpenSSL - Dynamic]                      |1.1.33.Fork24       |Apache 2.0          |
 |Netty/Transport                                             |4.0.41.Final        |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.0.41.Final        |Apache 2.0          |
-|node-fetch                                                  |1.6.3               |MIT                 |
+|node-fetch                                                  |1.7.2               |MIT                 |
 |normalizr                                                   |2.3.1               |MIT                 |
 |object-assign                                               |4.1.1               |MIT                 |
 |Objenesis                                                   |2.4                 |Apache 2.0          |
-|once                                                        |1.4.0               |ISC                 |
 |options                                                     |0.0.6               |MIT                 |
 |Oracle odjbc7                                               |12.1.0.2            |Oracle Technology Network License Agreement|
 |OSGi resource locator bundle - used by various API providers that rely on META-INF/services mechanism to locate providers.|1.0.1               |CDDL 1.1            |
 |ParaNamer Core                                              |2.5.6               |BSD 3-clause        |
 |parse-key                                                   |0.2.1               |MIT                 |
-|path-is-absolute                                            |1.0.1               |MIT                 |
+|performance-now                                             |2.1.0               |MIT                 |
 |performance-now                                             |0.2.0               |MIT                 |
 |platform                                                    |1.3.4               |MIT                 |
 |Plugin: Mapper: Attachments                                 |2.2.1               |Apache 2.0          |
 |PostgreSQL JDBC Driver                                      |9.1-901-1.jdbc4     |BSD 2-clause        |
 |procyon-compilertools                                       |0.5.32              |Apache 2.0          |
 |procyon-core                                                |0.5.32              |Apache 2.0          |
-|promise                                                     |7.1.1               |MIT                 |
+|promise                                                     |7.3.1               |MIT                 |
+|prop-types                                                  |15.5.10             |BSD-3-Clause        |
+|prop-types-extra                                            |1.0.1               |MIT                 |
 |Protocol Buffer Java API                                    |2.5.0               |BSD 3-clause        |
 |protostuff :: api                                           |1.4.4               |Apache 2.0          |
 |protostuff :: core                                          |1.4.4               |Apache 2.0          |
 |protostuff :: json                                          |1.4.4               |Apache 2.0          |
-|pure-color                                                  |1.2.0               |MIT                 |
+|pure-color                                                  |1.3.0               |MIT                 |
 |pure-render-decorator                                       |1.2.1               |MIT                 |
 |qsocks                                                      |3.2.1               |BSD-2-Clause        |
 |query-string                                                |3.0.3               |MIT                 |
-|querystringify                                              |0.0.4               |MIT                 |
-|radium                                                      |0.18.2              |MIT                 |
-|raf                                                         |3.3.0               |MIT                 |
-|raven-js                                                    |3.13.1              |BSD-2-Clause        |
-|react                                                       |15.4.2              |BSD-3-Clause        |
-|react-addons-create-fragment                                |15.4.2              |BSD-3-Clause        |
-|react-addons-shallow-compare                                |15.4.2              |BSD-3-Clause        |
-|react-addons-transition-group                               |15.4.2              |BSD-3-Clause        |
+|querystringify                                              |1.0.0               |MIT                 |
+|radium                                                      |0.19.4              |MIT                 |
+|raf                                                         |3.3.2               |MIT                 |
+|raven-js                                                    |3.17.0              |BSD-2-Clause        |
+|react                                                       |15.6.1              |BSD-3-Clause        |
+|react-addons-create-fragment                                |15.6.0              |BSD-3-Clause        |
+|react-addons-shallow-compare                                |15.6.0              |BSD-3-Clause        |
+|react-addons-transition-group                               |15.6.0              |BSD-3-Clause        |
+|react-base16-styling                                        |0.5.3               |MIT                 |
 |react-base16-styling                                        |0.4.7               |MIT                 |
-|react-bootstrap                                             |0.30.8              |MIT                 |
-|react-copy-to-clipboard                                     |4.2.3               |MIT                 |
-|react-date-range                                            |0.9.3               |MIT                 |
-|react-dnd                                                   |2.3.0               |MIT                 |
-|react-dnd-html5-backend                                     |2.3.0               |MIT                 |
-|react-dock                                                  |0.2.3               |MIT                 |
-|react-document-title                                        |2.0.2               |MIT                 |
-|react-dom                                                   |15.4.2              |BSD-3-Clause        |
-|react-dropzone                                              |3.12.2              |MIT                 |
-|react-event-listener                                        |0.4.3               |MIT                 |
+|react-bootstrap                                             |0.30.10             |MIT                 |
+|react-copy-to-clipboard                                     |4.3.1               |MIT                 |
+|react-date-range                                            |0.9.4               |MIT                 |
+|react-dnd                                                   |2.4.0               |MIT                 |
+|react-dnd-html5-backend                                     |2.4.1               |MIT                 |
+|react-dock                                                  |0.2.4               |MIT                 |
+|react-document-title                                        |2.0.3               |MIT                 |
+|react-dom                                                   |15.6.1              |BSD-3-Clause        |
+|react-dom-factories                                         |1.0.1               |BSD-3-Clause        |
+|react-dropzone                                              |4.0.0               |MIT                 |
+|react-event-listener                                        |0.4.5               |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
-|react-input-autosize                                        |1.1.0               |MIT                 |
+|react-input-autosize                                        |1.1.4               |MIT                 |
+|react-json-tree                                             |0.10.9              |MIT                 |
 |react-json-tree                                             |0.10.3              |MIT                 |
 |react-lazy-cache                                            |3.0.1               |MIT                 |
-|react-modal                                                 |1.7.3               |MIT                 |
-|react-motion                                                |0.4.7               |MIT                 |
-|react-notification-system                                   |0.2.13              |MIT                 |
+|react-modal                                                 |1.9.7               |MIT                 |
+|react-motion                                                |0.5.0               |MIT                 |
+|react-notification-system                                   |0.2.15              |MIT                 |
 |react-overlays                                              |0.6.12              |MIT                 |
+|react-overlays                                              |0.8.0               |MIT                 |
 |react-prop-types                                            |0.4.0               |MIT                 |
 |react-pure-render                                           |1.0.2               |MIT                 |
-|react-redux                                                 |4.4.7               |MIT                 |
+|react-redux                                                 |4.4.8               |MIT                 |
 |react-router                                                |2.8.1               |MIT                 |
 |react-router-redux                                          |4.0.8               |MIT                 |
-|react-select                                                |1.0.0-rc.3          |MIT                 |
-|react-side-effect                                           |1.1.0               |MIT                 |
+|react-select                                                |1.0.0-rc.5          |MIT                 |
+|react-side-effect                                           |1.1.3               |MIT                 |
 |react-tap-event-plugin                                      |2.0.1               |Apache-2.0          |
-|react-treeview-component                                    |0.1.2               |MIT                 |
-|react-virtualized                                           |9.4.1               |MIT                 |
+|react-transition-group                                      |2.2.0               |BSD-3-Clause        |
+|react-transition-group                                      |1.2.0               |BSD-3-Clause        |
+|react-virtualized                                           |9.9.0               |MIT                 |
 |reactable                                                   |0.14.1              |MIT                 |
 |recompose                                                   |0.20.2              |MIT                 |
-|redbox-react                                                |1.3.4               |MIT                 |
+|redbox-react                                                |1.5.0               |MIT                 |
 |Redshift                                                    |1.1.17.1017         |Amazon Redshift JDBC Driver License|
-|redux                                                       |3.6.0               |MIT                 |
-|redux-api-middleware                                        |1.0.2               |MIT                 |
+|redux                                                       |3.7.2               |MIT                 |
+|redux-api-middleware                                        |1.0.3               |MIT                 |
 |redux-auth-wrapper                                          |0.5.2               |MIT                 |
-|redux-devtools                                              |3.3.2               |MIT                 |
-|redux-devtools-dock-monitor                                 |1.1.1               |MIT                 |
-|redux-devtools-instrument                                   |1.8.0               |MIT                 |
-|redux-devtools-log-monitor                                  |1.2.0               |MIT                 |
+|redux-devtools                                              |3.4.0               |MIT                 |
+|redux-devtools-dock-monitor                                 |1.1.2               |MIT                 |
+|redux-devtools-instrument                                   |1.8.2               |MIT                 |
+|redux-devtools-log-monitor                                  |1.3.0               |MIT                 |
 |redux-devtools-themes                                       |1.0.0               |MIT                 |
-|redux-form                                                  |5.3.4               |MIT                 |
+|redux-form                                                  |5.3.6               |MIT                 |
 |redux-logger                                                |2.10.2              |MIT                 |
-|redux-saga                                                  |0.14.4              |MIT                 |
+|redux-saga                                                  |0.15.6              |MIT                 |
 |redux-thunk                                                 |2.2.0               |MIT                 |
 |ReflectASM                                                  |1.11.3              |BSD 3-clause        |
 |Reflections                                                 |0.9.10              |WTFPL               |
-|regenerator-runtime                                         |0.10.3              |MIT                 |
+|regenerator-runtime                                         |0.10.5              |MIT                 |
 |requires-port                                               |1.0.0               |MIT                 |
 |reselect                                                    |2.5.4               |MIT                 |
-|rimraf                                                      |2.6.1               |ISC                 |
 |RocksDB JNI                                                 |4.11.2              |BSD 3-clause        |
 |RSQL-parser                                                 |2.1.0               |MIT                 |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Library                                               |2.10.1              |BSD 3-clause        |
-|sequin                                                      |0.1.0               |MIT                 |
+|sequin                                                      |0.1.1               |MIT                 |
 |ServiceLocator Default Implementation                       |2.4.0-b34           |CDDL 1.1            |
 |setimmediate                                                |1.0.5               |MIT                 |
 |shallowequal                                                |0.2.2               |MIT                 |
+|shallowequal                                                |1.0.2               |MIT                 |
 |simple-assign                                               |0.1.0               |MIT                 |
 |SLF4J API Module                                            |1.7.10              |MIT                 |
 |Slugify - Core                                              |2.1.7               |Apache 2.0          |
 |SnakeYAML                                                   |1.15                |Apache 2.0          |
 |Snappy for Java                                             |1.0.5-M3            |Apache 2.0          |
+|source-map                                                  |0.5.6               |BSD-3-Clause        |
+|sourcemapped-stacktrace                                     |1.1.7               |BSD-3-Clause        |
 |Spatial4J                                                   |0.5                 |Apache 2.0          |
 |Sqlserver: jdbc41                                           |4.2.6420.100        |MICROSOFT SOFTWARE LICENSE|
 |stackframe                                                  |0.3.1               |Unlicense           |
@@ -472,25 +471,24 @@
 |sulky-codec                                                 |0.9.17              |Apache 2.0          |
 |sulky-formatting                                            |0.9.17              |Apache 2.0          |
 |sulky-io                                                    |0.9.17              |Apache 2.0          |
-|symbol-observable                                           |0.2.4               |MIT                 |
 |symbol-observable                                           |1.0.4               |MIT                 |
+|symbol-observable                                           |0.2.4               |MIT                 |
 |T-Digest                                                    |3                   |Apache 2.0          |
 |TagSoup                                                     |1.2.1               |BSD 3-clause        |
 |The Netty Project                                           |3.7.0.Final         |Apache 2.0          |
 |ThreeTen backport                                           |1.3.3               |BSD 3-clause        |
-|toggle-selection                                            |1.0.5               |MIT                 |
-|ua-parser-js                                                |0.7.12              |MIT                 |
+|toggle-selection                                            |1.0.6               |MIT                 |
+|ua-parser-js                                                |0.7.14              |MIT                 |
 |ultron                                                      |1.0.2               |MIT                 |
 |UnboundID LDAP SDK for Java                                 |3.2.0               |LGPL v2.1           |
-|uncontrollable                                              |4.0.3               |MIT                 |
+|uncontrollable                                              |4.1.0               |MIT                 |
 |underscore                                                  |1.8.3               |MIT                 |
 |univocity-parsers                                           |1.3.0               |Apache 2.0          |
-|url-parse                                                   |1.1.8               |MIT                 |
+|url-parse                                                   |1.1.9               |MIT                 |
 |uuid                                                        |2.0.3               |MIT                 |
-|warning                                                     |2.1.0               |BSD-2-Clause        |
 |warning                                                     |3.0.0               |BSD-3-Clause        |
+|warning                                                     |2.1.0               |BSD-2-Clause        |
 |whatwg-fetch                                                |2.0.3               |MIT                 |
-|wrappy                                                      |1.0.2               |ISC                 |
 |ws                                                          |1.1.4               |MIT                 |
 |Xalan Java                                                  |2.7.1               |Apache 2.0          |
 |Xalan Java Serializer                                       |2.7.1               |Apache 2.0          |
@@ -503,7 +501,7 @@
 |zookeeper                                                   |3.4.6               |Apache 2.0          |
 # License Texts
 
-##Apache 2.0
+## Apache 2.0
 
 ```
 
@@ -686,7 +684,7 @@
 ```
 
 
-##LGPL v2.1
+## LGPL v2.1
 
 ```
                   GNU LESSER GENERAL PUBLIC LICENSE
@@ -1150,7 +1148,7 @@ DAMAGES.
 ```
 
 
-##BSD 3-clause
+## BSD 3-clause
 
 ```
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -1165,7 +1163,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ```
 
 
-##GPL v2 w/ CPE
+## GPL v2 w/ CPE
 
 ```
 The GNU General Public License (GPL)
@@ -1518,7 +1516,7 @@ exception as provided by Oracle in the LICENSE file that accompanied this code."
 ```
 
 
-##CDDL 1.1
+## CDDL 1.1
 
 ```
 COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.1
@@ -2165,7 +2163,7 @@ END OF TERMS AND CONDITIONS
 ```
 
 
-##CC0 1.0 Universal
+## CC0 1.0 Universal
 
 ```
 Statement of Purpose
@@ -2198,7 +2196,7 @@ For these and/or other purposes and motivations, and without any expectation of 
 ```
 
 
-##LGPL v2
+## LGPL v2
 
 ```
                   GNU LIBRARY GENERAL PUBLIC LICENSE
@@ -2336,7 +2334,7 @@ such a program is covered only if its contents constitute a work based
 on the Library (independent of the use of the Library in a tool for
 writing it).  Whether that is true depends on what the Library does
 and what the program that uses the Library does.
-  
+
   1. You may copy and distribute verbatim copies of the Library's
 complete source code as you receive it, in any medium, provided that
 you conspicuously and appropriately publish on each copy an
@@ -2641,22 +2639,22 @@ DAMAGES.
 ```
 
 
-##MIT
+## MIT
 
 ```
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to 
-deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS 
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
 
-##CDDL
+## CDDL
 
 ```
 COMMON DEVELOPMENT AND DISTRIBUTION LICENSE Version 1.0 (CDDL-1.0) (text)
@@ -2664,10 +2662,10 @@ COMMON DEVELOPMENT AND DISTRIBUTION LICENSE Version 1.0 (CDDL-1.0) (text)
 
 1.1. Contributor means each individual or entity that creates or contributes to the creation of Modifications.
 
-1.2. Contributor Version means the combination of the Original Software, prior Modifications used by a Contributor (if any), and the Modifications made by 
+1.2. Contributor Version means the combination of the Original Software, prior Modifications used by a Contributor (if any), and the Modifications made by
 that particular Contributor.
 
-1.3. Covered Software means (a) the Original Software, or (b) Modifications, or (c) the combination of files containing Original Software with files 
+1.3. Covered Software means (a) the Original Software, or (b) Modifications, or (c) the combination of files containing Original Software with files
 containing Modifications, in each case including portions thereof.
 
 1.4. Executable means the Covered Software in any form other than Source Code.
@@ -2694,9 +2692,9 @@ C. Any new file that is contributed or otherwise made available under the terms 
 
 1.12. Source Code means (a) the common form of computer software code in which modifications are made and (b) associated documentation included in or with such code.
 
-1.13. You (or Your) means an individual or a legal entity exercising rights under, and complying with all of the terms of, this License. For legal entities, 
+1.13. You (or Your) means an individual or a legal entity exercising rights under, and complying with all of the terms of, this License. For legal entities,
 You includes any entity which controls, is controlled by, or is under common control with You. For purposes of this definition, control means (a) the power,
- direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (b) ownership of more than fifty percent (50%) 
+ direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (b) ownership of more than fifty percent (50%)
 of the outstanding shares or beneficial ownership of such entity.
 
 2. License Grants.
@@ -2795,7 +2793,7 @@ As between Initial Developer and the Contributors, each party is responsible for
 ```
 
 
-##EPL 1.0
+## EPL 1.0
 
 ```
 Eclipse Public License - v 1.0
@@ -2871,7 +2869,7 @@ This Agreement is governed by the laws of the State of New York and the intellec
 ```
 
 
-##CC 2.5
+## CC 2.5
 
 ```
 Creative Commons Attribution 2.5
@@ -2954,7 +2952,7 @@ Except for the limited purpose of indicating to the public that the Work is lice
 ```
 
 
-##MPL 1.1
+## MPL 1.1
 
 ```
                           MOZILLA PUBLIC LICENSE
@@ -3393,7 +3391,7 @@ Except for the limited purpose of indicating to the public that the Work is lice
 ```
 
 
-##WTFPL
+## WTFPL
 
 ```
             DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
@@ -3412,7 +3410,7 @@ Except for the limited purpose of indicating to the public that the Work is lice
 ```
 
 
-##BSD 2-clause
+## BSD 2-clause
 
 ```
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -3422,152 +3420,152 @@ Redistribution and use in source and binary forms, with or without modification,
 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY 
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY
 DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
- USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
+ USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 
-##Dremio Free Software License 1.0
+## Dremio Free Software License 1.0
 
 ```
 Dremio Free Software License
 Version 1.0
 
-This Dremio Free Software License, Version 1.0 (this “Agreement”) is a legal 
-agreement between you (both the individual installing the Software and any 
-single legal entity on behalf of which such individual is acting) (“Licensee” 
-or “you”) and Dremio Corporation (“Dremio”) regarding any free libraries, 
-plug-ins, drivers and other software provided or made available by Dremio to 
+This Dremio Free Software License, Version 1.0 (this “Agreement”) is a legal
+agreement between you (both the individual installing the Software and any
+single legal entity on behalf of which such individual is acting) (“Licensee”
+or “you”) and Dremio Corporation (“Dremio”) regarding any free libraries,
+plug-ins, drivers and other software provided or made available by Dremio to
 you in binary code form in connection with your use of Dremio Community.
 
-PLEASE READ THIS AGREEMENT CAREFULLY BEFORE INSTALLING OR USING ANY SOFTWARE.  
-TAKING ANY STEP TO DOWNLOAD, SET UP, INSTALL OR USE ANY SOFTWARE CONSTITUTES 
-YOUR ASSENT TO AND ACCEPTANCE OF THIS AGREEMENT.  WRITTEN OR ELECTRONIC 
-APPROVAL IS NOT A PREREQUISITE TO THE VALIDITY OR ENFORCEABILITY OF THIS 
-AGREEMENT AND NO SOLICITATION OF SUCH WRITTEN OR ELECTRONIC APPROVAL WILL BE 
-CONSTRUED AS AN INFERENCE TO THE CONTRARY.  IF YOU DO NOT AGREE TO THE TERMS 
-OF THIS AGREEMENT OR ARE NOT AUTHORIZED TO BIND THE ENTITY ON BEHALF OF WHICH 
-YOU ARE ACTING, DO NOT DOWNLOAD, INSTALL OR USE THE SOFTWARE AND DESTROY ANY 
+PLEASE READ THIS AGREEMENT CAREFULLY BEFORE INSTALLING OR USING ANY SOFTWARE.
+TAKING ANY STEP TO DOWNLOAD, SET UP, INSTALL OR USE ANY SOFTWARE CONSTITUTES
+YOUR ASSENT TO AND ACCEPTANCE OF THIS AGREEMENT.  WRITTEN OR ELECTRONIC
+APPROVAL IS NOT A PREREQUISITE TO THE VALIDITY OR ENFORCEABILITY OF THIS
+AGREEMENT AND NO SOLICITATION OF SUCH WRITTEN OR ELECTRONIC APPROVAL WILL BE
+CONSTRUED AS AN INFERENCE TO THE CONTRARY.  IF YOU DO NOT AGREE TO THE TERMS
+OF THIS AGREEMENT OR ARE NOT AUTHORIZED TO BIND THE ENTITY ON BEHALF OF WHICH
+YOU ARE ACTING, DO NOT DOWNLOAD, INSTALL OR USE THE SOFTWARE AND DESTROY ANY
 COPIES OF IT THAT YOU MAY HAVE DOWNLOADED.
 
-1. Scope. This Agreement governs Licensee’s use of the Software. The term 
-“Software,” as used in this Agreement, means, collectively, (a) the object 
-code form of any free libraries, plug-ins, drivers and other software for 
-Dremio’s open source software product, "Dremio Community," that are provided 
-or made available by Dremio to you, and (b) any updates, upgrades and new 
-releases to any of the foregoing (but only to the extent such updates, 
+1. Scope. This Agreement governs Licensee’s use of the Software. The term
+“Software,” as used in this Agreement, means, collectively, (a) the object
+code form of any free libraries, plug-ins, drivers and other software for
+Dremio’s open source software product, "Dremio Community," that are provided
+or made available by Dremio to you, and (b) any updates, upgrades and new
+releases to any of the foregoing (but only to the extent such updates,
 upgrades or new releases are not provided under conflicting license terms).
 
-2. License Grant. Subject to Licensee’s compliance with the terms and 
-conditions of this Agreement, Dremio grants to Licensee a non-exclusive, 
-non-transferable and non-sublicenseable right to install and use the Software 
-solely in conjunction with Dremio Community, for Licensee’s internal processing 
-needs, and in accordance with the user documentation provided by Dremio. 
+2. License Grant. Subject to Licensee’s compliance with the terms and
+conditions of this Agreement, Dremio grants to Licensee a non-exclusive,
+non-transferable and non-sublicenseable right to install and use the Software
+solely in conjunction with Dremio Community, for Licensee’s internal processing
+needs, and in accordance with the user documentation provided by Dremio.
 
-3. Use Restrictions. Licensee shall not (and shall not allow any third party to): 
-(a) decompile, reverse engineer or attempt to discover any source code or 
-algorithms of the Software (except to the extent this restriction is expressly 
+3. Use Restrictions. Licensee shall not (and shall not allow any third party to):
+(a) decompile, reverse engineer or attempt to discover any source code or
+algorithms of the Software (except to the extent this restriction is expressly
 prohibited by applicable law or the applicable Open Source Licenses (with respect
-to the respective Open Source Components governed thereby) and then only upon 
-advanced written notice to Dremio); (b) disclose or allow access to the Software 
-to any third party, or use the Software for any timesharing or service bureau 
-purposes or on an application service provider basis; (c) remove or alter any 
-copyright, trademark, or other proprietary notices or legends appearing in the 
-Software (or any copies thereof); or (d) incorporate the Software in, or use the 
+to the respective Open Source Components governed thereby) and then only upon
+advanced written notice to Dremio); (b) disclose or allow access to the Software
+to any third party, or use the Software for any timesharing or service bureau
+purposes or on an application service provider basis; (c) remove or alter any
+copyright, trademark, or other proprietary notices or legends appearing in the
+Software (or any copies thereof); or (d) incorporate the Software in, or use the
 Software to develop or offer, any competing product or service.
 
-4. Proprietary Rights. Dremio owns and will retain all right, title and interest, 
-including all intellectual property rights, in and to the Software (and any 
-copies thereof). Licensee does not acquire any license or right of any kind to 
+4. Proprietary Rights. Dremio owns and will retain all right, title and interest,
+including all intellectual property rights, in and to the Software (and any
+copies thereof). Licensee does not acquire any license or right of any kind to
 the Software other than those rights expressly granted by Dremio to Licensee under
-this Agreement. If a claim alleging infringement of an intellectual property 
-right arises concerning the Software, Dremio in its sole discretion may elect to 
+this Agreement. If a claim alleging infringement of an intellectual property
+right arises concerning the Software, Dremio in its sole discretion may elect to
 terminate this Agreement.
 
-5. Termination. This Agreement will terminate automatically in the event of any 
+5. Termination. This Agreement will terminate automatically in the event of any
 breach by Licensee. Upon any termination of this Agreement, all rights granted to
-Licensee under this Agreement will terminate and Licensee must cease using the 
-Software and destroy all copies thereof.  The terms of Sections 3-10 will survive 
+Licensee under this Agreement will terminate and Licensee must cease using the
+Software and destroy all copies thereof.  The terms of Sections 3-10 will survive
 any termination of this Agreement.
 
-6. Disclaimer. ALL SOFTWARE IS PROVIDED “AS-IS” WITHOUT WARRANTY OF ANY KIND 
-(WHETHER IMPLIED OR STATUTORY), AND DREMIO MAKES NO AND HEREBY EXPRESSLY DISCLAIMS 
-ALL WARRANTIES AND CONDITIONS NOT EXPRESSLY STATED HEREIN, INCLUDING, WITHOUT 
+6. Disclaimer. ALL SOFTWARE IS PROVIDED “AS-IS” WITHOUT WARRANTY OF ANY KIND
+(WHETHER IMPLIED OR STATUTORY), AND DREMIO MAKES NO AND HEREBY EXPRESSLY DISCLAIMS
+ALL WARRANTIES AND CONDITIONS NOT EXPRESSLY STATED HEREIN, INCLUDING, WITHOUT
 LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY, NON-INFRINGEMENT AND FITNESS
-FOR A PARTICULAR PURPOSE. DREMIO DOES NOT WARRANT THAT THE SOFTWARE WILL MEET 
-LICENSEE’S REQUIREMENTS, BE UNINTERRUPTED OR ERROR-FREE, OR THAT DEFECTS IN THE 
-SOFTWARE WILL BE CORRECTED. Some jurisdictions do not allow the exclusion of certain 
-implied warranties, so the above exclusion may not fully apply to Licensee if 
-Licensee is located in such jurisdiction. 
+FOR A PARTICULAR PURPOSE. DREMIO DOES NOT WARRANT THAT THE SOFTWARE WILL MEET
+LICENSEE’S REQUIREMENTS, BE UNINTERRUPTED OR ERROR-FREE, OR THAT DEFECTS IN THE
+SOFTWARE WILL BE CORRECTED. Some jurisdictions do not allow the exclusion of certain
+implied warranties, so the above exclusion may not fully apply to Licensee if
+Licensee is located in such jurisdiction.
 
-7. Limitation of Liability. TO THE FULLEST EXTENT ALLOWED UNDER APPLICABLE LAW, 
-(A) IN NO EVENT SHALL DREMIO OR ITS AGENTS BE LIABLE FOR ANY INDIRECT, SPECIAL, 
-CONSEQUENTIAL, PUNITIVE OR INCIDENTAL DAMAGES WHATSOEVER, OR ANY DAMAGES FOR LOSS 
-OF BUSINESS PROFITS, BUSINESS INTERRUPTIONS, LOSS OF BUSINESS INFORMATION, OR OTHER 
-PECUNIARY LOSS, IN CONNECTION WITH THIS AGREEMENT OR ARISING OUT OF THE USE OF OR 
-INABILITY TO USE THE SOFTWARE, EVEN IF DREMIO HAS BEEN ADVISED OF THE POSSIBILITY OF 
+7. Limitation of Liability. TO THE FULLEST EXTENT ALLOWED UNDER APPLICABLE LAW,
+(A) IN NO EVENT SHALL DREMIO OR ITS AGENTS BE LIABLE FOR ANY INDIRECT, SPECIAL,
+CONSEQUENTIAL, PUNITIVE OR INCIDENTAL DAMAGES WHATSOEVER, OR ANY DAMAGES FOR LOSS
+OF BUSINESS PROFITS, BUSINESS INTERRUPTIONS, LOSS OF BUSINESS INFORMATION, OR OTHER
+PECUNIARY LOSS, IN CONNECTION WITH THIS AGREEMENT OR ARISING OUT OF THE USE OF OR
+INABILITY TO USE THE SOFTWARE, EVEN IF DREMIO HAS BEEN ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGES. (B) IN NO EVENT WILL DREMIO’S LIABILITY TO LICENSEE EXCEED $100.
 
-8. Export. Licensee represents and warrants that it is not prohibited from receiving 
-the Software under U.S. export laws; that it is not a national of a country subject 
-to U.S. trade sanctions; that it will not use the Software in a location that is the 
-subject of U.S. trade sanctions that would cover the Software; and that to its 
-knowledge it is not on the U.S. Department of Commerce’s table of deny orders or 
+8. Export. Licensee represents and warrants that it is not prohibited from receiving
+the Software under U.S. export laws; that it is not a national of a country subject
+to U.S. trade sanctions; that it will not use the Software in a location that is the
+subject of U.S. trade sanctions that would cover the Software; and that to its
+knowledge it is not on the U.S. Department of Commerce’s table of deny orders or
 otherwise prohibited from obtaining goods of this sort from the United States.
 
-9. Third Party Open Source Components. Licensee acknowledges that the Software may 
-contain certain open source software components (“Open Source Components”), each 
-licensed to Licensee under the respective Open Source License.  As used herein, 
-“Open Source Licenses” means any software licenses approved as open source licenses 
-by the Open Source Initiative or any substantially similar licenses, including, 
-without limitation, any license that, as a condition of distribution of the software 
-licensed under such license, requires that the distributor make the software available 
-in source code format. Dremio shall provide a list of the Open Source Components and 
-respective Open Source Licenses for a particular version of the Software upon 
-Licensee’s request. Licensee acknowledges and agrees to the terms and conditions of 
-each such Open Source License.  With respect to each Open Source Component, (a) to the 
-extent there are any conflicts between any terms of this Agreement and any terms of 
-the respective Open Source License, which the Open Source License does not permit, 
-such conflicting terms of this Agreement will not apply; (b) to the extent expressly 
-required by the respective Open Source License, the terms of such Open Source License 
-will apply to such Open Source Component in lieu of the terms of this Agreement; and 
-(c) to the extent the terms of the respective Open Source License entitle the Licensee 
-to receive a copy of the source code of such Open Source Component, that source code 
-may be available from Dremio upon Licensee’s request (a nominal fee may be charged by 
-Dremio for processing such request). Licensee acknowledges receipt of notices for the 
+9. Third Party Open Source Components. Licensee acknowledges that the Software may
+contain certain open source software components (“Open Source Components”), each
+licensed to Licensee under the respective Open Source License.  As used herein,
+“Open Source Licenses” means any software licenses approved as open source licenses
+by the Open Source Initiative or any substantially similar licenses, including,
+without limitation, any license that, as a condition of distribution of the software
+licensed under such license, requires that the distributor make the software available
+in source code format. Dremio shall provide a list of the Open Source Components and
+respective Open Source Licenses for a particular version of the Software upon
+Licensee’s request. Licensee acknowledges and agrees to the terms and conditions of
+each such Open Source License.  With respect to each Open Source Component, (a) to the
+extent there are any conflicts between any terms of this Agreement and any terms of
+the respective Open Source License, which the Open Source License does not permit,
+such conflicting terms of this Agreement will not apply; (b) to the extent expressly
+required by the respective Open Source License, the terms of such Open Source License
+will apply to such Open Source Component in lieu of the terms of this Agreement; and
+(c) to the extent the terms of the respective Open Source License entitle the Licensee
+to receive a copy of the source code of such Open Source Component, that source code
+may be available from Dremio upon Licensee’s request (a nominal fee may be charged by
+Dremio for processing such request). Licensee acknowledges receipt of notices for the
 Open Source Components for the initial delivery of the Software.
 
-10. Miscellaneous. If Licensee is a corporation, partnership or other entity, the 
-license granted under this Agreement is expressly conditioned upon acceptance by a 
-person who is authorized to bind the entity. Licensee has no right to transfer or 
-assign this Agreement or any of the rights or licenses granted under this Agreement, 
-without Dremio’s prior written consent, and any purported assignment in violation of 
-this clause will be null and void and result in the automatic termination of this 
-Agreement.  A merger or change of control of Licensee will be deemed a transfer 
-restricted by the foregoing.  This Agreement is the entire agreement between Licensee 
-and Dremio with respect to license of the Software, and supersedes any previous oral 
-or written communications or documents. This Agreement is governed by the laws of the 
-State of California, USA. This Agreement will not be governed by the U.N. Convention 
-on Contracts for the International Sale of Goods and will not be governed by any 
-statute based on or derived from the Uniform Computer Information Transactions Act 
-(UCITA). You agree to submit to the exclusive jurisdiction and venue of the state 
-and/or federal courts of Santa Clara County, California with respect to any suit 
-relating to this Agreement.  You acknowledge and agree that, due to the unique nature 
-of the Software, a breach of this Agreement may result in irreparable harm to Dremio 
-which would be difficult to measure; and, therefore, upon any such breach or threat 
-thereof, Dremio will be entitled to seek injunctive and other appropriate equitable 
-relief, in addition to whatever remedies it may have at law, hereunder, or otherwise.  
-If any provision of this Agreement is found to be invalid or unenforceable, it will 
-be reformed and enforced to the extent permissible and the remainder of this Agreement 
-will remain in full force and effect. Failure to prosecute a party’s rights with 
-respect to a default hereunder will not constitute a waiver of the right to enforce 
-rights with respect to the same or any other breach.  
+10. Miscellaneous. If Licensee is a corporation, partnership or other entity, the
+license granted under this Agreement is expressly conditioned upon acceptance by a
+person who is authorized to bind the entity. Licensee has no right to transfer or
+assign this Agreement or any of the rights or licenses granted under this Agreement,
+without Dremio’s prior written consent, and any purported assignment in violation of
+this clause will be null and void and result in the automatic termination of this
+Agreement.  A merger or change of control of Licensee will be deemed a transfer
+restricted by the foregoing.  This Agreement is the entire agreement between Licensee
+and Dremio with respect to license of the Software, and supersedes any previous oral
+or written communications or documents. This Agreement is governed by the laws of the
+State of California, USA. This Agreement will not be governed by the U.N. Convention
+on Contracts for the International Sale of Goods and will not be governed by any
+statute based on or derived from the Uniform Computer Information Transactions Act
+(UCITA). You agree to submit to the exclusive jurisdiction and venue of the state
+and/or federal courts of Santa Clara County, California with respect to any suit
+relating to this Agreement.  You acknowledge and agree that, due to the unique nature
+of the Software, a breach of this Agreement may result in irreparable harm to Dremio
+which would be difficult to measure; and, therefore, upon any such breach or threat
+thereof, Dremio will be entitled to seek injunctive and other appropriate equitable
+relief, in addition to whatever remedies it may have at law, hereunder, or otherwise.
+If any provision of this Agreement is found to be invalid or unenforceable, it will
+be reformed and enforced to the extent permissible and the remainder of this Agreement
+will remain in full force and effect. Failure to prosecute a party’s rights with
+respect to a default hereunder will not constitute a waiver of the right to enforce
+rights with respect to the same or any other breach.
 ```
 
 
-##OFL 1.1
+## OFL 1.1
 
 ```
 Version 1.1 - 26 February 2007
@@ -3581,7 +3579,7 @@ with others.
 
 The OFL allows the licensed fonts to be used, studied, modified and
 redistributed freely as long as they are not sold by themselves. The
-fonts, including any derivative works, can be bundled, embedded, 
+fonts, including any derivative works, can be bundled, embedded,
 redistributed and/or sold with any software provided that any reserved
 names are not used by derivative works. The fonts and derivatives,
 however, cannot be released under any other type of license. The
@@ -3657,7 +3655,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
 
-##ISC
+## ISC
 
 ```
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
@@ -3666,7 +3664,7 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH RE
 ```
 
 
-##Unlicense
+## Unlicense
 
 ```
 This is free and unencumbered software released into the public domain.
@@ -3696,7 +3694,7 @@ For more information, please refer to <https://unlicense.org>
 ```
 
 
-##International Program License Agreement
+## International Program License Agreement
 
 ```
 International Program License Agreement
@@ -4438,20 +4436,20 @@ If the Program includes components that are Redistributable, they will be identi
 
 L/N:  L-LKSA-9PX554
 D/N:  L-LKSA-9PX554
-P/N:  L-LKSA-9PX554 
+P/N:  L-LKSA-9PX554
 ```
 
 
-##MICROSOFT SOFTWARE LICENSE
+## MICROSOFT SOFTWARE LICENSE
 
 ```
 MICROSOFT SOFTWARE LICENSE TERMS
 
 MICROSOFT JDBC DRIVER 4.2 FOR SQL SERVER
 
-These license terms are an agreement between Microsoft Corporation (or based on where you 
-live, one of its affiliates) and you. Please read them. They apply to the software 
-named above, which includes the media on which you received it, if any. The terms also apply to 
+These license terms are an agreement between Microsoft Corporation (or based on where you
+live, one of its affiliates) and you. Please read them. They apply to the software
+named above, which includes the media on which you received it, if any. The terms also apply to
 any Microsoft
 
 ï updates,
@@ -4461,159 +4459,159 @@ any Microsoft
 
 for this software, unless other terms accompany those items. If so, those terms apply.
 
-BY USING THE SOFTWARE, YOU ACCEPT THESE TERMS. IF YOU DO NOT 
+BY USING THE SOFTWARE, YOU ACCEPT THESE TERMS. IF YOU DO NOT
 ACCEPT THEM, DO NOT USE THE SOFTWARE.
 
 If you comply with these license terms, you have the rights below.
 
-1. INSTALLATION AND USE RIGHTS. 
+1. INSTALLATION AND USE RIGHTS.
 
 a. Installation and Use.
 
 i. You may install and use any number of copies of the software on your devices.
 
-b. Third Party Programs. The software may include third party programs that Microsoft, 
-not the third party, licenses to you under this agreement. Notices, if any, for the third 
+b. Third Party Programs. The software may include third party programs that Microsoft,
+not the third party, licenses to you under this agreement. Notices, if any, for the third
 party program are included for your information only.
 
 2. ADDITIONAL LICENSING REQUIREMENTS AND/OR USE RIGHTS.
 
 a. Distributable Code.
 
-i.        Right to Use and Distribute. You are permitted to distribute the software in programs you 
+i.        Right to Use and Distribute. You are permitted to distribute the software in programs you
 develop if you comply with the terms below:
 
-* You may copy and distribute the object code form of the software (ìDistributable Codeî) in 
+* You may copy and distribute the object code form of the software (ìDistributable Codeî) in
 programs you develop. You may not modify the software.
-* You may permit distributors of your programs to copy and distribute the Distributable Code 
+* You may permit distributors of your programs to copy and distribute the Distributable Code
 as part of those programs.
 ii.        Distribution Requirements. For any Distributable Code you distribute, you must
 * add significant primary functionality to it in your programs;
-* require distributors and external end users to agree to terms that protect it at least as 
+* require distributors and external end users to agree to terms that protect it at least as
 much as this agreement;
 * display your valid copyright notice on your programs; and
-* indemnify, defend, and hold harmless Microsoft from any claims, including attorneysí fees, 
+* indemnify, defend, and hold harmless Microsoft from any claims, including attorneysí fees,
 related to the distribution or use of your programs.
 iii.        Distribution Restrictions. You may not
 * alter any copyright, trademark or patent notice in the Distributable Code;
-* use Microsoftís trademarks in your programsí names or in a way that suggests your programs 
+* use Microsoftís trademarks in your programsí names or in a way that suggests your programs
 come from or are endorsed by Microsoft;
 * include Distributable Code in malicious, deceptive or unlawful programs; or
-* modify or distribute the source code of any Distributable Code so that any part of it 
-becomes subject to an Excluded License. An Excluded License is one that requires, as a 
+* modify or distribute the source code of any Distributable Code so that any part of it
+becomes subject to an Excluded License. An Excluded License is one that requires, as a
 condition of use, modification or distribution, that
 * the code be disclosed or distributed in source code form; or
 * others have the right to modify it.
 
 
-3. SCOPE OF LICENSE. The software is licensed, not sold. This agreement only gives you 
-some rights to use the software. Microsoft reserves all other rights. Unless applicable law 
-gives you more rights despite this limitation, you may use the software only as expressly 
-permitted in this agreement. In doing so, you must comply with any technical limitations in 
+3. SCOPE OF LICENSE. The software is licensed, not sold. This agreement only gives you
+some rights to use the software. Microsoft reserves all other rights. Unless applicable law
+gives you more rights despite this limitation, you may use the software only as expressly
+permitted in this agreement. In doing so, you must comply with any technical limitations in
 the software that only allow you to use it in certain ways. You may not
 
 ï work around any technical limitations in the software;
-ï reverse engineer, decompile or disassemble the software, except and only to the extent 
+ï reverse engineer, decompile or disassemble the software, except and only to the extent
 that applicable law expressly permits, despite this limitation;
-ï make more copies of the software than specified in this agreement or allowed by 
+ï make more copies of the software than specified in this agreement or allowed by
 applicable law, despite this limitation;
 ï publish the software for others to copy;
 ï rent, lease or lend the software;
 ï transfer the software or this agreement to any third party; or
 ï use the software for commercial software hosting services.
 
-4. EXPORT RESTRICTIONS. The software is subject to United States export laws and 
-regulations. You must comply with all domestic and international export laws and 
-regulations that apply to the software. These laws include restrictions on destinations, end 
+4. EXPORT RESTRICTIONS. The software is subject to United States export laws and
+regulations. You must comply with all domestic and international export laws and
+regulations that apply to the software. These laws include restrictions on destinations, end
 users and end use. For additional information, see www.microsoft.com/exporting.
 
-5. SUPPORT SERVICES. Because this software is ìas is,î we may not provide support 
+5. SUPPORT SERVICES. Because this software is ìas is,î we may not provide support
 services for it.
 
 6. ENTIRE AGREEMENT. This agreement, and the terms for supplements, updates, Internet-
-based services and support services that you use, are the entire agreement for the software 
+based services and support services that you use, are the entire agreement for the software
 and support services.
 
 7. APPLICABLE LAW.
 
-a. United States. If you acquired the software in the United States, Washington state law 
-governs the interpretation of this agreement and applies to claims for breach of it, 
-regardless of conflict of laws principles. The laws of the state where you live govern all 
-other claims, including claims under state consumer protection laws, unfair competition 
+a. United States. If you acquired the software in the United States, Washington state law
+governs the interpretation of this agreement and applies to claims for breach of it,
+regardless of conflict of laws principles. The laws of the state where you live govern all
+other claims, including claims under state consumer protection laws, unfair competition
 laws, and in tort.
 
-b. Outside the United States. If you acquired the software in any other country, the laws of 
+b. Outside the United States. If you acquired the software in any other country, the laws of
 that country apply.
 
-8. LEGAL EFFECT. This agreement describes certain legal rights. You may have other rights 
-under the laws of your country. You may also have rights with respect to the party from 
-whom you acquired the software. This agreement does not change your rights under the laws 
+8. LEGAL EFFECT. This agreement describes certain legal rights. You may have other rights
+under the laws of your country. You may also have rights with respect to the party from
+whom you acquired the software. This agreement does not change your rights under the laws
 of your country if the laws of your country do not permit it to do so.
 
-9. DISCLAIMER OF WARRANTY. THE SOFTWARE IS LICENSED ìAS-IS.î YOU 
-BEAR THE RISK OF USING IT. MICROSOFT GIVES NO EXPRESS 
-WARRANTIES, GUARANTEES OR CONDITIONS. YOU MAY HAVE 
-ADDITIONAL CONSUMER RIGHTS UNDER YOUR LOCAL LAWS WHICH THIS 
-AGREEMENT CANNOT CHANGE. TO THE EXTENT PERMITTED UNDER 
-YOUR LOCAL LAWS, MICROSOFT EXCLUDES THE IMPLIED WARRANTIES 
+9. DISCLAIMER OF WARRANTY. THE SOFTWARE IS LICENSED ìAS-IS.î YOU
+BEAR THE RISK OF USING IT. MICROSOFT GIVES NO EXPRESS
+WARRANTIES, GUARANTEES OR CONDITIONS. YOU MAY HAVE
+ADDITIONAL CONSUMER RIGHTS UNDER YOUR LOCAL LAWS WHICH THIS
+AGREEMENT CANNOT CHANGE. TO THE EXTENT PERMITTED UNDER
+YOUR LOCAL LAWS, MICROSOFT EXCLUDES THE IMPLIED WARRANTIES
 OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-
 INFRINGEMENT.
 
-10. LIMITATION ON AND EXCLUSION OF REMEDIES AND DAMAGES. YOU CAN 
-RECOVER FROM MICROSOFT AND ITS SUPPLIERS ONLY DIRECT DAMAGES UP 
-TO U.S. $5.00. YOU CANNOT RECOVER ANY OTHER DAMAGES, INCLUDING 
-CONSEQUENTIAL, LOST PROFITS, SPECIAL, INDIRECT OR INCIDENTAL 
+10. LIMITATION ON AND EXCLUSION OF REMEDIES AND DAMAGES. YOU CAN
+RECOVER FROM MICROSOFT AND ITS SUPPLIERS ONLY DIRECT DAMAGES UP
+TO U.S. $5.00. YOU CANNOT RECOVER ANY OTHER DAMAGES, INCLUDING
+CONSEQUENTIAL, LOST PROFITS, SPECIAL, INDIRECT OR INCIDENTAL
 DAMAGES.
 
 This limitation applies to
 
-ï anything related to the software, services, content (including code) on third party Internet 
+ï anything related to the software, services, content (including code) on third party Internet
 sites, or third party programs, and
-ï claims for breach of contract, breach of warranty, guarantee or condition, strict liability, 
+ï claims for breach of contract, breach of warranty, guarantee or condition, strict liability,
 negligence, or other tort to the extent permitted by applicable law.
 
-It also applies even if Microsoft knew or should have known about the possibility of the 
-damages. The above limitation or exclusion may not apply to you because your country may 
+It also applies even if Microsoft knew or should have known about the possibility of the
+damages. The above limitation or exclusion may not apply to you because your country may
 not allow the exclusion or limitation of incidental, consequential or other damages.
 
-Please note: As this software is distributed in Quebec, Canada, some of the clauses in this 
+Please note: As this software is distributed in Quebec, Canada, some of the clauses in this
 agreement are provided below in French.
 
-Remarque : Ce logiciel Ètant distribuÈ au QuÈbec, Canada, certaines des clauses dans ce 
+Remarque : Ce logiciel Ètant distribuÈ au QuÈbec, Canada, certaines des clauses dans ce
 contrat sont fournies ci-dessous en franÁais.
 
-EXON…RATION DE GARANTIE. Le logiciel visÈ par une licence est offert ´ tel quel ª. 
-Toute utilisation de ce logiciel est ‡ votre seule risque et pÈril. Microsoft níaccorde aucune 
-autre garantie expresse. Vous pouvez bÈnÈficier de droits additionnels en vertu du droit local 
-sur la protection des consommateurs, que ce contrat ne peut modifier. La ou elles sont 
-permises par le droit locale, les garanties implicites de qualitÈ marchande, díadÈquation ‡ un 
+EXON…RATION DE GARANTIE. Le logiciel visÈ par une licence est offert ´ tel quel ª.
+Toute utilisation de ce logiciel est ‡ votre seule risque et pÈril. Microsoft níaccorde aucune
+autre garantie expresse. Vous pouvez bÈnÈficier de droits additionnels en vertu du droit local
+sur la protection des consommateurs, que ce contrat ne peut modifier. La ou elles sont
+permises par le droit locale, les garanties implicites de qualitÈ marchande, díadÈquation ‡ un
 usage particulier et díabsence de contrefaÁon sont exclues.
 
-LIMITATION DES DOMMAGES-INT…R TS ET EXCLUSION DE 
-RESPONSABILIT… POUR LES DOMMAGES. Vous pouvez obtenir de Microsoft et de 
-ses fournisseurs une indemnisation en cas de dommages directs uniquement ‡ hauteur de 5,00 
-$ US. Vous ne pouvez prÈtendre ‡ aucune indemnisation pour les autres dommages, y 
+LIMITATION DES DOMMAGES-INT…R TS ET EXCLUSION DE
+RESPONSABILIT… POUR LES DOMMAGES. Vous pouvez obtenir de Microsoft et de
+ses fournisseurs une indemnisation en cas de dommages directs uniquement ‡ hauteur de 5,00
+$ US. Vous ne pouvez prÈtendre ‡ aucune indemnisation pour les autres dommages, y
 compris les dommages spÈciaux, indirects ou accessoires et pertes de bÈnÈfices.
 
 Cette limitation concerne :
-ï tout ce qui est reliÈ au logiciel, aux services ou au contenu (y compris le code) figurant 
+ï tout ce qui est reliÈ au logiciel, aux services ou au contenu (y compris le code) figurant
 sur des sites Internet tiers ou dans des programmes tiers ; et
-ï les rÈclamations au titre de violation de contrat ou de garantie, ou au titre de 
-responsabilitÈ stricte, de nÈgligence ou díune autre faute dans la limite autorisÈe par la loi 
+ï les rÈclamations au titre de violation de contrat ou de garantie, ou au titre de
+responsabilitÈ stricte, de nÈgligence ou díune autre faute dans la limite autorisÈe par la loi
 en vigueur.
 
-Elle síapplique Ègalement, mÍme si Microsoft connaissait ou devrait connaÓtre líÈventualitÈ 
-díun tel dommage. Si votre pays níautorise pas líexclusion ou la limitation de responsabilitÈ 
-pour les dommages indirects, accessoires ou de quelque nature que ce soit, il se peut que la 
+Elle síapplique Ègalement, mÍme si Microsoft connaissait ou devrait connaÓtre líÈventualitÈ
+díun tel dommage. Si votre pays níautorise pas líexclusion ou la limitation de responsabilitÈ
+pour les dommages indirects, accessoires ou de quelque nature que ce soit, il se peut que la
 limitation ou líexclusion ci-dessus ne síappliquera pas ‡ votre Ègard.
 
-EFFET JURIDIQUE. Le prÈsent contrat dÈcrit certains droits juridiques. Vous pourriez avoir 
-díautres droits prÈvus par les lois de votre pays. Le prÈsent contrat ne modifie pas les droits 
+EFFET JURIDIQUE. Le prÈsent contrat dÈcrit certains droits juridiques. Vous pourriez avoir
+díautres droits prÈvus par les lois de votre pays. Le prÈsent contrat ne modifie pas les droits
 que vous confËrent les lois de votre pays si celles-ci ne le permettent pas.
 ```
 
 
-##Amazon Redshift JDBC Driver License
+## Amazon Redshift JDBC Driver License
 
 ```
 THIS IS AN AGREEMENT BETWEEN YOU AND AMAZON WEB SERVICES, INC. (WITH ITS AFFILIATES, "AWS" OR "WE")
@@ -4662,7 +4660,7 @@ are in your possession or control. Your rights under this License Agreement will
 terminate if you do not comply with any term or condition of this License Agreement or the AWS Customer
 Agreement, including any failure to remit timely payment. In the case of termination, you must cease all use and
 destroy all copies of the Software. We may modify, suspend, discontinue, or terminate your right to use part or all
-of the Software at any time without notice to you, and in that event we may modify the Software to make it 
+of the Software at any time without notice to you, and in that event we may modify the Software to make it
 inoperable. AWS will not be liable to you should it exercise those rights. Our failure to insist upon or enforce your
 strict compliance with this License Agreement will not constitute a waiver of any of our rights.
 
@@ -4711,7 +4709,7 @@ The Software is provided to the U.S. Government as “commercial items,” “co
 “commercial computer software documentation,” and “technical data” with the same rights and restrictions
 generally applicable to the Software. If you are using the Software on behalf of the U.S. Government and these
 terms fail to meet the U.S. Government’s needs or are inconsistent in any respect with federal law, you will
-immediately discontinue your use of the Software. The terms “commercial item” “commercial computer 
+immediately discontinue your use of the Software. The terms “commercial item” “commercial computer
 software,” “commercial computer software documentation,” and “technical data” are defined in the Federal
 Acquisition Regulation and the Defense Federal Acquisition Regulation Supplement.
 
@@ -4727,14 +4725,14 @@ separate license, in which case the terms of that license will govern.
 ```
 
 
-##Oracle Technology Network License
+## Oracle Technology Network License
 
 ```
 Oracle Technology Network License Agreement
 
 Oracle is willing to authorize Your access to software associated with this License Agreement (“Agreement”) only upon the condition that You accept that this Agreement governs Your use of the software. By selecting the “Accept License Agreement” button or box (or the equivalent) or installing or using the Programs You indicate Your acceptance of this Agreement and Your agreement, as an authorized representative of Your company or organization (if being acquired for use by an entity) or as an individual, to comply with the license terms that apply to the software that You wish to download and access. If You are not willing to be bound by this Agreement, do not select the “Accept License Agreement” button or box (or the equivalent) and do not download or access the software.
 
-Definitions 
+Definitions
 "Oracle" refers to Oracle America, Inc. "You" and "Your" refers to (a) a company or organization (each an “Entity”) accessing the Programs, if use of the Programs will be on behalf of such Entity; or (b) an individual accessing the Programs, if use of the Programs will not be on behalf of an Entity. “Contractors” refers to Your agents and contractors (including, without limitation, outsourcers). "Program(s)" refers to Oracle software provided by Oracle pursuant to this Agreement and any updates, error corrections, and/or Program Documentation provided by Oracle. “Program Documentation” refers to Program user manuals and Program installation manuals, if any. If available, Program Documentation may be delivered with the Programs and/or may be accessed from www.oracle.com/documentation. “Associated Product” refers to the Oracle product(s), if any, and as identified in the Programs documentation or on the Programs download site, with which the Programs are intended to enable or enhance interoperation with Your application(s). “Separate Terms” refers to separate license terms that are specified in the Program Documentation, readmes or notice files and that apply to Separately Licensed Third Party Technology. “Separately Licensed Third Party Technology” refers to third party technology that is licensed under Separate Terms and not under the terms of this Agreement.
 
 License Rights and Restrictions
@@ -4751,7 +4749,7 @@ The Programs may contain source code that, unless expressly licensed in this Agr
 
 All rights not expressly granted in this Agreement are reserved by Oracle. If You want to use the Programs or Your application for any purpose other than as expressly permitted under this Agreement, You must obtain from Oracle or an Oracle reseller a valid Programs license under a separate agreement permitting such use. However, You acknowledge that the Programs may not be intended for production use and/or Oracle may not make a version of the Programs available for production or other purposes; any development or other work You undertake with the Programs is at Your sole risk.
 
-Programs Redistribution 
+Programs Redistribution
 We grant You a nonexclusive, nontransferable right to copy and distribute unmodified Programs and Programs Documentation as part of and included in Your application that is intended to interoperate with the Associated Product, if any, provided that You do not charge Your end users any additional fees for the use of the Programs. Prior to distributing the Programs and Programs Documentation, You shall require Your end users to execute an agreement binding them to terms, with respect to the Programs and Programs Documentation, materially consistent and no less restrictive than those contained in this section and the sections of this Agreement entitled “License Rights and Restrictions” (except that the redistribution right granted to You shall not be included; Your end users may not distribute Programs and Programs Documentation to any third parties), "Ownership," "Export Controls," "Disclaimer of Warranties; Limitation of Liability," "No Technical Support" (with respect to Oracle support; You may provide Your own support for Programs at Your discretion), "Audit; Termination (except that Oracle’s audit right shall not be included)," "Relationship Between the Parties," and “U.S. Government End Users.” You must also include a provision stating that Your end users shall have no right to distribute the Programs and Programs Documentation, and a provision specifying us as a third party beneficiary of the agreement. You are responsible for obtaining these agreements with Your end users.
 
 You agree to: (a) defend and indemnify us against all claims and damages caused by Your distribution of the Programs and Programs Documentation in breach of this Agreement and/or failure to include the required contractual provisions in Your end user agreement as stated above; (b) keep executed end user agreements and records of end user information including name, address, date of distribution and identity of Programs distributed; (c) allow us to inspect Your end user agreements and records upon request; and, (d) enforce the terms of Your end user agreements so as to effect a timely cure of any end user breach, and to notify us of any breach of the terms.
@@ -4759,20 +4757,20 @@ You agree to: (a) defend and indemnify us against all claims and damages caused 
 Ownership
 Oracle or its licensors retain all ownership and intellectual property rights to the Programs.
 
-Third-Party Technology 
+Third-Party Technology
 The Programs may contain or require the use of third party technology that is provided with the Programs. Oracle may provide certain notices to You in Program Documentation, readmes or notice files in connection with such third party technology. Third party technology will be licensed to You either under the terms of this Agreement or, if specified in the Program Documentation, readmes or notice files, under Separate Terms. Your rights to use Separately Licensed Third Party Technology under Separate Terms are not restricted in any way by this Agreement. However, for clarity, notwithstanding the existence of a notice, third party technology that is not Separately Licensed Third Party Technology shall be deemed part of the Programs and is licensed to You under the terms of this Agreement.
 
-Source Code for Open Source Software 
+Source Code for Open Source Software
 For software that You receive from Oracle in binary form that is licensed under an open source license that gives You the right to receive the source code for that binary, You can obtain a copy of the applicable source code from https://oss.oracle.com/sources/ or http://www.oracle.com/goto/opensourcecode. If the source code for such software was not provided to You with the binary, You can also receive a copy of the source code on physical media by submitting a written request pursuant to the instructions in the "Written Offer for Source Code" section of the latter website.
 
-Export Controls 
+Export Controls
 Export laws and regulations of the United States and any other relevant local export laws and regulations apply to the Programs . You agree that such export control laws govern Your use of the Programs (including technical data) and any services deliverables provided under this agreement, and You agree to comply with all such export laws and regulations (including "deemed export" and "deemed re-export" regulations). You agree that no data, information, program and/or materials resulting from Programs or services (or direct products thereof) will be exported, directly or indirectly, in violation of these laws, or will be used for any purpose prohibited by these laws including, without limitation, nuclear, chemical, or biological weapons proliferation, or development of missile technology. Accordingly, You confirm:
 
 You will not download, provide, make available or otherwise export or re-export the Programs, directly or indirectly, to countries prohibited by applicable laws and regulations nor to citizens, nationals or residents of those countries.
 You are not listed on the United States Department of Treasury lists of Specially Designated Nationals and Blocked Persons, Specially Designated Terrorists, and Specially Designated Narcotic Traffickers, nor are You listed on the United States Department of Commerce Table of Denial Orders.
 You will not download or otherwise export or re-export the Programs, directly or indirectly, to persons on the above mentioned lists.
 You will not use the Programs for, and will not allow the Programs to be used for, any purposes prohibited by applicable law, including, without limitation, for the development, design, manufacture or production of nuclear, chemical or biological weapons of mass destruction.
-Information Collection 
+Information Collection
 The Programs’ installation and/or auto-update processes, if any, may transmit a limited amount of data to Oracle or its service provider about those processes to help Oracle understand and optimize them. Oracle does not associate the data with personally identifiable information. Refer to Oracle’s Privacy Policy at www.oracle.com/privacy.
 
 Disclaimer of Warranties; Limitation of Liability
@@ -4781,32 +4779,29 @@ THE PROGRAMS ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. ORACLE FURTHER D
 
 IN NO EVENT WILL ORACLE BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, OR DAMAGES FOR LOSS OF PROFITS, REVENUE, DATA OR DATA USE, INCURRED BY YOU OR ANY THIRD PARTY, WHETHER IN AN ACTION IN CONTRACT OR TORT, EVEN IF ORACLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. ORACLE’S ENTIRE LIABILITY FOR DAMAGES UNDER THIS AGREEMENT SHALL IN NO EVENT EXCEED ONE THOUSAND DOLLARS (U.S. $1,000) .
 
-No Technical Support 
+No Technical Support
 Unless Oracle support for the Programs, if any, is expressly included in a separate, current support agreement between You and Oracle, Oracle’s technical support organization will not provide technical support, phone support, or updates to You for the Programs provided under this Agreement.
 
-Audit; Termination 
+Audit; Termination
 Oracle may audit Your use of the Programs. You may terminate this Agreement by destroying all copies of the Programs. This Agreement shall automatically terminate without notice if You fail to comply with any of the terms of this Agreement, in which case You shall promptly destroy all copies of the Programs.
 
-U.S. Government End Users 
+U.S. Government End Users
 Programs and/or Programs Documentation delivered to U.S. Government end users are “commercial computer software” pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, use, duplication, disclosure, modification, and adaptation of the Programs and/or Programs Documentation shall be subject to the license terms and license restrictions set forth in this Agreement. No other rights are granted to the U.S. Government.
 
-Relationship Between the Parties 
+Relationship Between the Parties
 Oracle is an independent contractor and we agree that no partnership, joint venture, or agency relationship exists between us. We each will be responsible for paying our own employees, including employment related taxes and insurance.. Nothing in this agreement shall be construed to limit either party's right to independently develop or distribute software that is functionally similar to the other party's products, so long as proprietary information of the other party is not included in such software.
 
-Entire Agreement; Governing Law 
+Entire Agreement; Governing Law
 You agree that this Agreement is the complete agreement for the Programs and this Agreement supersedes all prior or contemporaneous agreements or representations, including any clickwrap, shrinkwrap or similar licenses, or license agreements for prior versions of the Programs. This Agreement may not be modified and the rights and restrictions may not be altered or waived except in a writing signed by authorized representatives of You and of Oracle. If any term of this Agreement is found to be invalid or unenforceable, the remaining provisions will remain effective.
 
 This Agreement is governed by the substantive and procedural laws of the State of California, USA, and You and Oracle agree to submit to the exclusive jurisdiction of, and venue in, the courts of San Francisco or Santa Clara counties in California in any dispute arising out of or relating to this Agreement.
 
-Notices 
+Notices
 Should you have any questions concerning this License Agreement, or if you desire to contact Oracle for any reason, please write:
 
-Oracle America, Inc. 
-500 Oracle Parkway 
+Oracle America, Inc.
+500 Oracle Parkway
 Redwood City, CA 94065
 
 Oracle Employees: Under no circumstances are Oracle Employees authorized to download software for the purpose of distributing it to customers. Oracle products are available to employees for internal use or demonstration purposes only. In keeping with Oracle's trade compliance obligations under U.S. and applicable multilateral law, failure to comply with this policy could result in disciplinary action up to and including termination.
 ```
-
-
-

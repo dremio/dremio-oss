@@ -33,9 +33,16 @@ export default function getTooltipStyles(type) {
       ...body,
       position: 'absolute',
       padding: '0 5px',
-      zIndex: 10000,
       paddingRight: 4,
-      borderRadius: 1
+      borderRadius: 1,
+      // chris notes: not super happy about zIndex here
+      // but these are currently inline in the DOM (not at the end)
+      // and they need to be on top of any subsequent stacking context (caused by any reason).
+      // Having them inline also avoids a bunch of scrolling sync issues.
+      // Note: multiple tooltips in the same context will still respect DOM order
+      // e.g. problematic for persistent tooltips like errors
+      // (DX-9150 Tooltip appears behind other text)
+      zIndex: 1
     },
 
     inner: {

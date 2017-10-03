@@ -115,7 +115,7 @@ public class FragmentWorkManager implements Service {
    */
   public void waitToExit() {
     synchronized(this) {
-      if (fragmentExecutors.size() == 0) {
+      if (fragmentExecutors == null || fragmentExecutors.size() == 0) {
         return;
       }
 
@@ -309,7 +309,7 @@ public class FragmentWorkManager implements Service {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(statusThread, statsCollectorThread, closeableExecutor, pool, clerk, allocator);
+    AutoCloseables.close(statusThread, statsCollectorThread, closeableExecutor, pool, fragmentExecutors, clerk, allocator);
   }
 
 }

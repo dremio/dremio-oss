@@ -64,6 +64,8 @@ public class DremioCost implements RelOptCost {
   public static final int COMPARE_CPU_COST = 4 * BASE_CPU_COST;
   public static final int AVG_FIELD_WIDTH = 8;
 
+  public static final double SCAN_CPU_COST_MULTIPLIER = 1;
+
   // cost of copying data (per cell)
   public static final int COPY_COST = 1 * BASE_CPU_COST;
 

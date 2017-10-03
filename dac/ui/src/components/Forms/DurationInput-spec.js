@@ -45,9 +45,9 @@ describe('DurationInput', () => {
       });
     });
 
-    it('should convert 24 hours in milliseconds to field value', () => {
-      expect(DurationInput.constructFields(24 * hour)).to.be.eql({
-        duration: 24,
+    it('should convert 22 hours in milliseconds to field value', () => {
+      expect(DurationInput.constructFields(22 * hour)).to.be.eql({
+        duration: 22,
         unit: 'HOURS'
       });
     });
@@ -75,10 +75,24 @@ describe('DurationInput', () => {
       })).to.be.eql(15 * minute);
     });
 
-    it('should convert 24 hours to milliseconds', () => {
+    it('should convert 60 minutes to 1 hour', () => {
       expect(DurationInput.convertToMilliseconds({
-        duration: 24,
+        duration: 1,
         unit: 'HOURS'
+      })).to.be.eql(60 * minute);
+    });
+
+    it('should convert 22 hours to milliseconds', () => {
+      expect(DurationInput.convertToMilliseconds({
+        duration: 22,
+        unit: 'HOURS'
+      })).to.be.eql(22 * hour);
+    });
+
+    it('should convert 24 hours to 1 day', () => {
+      expect(DurationInput.convertToMilliseconds({
+        duration: 1,
+        unit: 'DAYS'
       })).to.be.eql(24 * hour);
     });
 
@@ -87,6 +101,13 @@ describe('DurationInput', () => {
         duration: 3,
         unit: 'DAYS'
       })).to.be.eql(3 * day);
+    });
+
+    it('should convert 7 days to 1 week', () => {
+      expect(DurationInput.convertToMilliseconds({
+        duration: 1,
+        unit: 'WEEKS'
+      })).to.be.eql(7 * day);
     });
 
     it('should convert 5 weeks to milliseconds', () => {

@@ -50,6 +50,7 @@ export default class NonMatchingValues extends Component {
 
 const styles = {
   values: {
+    maxWidth: 600,
     height: 215,
     position: 'relative',
     marginTop: 5,

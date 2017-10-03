@@ -15,8 +15,6 @@
  */
 package com.dremio.service.accelerator;
 
-import java.util.Map;
-
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.jobs.JobsService;
@@ -32,17 +30,15 @@ public class MaterializationPlanningFactory {
     public MaterializationPlanningTask createTask(String storageName,
         JobsService jobsService,
         Layout layout,
-        Map<String, Layout> layoutMap,
-        NamespaceService namespaceService, Acceleration acceleration) {
-      MaterializationPlanningTask task = new MaterializationPlanningTask(
+        NamespaceService namespaceService, AccelerationService accelerationService, Acceleration acceleration) {
+      return new MaterializationPlanningTask(
           storageName,
           jobsService,
           layout,
-          layoutMap,
           namespaceService,
+          accelerationService,
           acceleration
           );
-      return task;
     }
 
 }

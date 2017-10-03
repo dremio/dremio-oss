@@ -86,7 +86,7 @@ export class DateToTextForm extends Component {
               <div style={styles.row}>{example.format}: {example.description}</div>
             )}
 
-            <a href='https://docs.dremio.com/working-with-datasets/common-transformations.html?q=#working-with-dates'
+            <a href='https://docs.dremio.com/working-with-datasets/data-curation.html?q=#working-with-dates'
               style={styles.row} target='_blank'>
               {la('Learn more…')}
             </a>

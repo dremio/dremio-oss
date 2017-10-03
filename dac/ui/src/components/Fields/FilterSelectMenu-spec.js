@@ -113,12 +113,12 @@ describe('FilterSelectMenu', () => {
   describe('renderSelectedLabel', () => {
     it('should render values in label', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(wrapper.find('.filter-select-label').text()).to.eql('item3, item2');
+      expect(wrapper.find('.filter-select-label').props().text).to.eql('item3, item2');
     });
 
     it('should render All if none selected', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps} selectedValues={Immutable.List()}/>);
-      expect(wrapper.find('.filter-select-label').text()).to.eql(': All');
+      expect(wrapper.find('.filter-select-label').props().text).to.eql(': All');
     });
   });
 

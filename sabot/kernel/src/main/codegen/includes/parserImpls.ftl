@@ -214,11 +214,11 @@ SqlNode SqlDropView() :
 /**
  * Parses a CTAS statement.
  * CREATE TABLE tblname [ (field1, field2, ...) ]
- *       [ PARTITION BY (field1, field2, ..) ]
-         [ (HASH, ROUNDROBIN, '') DISTRIBUTE BY (field1, field2, ..) ]
+ *       [ (STRIPED, HASH, ROUNDROBIN) PARTITION BY (field1, field2, ..) ]
+ *       [ DISTRIBUTE BY (field1, field2, ..) ]
  *       [ LOCALSORT BY (field1, field2, ..) ]
  *       [ STORE AS (opt1 => val1, opt2 => val3, ...) ]
-         [ WITH SINGLE WRITER ]
+ *       [ WITH SINGLE WRITER ]
  *       AS select_statement.
  */
 SqlNode SqlCreateTable() :
@@ -228,9 +228,8 @@ SqlNode SqlCreateTable() :
     SqlNodeList fieldList;
     List<SqlNode> formatList = new ArrayList();
     SqlNodeList formatOptions;
+    PartitionDistributionStrategy partitionDistributionStrategy;
     SqlNodeList partitionFieldList;
-    boolean hashPartition = false;
-    boolean roundRobinPartition = false;
     SqlNodeList distributeFieldList;
     SqlNodeList sortFieldList;
     SqlLiteral singleWriter;
@@ -243,24 +242,27 @@ SqlNode SqlCreateTable() :
         sortFieldList =  SqlNodeList.EMPTY;
         formatOptions = SqlNodeList.EMPTY;
         singleWriter = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+        partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <CREATE> { pos = getPos(); }
     <TABLE>
     tblName = CompoundIdentifier()
     fieldList = ParseOptionalFieldList("Table")
-    (   <HASH> <PARTITION> <BY>
-        {
-          hashPartition = true;
-          partitionFieldList = ParseRequiredFieldList("Partition");
-        }
-    )?
-    (   <ROUNDROBIN> <PARTITION> <BY>
-        {
-          roundRobinPartition = true;
-          partitionFieldList = ParseRequiredFieldList("Partition");
-        }
-    )?
-    (   <PARTITION> <BY>
+    (
+        (
+            <STRIPED> {
+                partitionDistributionStrategy = PartitionDistributionStrategy.STRIPED;
+            }
+        |
+            <HASH> {
+                partitionDistributionStrategy = PartitionDistributionStrategy.HASH;
+            }
+        |
+            <ROUNDROBIN> {
+                partitionDistributionStrategy = PartitionDistributionStrategy.ROUND_ROBIN;
+            }
+        )?
+        <PARTITION> <BY>
         partitionFieldList = ParseRequiredFieldList("Partition")
     )?
     (   <DISTRIBUTE> <BY>
@@ -291,7 +293,8 @@ SqlNode SqlCreateTable() :
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateTable(pos, tblName, fieldList, partitionFieldList, hashPartition, roundRobinPartition, formatOptions, singleWriter, query, sortFieldList, distributeFieldList);
+        return new SqlCreateTable(pos, tblName, fieldList, partitionDistributionStrategy, partitionFieldList,
+           formatOptions, singleWriter, query, sortFieldList, distributeFieldList);
     }
 }
 

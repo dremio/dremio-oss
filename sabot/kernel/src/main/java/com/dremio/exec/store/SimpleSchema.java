@@ -57,6 +57,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.TableInstance;
 import com.dremio.service.namespace.TableInstance.TableParamDef;
@@ -71,6 +72,8 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -78,15 +81,42 @@ import com.google.common.collect.Sets;
 
 public class SimpleSchema extends AbstractSchema {
 
+  /*
+   * Pair of MetadataPolicy plus last time this policy was updated (in milliseconds, originally set by System.currentTimeMillis())
+   */
+  public static class MetadataParam {
+    private MetadataPolicy metadataPolicy;
+    private Long lastMetadataRefreshDate;
+
+    MetadataParam(MetadataPolicy metadataPolicy, Long lastMetadataRefreshDate) {
+      this.metadataPolicy = metadataPolicy;
+      this.lastMetadataRefreshDate = lastMetadataRefreshDate;
+    }
+
+    MetadataPolicy getMetadataPolicy() {
+      return metadataPolicy;
+    }
+    Long getLastMetadataRefreshDate() {
+      return lastMetadataRefreshDate == null ? 0 : lastMetadataRefreshDate;
+    }
+  }
+
+  private static final long MAXIMUM_CACHE_SIZE = 10_000L;
+
   private static final CharMatcher PATH_SEPARATOR_MATCHER = CharMatcher.is(Path.SEPARATOR_CHAR);
-  private static final PermissionCheckCache permissionsCache = new PermissionCheckCache(10_000L);
+  private static final PermissionCheckCache permissionsCache = new PermissionCheckCache(MAXIMUM_CACHE_SIZE);
+  // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset was locally updated
+  private static final Cache<NamespaceKey, Long> localUpdateTime =
+    CacheBuilder.newBuilder()
+    .maximumSize(MAXIMUM_CACHE_SIZE)
+    .build();
 
   private final SabotContext dContext;
   private final MetadataStatsCollector metadataStatsCollector;
   protected final SchemaConfig schemaConfig;
   protected final SchemaType type;
   protected final NamespaceService ns;
-  private final MetadataPolicy metadataPolicy;
+  private final MetadataParam metadataParam;
   private final SchemaMutability schemaMutability;
 
   private boolean areEntitiesListed;
@@ -107,7 +137,7 @@ public class SimpleSchema extends AbstractSchema {
       String name,
       SchemaConfig schemaConfig,
       SchemaType type,
-      MetadataPolicy metadataPolicy,
+      MetadataParam metadataParam,
       SchemaMutability schemaMutability) {
     super(parentSchemaPath, name);
     this.dContext = dContext;
@@ -115,7 +145,7 @@ public class SimpleSchema extends AbstractSchema {
     this.schemaConfig = schemaConfig;
     this.metadataStatsCollector = metadataStatsCollector;
     this.type = type;
-    this.metadataPolicy = metadataPolicy;
+    this.metadataParam = metadataParam;
     this.schemaMutability = Preconditions.checkNotNull(schemaMutability);
   }
 
@@ -131,7 +161,7 @@ public class SimpleSchema extends AbstractSchema {
     if (areEntitiesListed) {
       subSchema = subSchemas.get(name);
     } else if(ns.exists(new NamespaceKey(getChildPath(name)), Type.FOLDER)) {
-      subSchema = new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
+      subSchema = new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataParam, schemaMutability);
     }
 
     if (subSchema != null) {
@@ -144,11 +174,11 @@ public class SimpleSchema extends AbstractSchema {
         StoragePlugin2 plugin2 = plugin.getStoragePlugin2();
         if(plugin2 != null){
           if(plugin2.containerExists(new NamespaceKey(getChildPath(name)))){
-            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
+            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataParam, schemaMutability);
           }
         }else{
           if(plugin.folderExists(schemaConfig, getChildPath(name))){
-            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataPolicy, schemaMutability);
+            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataParam, schemaMutability);
           }
         }
       }
@@ -202,7 +232,7 @@ public class SimpleSchema extends AbstractSchema {
             final String folderName = container.getFolder().getName();
             subSchemas.put(
                 folderName,
-                new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, folderName, schemaConfig, type, metadataPolicy, schemaMutability)
+                new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, folderName, schemaConfig, type, metadataParam, schemaMutability)
             );
             break;
           default:
@@ -260,7 +290,7 @@ public class SimpleSchema extends AbstractSchema {
   }
 
   private Table getTableWithRegistry(StoragePlugin2 registry, NamespaceKey key) {
-    final DatasetConfig datasetConfig = getDataset(ns, key);
+    final DatasetConfig datasetConfig = getDataset(ns, key, metadataParam);
     if (datasetConfig != null) {
       return getTableFromDataset(registry, datasetConfig);
     }
@@ -276,7 +306,7 @@ public class SimpleSchema extends AbstractSchema {
     final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
 
     if (!permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey,
-        datasetConfig, metadataPolicy, metadataStatsCollector)) {
+        datasetConfig, metadataParam == null ? null : metadataParam.getMetadataPolicy(), metadataStatsCollector)) {
       throw UserException.permissionError()
         .message("Access denied reading dataset %s.", canonicalKey.toString())
         .build(logger);
@@ -300,12 +330,12 @@ public class SimpleSchema extends AbstractSchema {
       );
 
       final DatasetConfig newDatasetConfig = datasetAccessor.getDataset();
-      CatalogServiceImpl.copyFromOldConfig(datasetConfig, newDatasetConfig);
+      NamespaceUtils.copyFromOldConfig(datasetConfig, newDatasetConfig);
       List<DatasetSplit> splits = datasetAccessor.getSplits();
-      ns.addOrUpdateDataset(datasetAccessor.getName(), newDatasetConfig, splits);
+      setDataset(ns, datasetAccessor.getName(), newDatasetConfig, splits);
       // check permission again.
       if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey,
-          newDatasetConfig, metadataPolicy, metadataStatsCollector)) {
+          newDatasetConfig, metadataParam == null ? null : metadataParam.getMetadataPolicy(), metadataStatsCollector)) {
         TableMetadata metadata = new TableMetadataImpl(registry.getId(), newDatasetConfig, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size()));
         stopwatch.stop();
         metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.PARTIAL_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -327,7 +357,9 @@ public class SimpleSchema extends AbstractSchema {
         return view;
       }
 
-      final SourceTableDefinition accessor = registry.getDataset(key, null, schemaConfig.getIgnoreAuthErrors());
+      // Get the old dataset, it could be expired but we need it for format settings when fetching the new metadata.
+      final DatasetConfig oldDatasetConfig = getDataset(ns, key, null /* we are ok with expired dataset*/);
+      final SourceTableDefinition accessor = registry.getDataset(key, oldDatasetConfig, schemaConfig.getIgnoreAuthErrors());
 
       if (accessor == null) {
         return null;
@@ -335,16 +367,22 @@ public class SimpleSchema extends AbstractSchema {
 
       final NamespaceKey canonicalKey = accessor.getName(); // retrieve the canonical key returned by the source
 
-      if (ns.exists(canonicalKey, Type.DATASET)) {
-        // Some other thread may have added this dataset, so return from namespace with the canonical path
-        return getTableWithRegistry(registry, canonicalKey);
+      // Search the namespace using the canonical name. A table can be referred using multiple keys and namespace may
+      // not contain entries for all keys
+      final DatasetConfig datasetConfig = getDataset(ns, canonicalKey, metadataParam);
+      if (datasetConfig != null) {
+        return getTableFromDataset(registry, datasetConfig);
       }
 
       final DatasetConfig config = accessor.getDataset();
       final List<DatasetSplit> splits = accessor.getSplits();
       if(accessor.isSaveable()){
         try {
-          ns.addOrUpdateDataset(canonicalKey, config, splits);
+          if (ns.exists(canonicalKey)) {
+            DatasetConfig origConfig = ns.getDataset(canonicalKey);
+            NamespaceUtils.copyFromOldConfig(origConfig, config);
+          }
+          setDataset(ns, canonicalKey, config, splits);
         } catch (ConcurrentModificationException cme) {
           return getTableWithRegistry(registry, canonicalKey);
         } catch (UserException ue) {
@@ -354,7 +392,7 @@ public class SimpleSchema extends AbstractSchema {
           throw ue;
         }
       }
-      if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey, config, metadataPolicy, metadataStatsCollector)) {
+      if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey, config, metadataParam == null ? null : metadataParam.getMetadataPolicy(), metadataStatsCollector)) {
         final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), config, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size())));
         stopwatch.stop();
         metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.SOURCE_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -377,7 +415,7 @@ public class SimpleSchema extends AbstractSchema {
       return getTableWithRegistry(registry, key);
     }
 
-    DatasetConfig datasetConfig = getDataset(ns, key);
+    DatasetConfig datasetConfig = getDataset(ns, key, metadataParam);
     StoragePlugin plugin = null;
     switch (type) {
       case SPACE:
@@ -620,14 +658,28 @@ public class SimpleSchema extends AbstractSchema {
     }
   }
 
-  private static DatasetConfig getDataset(NamespaceService ns, NamespaceKey key) {
+  private static DatasetConfig getDataset(NamespaceService ns, NamespaceKey key, MetadataParam metadataParam) {
     try {
+      Long updateTime = localUpdateTime.getIfPresent(key);
+      long currentTime = System.currentTimeMillis();
+      long expiryTime = metadataParam == null ? 0 : metadataParam.metadataPolicy.getDatasetDefinitionExpireAfterMs();
+      // Check for expired entries. An entry is expired if:
+      if (metadataParam != null &&                                               // it's a dataset that
+        (updateTime == null || updateTime + expiryTime < currentTime) &&         // was locally updated too long ago (or never), AND
+        metadataParam.getLastMetadataRefreshDate() + expiryTime < currentTime) { // was globally updated too long ago
+        return null;
+      }
       return ns.getDataset(key);
     } catch (NamespaceNotFoundException e) {
       return null;
     } catch (NamespaceException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static void setDataset(NamespaceService ns, NamespaceKey nsKey, DatasetConfig config, List<DatasetSplit> splits)  throws NamespaceException {
+    ns.addOrUpdateDataset(nsKey, config, splits);
+    localUpdateTime.put(nsKey, System.currentTimeMillis());
   }
 
   private List<String> getChildPath(final String childName) {

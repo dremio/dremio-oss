@@ -46,7 +46,6 @@ import com.dremio.dac.proto.model.source.UnknownConfig;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.proto.EntityId;
-import com.dremio.service.namespace.proto.TimePeriod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -106,8 +105,9 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private SourceState state;
 
   private Long version;
-  // acceleration ttl in hours
-  private TimePeriod accelerationTTL;
+  // acceleration grace and refresh periods
+  private Long accelerationGracePeriod;
+  private Long accelerationRefreshPeriod;
 
   public SourceUI setConfig(Source sourceConfig) {
     this.config = sourceConfig;
@@ -168,12 +168,20 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     return ctime;
   }
 
-  public TimePeriod getAccelerationTTL() {
-    return accelerationTTL;
+  public Long getAccelerationRefreshPeriod() {
+    return accelerationRefreshPeriod;
   }
 
-  public void setAccelerationTTL(final TimePeriod accelerationTTL) {
-    this.accelerationTTL = accelerationTTL;
+  public void setAccelerationRefreshPeriod(Long accelerationRefreshPeriod) {
+    this.accelerationRefreshPeriod = accelerationRefreshPeriod;
+  }
+
+  public Long getAccelerationGracePeriod() {
+    return accelerationGracePeriod;
+  }
+
+  public void setAccelerationGracePeriod(Long accelerationGracePeriod) {
+    this.accelerationGracePeriod = accelerationGracePeriod;
   }
 
   public void setCtime(long ctime) {
@@ -258,7 +266,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setConfig(config.toByteString());
     c.setDescription(description);
     c.setVersion(version);
-    c.setAccelerationTTL(accelerationTTL);
+    c.setAccelerationRefreshPeriod(accelerationRefreshPeriod);
+    c.setAccelerationGracePeriod(accelerationGracePeriod);
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
     c.setId(new EntityId(getId()));
     return c;
@@ -282,7 +291,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setState(SourceState.GOOD);
     source.setMetadataPolicy(UIMetadataPolicy.of(sourceConfig.getMetadataPolicy()));
     source.setVersion(sourceConfig.getVersion());
-    source.setAccelerationTTL(sourceConfig.getAccelerationTTL());
+    source.setAccelerationRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod());
+    source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
     source.setId(sourceConfig.getId().getId());
     return source;
   }

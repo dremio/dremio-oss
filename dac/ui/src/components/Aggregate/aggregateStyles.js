@@ -71,6 +71,7 @@ const dragArea = {
     minHeight: 180,
     height: '100%',
     overflow: 'auto',
+    padding: '2px 0',
     ...defaultBorderWidth
   },
   empty: {

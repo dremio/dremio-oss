@@ -135,7 +135,7 @@ const styles = {
   base: {
     display: 'flex',
     flexDirection: 'column',
-    width: 275,
+    width: '100%',
     height: 180,
     borderRight: '1px solid rgba(0,0,0,0.10)',
     paddingRight: 5,

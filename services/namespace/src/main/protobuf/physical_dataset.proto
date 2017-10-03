@@ -37,8 +37,10 @@ message PhysicalDatasetConfig {
 }
 
 message AccelerationSettingsDescriptor {
-  required TimePeriod accelerationTTL = 1;
+  required TimePeriod accelerationTTL = 1 [deprecated = true];
   optional RefreshMethod method = 2 [default = FULL];
   optional string refreshField = 3;
   repeated string field = 4;
+  optional int64 accelerationRefreshPeriod = 5;
+  optional int64 accelerationGracePeriod = 6;
 }

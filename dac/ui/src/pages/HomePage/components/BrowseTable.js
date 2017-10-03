@@ -17,14 +17,17 @@ import { PropTypes, Component } from 'react';
 import Immutable from 'immutable';
 import { debounce } from 'lodash/function';
 import Mousetrap from 'mousetrap';
+import invariant from 'invariant';
 
 import * as allSpacesStyles from 'uiTheme/radium/allSpacesAndAllSources';
 import { h3 } from 'uiTheme/radium/typography';
+import EllipsedText from 'components/EllipsedText';
 
 import { SearchField } from 'components/Fields';
 import StatefulTableViewer from 'components/StatefulTableViewer';
 import {SortDirection} from 'components/VirtualizedTableViewer';
 
+import { constructFullPath } from 'utils/pathUtils';
 import { tableStyles } from '../tableStyles';
 import './BrowseTable.less';
 
@@ -85,13 +88,18 @@ export default class BrowseTable extends Component {
 
   render() {
     const { title, buttons, filterKey, tableData, ...passAlongProps } = this.props; // eslint-disable-line no-unused-vars
+    invariant(
+      !title || typeof title === 'string' || title.props.fullPath,
+      'BrowseTable title must be string or BreadCrumbs.'
+    );
+
     const resetScrollTop = Boolean(
       window.navigator.userAgent.toLowerCase().includes('firefox') &&
       this.state.filter
     ); //it's needed for https://dremio.atlassian.net/browse/DX-7140
 
     if (tableData.size) {
-      passAlongProps.noDataText = la(`No items found for search “${this.state.filter}”.`);
+      passAlongProps.noDataText = la(`No items found for search “${this.state.filter}”.`); // todo: text sub loc
     }
 
     return (
@@ -100,7 +108,15 @@ export default class BrowseTable extends Component {
         <div className='list-content' style={allSpacesStyles.main}>
           <div className='row'>
             <div style={allSpacesStyles.header} className='browse-table-viewer-header'>
-              <h3 style={styles.heading}>{LRE}{title}</h3>
+              <h3 style={{...styles.heading}}>
+                <EllipsedText text={
+                  !title || typeof title === 'string'
+                    ? title
+                    : title && title.props && LRE + constructFullPath(title.props.fullPath.toJS(), true)
+                }>
+                  {LRE}{title}
+                </EllipsedText>
+              </h3>
               <div style={{display: 'flex', alignItems: 'center'}}>
                 <SearchField
                   value={this.state.filter}
@@ -140,11 +156,10 @@ const styles = { // todo: RTL support
   heading: {
     ...h3,
     flexShrink: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    minWidth: 0,
     direction: 'rtl' // use RTL mode as a hack to make truncation start at the left...
   }
 };
 const LRE = '\u202A'; // ... but make sure the text is treated as LTR by the text engine (e.g. render '@dremio', not 'dremio@')
 // note: wrapping in <div> with direction:ltr doesn't produce "..."
+

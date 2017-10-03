@@ -25,13 +25,11 @@ class BreadCrumbs extends Component {
     fullPath: PropTypes.instanceOf(Immutable.List).isRequired,
     pathname: PropTypes.string.isRequired,
     linkStyle: PropTypes.object,
-    maxSymbols: PropTypes.number,
     hideLastItem: PropTypes.bool
   };
 
   static defaultProps = {
     fullPath: Immutable.List(),
-    maxSymbols: 80,
     hideLastItem: false
   };
 
@@ -47,35 +45,12 @@ class BreadCrumbs extends Component {
     }, []);
   }
 
-  renderTruncatedPath(els) {
-    let path = [];
-
-    if (els.length) {
-      let restLength = this.props.maxSymbols - els[0].props.children.length;
-
-      els.slice(1).reverse().forEach(el => {
-        restLength -= el.props.children.length;
-        if (restLength > 0) {
-          path.push(el);
-        }
-      });
-      path = [els[0], '...'].concat(path.reverse());
-      return this.renderPath(path);
-    }
-    return null;
-  }
-
   render() {
-    const { fullPath, pathname, linkStyle, maxSymbols } = this.props;
+    const { fullPath, pathname, linkStyle } = this.props;
     const formattedFullPath = BreadCrumbs.formatFullPath(fullPath);
     const els = getPathElements(formattedFullPath, pathname, linkStyle);
-    const path = formattedFullPath.join('.').length > maxSymbols ? this.renderTruncatedPath(els) : this.renderPath(els);
-    const tooltip = formattedFullPath.join('.').length > maxSymbols ? formattedFullPath.join('.') : null;
-    return (
-      <span className='wrap-breadcrumbs' title={tooltip} alt={tooltip}>
-        {path}
-      </span>
-    );
+    const path = this.renderPath(els);
+    return <span className='Breadcrumbs'>{path}</span>;
   }
 }
 

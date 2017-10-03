@@ -18,7 +18,7 @@ import { connect } from 'react-redux';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
-import { FLEX_COL_START, FLEX_COL_BETWEEN } from 'uiTheme/radium/flexStyle';
+import { FLEX_COL_START } from 'uiTheme/radium/flexStyle';
 import { pathLink, body } from 'uiTheme/radium/typography';
 import { modalFormProps } from 'components/Forms';
 import { Toggle } from 'components/Fields';
@@ -127,10 +127,11 @@ export default connect(mapStateToProps)(AccelerationBasic);
 
 const styles = {
   wrap: {
-    ...FLEX_COL_BETWEEN,
+    ...FLEX_COL_START,
     width: '100%',
     height: '100%',
-    position: 'relative'
+    position: 'relative',
+    overflow: 'hidden'
   },
   body: {
     ...body,

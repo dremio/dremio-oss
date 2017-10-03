@@ -103,7 +103,12 @@ public class TestUDFs extends BaseTestServer {
         "123, abc:TEXT",
         "123, 123:INTEGER",
         "123.0, 0.123:FLOAT",
-        "123, {\"foo\":\"bar\"}:MAP"
+        "123, {\"foo\":\"bar\"}:MAP",
+        "123, 123:INTEGER",
+        "100.0, 0.123:FLOAT",
+        "0.0, 0.123:FLOAT",
+        "-123.0, 0.123:FLOAT",
+        "0, 0.123:FLOAT"
         ), actual);
   }
 
@@ -124,9 +129,28 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
+  public void testCleanDataBoolean() {
+    validateCleanDataSingleField("clean_data_to_Boolean(d, 1, 0, false)", "a",
+      "true",
+      "false",
+      "true",
+      "false",
+      "true",
+      "true",
+      "true",
+      "false",
+      "false");
+  }
+
+  @Test
   public void testCleanDataDefault() {
     validateCleanDataSingleField("clean_data_to_TEXT(a, 0, 0, 'blah')", "a",
         "abc",
+        "blah",
+        "blah",
+        "blah",
+        "blah",
+        "blah",
         "blah",
         "blah",
         "blah");
@@ -138,7 +162,12 @@ public class TestUDFs extends BaseTestServer {
         "abc",
         "123",
         "0.123",
-        "{\n  \"foo\" : \"bar\"\n}");
+        "{\n  \"foo\" : \"bar\"\n}",
+        "123",
+        "0.123",
+        "0.123",
+        "0.123",
+        "0.123");
   }
 
   @Test
@@ -147,12 +176,22 @@ public class TestUDFs extends BaseTestServer {
         "abc",
         null,
         null,
+        null,
+        null,
+        null,
+        null,
+        null,
         null);
   }
 
   @Test
   public void testIsCleanDataFloat() {
     validateCleanDataSingleField("is_convertible_data(c, 1, cast('FLOAT' as VARCHAR))", "c",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
         "true",
         "true",
         "true",
@@ -166,7 +205,12 @@ public class TestUDFs extends BaseTestServer {
         "3.2E-90",
         "-5.0E-10",
         "1.0E7",
-        "3.0E10");
+        "3.0E10",
+        "-5.0E-10",
+        "2.0E10",
+        "2.0E7",
+        "-3.0E10",
+        "5.0E-10");
   }
 
   @Test
@@ -175,7 +219,12 @@ public class TestUDFs extends BaseTestServer {
         "3.2E-90",
         "-5.0E-10",
         "1.0E7",
-        "3.0E10");
+        "3.0E10",
+        "-5.0E-10",
+        "2.0E10",
+        "2.0E7",
+        "-3.0E10",
+        "5.0E-10");
   }
 
   @Test
@@ -184,7 +233,12 @@ public class TestUDFs extends BaseTestServer {
         "123",
         "123",
         "123",
-        "123");
+        "123",
+        "123",
+        "100",
+        "0",
+        "-123",
+        "0");
   }
 
   @Test
@@ -193,9 +247,13 @@ public class TestUDFs extends BaseTestServer {
         "0",
         "123",
         "0",
-        "123");
+        "123",
+        "123",
+        "0",
+        "0",
+        "0",
+        "0");
   }
-
 
   @Test
   public void testCleanDataIntDefaultNull() {
@@ -203,8 +261,14 @@ public class TestUDFs extends BaseTestServer {
         null,
         "123",
         null,
-        "123");
+        "123",
+        "123",
+        null,
+        null,
+        null,
+        "0");
   }
+
   @Test
   public void testExtractListSingle0() {
     validate("select a[0] as a from cp.\"json/extract_list.json\"", "a",

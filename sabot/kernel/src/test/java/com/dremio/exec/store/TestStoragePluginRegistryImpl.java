@@ -46,6 +46,7 @@ import com.dremio.common.utils.SqlUtils;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.sys.SystemTablePluginProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.DirectProvider;
@@ -117,10 +118,24 @@ public class TestStoragePluginRegistryImpl {
     when(sabotContext.getNamespaceService(anyString())).thenReturn(ns);
     when(sabotContext.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence()).thenReturn(new LogicalPlanPersistence(SabotConfig.create(), CLASSPATH_SCAN_RESULT));
-    schedulerService = new LocalSchedulerService();
-    catalogService = new CatalogServiceImpl(DirectProvider.wrap(sabotContext), DirectProvider.wrap(schedulerService), mock(BindingCreator.class), false, true);
 
-    registry = new StoragePluginRegistryImpl(sabotContext, catalogService, pStoreProvider);
+    final SystemTablePluginProvider sysPlugin = new SystemTablePluginProvider(new Provider<SabotContext>() {
+      @Override
+      public SabotContext get() {
+        return sabotContext;
+      }
+    });
+    final Provider<SystemTablePluginProvider> sysPluginProvider = new Provider<SystemTablePluginProvider>() {
+      @Override
+      public SystemTablePluginProvider get() {
+        return sysPlugin;
+      }
+    };
+    schedulerService = new LocalSchedulerService(1);
+    catalogService = new CatalogServiceImpl(DirectProvider.wrap(sabotContext), DirectProvider.wrap(schedulerService),
+      mock(BindingCreator.class), false, true, sysPluginProvider);
+
+    registry = new StoragePluginRegistryImpl(sabotContext, catalogService, pStoreProvider, sysPlugin);
 
     testStoragePlugin2 = mock(StoragePlugin2.class);
     testStoragePlugin = mock(StoragePlugin.class);

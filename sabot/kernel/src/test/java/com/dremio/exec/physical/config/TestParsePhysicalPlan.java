@@ -15,7 +15,8 @@
  */
 package com.dremio.exec.physical.config;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
 
@@ -35,7 +36,6 @@ import com.dremio.exec.store.dfs.SchemaMutability;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
@@ -49,7 +49,6 @@ public class TestParsePhysicalPlan extends ExecTest {
     LogicalPlanPersistence lpp = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
 
     PhysicalPlanReader reader = new PhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, lpp, CoordinationProtos.NodeEndpoint.getDefaultInstance(), null, Mockito.mock(SabotContext.class));
-    ObjectReader r = lpp.getMapper().reader(PhysicalPlan.class);
     ObjectWriter writer = lpp.getMapper().writer();
     PhysicalPlan plan = reader.readPhysicalPlan(Files.toString(FileUtils.getResourceAsFile("/physical_test1.json"), Charsets.UTF_8));
     String unparse = plan.unparse(writer);

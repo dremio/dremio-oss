@@ -118,6 +118,7 @@ export default class Select extends Component {
     const selectedValue = getIfIn(this.props, 'value', () => defaultOption);
     const buttonLabel = this.getButtonLabel(selectedValue);
     const baseStyle = [styles.base, style, disabled && fieldDisabled];
+    // TODO: can't easily remove textOverflow in favor of <EllipsedText> because the content comes in externally
     return (
       <div>
         <div style={baseStyle} data-qa={dataQa}>

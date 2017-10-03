@@ -56,11 +56,6 @@ public class Limit extends AbstractSingle {
   }
 
   @Override
-  public BatchSchema getSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
-
-  @Override
   public int getOperatorType() {
     return CoreOperatorType.LIMIT_VALUE;
   }

@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>1.1.0-201708121825170680-436784e</version>
+  <version>1.2.1-201710030121530889-8e49316</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -40,14 +40,14 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.5.0-201706301802570376-b794dfa-dremio</arrow.version>
+    <arrow.version>0.5.0-201709192212160660-1b8cabd-dremio</arrow.version>
     <avatica.version>1.9.0</avatica.version>
-    <calcite.version>1.12.0-201707180020390814-16f46c2</calcite.version>
+    <calcite.version>1.12.0-201709220844320554-afcc87c</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
     <fmpp.version>0.9.15</fmpp.version>
-    <freemarker.version>2.3.23</freemarker.version>
+    <freemarker.version>2.3.26-incubating</freemarker.version>
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
@@ -64,7 +64,7 @@
     <metrics.version>3.0.1</metrics.version>
     <mariadb.connector.version>1.6.2</mariadb.connector.version>
     <netty.version>4.0.49.Final</netty.version>
-    <parquet.version>1.8.1-fast-201707160245580491-a95deac</parquet.version>
+    <parquet.version>1.8.1-fast-201708280410370966-bca0d40</parquet.version>
     <postgresql.version>42.1.1.jre7</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
@@ -337,7 +337,7 @@
           </execution>
         </executions>
         <configuration>
-          <dateFormat>dd.MM.yyyy '@' HH:mm:ss z</dateFormat>
+          <dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
           <verbose>true</verbose>
           <skipPoms>false</skipPoms>
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
@@ -1191,6 +1191,21 @@ limitations under the License.
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.jaxrs</groupId>
+        <artifactId>jackson-jaxrs-json-provider</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-afterburner</artifactId>
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
@@ -2370,6 +2385,10 @@ limitations under the License.
     <repository>
       <id>dremio-public</id>
       <url>http://maven.dremio.com/public/</url>
+    </repository>
+    <repository>
+      <id>dremio-public-so</id>
+      <url>http://repository.drem.io/content/repositories/releases/</url>
     </repository>
   </repositories>
 </project>

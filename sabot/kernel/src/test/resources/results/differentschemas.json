@@ -1,0 +1,4 @@
+{"dir0" : "one", "a": {"b" : 1}, "a2":1 , "a3":2, "b":null,"b1":null,"b2":null}
+{"dir0" : "one", "a": {"b" : 1}, "a2":2 , "a3":4, "b":null,"b1":null,"b2":null}
+{"dir0" : "two", "a":null,"a2":null,"a3":null,"b":"a", "b1": [1, 2] , "b2":3}
+{"dir0" : "two", "a":null,"a2":null,"a3":null,"b":"b", "b1": [3, 4] , "b2":6}

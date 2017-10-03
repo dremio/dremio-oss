@@ -22,6 +22,7 @@ describe('ByteField', () => {
   let minimalProps, commonProps;
   beforeEach(() => {
     minimalProps = {
+      onChange: sinon.spy()
     };
     commonProps = {
       ...minimalProps

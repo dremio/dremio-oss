@@ -237,6 +237,15 @@ describe('ExploreTableCell', () => {
       expect(instance.prohibitSelection({ text: null })).to.be.true;
     });
 
+    it('should return true when column does not exist', function() {
+      commonProps.isDumbTable = false;
+      commonProps.location = { query: {} };
+      const instance = shallow(
+        <ExploreTableCell {...commonProps} tableData={Immutable.fromJS({rows: [], columns: []})}/>
+      ).instance();
+      expect(instance.prohibitSelection(selectionData)).to.be.true;
+    });
+
     it('should return false when query.type undefined', function() {
       commonProps.isDumbTable = false;
       commonProps.tableData = Immutable.fromJS({

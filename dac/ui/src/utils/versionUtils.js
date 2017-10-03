@@ -13,6 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import config from 'utils/config';
+
 export function getEdition() {
   return la('Community Edition');
+}
+
+export function getVersionWithEdition() {
+  return config.versionInfo.version + '-ce';
 }

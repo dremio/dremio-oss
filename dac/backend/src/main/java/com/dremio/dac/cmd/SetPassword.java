@@ -25,7 +25,7 @@ import com.beust.jcommander.Parameters;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.server.DacConfig;
+import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.users.SimpleUserService;
 
@@ -59,7 +59,7 @@ public class SetPassword {
     }
   }
 
-  public static void resetPassword(DacConfig dacConfig, String userName, String password) throws Exception {
+  public static void resetPassword(DACConfig dacConfig, String userName, String password) throws Exception {
     final File dbDir = new File(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
 
     if (dbDir.exists() && dbDir.isDirectory()) {
@@ -80,7 +80,7 @@ public class SetPassword {
   }
 
   public static void main(String[] args) {
-    final DacConfig dacConfig = DacConfig.newConfig();
+    final DACConfig dacConfig = DACConfig.newConfig();
     final SetPasswordOptions options = SetPasswordOptions.parse(args);
     try {
       resetPassword(dacConfig, options.userName, options.password);

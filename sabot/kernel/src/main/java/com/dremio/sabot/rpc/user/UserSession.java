@@ -35,9 +35,9 @@ import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 
@@ -63,10 +63,8 @@ public class UserSession {
   private Quoting initialQuoting;
   private boolean supportFullyQualifiedProjections;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_0_9;
-
-  // list of materialization identifiers that shall be excluded from acceleration.
-  // used to exclude self and/or stale dependencies.
-  private List<String> exclusions = ImmutableList.of();
+  private boolean exposeInternalSources = false;
+  private SubstitutionSettings materializationSettings = SubstitutionSettings.of();
 
   public static class Builder {
     UserSession userSession;
@@ -115,8 +113,8 @@ public class UserSession {
       return this;
     }
 
-    public Builder withExclusions(final List<String> exclusions) {
-      userSession.exclusions = ImmutableList.copyOf(exclusions);
+    public Builder withMaterializationSettings(final SubstitutionSettings materializationSettings) {
+      userSession.materializationSettings = materializationSettings;
       return this;
     }
 
@@ -138,6 +136,11 @@ public class UserSession {
 
     public Builder setSupportComplexTypes(boolean supportComplexTypes) {
       userSession.supportComplexTypes = supportComplexTypes;
+      return this;
+    }
+
+    public Builder exposeInternalSources(boolean exposeInternalSources) {
+      userSession.exposeInternalSources = exposeInternalSources;
       return this;
     }
 
@@ -175,8 +178,12 @@ public class UserSession {
     return recordBatchFormat;
   }
 
-  public List<String> getExclusions() {
-    return exclusions;
+  public boolean exposeInternalSources() {
+    return exposeInternalSources;
+  }
+
+  public SubstitutionSettings getMaterializationSettings() {
+    return materializationSettings;
   }
 
   public String getCatalogName() {

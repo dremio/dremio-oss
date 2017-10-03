@@ -119,7 +119,7 @@ export default class DatasetsSearch extends Component {
               name={value.get('datasetPathList').get(lastParent)}
               inputValue={inputValue}
               fullPath={value.get('datasetPathList')}
-              showFullPath={false}
+              showFullPath
               typeIcon={getIconDataTypeFromDatasetType(value.get('type'))}
             />
           </div>

@@ -32,18 +32,23 @@ import com.google.common.base.Function;
  */
 public interface CatalogService extends AutoCloseable, Service {
 
+  long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
+  long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);
   MetadataPolicy REFRESH_EVERYTHING_NOW = new MetadataPolicy()
       .setAuthTtlMs(0l)
       .setDatasetUpdateMode(UpdateMode.PREFETCH)
       .setDatasetDefinitionTtlMs(0l)
-      .setNamesRefreshMs(0l);
-  long DEFAULT_TTL_MILLIS = TimeUnit.MILLISECONDS.convert(30, TimeUnit.MINUTES);
+      .setNamesRefreshMs(0l)
+      .setDatasetDefinitionRefreshAfterMs(0l)
+      .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
   MetadataPolicy DEFAULT_METADATA_POLICY = new MetadataPolicy()
-      .setAuthTtlMs(DEFAULT_TTL_MILLIS)
+      .setAuthTtlMs(DEFAULT_EXPIRE_MILLIS)
       .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
-      .setDatasetDefinitionTtlMs(DEFAULT_TTL_MILLIS)
-      .setNamesRefreshMs(DEFAULT_TTL_MILLIS);
+      .setDatasetDefinitionTtlMs(DEFAULT_REFRESH_MILLIS)
+      .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
+      .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
+      .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
   /**
    * Register a source to catalog service

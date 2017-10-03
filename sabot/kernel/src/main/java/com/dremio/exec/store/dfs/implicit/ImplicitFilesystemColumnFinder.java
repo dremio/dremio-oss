@@ -40,9 +40,13 @@ import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
 import com.dremio.exec.server.options.TypeValidators.StringValidator;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.BigIntNameValuePair;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarCharNameValuePair;
 import com.dremio.exec.util.ColumnUtils;
+import com.dremio.service.Pointer;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
 @Options
@@ -62,6 +66,7 @@ public class ImplicitFilesystemColumnFinder {
   private final String partitionDesignator;
   private final String fileDesignator;
   private final String modTimeDesignator;
+  private final boolean isAccelerator;
   private final boolean enableFileField;
   private final boolean enableDirsFields;
   private final boolean enableModTimeField;
@@ -76,11 +81,12 @@ public class ImplicitFilesystemColumnFinder {
    * between actual table columns, partition columns and implicit file columns.
    * Also populates map with implicit columns names as keys and their values
    */
-  public ImplicitFilesystemColumnFinder(OptionManager options, FileSystemWrapper fs, List<SchemaPath> columns, boolean disableDirFields) {
+  public ImplicitFilesystemColumnFinder(OptionManager options, FileSystemWrapper fs, List<SchemaPath> columns, boolean isAccelerator) {
     this.partitionDesignator = options.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR);
     this.fileDesignator = options.getOption(IMPLICIT_PATH_FIELD_LABEL);
     this.modTimeDesignator = options.getOption(IMPLICIT_MOD_FIELD_LABEL);
-    this.enableDirsFields = !disableDirFields && options.getOption(IMPLICIT_DIRS_FIELD_ENABLE);
+    this.isAccelerator = isAccelerator;
+    this.enableDirsFields = !isAccelerator && options.getOption(IMPLICIT_DIRS_FIELD_ENABLE);
     this.enableFileField = options.getOption(IMPLICIT_FILE_FIELD_ENABLE);
     this.enableModTimeField = options.getOption(IMPLICIT_MOD_FIELD_ENABLE);
     this.selectedPartitions = new HashSet<>();
@@ -118,7 +124,7 @@ public class ImplicitFilesystemColumnFinder {
           continue;
         }
 
-        if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(lowerName)) {
+        if (!isAccelerator && IncrementalUpdateUtils.UPDATE_COLUMN.equals(lowerName)) {
           extractors.add(new IncrementalModTimeExtractor());
           continue;
         }
@@ -166,7 +172,7 @@ public class ImplicitFilesystemColumnFinder {
     }
 
     @Override
-    public String getValue(ComponentizedPath work, String selectionRoot) {
+    public String getValue(FileStatus status, ComponentizedPath work, String selectionRoot) {
       if(work.directories.length > position){
         return work.directories[position];
       }else {
@@ -175,8 +181,8 @@ public class ImplicitFilesystemColumnFinder {
     }
 
     @Override
-    public VarCharNameValuePair getNameValuePair(ComponentizedPath work, String selectionRoot) {
-      return new VarCharNameValuePair(name, getValue(work, selectionRoot));
+    public VarCharNameValuePair getNameValuePair(FileStatus status, ComponentizedPath work, String selectionRoot) {
+      return new VarCharNameValuePair(name, getValue(status, work, selectionRoot));
     }
   }
 
@@ -194,13 +200,13 @@ public class ImplicitFilesystemColumnFinder {
     }
 
     @Override
-    public String getValue(ComponentizedPath work, String selectionRoot) {
+    public String getValue(FileStatus status, ComponentizedPath work, String selectionRoot) {
       return work.path;
     }
 
     @Override
-    public VarCharNameValuePair getNameValuePair(ComponentizedPath work, String selectionRoot) {
-      return new VarCharNameValuePair(name, getValue(work, selectionRoot));
+    public VarCharNameValuePair getNameValuePair(FileStatus status, ComponentizedPath work, String selectionRoot) {
+      return new VarCharNameValuePair(name, getValue(status, work, selectionRoot));
     }
   }
 
@@ -223,17 +229,13 @@ public class ImplicitFilesystemColumnFinder {
     }
 
     @Override
-    public Long getValue(ComponentizedPath work, String selectionRoot) {
-      try {
-        return fs.getFileStatus(new Path(work.completePath)).getModificationTime();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+    public Long getValue(FileStatus status, ComponentizedPath work, String selectionRoot) {
+      return status.getModificationTime();
     }
 
     @Override
-    public BigIntNameValuePair getNameValuePair(ComponentizedPath work, String selectionRoot) {
-      return new BigIntNameValuePair(name, getValue(work, selectionRoot));
+    public BigIntNameValuePair getNameValuePair(FileStatus status, ComponentizedPath work, String selectionRoot) {
+      return new BigIntNameValuePair(name, getValue(status, work, selectionRoot));
     }
   }
 
@@ -243,8 +245,8 @@ public class ImplicitFilesystemColumnFinder {
 
   interface ImplicitColumnExtractor<T> {
     String getName();
-    T getValue(ComponentizedPath work, String selectionRoot);
-    NameValuePair<T> getNameValuePair(ComponentizedPath work, String selectionRoot);
+    T getValue(FileStatus status, ComponentizedPath work, String selectionRoot);
+    NameValuePair<T> getNameValuePair(FileStatus status, ComponentizedPath work, String selectionRoot);
   }
 
   class ComponentizedPath {
@@ -266,19 +268,19 @@ public class ImplicitFilesystemColumnFinder {
    * @throws IOException
    * @throws SchemaChangeException
    */
-  public List<NameValuePair<?>> getImplicitFields(FileSelection selection) throws IOException, SchemaChangeException {
+  public List<NameValuePair<?>> getImplicitFieldsForSample(FileSelection selection) throws IOException, SchemaChangeException {
 
     final List<NameValuePair<?>> fields = new ArrayList<>();
 
-    if (selection.selectionRoot != null) {
-    FileStatus fileStatus = fs.getFileStatus(new Path(selection.selectionRoot));
-      if (enableDirsFields && fileStatus.isDirectory()) {
-        int maxDepth = getMaxDepth(fileStatus, 0, fs);
-        for (int i = 0; i < maxDepth - 1; i++) {
-          fields.add(new VarCharNameValuePair(partitionDesignator + i, "dir0"));
-        }
+    FileStatus fileStatus = fs.getFileStatus(new Path(selection.getSelectionRoot()));
+
+    if (enableDirsFields && fileStatus.isDirectory()) {
+      int maxDepth = getMaxDepth(fileStatus, 0, fs);
+      for (int i = 0; i < maxDepth - 1; i++) {
+        fields.add(new VarCharNameValuePair(partitionDesignator + i, "dir0"));
       }
     }
+
 
     if(enableFileField) {
       fields.add(new VarCharNameValuePair(fileDesignator, "/"));
@@ -306,47 +308,67 @@ public class ImplicitFilesystemColumnFinder {
     return newDepth;
   }
 
+  private static final class WorkAndComponent {
+    private final ComponentizedPath path;
+    private final FileWork work;
+    public WorkAndComponent(ComponentizedPath path, FileWork work) {
+      super();
+      this.path = path;
+      this.work = work;
+    }
+    public ComponentizedPath getPath() {
+      return path;
+    }
+    public FileWork getWork() {
+      return work;
+    }
+
+  }
+
   /**
    * This method is more complicated than expected since the maximum dir size is based on
    * @param selectionRoot
    * @param workPaths
    * @return
    */
-  public List<List<NameValuePair<?>>> getImplicitFields(final String selectionRoot, final Iterable<String> workPaths) {
-    int max = 0;
-    final List<ComponentizedPath> paths = new ArrayList<>();
+  public List<List<NameValuePair<?>>> getImplicitFields(final String selectionRoot, final Iterable<? extends FileWork> workPaths) {
 
-    for(String work : workPaths) {
-      final ComponentizedPath path = new ComponentizedPath();
-      paths.add(path);
-      if (selectionRoot != null) {
-        String prefixString = Path.getPathWithoutSchemeAndAuthority(new Path(selectionRoot)).toString();
-        String fullString = Path.getPathWithoutSchemeAndAuthority(new Path(work)).toString();
+    final Pointer<Integer> max = new Pointer<>(0);
+    final List<WorkAndComponent> componentizedPaths = FluentIterable.from(workPaths).transform(new Function<FileWork, WorkAndComponent>(){
 
-        if (prefixString.length() < fullString.length()) {
-          path.path = removeLeadingSlash(fullString.substring(prefixString.length(), fullString.length()));
+      @Override
+      public WorkAndComponent apply(FileWork work) {
+        final ComponentizedPath path = new ComponentizedPath();
+        if (selectionRoot != null) {
+          String prefixString = Path.getPathWithoutSchemeAndAuthority(new Path(selectionRoot)).toString();
+          String fullString = Path.getPathWithoutSchemeAndAuthority(work.getStatus().getPath()).toString();
+
+          if (prefixString.length() < fullString.length()) {
+            path.path = removeLeadingSlash(fullString.substring(prefixString.length(), fullString.length()));
+          } else {
+            path.path = removeLeadingSlash(fullString);
+          }
+
+          final String[] prefix = prefixString.split("/");
+          final String[] full = fullString.split("/");
+          if (full.length > prefix.length) {
+            final String[] q = ArrayUtils.subarray(full, prefix.length, full.length - 1);
+            path.directories = q;
+            max.value = Math.max(max.value, q.length);
+          } else {
+            path.directories = new String[0];
+          }
+
+          path.completePath = fullString;
         } else {
-          path.path = removeLeadingSlash(fullString);
-        }
-
-        final String[] prefix = prefixString.split("/");
-        final String[] full = fullString.split("/");
-        if (full.length > prefix.length) {
-          final String[] q = ArrayUtils.subarray(full, prefix.length, full.length - 1);
-          path.directories = q;
-          max = Math.max(max, q.length);
-        } else {
+          // no selection root so no columns
+          path.path = Path.getPathWithoutSchemeAndAuthority(work.getStatus().getPath()).toString();
+          path.completePath = path.path;
           path.directories = new String[0];
         }
+        return new WorkAndComponent(path, work);
+      }}).toList();
 
-        path.completePath = fullString;
-      } else {
-        // no selection root so no columns
-        path.path = Path.getPathWithoutSchemeAndAuthority(new Path(work)).toString();
-        path.completePath = path.path;
-        path.directories = new String[0];
-      }
-    }
 
     final List<List<NameValuePair<?>>> pairs = new ArrayList<>();
 
@@ -354,7 +376,7 @@ public class ImplicitFilesystemColumnFinder {
     if (selectAllColumns) {
       implicitColumns = new ArrayList<>();
       if(enableDirsFields ){
-        for (int i = 0; i < max; i++) {
+        for (int i = 0; i < max.value; i++) {
           implicitColumns.add(new DirectoryExtractor(partitionDesignator + i, i));
         }
       }
@@ -372,13 +394,14 @@ public class ImplicitFilesystemColumnFinder {
       implicitColumns = this.implicitColumns;
     }
 
-    for(ComponentizedPath path : paths){
+    for(WorkAndComponent workAndPath : componentizedPaths){
+      ComponentizedPath path = workAndPath.getPath();
 
-      path.directories = Arrays.copyOf(path.directories, max);
+      workAndPath.path.directories = Arrays.copyOf(workAndPath.path.directories, max.value);
 
       List<NameValuePair<?>> values = new ArrayList<>();
       for (ImplicitColumnExtractor<?> extractor : implicitColumns) {
-        values.add(extractor.getNameValuePair(path, selectionRoot));
+        values.add(extractor.getNameValuePair(workAndPath.getWork().getStatus(), path, selectionRoot));
       }
       pairs.add(values);
 

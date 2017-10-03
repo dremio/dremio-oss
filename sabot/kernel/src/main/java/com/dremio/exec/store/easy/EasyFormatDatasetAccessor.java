@@ -30,8 +30,7 @@ import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.hadoop.fs.Path;
-
+import org.apache.hadoop.fs.FileStatus;
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
@@ -51,7 +50,6 @@ import com.dremio.exec.store.dfs.MetadataUtils;
 import com.dremio.exec.store.dfs.easy.EasyDatasetXAttrSerDe;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyGroupScanUtils;
-import com.dremio.exec.store.dfs.easy.FileWork;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
@@ -68,10 +66,8 @@ import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 import com.dremio.service.namespace.file.proto.EasyDatasetXAttr;
 import com.dremio.service.namespace.file.proto.FileSystemCachedEntity;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -87,8 +83,8 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
   private List<DatasetSplit> cachedSplits;
   private boolean builtAll = false;
 
-  public EasyFormatDatasetAccessor(FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey, FormatPlugin formatPlugin) {
-    super(fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, formatPlugin);
+  public EasyFormatDatasetAccessor(FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey, FormatPlugin formatPlugin, DatasetConfig oldConfig) {
+    super(fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, formatPlugin, oldConfig);
   }
 
   @Override
@@ -123,24 +119,21 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
       SampleMutator mutator = new SampleMutator(context)
     ){
       final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptionManager(), dfs, GroupScan.ALL_COLUMNS);
-      String file;
-      Optional<String> fileName = Iterables.tryFind(selection.getFiles(), new Predicate<String>() {
+
+      Optional<FileStatus> fileName = Iterables.tryFind(selection.getStatuses(), new Predicate<FileStatus>() {
         @Override
-        public boolean apply(@Nullable String input) {
-          try {
-            return dfs.getFileStatus(new Path(input)).getLen() > 0;
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+        public boolean apply(@Nullable FileStatus input) {
+          return input.getLen() > 0;
         }
       });
-      if (fileName.isPresent()) {
-        file = fileName.get();
-      } else {
-        file = selection.getFiles().get(0);
-      }
-      final FileWork fileWork = new CompleteFileWork.FileWorkImpl(0, Long.MAX_VALUE, file);
-      try(RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin)formatPlugin).getRecordReader(operatorContext, dfs, fileWork, GroupScan.ALL_COLUMNS), explorer.getImplicitFields(selection))) {
+
+      final FileStatus file = fileName.or(selection.getStatuses().get(0));
+
+      EasyDatasetSplitXAttr dataset = new EasyDatasetSplitXAttr();
+      dataset.setStart(0l);
+      dataset.setLength(Long.MAX_VALUE);
+      dataset.setPath(file.getPath().toString());
+      try(RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin)formatPlugin).getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection))) {
         reader.setup(mutator);
         Map<String, ValueVector> fieldVectorMap = new HashMap<>();
         for (VectorWrapper<?> vw : mutator.getContainer()) {
@@ -179,20 +172,16 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
     final List<DatasetSplit> splits = Lists.newArrayList();
 
     final ImplicitFilesystemColumnFinder finder = new  ImplicitFilesystemColumnFinder(getFsPlugin().getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
-    final List<String> paths = FluentIterable.from(easyGroupScanUtils.getChunks()).transform(new Function<CompleteFileWork, String>(){
-      @Override
-      public String apply(CompleteFileWork input) {
-        return input.getPath();
-      }}).toList();
-
-    final List<List<NameValuePair<?>>> pairs = finder.getImplicitFields(easyGroupScanUtils.getSelectionRoot(), paths);
+    final List<CompleteFileWork> work = easyGroupScanUtils.getChunks();
+    final List<List<NameValuePair<?>>> pairs = finder.getImplicitFields(easyGroupScanUtils.getSelectionRoot(), work);
     final Set<String> allImplicitColumns = Sets.newLinkedHashSet();
 
     for(int i =0; i < easyGroupScanUtils.getChunks().size(); i++){
-      final CompleteFileWork completeFileWork = easyGroupScanUtils.getChunks().get(i);
+      final CompleteFileWork completeFileWork = work.get(i);
       final DatasetSplit split = new DatasetSplit();
       split.setSize(completeFileWork.getTotalBytes());
-      split.setSplitKey(format("%s:[%d-%d]", completeFileWork.getPath(), completeFileWork.getStart(), completeFileWork.getLength()));
+      final String pathString = completeFileWork.getStatus().getPath().toString();
+      split.setSplitKey(format("%s:[%d-%d]", pathString, completeFileWork.getStart(), completeFileWork.getLength()));
       final List<Affinity> affinities = Lists.newArrayList();
       final Iterator<ObjectLongCursor<CoordinationProtos.NodeEndpoint>> nodeEndpointIterator = completeFileWork.getByteMap().iterator();
       while (nodeEndpointIterator.hasNext()) {
@@ -203,12 +192,12 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
 
       split.setExtendedProperty(ByteString.copyFrom(EasyDatasetXAttrSerDe.EASY_DATASET_SPLIT_XATTR_SERIALIZER.serialize(
         new EasyDatasetSplitXAttr()
-        .setPath(completeFileWork.getPath())
+        .setPath(pathString)
         .setStart(completeFileWork.getStart())
         .setLength(completeFileWork.getLength())
         .setUpdateKey(new FileSystemCachedEntity()
-            .setPath(completeFileWork.getPath())
-            .setLastModificationTime(easyGroupScanUtils.getFileStatus(completeFileWork.getPath()).getModificationTime()))
+            .setPath(pathString)
+            .setLastModificationTime(completeFileWork.getStatus().getModificationTime()))
         )));
 
       final List<PartitionValue> partitionValues = Lists.newArrayList();

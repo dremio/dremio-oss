@@ -34,6 +34,7 @@ import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * A {@code ClusterCoordinator} local implementation for testing purposes
@@ -127,6 +128,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       logger.debug("Endpoint registered {}.", endpoint);
       final Handle h = new Handle();
       endpoints.put(h, endpoint);
+      nodesRegistered(Sets.newHashSet(endpoint));
       return h;
     }
 
