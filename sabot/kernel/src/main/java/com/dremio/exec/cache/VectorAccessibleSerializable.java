@@ -19,15 +19,20 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.List;
 
+import com.dremio.exec.record.VectorAccessible;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.SerializedFieldHelper;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.parquet.hadoop.util.CompatibilityUtil;
+import org.xerial.snappy.Snappy;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -52,28 +57,58 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorAccessibleSerializable.class);
   static final MetricRegistry metrics = Metrics.getInstance();
   static final String WRITER_TIMER = MetricRegistry.name(VectorAccessibleSerializable.class, "writerTime");
+  static final int COMPRESSED_LENGTH_BYTES = 4;
+  public static final int RAW_CHUNK_SIZE_TO_COMPRESS = 32*1024;
 
-  private byte tmpBuffer[] = new byte[32*1024];
+  private byte tmpBuffer[] = new byte[RAW_CHUNK_SIZE_TO_COMPRESS*2];
+  private ByteBuffer tmpBuffer1 = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
 
   private VectorContainer va;
   private WritableBatch batch;
-  private final BufferAllocator allocator;
+  private BufferAllocator allocator;
   private int recordCount = -1;
   private BatchSchema.SelectionVectorMode svMode = BatchSchema.SelectionVectorMode.NONE;
   private SelectionVector2 sv2;
+  private final boolean useCodec;
+  /* a separate allocator to be used for allocating buffers for decompressing spill files */
+  private BufferAllocator decompressAllocator;
 
   private boolean retain = false;
 
+  /**
+   * De-serialize the batch
+   * @param allocator
+   */
   public VectorAccessibleSerializable(BufferAllocator allocator) {
     this.allocator = allocator;
     va = new VectorContainer();
+    this.useCodec = false;
   }
 
+  /**
+   * Decompress the spill files when de-serializing the spilled batch
+   * @param allocator
+   * @param useCodec
+   * @param decompressAllocator
+   */
+  public VectorAccessibleSerializable(BufferAllocator allocator, boolean useCodec, BufferAllocator decompressAllocator) {
+    this.allocator = allocator;
+    va = new VectorContainer();
+    this.useCodec = useCodec;
+    this.decompressAllocator = decompressAllocator;
+    if (useCodec) {
+      Preconditions.checkArgument((decompressAllocator != null), "decompress allocator can't be null when compressing spill files");
+    }
+  }
+
+  /**
+   * Creates a wrapper around batch for writing to a stream. Batch won't be compressed.
+   * @param batch
+   * @param allocator
+   */
   public VectorAccessibleSerializable(WritableBatch batch, BufferAllocator allocator) {
-    this(batch, null, allocator);
+    this(batch, null, allocator, false);
   }
-
-
 
   /**
    * Write the contents of a ArrowBuf to a stream. Done this way, rather
@@ -94,20 +129,64 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     }
   }
 
+  /* compress the output buffers in 32KB chunks and serialize them as follows
+   *
+   *    <length bytes(4), data bytes, length bytes(4), data bytes ....>
+   *
+   * for every (length,data) pair, first 4 bytes represent the physical length of compressed data.
+   * subsequent bytes represent the actual compressed data.
+   */
+  private void writeCompressedBuf(ArrowBuf buf, OutputStream output) throws IOException {
+    int rawLength = buf.readableBytes();
+    for (int posn = 0; posn < rawLength; posn += RAW_CHUNK_SIZE_TO_COMPRESS) {
+      /* we compress 32KB chunks at a time; the last chunk might be smaller than 32KB */
+      int lengthToCompress = Math.min(RAW_CHUNK_SIZE_TO_COMPRESS, rawLength - posn);
+
+      /* allocate direct buffers to hold raw and compressed data */
+      ByteBuffer rawDirectBuffer = buf.nioBuffer(posn, lengthToCompress);
+      /* Since we don't know the exact size of compressed data, we can
+       * allocate the compressed buffer of same size as raw data. However,
+       * there could be cases where Snappy does not compress the data and the
+       * compressed stream is of size larger (raw data + compression metadata)
+       * than raw data. To handle these cases, we allocate compressed buffer
+       * slightly larger than raw buffer. If we don't do this, Snappy.compress
+       * will segfault.
+       */
+      final int maxCompressedLength = Snappy.maxCompressedLength(lengthToCompress);
+      try (ArrowBuf cBuf = allocator.buffer(maxCompressedLength)) {
+        ByteBuffer compressedDirectBuffer = cBuf.nioBuffer(0, maxCompressedLength);
+        rawDirectBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        compressedDirectBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        /* compress */
+        int compressedLength = Snappy.compress(rawDirectBuffer, compressedDirectBuffer);
+
+        /* get compressed data into byte array for serializing to output stream */
+        compressedDirectBuffer.get(tmpBuffer, 0, compressedLength);
+
+        /* serialize the length of compressed data */
+        output.write(getByteArrayFromLEInt(compressedLength));
+        /* serialize the compressed data */
+        output.write(tmpBuffer, 0, compressedLength);
+      }
+    }
+  }
+
   /**
    * Creates a wrapper around batch and sv2 for writing to a stream. sv2 will never be released by this class, and ownership
-   * is maintained by caller.
+   * is maintained by caller. Also indicates whether compression is to be used for spilling the batch.
    * @param batch
    * @param sv2
    * @param allocator
    */
-  public VectorAccessibleSerializable(WritableBatch batch, SelectionVector2 sv2, BufferAllocator allocator) {
+  public VectorAccessibleSerializable(WritableBatch batch, SelectionVector2 sv2, BufferAllocator allocator, boolean useCodec) {
     this.allocator = allocator;
     this.batch = batch;
     if (sv2 != null) {
       this.sv2 = sv2;
       svMode = BatchSchema.SelectionVectorMode.TWO_BYTE;
     }
+    this.useCodec = useCodec;
   }
 
   /**
@@ -133,12 +212,17 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     final List<ValueVector> vectorList = Lists.newArrayList();
     final List<SerializedField> fieldList = batchDef.getFieldList();
     for (SerializedField metaData : fieldList) {
-      final int dataLength = metaData.getBufferLength();
+      final int rawDataLength = metaData.getBufferLength();
       final Field field = SerializedFieldHelper.create(metaData);
-      final ArrowBuf buf = allocator.buffer(dataLength);
+      final ArrowBuf buf = allocator.buffer(rawDataLength);
       final ValueVector vector;
       try {
-        readIntoArrowBuf(input, buf, dataLength, tmpBuffer);
+        if(useCodec) {
+          readAndUncompressIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+        }
+        else {
+          readIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+        }
         vector = TypeHelper.getNewVector(field, allocator);
         TypeHelper.load(vector, metaData, buf);
       } finally {
@@ -189,7 +273,13 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
       /* Dump the array of ByteBuf's associated with the value vectors */
       for (ArrowBuf buf : incomingBuffers) {
         /* dump the buffer into the OutputStream */
-        writeBuf(buf, output);
+        if (useCodec) {
+          /* if we are serializing the spilled data, compress the ArrowBufs */
+          writeCompressedBuf(buf, output);
+        }
+        else {
+          writeBuf(buf, output);
+        }
       }
 
       output.flush();
@@ -244,10 +334,81 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         throw new EOFException("Unexpected end of stream while reading.");
       }
 
-      // NOTE: when read into outputBuffer, writerIndex in ArrowBuf is incremented appropriately.
+      /* NOTE: when read into outputBuffer, writerIndex in ArrowBuf is incremented automatically */
       outputBuffer.writeBytes(buffer, 0, numBytesRead);
       numBytesToRead -= numBytesRead;
     }
+  }
+
+  /* writeCompressedBuf compressed data in 32KB chunks and serialized them in the following manner
+   *
+   *   <length bytes(4), data bytes, length bytes(4), data bytes .......>
+   *
+   * so when reading back compressed data from input stream, we will first read 4 bytes
+   * as this represents the compressed length of a chunk and then we will read the subsequent
+   * bytes (compressed data), uncompress them and append into the output ArrowBuf.
+   */
+  private void readAndUncompressIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, int rawDataLength, byte[] buffer)
+    throws IOException {
+    int bufferPos = 0;
+    while(rawDataLength > 0) {
+      /* read the first 4 bytes to get the length of subsequent compressed bytes */
+      final int compressedLengthBytes = inputStream.read(buffer, 0, COMPRESSED_LENGTH_BYTES);
+      if (compressedLengthBytes != COMPRESSED_LENGTH_BYTES) {
+        throw new IOException("ERROR: bad compressed length bytes");
+      }
+
+      /* convert the bytes read above to LE Int to get the actual length of compressed data */
+      int compressedLengthToRead = getLEIntFromByteArray(buffer);
+      Preconditions.checkArgument(buffer.length >= compressedLengthToRead, "bad compressed length");
+
+      /* allocate a direct buffer to hold the compressed data */
+      try (ArrowBuf cBuf = decompressAllocator.buffer(compressedLengthToRead)) {
+        ByteBuffer compressedDirectBuffer = cBuf.nioBuffer(0, compressedLengthToRead);
+        compressedDirectBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        /* read the compressed bytes */
+        int compressedOffset = 0;
+        while (compressedLengthToRead > 0) {
+          final int numCompressedBytesRead = inputStream.read(buffer, compressedOffset, compressedLengthToRead);
+          if (numCompressedBytesRead == -1) {
+            throw new IOException("ERROR: total length of compressed data read is less than expected");
+          }
+          compressedLengthToRead -= numCompressedBytesRead;
+          compressedOffset += numCompressedBytesRead;
+        }
+        if(compressedOffset != compressedDirectBuffer.limit()) {
+          throw new IOException("ERROR: total length of compressed data read is less than expected");
+        }
+
+        /* load the compressed data from byte array into direct buffer */
+        compressedDirectBuffer.put(buffer, 0, compressedOffset);
+        compressedDirectBuffer.position(0);
+
+        /* for each chunk we decompress, the raw length should be 32KB or less (for the last chunk) */
+        final int rawBufferSize = (rawDataLength >= RAW_CHUNK_SIZE_TO_COMPRESS) ? RAW_CHUNK_SIZE_TO_COMPRESS : rawDataLength;
+
+        /* get the direct buffer to store the uncompressed data */
+        ByteBuffer rawDirectBuffer = outputBuffer.nioBuffer(bufferPos, rawBufferSize);
+        rawDirectBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        /* uncompress */
+        int uncompressedLength = Snappy.uncompress(compressedDirectBuffer, rawDirectBuffer);
+
+        /* update state */
+        rawDataLength -= uncompressedLength;
+        bufferPos += uncompressedLength;
+      }
+    }
+  }
+
+  private int getLEIntFromByteArray(byte[] array) {
+    return PlatformDependent.getInt(array, 0);
+  }
+
+  public byte[] getByteArrayFromLEInt(int value) {
+    PlatformDependent.putInt(tmpBuffer1.array(), 0, value);
+    return tmpBuffer1.array();
   }
 
   public static void readFromStream(FSDataInputStream input, final ArrowBuf outputBuffer, final int bytesToRead) throws IOException{

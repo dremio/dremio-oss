@@ -498,6 +498,11 @@ public class BasicTypeHelper {
       <#list fields as field>
       newHolder.${field.name} = ((Nullable${minor.class}Holder) holder).${field.name};
       </#list>
+      <#if minor.typeParams??>
+      <#list minor.typeParams as typeParam>
+      newHolder.${typeParam.name} = ((Nullable${minor.class}Holder) holder).${typeParam.name};
+      </#list>
+      </#if>
 
       return newHolder;
     } else {

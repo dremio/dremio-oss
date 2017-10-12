@@ -17,6 +17,8 @@ package com.dremio.exec.store.jdbc;
 
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
@@ -46,6 +48,10 @@ public final class CompatCreator {
   // Needed for test framework which uses HSQLDB and Derby
   public static final String HSQLDB_DRIVER = "org.hsqldb.jdbcDriver";
   public static final String DERBY_DRIVER = "org.apache.derby.jdbc.ClientDriver";
+
+  // Needed for handling upgrades of Oracle data sources before 1.2. These versions don't save the username and
+  // password independently of the connection URL. We need to extract the username and password.
+  private static final Pattern ORACLE_URL_USER_PASSWORD_FINDER = Pattern.compile("^jdbc:oracle:thin:(?<User>.+)/(?<Password>.+)@.+");
 
   private CompatCreator(){}
 
@@ -110,13 +116,22 @@ public final class CompatCreator {
         final ConnectionPoolDataSource source = (ConnectionPoolDataSource) Class.forName(ORACLE_POOLED_DATASOURCE).newInstance();
         MethodUtils.invokeExactMethod(source, "setURL", url);
 
-        if(username != null) {
-          MethodUtils.invokeExactMethod(source, "setUser", username);
+        // Determine username and password from the connection URL. With versions of Dremio earlier than 1.2, we saved
+        // only the connection URL which have the username and password embedded. After 1.2, we started saving username
+        // and password because we switched to using OracleConnectionPoolDataSource, which has bugs if user/password
+        // aren't set explicitly. This check is required when upgrading a source from before 1.2 to 1.2+.
+        if (username == null || password == null) {
+          final Matcher urlMatcher = ORACLE_URL_USER_PASSWORD_FINDER.matcher(url);
+
+          if (urlMatcher.matches()) {
+            username = urlMatcher.group("User");
+            password = urlMatcher.group("Password");
+          }
         }
 
-        if(password != null) {
-          MethodUtils.invokeExactMethod(source, "setPassword", password);
-        }
+        MethodUtils.invokeExactMethod(source, "setUser", username);
+        MethodUtils.invokeExactMethod(source, "setPassword", password);
+
         SharedPoolDataSource ds = new SharedPoolDataSource();
         ds.setConnectionPoolDataSource(source);
         ds.setMaxActive(Integer.MAX_VALUE);

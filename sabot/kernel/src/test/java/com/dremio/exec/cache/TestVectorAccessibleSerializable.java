@@ -33,6 +33,7 @@ import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.NullableIntVector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.NullableFloat8Vector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -64,7 +65,6 @@ public class TestVectorAccessibleSerializable extends ExecTest {
   @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(90, TimeUnit.SECONDS); // 90secs
 
   @Test
-  @SuppressWarnings("static-method")
   public void test() throws Exception {
     final List<ValueVector> vectorList = Lists.newArrayList();
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
@@ -94,16 +94,13 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         VectorContainer container = new VectorContainer();
         container.addCollection(vectorList);
         container.setRecordCount(4);
-        WritableBatch batch = WritableBatch.getBatchNoHVWrap(
-            container.getRecordCount(), container, false);
-        VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(
-            batch, context.getAllocator());
+        WritableBatch batch = WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
+        VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, context.getAllocator());
 
         Configuration conf = new Configuration();
         conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
 
-        final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(
-            context.getAllocator());
+        final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(context.getAllocator());
         try (final FileSystem fs = FileSystem.get(conf)) {
           final File tempDir = Files.createTempDir();
           tempDir.deleteOnExit();
@@ -130,6 +127,103 @@ public class TestVectorAccessibleSerializable extends ExecTest {
                 System.out.println(o);
               }
             }
+          }
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testCompressSerDe() throws Exception {
+    testCompressSerDeHelper(10);
+    testCompressSerDeHelper(100);
+    testCompressSerDeHelper(1000);
+    testCompressSerDeHelper(1024);
+    testCompressSerDeHelper(8000);
+    testCompressSerDeHelper(10000);
+    testCompressSerDeHelper(16000);
+    testCompressSerDeHelper(32000);
+    testCompressSerDeHelper(64000);
+  }
+
+  private void testCompressSerDeHelper(int records) throws Exception {
+    final List<ValueVector> vectorList = Lists.newArrayList();
+    try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
+         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT)) {
+      bit.run();
+      final SabotContext context = bit.getContext();
+
+      try (final NullableIntVector intVector = new NullableIntVector("int", context.getAllocator());
+           final NullableFloat8Vector float8Vector =
+             new NullableFloat8Vector("float8", context.getAllocator())) {
+        AllocationHelper.allocateNew(intVector, records);
+        AllocationHelper.allocateNew(float8Vector, records);
+        vectorList.add(intVector);
+        vectorList.add(float8Vector);
+
+        NullableIntVector.Mutator intMutator = intVector.getMutator();
+        NullableFloat8Vector.Mutator floatMutator = float8Vector.getMutator();
+
+        int intBaseValue = 100;
+        double doubleBaseValue = 100.375;
+        for (int i = 0; i < records; i++) {
+          intMutator.set(i, intBaseValue + i);
+          floatMutator.set(i, doubleBaseValue + (double)i);
+        }
+
+        intMutator.setValueCount(records);
+        floatMutator.setValueCount(records);
+
+        NullableIntVector.Accessor intAccessor = intVector.getAccessor();
+        NullableFloat8Vector.Accessor floatAccessor = float8Vector.getAccessor();
+
+        for (int i = 0; i < records; i++) {
+          assertEquals(intBaseValue + i, intAccessor.get(i));
+          assertEquals(doubleBaseValue + (double)i, floatAccessor.get(i), 0);
+        }
+
+        SerDe(vectorList, true, records, context, 100, 100.375);
+
+      }
+    }
+  }
+
+  private void SerDe(List<ValueVector> vectorList, boolean compression, int records, SabotContext context,
+                     int intBaseValue, double doubleBaseValue) throws Exception {
+    VectorContainer container = new VectorContainer();
+    container.addCollection(vectorList);
+    container.setRecordCount(records);
+    WritableBatch batch = WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
+    VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, null, context.getAllocator(), compression);
+
+    Configuration conf = new Configuration();
+    conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
+
+    final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(context.getAllocator(), true, context.getAllocator());
+    try (final FileSystem fs = FileSystem.get(conf)) {
+      final File tempDir = Files.createTempDir();
+      tempDir.deleteOnExit();
+      final Path path = new Path(tempDir.getAbsolutePath(), "dremioSerializable");
+      try (final FSDataOutputStream out = fs.create(path)) {
+        wrap.writeToStream(out);
+        out.close();
+      }
+
+      try (final FSDataInputStream in = fs.open(path)) {
+        newWrap.readFromStream(in);
+      }
+    }
+
+    final VectorAccessible newContainer = newWrap.get();
+    for (VectorWrapper<?> w : newContainer) {
+      try (ValueVector vv = w.getValueVector()) {
+        int values = vv.getAccessor().getValueCount();
+        for (int i = 0; i < values; i++) {
+          final Object o = vv.getAccessor().getObject(i);
+          if (o instanceof Integer) {
+            assertEquals(intBaseValue + i, ((Integer) o).intValue());
+          } else {
+            assertEquals(doubleBaseValue + (double)i, ((Double) o).doubleValue(), 0);
           }
         }
       }

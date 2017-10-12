@@ -1370,39 +1370,6 @@ public class StringFunctions{
       }
     }
   }
-
-  @FunctionTemplate(name = "concat", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
-  public static class ConcatBothNullInput implements SimpleFunction {
-    @Param  NullableVarCharHolder left;
-    @Param  NullableVarCharHolder right;
-    @Output NullableVarCharHolder out;
-    @Inject ArrowBuf buffer;
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void eval() {
-      out.buffer = buffer.reallocIfNeeded( (left.end - left.start) + (right.end - right.start));
-      out.start = out.end = 0;
-      out.isSet = 1;
-
-      int id = 0;
-      if (left.isSet == 1) {
-        for (id = left.start; id < left.end; id++) {
-          out.buffer.setByte(out.end++, left.buffer.getByte(id));
-        }
-      }
-
-      if (right.isSet == 1) {
-        for (id = right.start; id < right.end; id++) {
-          out.buffer.setByte(out.end++, right.buffer.getByte(id));
-        }
-      }
-    }
-  }
-
   // Converts a hex encoded string into a varbinary type.
   // "\xca\xfe\xba\xbe" => (byte[]) {(byte)0xca, (byte)0xfe, (byte)0xba, (byte)0xbe}
   @FunctionTemplate(name = "binary_string", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)

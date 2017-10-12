@@ -35,6 +35,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -53,6 +54,7 @@ import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
@@ -100,6 +102,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   private final CodecFactory codecFactory;
   int rowGroupIndex;
   long totalRecordsRead;
+  FSDataInputStream singleInputStream;
 
   private final GlobalDictionaries globalDictionaries;
   private final ParquetReaderUtility.DateCorruptionStatus dateCorruptionStatus;
@@ -129,6 +132,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     this.readInt96AsTimeStamp = readInt96AsTimeStamp;
     this.globalDictionaryColumns = globalDictionaryColumns == null? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
     this.globalDictionaries = globalDictionaries;
+    this.singleInputStream = null;
   }
 
   /**
@@ -264,6 +268,16 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     logger.debug("Reading row group({}) with {} records in file {}.", rowGroupIndex, footer.getBlocks().get(rowGroupIndex).getRowCount(),
         hadoopPath.toUri().getPath());
     totalRecordsRead = 0;
+
+    boolean useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
+    if (useSingleStream || columns.size()  >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
+      try {
+        singleInputStream = fileSystem.open(hadoopPath);
+      } catch (IOException ioe) {
+        throw new ExecutionSetupException("Error opening or reading metadata for parquet file at location: "
+          + hadoopPath.getName(), ioe);
+      }
+    }
 
     // TODO - figure out how to deal with this better once we add nested reading, note also look where this map is used below
     // store a map from column name to converted types if they are non-null
@@ -437,6 +451,9 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     }
   }
 
+  FSDataInputStream getSingleStream() {
+    return singleInputStream;
+  }
 
   private String toFieldName(String[] paths) {
     return SchemaPath.getCompoundPath(paths).getAsUnescapedPath();
@@ -542,7 +559,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   }
 
   @Override
-  public void close() {
+  public void close() throws Exception {
     logger.debug("Read {} records out of row group({}) in file '{}'", totalRecordsRead, rowGroupIndex, hadoopPath.toUri().getPath());
     // enable this for debugging when it is know that a whole file will be read
     // limit kills upstream operators once it has enough records, so this assert will fail
@@ -563,6 +580,10 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       }
       varLengthReader.columns.clear();
       varLengthReader = null;
+    }
+
+    if (singleInputStream != null) {
+      singleInputStream.close();
     }
 
     if(parquetReaderStats != null) {

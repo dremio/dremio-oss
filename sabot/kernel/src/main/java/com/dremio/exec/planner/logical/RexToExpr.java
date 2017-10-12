@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import static com.dremio.exec.expr.fn.impl.ConcatFunctions.CONCAT_MAX_ARGS;
+
 import java.math.BigDecimal;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -462,21 +464,20 @@ public class RexToExpr {
 
           return FunctionCallFactory.createExpression(functionName, concatArgs);
 
-        } else if (argsSize > 2) {
+        } else if (argsSize > CONCAT_MAX_ARGS) {
           List<LogicalExpression> concatArgs = Lists.newArrayList();
 
-          /* stack concat functions on top of each other if we have more than two arguments
-           * Eg: concat(col1, col2, col3) => concat(concat(col1, col2), col3)
+          /* stack concat functions on top of each other if we have more than 10 arguments
+           * Eg: concat(c1, c2, c3, ..., c10, c11, c12) => concat(concat(c1, c2, ..., c10), c11, c12)
            */
-          concatArgs.add(args.get(0));
-          concatArgs.add(args.get(1));
+          concatArgs.addAll(args.subList(0, CONCAT_MAX_ARGS));
 
           LogicalExpression first = FunctionCallFactory.createExpression(functionName, concatArgs);
 
-          for (int i = 2; i < argsSize; i++) {
+          for (int i = CONCAT_MAX_ARGS; i < argsSize; i = i + (CONCAT_MAX_ARGS -1)) {
             concatArgs = Lists.newArrayList();
             concatArgs.add(first);
-            concatArgs.add(args.get(i));
+            concatArgs.addAll(args.subList(i, Math.min(argsSize, i + (CONCAT_MAX_ARGS - 1))));
             first = FunctionCallFactory.createExpression(functionName, concatArgs);
           }
 

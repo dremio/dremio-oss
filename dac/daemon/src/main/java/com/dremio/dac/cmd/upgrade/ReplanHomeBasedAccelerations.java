@@ -69,6 +69,11 @@ public class ReplanHomeBasedAccelerations extends UpgradeTask {
       DatasetConfig dataset) {
     //if its a virtual dataset, recursively check its parents
     if (dataset.getVirtualDataset() != null) {
+      if (dataset.getVirtualDataset().getParentsList() == null) {
+        System.out.printf("Null parent list for %s. Skipping the dataset.",
+            AccelerationUtils.makePathString(dataset.getFullPathList()));
+        return false;
+      }
       for (ParentDataset parent : dataset.getVirtualDataset().getParentsList()) {
         try {
           DatasetConfig parentDataset = namespace.getDataset(new NamespaceKey(parent.getDatasetPathList()));

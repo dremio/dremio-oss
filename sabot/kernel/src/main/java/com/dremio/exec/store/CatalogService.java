@@ -34,10 +34,11 @@ public interface CatalogService extends AutoCloseable, Service {
 
   long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
   long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);
+  long CENTURY_MILLIS = TimeUnit.DAYS.toMillis(365*100);
+
   MetadataPolicy REFRESH_EVERYTHING_NOW = new MetadataPolicy()
       .setAuthTtlMs(0l)
       .setDatasetUpdateMode(UpdateMode.PREFETCH)
-      .setDatasetDefinitionTtlMs(0l)
       .setNamesRefreshMs(0l)
       .setDatasetDefinitionRefreshAfterMs(0l)
       .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
@@ -45,10 +46,16 @@ public interface CatalogService extends AutoCloseable, Service {
   MetadataPolicy DEFAULT_METADATA_POLICY = new MetadataPolicy()
       .setAuthTtlMs(DEFAULT_EXPIRE_MILLIS)
       .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
-      .setDatasetDefinitionTtlMs(DEFAULT_REFRESH_MILLIS)
       .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
       .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
       .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
+
+  MetadataPolicy NEVER_REFRESH_POLICY = new MetadataPolicy()
+    .setAuthTtlMs(CENTURY_MILLIS)
+    .setDatasetUpdateMode(UpdateMode.PREFETCH)
+    .setNamesRefreshMs(CENTURY_MILLIS)
+    .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
+    .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
 
   /**
    * Register a source to catalog service

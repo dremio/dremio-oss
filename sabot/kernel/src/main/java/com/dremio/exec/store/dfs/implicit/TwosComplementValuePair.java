@@ -34,12 +34,14 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
   private ArrowBuf buf;
 
   public TwosComplementValuePair(BufferAllocator allocator, Field field, byte[] value) {
-    super(field.getName(), DecimalTools.signExtend16(value));
+    super(field.getName(), value != null ? DecimalTools.signExtend16(value) : null);
     CompleteType type = CompleteType.fromField(field);
     scale = type.getScale();
     precision = type.getPrecision();
-    buf = allocator.buffer(16);
-    buf.setBytes(0, value);
+    if (value != null) {
+      buf = allocator.buffer(16);
+      buf.setBytes(0, value);
+    }
   }
 
   @Override

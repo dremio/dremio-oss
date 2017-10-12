@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>1.2.1-201710030121530889-8e49316</version>
+  <version>1.2.2-201710100154510864-d40e31c</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -40,9 +40,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.5.0-201709192212160660-1b8cabd-dremio</arrow.version>
+    <arrow.version>0.5.0-201710050558010819-f2596dd-dremio</arrow.version>
     <avatica.version>1.9.0</avatica.version>
-    <calcite.version>1.12.0-201709220844320554-afcc87c</calcite.version>
+    <calcite.version>1.12.0-201709190641350753-227ffa9</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>

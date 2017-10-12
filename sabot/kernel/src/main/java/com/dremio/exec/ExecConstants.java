@@ -192,7 +192,7 @@ public interface ExecConstants {
   // DX-6734
   BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
   BooleanValidator ACCELERATION_ENABLE_MIN_MAX = new BooleanValidator("accelerator.enable_min_max", true);
-  BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", false);
+  BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
   LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   // TODO: We need to add a feature that enables storage plugins to add their own options. Currently we have to declare
@@ -367,7 +367,9 @@ public interface ExecConstants {
   // Check for storage plugin status at time of creation of the plugin
   BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
 
-  LongValidator FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT = new LongValidator("dremio.exec.operator.flatten_output_memory_limit", 512*1024*1024);
+  LongValidator FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT = new LongValidator("exec.operator.flatten_output_memory_limit", 512*1024*1024);
 
   PositiveLongValidator PLANNER_IN_SUBQUERY_THRESHOLD = new PositiveLongValidator("planner.in.subquery.threshold", Character.MAX_VALUE, 20);
+
+  BooleanValidator EXTERNAL_SORT_COMPRESS_SPILL_FILES = new BooleanValidator("exec.operator.sort.external.compress_spill_files", true);
 }

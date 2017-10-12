@@ -17,6 +17,7 @@ package com.dremio.sabot.op.sort.external;
 
 import java.io.IOException;
 
+import com.dremio.exec.ExecConstants;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.calcite.rel.RelFieldCollation.Direction;
@@ -145,10 +146,11 @@ public class ExternalSortOperator implements SingleInputOperator {
     final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
     final int targetBatchSizeInBytes = targetBatchSize * estimatedRecordSize;
+    final boolean compressSpilledBatch = context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_COMPRESS_SPILL_FILES);
 
     this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
         context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
-        config.getOrderings(), incoming.getSchema());
+        config.getOrderings(), incoming.getSchema(), compressSpilledBatch);
     return output;
   }
 

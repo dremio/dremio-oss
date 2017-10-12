@@ -194,7 +194,7 @@ public class ParquetGroupScanUtils {
     if (originalType != null) {
       switch (originalType) {
         case DECIMAL:
-          return Types.optional(MinorType.DECIMAL18);
+          return Types.optional(MinorType.DECIMAL);
         case DATE:
           return Types.optional(MinorType.DATE);
         case TIME_MILLIS:

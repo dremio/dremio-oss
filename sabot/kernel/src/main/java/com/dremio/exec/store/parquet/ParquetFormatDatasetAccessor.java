@@ -132,7 +132,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
 
       try(RecordReader reader =
             new AdditionalColumnsRecordReader(
-              new ParquetRowiseReader(operatorContext, footer, 0, firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, dateStatus, readInt96AsTimeStamp),
+              new ParquetRowiseReader(operatorContext, footer, 0, firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, dateStatus, readInt96AsTimeStamp, true),
               finder.getImplicitFieldsForSample(selection)
             )) {
 

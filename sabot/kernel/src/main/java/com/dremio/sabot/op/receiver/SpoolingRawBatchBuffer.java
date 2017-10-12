@@ -144,7 +144,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
        final String id =  Joiner.on(Path.SEPARATOR).join(qid, majorFragmentId, minorFragmentId);
        final String fileName = String.format("%s.%s", oppositeId, bufferIndex);
 
-       this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG);
+       this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, "spooling sorted exchange");
        this.spillFile = spillManager.getSpillFile(fileName);
        outputStream = spillFile.create();
     } catch(Exception ex) {
@@ -250,21 +250,13 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
 
     stopSpooling();
 
-    final AutoCloseable deleteCloser = new AutoCloseable(){
-      @Override
-      public void close() throws Exception {
-        if (config.getBoolean(ExecConstants.SPOOLING_BUFFER_DELETE)) {
-          spillFile.close();
-        }
-      }};
-
     final AutoCloseable superCloser = new AutoCloseable(){
       @Override
       public void close() throws Exception {
         SpoolingRawBatchBuffer.super.close();
       }};
 
-    AutoCloseables.close(allocator, outputStream, deleteCloser, superCloser, deferred, spillFile, this.spillManager);
+    AutoCloseables.close(allocator, outputStream, spillFile, this.spillManager, superCloser, deferred);
   }
 
 

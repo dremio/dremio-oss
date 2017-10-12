@@ -424,7 +424,7 @@ public class TestJobService extends BaseTestServer {
   public void testCTASAndDropTable() throws Exception {
     // Create a table
     SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select * from cp.\"json/users.json\" LIMIT 1");
-    Job ctasJob = jobsService.submitJob(ctas, QueryType.ACCELERATOR_CREATE, null, null, JobStatusListener.NONE);
+    Job ctasJob = jobsService.submitJob(ctas, QueryType.UI_RUN, null, null, JobStatusListener.NONE);
     ctasJob.getData().loadIfNecessary();
 
     FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(StoragePluginRegistry.class).getPlugin("$scratch");

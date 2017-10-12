@@ -140,7 +140,7 @@ public class MetadataUtils {
 
       case VARBINARY:
         if (value == null) {
-          partitionValue.setStringValue(null);
+          partitionValue.setBinaryValue(null);
         } else {
           if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
             partitionValue.setBinaryValue(ByteString.copyFrom(((String) value).getBytes(UTF8)));
@@ -167,10 +167,19 @@ public class MetadataUtils {
         break;
 
       case DECIMAL:
+        if (value == null) {
+          partitionValue.setBinaryValue(null);
+        } else if (value instanceof Binary) {
+          partitionValue.setBinaryValue(ByteString.copyFrom(((Binary) value).getBytes()));
+        } else if (value instanceof byte[]) {
+          partitionValue.setBinaryValue(ByteString.copyFrom((byte[]) value));
+        }
+        break;
       case LIST:
       case UNION:
       case NULL:
       case MAP:
+      default:
         throw new UnsupportedOperationException(type + " is not supported");
     }
     return partitionValue;

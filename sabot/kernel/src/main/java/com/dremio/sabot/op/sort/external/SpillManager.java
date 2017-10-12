@@ -56,13 +56,18 @@ public class SpillManager implements AutoCloseable {
   private final long healthCheckInterval;
   private final long healthCheckSpills;
   private final Configuration hadoopConf;
+  private final String caller;
+  private final SabotConfig sabotConfig;
 
-  public SpillManager(SabotConfig sabotConfig, OptionManager optionManager, String id, Configuration hadoopConf)  {
+  public SpillManager(SabotConfig sabotConfig, OptionManager optionManager, String id, Configuration hadoopConf,
+                      final String caller)  {
     final List<String> directories = new ArrayList<>(sabotConfig.getStringList(ExecConstants.SPILL_DIRS));
     if (directories.isEmpty()) {
       throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
     }
 
+    this.sabotConfig = sabotConfig;
+    this.caller = caller;
     this.id  = id;
     this.hadoopConf = hadoopConf;
     // load options
@@ -89,7 +94,7 @@ public class SpillManager implements AutoCloseable {
         healthySpillDirectories.add(spillDirectory);
         allSpillDirectories.add(spillDirectory); // for cleanup
       } catch (IOException ioe) {
-        throw UserException.dataWriteError(ioe).message("Failed to create sort spill directory " + spillDirPath)
+        throw UserException.dataWriteError(ioe).message("Failed to create spill directory for " + caller + " for spill-path: " + spillDirPath)
           .build(logger);
       }
     }
@@ -110,8 +115,8 @@ public class SpillManager implements AutoCloseable {
     }
 
     throw UserException.dataWriteError().
-      message(String.format("Failed to allocate disk space for spill during sort for %s. All spill directories %s are full",
-        id, allSpillDirectories)).build(logger);
+      message(String.format("Failed to allocate disk space for spill for %s for queryID %s. All spill directories %s are full",
+        caller, id, allSpillDirectories)).build(logger);
   }
 
   @Override
@@ -137,7 +142,12 @@ public class SpillManager implements AutoCloseable {
     }
 
     private void delete() throws IOException {
-      fs.delete(path, true);
+      if (caller.equals("sort spilling") || sabotConfig.getBoolean(ExecConstants.SPOOLING_BUFFER_DELETE)) {
+        /* if we are spilling during sort, we always delete. if we are spilling during spooling
+         * sorted exchange, then it depends on configuration.
+         */
+        fs.delete(path, true);
+      }
     }
 
     @Override
@@ -210,7 +220,12 @@ public class SpillManager implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-      fileSystem.delete(spillDirPath, true);
+      if (caller.equals("sort spilling") || sabotConfig.getBoolean(ExecConstants.SPOOLING_BUFFER_DELETE)) {
+        /* if we are spilling during sort, we always delete. if we are spilling during spooling
+         * sorted exchange, then it depends on configuration.
+         */
+        fileSystem.delete(spillDirPath, true);
+      }
     }
   }
 }

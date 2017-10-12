@@ -15,10 +15,12 @@
  */
 package com.dremio.exec.planner.cost;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
@@ -52,6 +54,22 @@ public class RelMdRowCount extends  org.apache.calcite.rel.metadata.RelMdRowCoun
       return super.getRowCount(rel, mq);
     } else {
       return Math.max(mq.getRowCount(rel.getLeft()), mq.getRowCount(rel.getRight()));
+    }
+  }
+
+  public Double getRowCount(MultiJoin rel, RelMetadataQuery mq) {
+    if (rel.getJoinFilter().isAlwaysTrue()) {
+      double rowCount = 1;
+      for (RelNode input : rel.getInputs()) {
+        rowCount *= input.estimateRowCount(mq);
+      }
+      return rowCount;
+    } else {
+      double max = 1;
+      for (RelNode input : rel.getInputs()) {
+        max = Math.max(max, mq.getRowCount(input));
+      }
+      return max;
     }
   }
 

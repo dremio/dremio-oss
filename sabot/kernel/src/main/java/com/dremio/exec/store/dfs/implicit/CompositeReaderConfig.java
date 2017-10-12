@@ -169,9 +169,9 @@ public class CompositeReaderConfig {
     case TIMESTAMP:
       return new TimeStampMilliNameValuePair(field.getName(), partitionValue.getLongValue()).createPopulator();
     case DECIMAL:
-      return new TwosComplementValuePair(allocator, field, partitionValue.getBinaryValue().toByteArray()).createPopulator();
+      return new TwosComplementValuePair(allocator, field, getByteArray(partitionValue)).createPopulator();
     case VARBINARY:
-      return new VarBinaryNameValuePair(field.getName(), partitionValue.getBinaryValue().toByteArray()).createPopulator();
+      return new VarBinaryNameValuePair(field.getName(), getByteArray(partitionValue)).createPopulator();
     case VARCHAR:
       return new VarCharNameValuePair(field.getName(), partitionValue.getStringValue()).createPopulator();
     default:
@@ -180,5 +180,11 @@ public class CompositeReaderConfig {
     }
   }
 
+  private static byte[] getByteArray(PartitionValue partitionValue) {
+    if (partitionValue.getBinaryValue() == null) {
+      return null;
+    }
 
+    return partitionValue.getBinaryValue().toByteArray();
+  }
 }

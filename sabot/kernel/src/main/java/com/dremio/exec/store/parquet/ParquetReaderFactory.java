@@ -43,7 +43,8 @@ public interface ParquetReaderFactory {
       boolean enableDetailedTracing,
       ParquetMetadata footer,
       int rowGroupIndex,
-      UInt4Vector deltas);
+      UInt4Vector deltas,
+      boolean useSingleStream);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
 
@@ -56,7 +57,7 @@ public interface ParquetReaderFactory {
     public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, FileSystem fs, String path,
         CodecFactory codecFactory, List<FilterCondition> conditions, DateCorruptionStatus corruptionStatus,
         boolean readInt96AsTimeStamp, boolean enableDetailedTracing, ParquetMetadata footer, int rowGroupIndex,
-        UInt4Vector deltas) {
+        UInt4Vector deltas, boolean useSingleStream) {
       throw new UnsupportedOperationException();
     }};
 

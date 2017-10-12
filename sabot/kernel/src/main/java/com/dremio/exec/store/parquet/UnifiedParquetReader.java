@@ -43,6 +43,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordReader;
@@ -86,7 +87,7 @@ public class UnifiedParquetReader implements RecordReader {
   private final List<SchemaPath> vectorizableReaderColumns = new ArrayList<>();
   private final Map<String, ValueVector> vectorizedMap = new HashMap<>();
   private final Map<String, ValueVector> nonVectorizedMap = new HashMap<>();
-
+  private boolean useSingleStream;
 
   public UnifiedParquetReader(
       OperatorContext context,
@@ -120,6 +121,7 @@ public class UnifiedParquetReader implements RecordReader {
     this.dictionaries = dictionaries;
     this.codecFactory = codecFactory;
     this.enableDetailedTracing = enableDetailedTracing;
+    this.useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
   }
 
   @Override
@@ -129,6 +131,10 @@ public class UnifiedParquetReader implements RecordReader {
     computeLocality(footer);
 
     splitColumns(footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
+
+    if ((vectorizableReaderColumns.size() + nonVectorizableReaderColumns.size()) >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
+      useSingleStream = true;
+    }
 
     final ExecutionPath execPath = getExecutionPath();
     delegates = execPath.getReaders(this);
@@ -371,7 +377,8 @@ public class UnifiedParquetReader implements RecordReader {
             unifiedReader.realFields,
             unifiedReader.fs,
             containsCorruptDates,
-            unifiedReader.readInt96AsTimeStamp
+            unifiedReader.readInt96AsTimeStamp,
+            unifiedReader.useSingleStream
           )
         ));
         return returnList;
@@ -408,7 +415,8 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.enableDetailedTracing,
               footer,
               unifiedReader.readEntry.getRowGroupIndex(),
-              deltas
+              deltas,
+              unifiedReader.useSingleStream
             )
           );
         }
@@ -423,7 +431,8 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.fs,
               containsCorruptDates,
               unifiedReader.readInt96AsTimeStamp,
-              deltas
+              deltas,
+              unifiedReader.useSingleStream
             )
           );
         }

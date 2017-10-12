@@ -97,4 +97,14 @@ public class TestHBaseQueries extends BaseHBaseTest {
     }
   }
 
+  @Test
+  public void testCountStar() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM hbase." + HBaseTestsSuite.TEST_TABLE_1.getNameAsString())
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(8L)
+        .go();
+  }
+
 }

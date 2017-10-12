@@ -30,7 +30,7 @@ import com.google.common.base.Throwables;
  * <p>This class is thread safe.
  */
 public class DeferredException implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DeferredException.class);
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DeferredException.class);
 
   private Exception exception = null;
   private boolean isClosed = false;
@@ -167,22 +167,20 @@ public class DeferredException implements AutoCloseable {
    * @param autoCloseable the AutoCloseable to close; may be null
    */
   public void suppressingClose(final AutoCloseable autoCloseable) {
-    synchronized(this) {
-      /*
-       * For the sake of detecting code that doesn't follow the conventions,
-       * we want this to complain whether the closeable exists or not.
-       */
-      Preconditions.checkState(!isClosed);
+    /*
+     * For the sake of detecting code that doesn't follow the conventions,
+     * we want this to complain whether the closeable exists or not.
+     */
+    Preconditions.checkState(!isClosed);
 
-      if (autoCloseable == null) {
-        return;
-      }
+    if (autoCloseable == null) {
+      return;
+    }
 
-      try {
-        autoCloseable.close();
-      } catch(final Exception e) {
-        addException(e);
-      }
+    try {
+      autoCloseable.close();
+    } catch(final Exception e) {
+      addException(e);
     }
   }
 

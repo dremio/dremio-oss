@@ -19,6 +19,9 @@ import org.apache.arrow.vector.util.DateUtility;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
+import com.dremio.exec.planner.physical.PlannerSettings;
+
+import java.math.BigDecimal;
 
 public class TestParquetPartitionPruning extends PlanTestBase {
 
@@ -87,5 +90,46 @@ public class TestParquetPartitionPruning extends PlanTestBase {
         .baselineValues(5, 2)
         .baselineValues(6, 1)
         .go();
+  }
+
+  @Test
+  public void pruningDecimalPartitionValues() throws Exception {
+    try(AutoCloseable ac = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true)) {
+      // Create a parquet file containing just null and non-null values for decimal parititon column
+      test("CREATE TABLE dfs_test.decimalPartitions HASH PARTITION BY (b) AS " +
+          "SELECT * FROM cp.`parquet/parquet_with_decimals.parquet`");
+
+      final String q1 = "SELECT a, b FROM dfs_test.decimalPartitions WHERE b != 7564.23423";
+      testPlanMatchingPatterns(q1, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"}, "Filter");
+      testBuilder()
+          .sqlQuery(q1)
+          .unOrdered()
+          .baselineColumns("a", "b")
+          .baselineValues(new BigDecimal("0.023423000000000"), new BigDecimal("34523.456233234000000"))
+          .baselineValues(new BigDecimal("7564.234230000000000"), new BigDecimal("34523.456233234000000"))
+          .go();
+
+      final String q2 = "SELECT a, b FROM dfs_test.decimalPartitions WHERE b IS NULL";
+      testPlanMatchingPatterns(q2, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"}, "Filter");
+      testBuilder()
+          .sqlQuery(q2)
+          .unOrdered()
+          .baselineColumns("a", "b")
+          .baselineValues(new BigDecimal("564.343400000000000"), null)
+          .baselineValues(new BigDecimal("34523.456233234000000"), null)
+          .go();
+
+      final String q3 = "SELECT a, b FROM dfs_test.decimalPartitions WHERE b IS NOT NULL";
+      testPlanMatchingPatterns(q3, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[2\\]"}, "Filter");
+      testBuilder()
+          .sqlQuery(q3)
+          .unOrdered()
+          .baselineColumns("a", "b")
+          .baselineValues(null, new BigDecimal("7564.234230000000000"))
+          .baselineValues(new BigDecimal("0.023423000000000"), new BigDecimal("34523.456233234000000"))
+          .baselineValues(new BigDecimal("7564.234230000000000"), new BigDecimal("34523.456233234000000"))
+          .baselineValues(new BigDecimal("9823.634000000000000"), new BigDecimal("7564.234230000000000"))
+          .go();
+    }
   }
 }

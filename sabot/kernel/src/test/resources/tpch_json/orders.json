@@ -1,0 +1,1001 @@
+  {
+    "O_ORDERKEY":1,
+    "O_CUSTKEY":370,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":172799.49,
+    "O_ORDERDATE":"1996-01-02",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000951",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"nstructions sleep furiously among "
+  }
+  {
+    "O_ORDERKEY":2,
+    "O_CUSTKEY":781,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":38426.09,
+    "O_ORDERDATE":"1996-12-01",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000880",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" foxes. pending accounts at the pending, silent asymptot"
+  }
+  {
+    "O_ORDERKEY":3,
+    "O_CUSTKEY":1234,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":205654.30,
+    "O_ORDERDATE":"1993-10-14",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000955",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"sly final accounts boost. carefully regular ideas cajole carefully. depos"
+  }
+  {
+    "O_ORDERKEY":4,
+    "O_CUSTKEY":1369,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":56000.91,
+    "O_ORDERDATE":"1995-10-11",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000124",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"sits. slyly regular warthogs cajole. regular, regular theodolites acro"
+  }
+  {
+    "O_ORDERKEY":5,
+    "O_CUSTKEY":445,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":105367.67,
+    "O_ORDERDATE":"1994-07-30",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000925",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"quickly. bold deposits sleep slyly. packages use slyly"
+  }
+  {
+    "O_ORDERKEY":6,
+    "O_CUSTKEY":557,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":45523.10,
+    "O_ORDERDATE":"1992-02-21",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000058",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ggle. special, final requests are against the furiously specia"
+  }
+  {
+    "O_ORDERKEY":7,
+    "O_CUSTKEY":392,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":271885.66,
+    "O_ORDERDATE":"1996-01-10",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000470",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ly special requests "
+  }
+  {
+    "O_ORDERKEY":32,
+    "O_CUSTKEY":1301,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":198665.57,
+    "O_ORDERDATE":"1995-07-16",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000616",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ise blithely bold, regular requests. quickly unusual dep"
+  }
+  {
+    "O_ORDERKEY":33,
+    "O_CUSTKEY":670,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":146567.24,
+    "O_ORDERDATE":"1993-10-27",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000409",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"uriously. furiously final request"
+  }
+  {
+    "O_ORDERKEY":34,
+    "O_CUSTKEY":611,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":73315.48,
+    "O_ORDERDATE":"1998-07-21",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000223",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ly final packages. fluffily final deposits wake blithely ideas. spe"
+  }
+  {
+    "O_ORDERKEY":35,
+    "O_CUSTKEY":1276,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":194641.93,
+    "O_ORDERDATE":"1995-10-23",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000259",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"zzle. carefully enticing deposits nag furio"
+  }
+  {
+    "O_ORDERKEY":36,
+    "O_CUSTKEY":1153,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":42011.04,
+    "O_ORDERDATE":"1995-11-03",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000358",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" quick packages are blithely. slyly silent accounts wake qu"
+  }
+  {
+    "O_ORDERKEY":37,
+    "O_CUSTKEY":862,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":131896.49,
+    "O_ORDERDATE":"1992-06-03",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000456",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"kly regular pinto beans. carefully unusual waters cajole never"
+  }
+  {
+    "O_ORDERKEY":38,
+    "O_CUSTKEY":1249,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":71553.08,
+    "O_ORDERDATE":"1996-08-21",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000604",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"haggle blithely. furiously express ideas haggle blithely furiously regular re"
+  }
+  {
+    "O_ORDERKEY":39,
+    "O_CUSTKEY":818,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":326565.37,
+    "O_ORDERDATE":"1996-09-20",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000659",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ole express, ironic requests: ir"
+  }
+  {
+    "O_ORDERKEY":64,
+    "O_CUSTKEY":322,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":35831.73,
+    "O_ORDERDATE":"1994-07-16",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000661",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"wake fluffily. sometimes ironic pinto beans about the dolphin"
+  }
+  {
+    "O_ORDERKEY":65,
+    "O_CUSTKEY":163,
+    "O_ORDERSTATUS":"P",
+    "O_TOTALPRICE":95469.44,
+    "O_ORDERDATE":"1995-03-18",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000632",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ular requests are blithely pending orbits-- even requests against the deposit"
+  }
+  {
+    "O_ORDERKEY":66,
+    "O_CUSTKEY":1292,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":104190.66,
+    "O_ORDERDATE":"1994-01-20",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000743",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"y pending requests integrate"
+  }
+  {
+    "O_ORDERKEY":67,
+    "O_CUSTKEY":568,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":182481.16,
+    "O_ORDERDATE":"1996-12-19",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000547",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"symptotes haggle slyly around the furiously iron"
+  }
+  {
+    "O_ORDERKEY":68,
+    "O_CUSTKEY":286,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":301968.79,
+    "O_ORDERDATE":"1998-04-18",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000440",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" pinto beans sleep carefully. blithely ironic deposits haggle furiously acro"
+  }
+  {
+    "O_ORDERKEY":69,
+    "O_CUSTKEY":845,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":204110.73,
+    "O_ORDERDATE":"1994-06-04",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000330",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" depths atop the slyly thin deposits detect among the furiously silent accou"
+  }
+  {
+    "O_ORDERKEY":70,
+    "O_CUSTKEY":644,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":125705.32,
+    "O_ORDERDATE":"1993-12-18",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000322",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" carefully ironic request"
+  }
+  {
+    "O_ORDERKEY":71,
+    "O_CUSTKEY":34,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":260603.38,
+    "O_ORDERDATE":"1998-01-24",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000271",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" express deposits along the blithely regul"
+  }
+  {
+    "O_ORDERKEY":96,
+    "O_CUSTKEY":1078,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":64364.30,
+    "O_ORDERDATE":"1994-04-17",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000395",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"oost furiously. pinto"
+  }
+  {
+    "O_ORDERKEY":97,
+    "O_CUSTKEY":211,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":100572.55,
+    "O_ORDERDATE":"1993-01-29",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000547",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"hang blithely along the regular accounts. furiously even ideas after the"
+  }
+  {
+    "O_ORDERKEY":98,
+    "O_CUSTKEY":1045,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":71721.40,
+    "O_ORDERDATE":"1994-09-25",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000448",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"c asymptotes. quickly regular packages should have to nag re"
+  }
+  {
+    "O_ORDERKEY":99,
+    "O_CUSTKEY":890,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":108594.87,
+    "O_ORDERDATE":"1994-03-13",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000973",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"e carefully ironic packages. pending"
+  }
+  {
+    "O_ORDERKEY":100,
+    "O_CUSTKEY":1471,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":198978.27,
+    "O_ORDERDATE":"1998-02-28",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000577",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"heodolites detect slyly alongside of the ent"
+  }
+  {
+    "O_ORDERKEY":101,
+    "O_CUSTKEY":280,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":118448.39,
+    "O_ORDERDATE":"1996-03-17",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000419",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ding accounts above the slyly final asymptote"
+  }
+  {
+    "O_ORDERKEY":102,
+    "O_CUSTKEY":8,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":184806.58,
+    "O_ORDERDATE":"1997-05-09",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000596",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" slyly according to the asymptotes. carefully final packages integrate furious"
+  }
+  {
+    "O_ORDERKEY":103,
+    "O_CUSTKEY":292,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":118745.16,
+    "O_ORDERDATE":"1996-06-20",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000090",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ges. carefully unusual instructions haggle quickly regular f"
+  }
+  {
+    "O_ORDERKEY":128,
+    "O_CUSTKEY":740,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":34997.04,
+    "O_ORDERDATE":"1992-06-15",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000385",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ns integrate fluffily. ironic asymptotes after the regular excuses nag around "
+  }
+  {
+    "O_ORDERKEY":129,
+    "O_CUSTKEY":712,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":254281.41,
+    "O_ORDERDATE":"1992-11-19",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000859",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ing tithes. carefully pending deposits boost about the silently express "
+  }
+  {
+    "O_ORDERKEY":130,
+    "O_CUSTKEY":370,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":140213.54,
+    "O_ORDERDATE":"1992-05-08",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000036",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"le slyly unusual, regular packages? express deposits det"
+  }
+  {
+    "O_ORDERKEY":131,
+    "O_CUSTKEY":928,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":140726.47,
+    "O_ORDERDATE":"1994-06-08",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000625",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"after the fluffily special foxes integrate s"
+  }
+  {
+    "O_ORDERKEY":132,
+    "O_CUSTKEY":265,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":133485.89,
+    "O_ORDERDATE":"1993-06-11",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000488",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"sits are daringly accounts. carefully regular foxes sleep slyly about the"
+  }
+  {
+    "O_ORDERKEY":133,
+    "O_CUSTKEY":440,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":95971.06,
+    "O_ORDERDATE":"1997-11-29",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000738",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"usly final asymptotes "
+  }
+  {
+    "O_ORDERKEY":134,
+    "O_CUSTKEY":62,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":208201.46,
+    "O_ORDERDATE":"1992-05-01",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000711",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"lar theodolites boos"
+  }
+  {
+    "O_ORDERKEY":135,
+    "O_CUSTKEY":605,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":230472.84,
+    "O_ORDERDATE":"1995-10-21",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000804",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"l platelets use according t"
+  }
+  {
+    "O_ORDERKEY":160,
+    "O_CUSTKEY":826,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":114742.32,
+    "O_ORDERDATE":"1996-12-19",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000342",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"thely special sauternes wake slyly of t"
+  }
+  {
+    "O_ORDERKEY":161,
+    "O_CUSTKEY":167,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":17668.60,
+    "O_ORDERDATE":"1994-08-31",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000322",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"carefully! special instructions sin"
+  }
+  {
+    "O_ORDERKEY":162,
+    "O_CUSTKEY":142,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":3553.15,
+    "O_ORDERDATE":"1995-05-08",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000378",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"nts hinder fluffily ironic instructions. express, express excuses "
+  }
+  {
+    "O_ORDERKEY":163,
+    "O_CUSTKEY":878,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":177809.13,
+    "O_ORDERDATE":"1997-09-05",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000379",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"y final packages. final foxes since the quickly even"
+  }
+  {
+    "O_ORDERKEY":164,
+    "O_CUSTKEY":8,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":250417.20,
+    "O_ORDERDATE":"1992-10-21",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000209",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"cajole ironic courts. slyly final ideas are slyly. blithely final Tiresias sub"
+  }
+  {
+    "O_ORDERKEY":165,
+    "O_CUSTKEY":274,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":193302.35,
+    "O_ORDERDATE":"1993-01-30",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000292",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"across the blithely regular accounts. bold"
+  }
+  {
+    "O_ORDERKEY":166,
+    "O_CUSTKEY":1079,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":158207.39,
+    "O_ORDERDATE":"1995-09-12",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000440",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"lets. ironic, bold asymptotes kindle"
+  }
+  {
+    "O_ORDERKEY":167,
+    "O_CUSTKEY":1195,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":64017.85,
+    "O_ORDERDATE":"1993-01-04",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000731",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"s nag furiously bold excuses. fluffily iron"
+  }
+  {
+    "O_ORDERKEY":192,
+    "O_CUSTKEY":826,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":194637.57,
+    "O_ORDERDATE":"1997-11-25",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000483",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"y unusual platelets among the final instructions integrate rut"
+  }
+  {
+    "O_ORDERKEY":193,
+    "O_CUSTKEY":791,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":80834.26,
+    "O_ORDERDATE":"1993-08-08",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000025",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"the furiously final pin"
+  }
+  {
+    "O_ORDERKEY":194,
+    "O_CUSTKEY":619,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":154284.73,
+    "O_ORDERDATE":"1992-04-05",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000352",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"egular requests haggle slyly regular, regular pinto beans. asymptote"
+  }
+  {
+    "O_ORDERKEY":195,
+    "O_CUSTKEY":1355,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":216638.92,
+    "O_ORDERDATE":"1993-12-28",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000216",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"old forges are furiously sheaves. slyly fi"
+  }
+  {
+    "O_ORDERKEY":196,
+    "O_CUSTKEY":649,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":38660.64,
+    "O_ORDERDATE":"1993-03-17",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000988",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"beans boost at the foxes. silent foxes"
+  }
+  {
+    "O_ORDERKEY":197,
+    "O_CUSTKEY":326,
+    "O_ORDERSTATUS":"P",
+    "O_TOTALPRICE":155247.48,
+    "O_ORDERDATE":"1995-04-07",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000969",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"solve quickly about the even braids. carefully express deposits affix care"
+  }
+  {
+    "O_ORDERKEY":198,
+    "O_CUSTKEY":1103,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":149551.63,
+    "O_ORDERDATE":"1998-01-02",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000331",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"its. carefully ironic requests sleep. furiously express fox"
+  }
+  {
+    "O_ORDERKEY":199,
+    "O_CUSTKEY":530,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":95867.70,
+    "O_ORDERDATE":"1996-03-07",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000489",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"g theodolites. special packag"
+  }
+  {
+    "O_ORDERKEY":224,
+    "O_CUSTKEY":25,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":234050.44,
+    "O_ORDERDATE":"1994-06-18",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000642",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"r the quickly thin courts. carefully"
+  }
+  {
+    "O_ORDERKEY":225,
+    "O_CUSTKEY":331,
+    "O_ORDERSTATUS":"P",
+    "O_TOTALPRICE":226028.98,
+    "O_ORDERDATE":"1995-05-25",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000177",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"s. blithely ironic accounts wake quickly fluffily special acc"
+  }
+  {
+    "O_ORDERKEY":226,
+    "O_CUSTKEY":1276,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":256459.40,
+    "O_ORDERDATE":"1993-03-10",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000756",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"s are carefully at the blithely ironic acc"
+  }
+  {
+    "O_ORDERKEY":227,
+    "O_CUSTKEY":100,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":69020.68,
+    "O_ORDERDATE":"1995-11-10",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000919",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" express instructions. slyly regul"
+  }
+  {
+    "O_ORDERKEY":228,
+    "O_CUSTKEY":442,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":2744.06,
+    "O_ORDERDATE":"1993-02-25",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000562",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"es was slyly among the regular foxes. blithely regular dependenci"
+  }
+  {
+    "O_ORDERKEY":229,
+    "O_CUSTKEY":1118,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":195619.74,
+    "O_ORDERDATE":"1993-12-29",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000628",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"he fluffily even instructions. furiously i"
+  }
+  {
+    "O_ORDERKEY":230,
+    "O_CUSTKEY":1027,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":147711.01,
+    "O_ORDERDATE":"1993-10-27",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000520",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"odolites. carefully quick requ"
+  }
+  {
+    "O_ORDERKEY":231,
+    "O_CUSTKEY":910,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":234383.86,
+    "O_ORDERDATE":"1994-09-29",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000446",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" packages haggle slyly after the carefully ironic instruct"
+  }
+  {
+    "O_ORDERKEY":256,
+    "O_CUSTKEY":1249,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":132718.67,
+    "O_ORDERDATE":"1993-10-19",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000834",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"he fluffily final ideas might are final accounts. carefully f"
+  }
+  {
+    "O_ORDERKEY":257,
+    "O_CUSTKEY":1228,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":9255.12,
+    "O_ORDERDATE":"1998-03-28",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000680",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ts against the sly warhorses cajole slyly accounts"
+  }
+  {
+    "O_ORDERKEY":258,
+    "O_CUSTKEY":419,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":259466.78,
+    "O_ORDERDATE":"1993-12-29",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000167",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"dencies. blithely quick packages cajole. ruthlessly final accounts"
+  }
+  {
+    "O_ORDERKEY":259,
+    "O_CUSTKEY":433,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":110611.59,
+    "O_ORDERDATE":"1993-09-29",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000601",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ages doubt blithely against the final foxes. carefully express deposits dazzle"
+  }
+  {
+    "O_ORDERKEY":260,
+    "O_CUSTKEY":1048,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":268084.69,
+    "O_ORDERDATE":"1996-12-10",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000960",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"lently regular pinto beans sleep after the slyly e"
+  }
+  {
+    "O_ORDERKEY":261,
+    "O_CUSTKEY":461,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":278279.30,
+    "O_ORDERDATE":"1993-06-29",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000310",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ully fluffily brave instructions. furiousl"
+  }
+  {
+    "O_ORDERKEY":262,
+    "O_CUSTKEY":304,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":173401.63,
+    "O_ORDERDATE":"1995-11-25",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000551",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"l packages. blithely final pinto beans use carefu"
+  }
+  {
+    "O_ORDERKEY":263,
+    "O_CUSTKEY":1162,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":104961.32,
+    "O_ORDERDATE":"1994-05-17",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000088",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" pending instructions. blithely un"
+  }
+  {
+    "O_ORDERKEY":288,
+    "O_CUSTKEY":71,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":239366.68,
+    "O_ORDERDATE":"1997-02-21",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000109",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"uriously final requests. even, final ideas det"
+  }
+  {
+    "O_ORDERKEY":289,
+    "O_CUSTKEY":1039,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":174624.55,
+    "O_ORDERDATE":"1997-02-10",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000103",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"sily. slyly special excuse"
+  }
+  {
+    "O_ORDERKEY":290,
+    "O_CUSTKEY":1180,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":67636.54,
+    "O_ORDERDATE":"1994-01-01",
+    "O_ORDERPRIORITY":"4-NOT SPECIFIED",
+    "O_CLERK":"Clerk#000000735",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"efully dogged deposits. furiou"
+  }
+  {
+    "O_ORDERKEY":291,
+    "O_CUSTKEY":1411,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":88375.89,
+    "O_ORDERDATE":"1994-03-13",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000923",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"dolites. carefully regular pinto beans cajol"
+  }
+  {
+    "O_ORDERKEY":292,
+    "O_CUSTKEY":223,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":54152.77,
+    "O_ORDERDATE":"1992-01-13",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000193",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"g pinto beans will have to sleep f"
+  }
+  {
+    "O_ORDERKEY":293,
+    "O_CUSTKEY":301,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":46128.56,
+    "O_ORDERDATE":"1992-10-02",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000629",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"re bold, ironic deposits. platelets c"
+  }
+  {
+    "O_ORDERKEY":294,
+    "O_CUSTKEY":505,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":46889.54,
+    "O_ORDERDATE":"1993-07-16",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000499",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"kly according to the frays. final dolphins affix quickly "
+  }
+  {
+    "O_ORDERKEY":295,
+    "O_CUSTKEY":190,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":148569.49,
+    "O_ORDERDATE":"1994-09-29",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000155",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" unusual pinto beans play. regular ideas haggle"
+  }
+  {
+    "O_ORDERKEY":320,
+    "O_CUSTKEY":4,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":50202.60,
+    "O_ORDERDATE":"1997-11-21",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000573",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ar foxes nag blithely"
+  }
+  {
+    "O_ORDERKEY":321,
+    "O_CUSTKEY":1226,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":73024.50,
+    "O_ORDERDATE":"1993-03-21",
+    "O_ORDERPRIORITY":"3-MEDIUM",
+    "O_CLERK":"Clerk#000000289",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"equests run. blithely final dependencies after the deposits wake caref"
+  }
+  {
+    "O_ORDERKEY":322,
+    "O_CUSTKEY":1336,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":165992.05,
+    "O_ORDERDATE":"1992-03-19",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000158",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"fully across the slyly bold packages. packages against the quickly regular i"
+  }
+  {
+    "O_ORDERKEY":323,
+    "O_CUSTKEY":392,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":121127.17,
+    "O_ORDERDATE":"1994-03-26",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000959",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"arefully pending foxes sleep blithely. slyly express accoun"
+  }
+  {
+    "O_ORDERKEY":324,
+    "O_CUSTKEY":1052,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":46327.90,
+    "O_ORDERDATE":"1992-03-20",
+    "O_ORDERPRIORITY":"1-URGENT",
+    "O_CLERK":"Clerk#000000352",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" about the ironic, regular deposits run blithely against the excuses"
+  }
+  {
+    "O_ORDERKEY":325,
+    "O_CUSTKEY":401,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":94638.59,
+    "O_ORDERDATE":"1993-10-17",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000844",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ly sometimes pending pa"
+  }
+  {
+    "O_ORDERKEY":326,
+    "O_CUSTKEY":760,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":325448.68,
+    "O_ORDERDATE":"1995-06-04",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000466",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" requests. furiously ironic asymptotes mold carefully alongside of the blit"
+  }
+  {
+    "O_ORDERKEY":327,
+    "O_CUSTKEY":1447,
+    "O_ORDERSTATUS":"P",
+    "O_TOTALPRICE":32302.12,
+    "O_ORDERDATE":"1995-04-17",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000992",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ng the slyly final courts. slyly even escapades eat "
+  }
+  {
+    "O_ORDERKEY":352,
+    "O_CUSTKEY":1066,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":25542.02,
+    "O_ORDERDATE":"1994-03-08",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000932",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ke slyly bold pinto beans. blithely regular accounts against the spe"
+  }
+  {
+    "O_ORDERKEY":353,
+    "O_CUSTKEY":19,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":224983.69,
+    "O_ORDERDATE":"1993-12-31",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000449",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":" quiet ideas sleep. even instructions cajole slyly. silently spe"
+  }
+  {
+    "O_ORDERKEY":354,
+    "O_CUSTKEY":1384,
+    "O_ORDERSTATUS":"O",
+    "O_TOTALPRICE":231311.22,
+    "O_ORDERDATE":"1996-03-14",
+    "O_ORDERPRIORITY":"2-HIGH",
+    "O_CLERK":"Clerk#000000511",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"ly regular ideas wake across the slyly silent ideas. final deposits eat b"
+  }
+  {
+    "O_ORDERKEY":355,
+    "O_CUSTKEY":701,
+    "O_ORDERSTATUS":"F",
+    "O_TOTALPRICE":103949.82,
+    "O_ORDERDATE":"1994-06-14",
+    "O_ORDERPRIORITY":"5-LOW",
+    "O_CLERK":"Clerk#000000532",
+    "O_SHIPPRIORITY":"0",
+    "O_COMMENT":"s. sometimes regular requests cajole. regular, pending accounts a"
+  }

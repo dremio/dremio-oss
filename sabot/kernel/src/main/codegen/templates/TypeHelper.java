@@ -221,6 +221,11 @@ public class TypeHelper extends BasicTypeHelper {
     <#list fields as field>
       ${minor.class}Holder.${field.name} = holder.${field.name};
     </#list>
+    <#if minor.typeParams??>
+    <#list minor.typeParams as typeParam>
+      ${minor.class}Holder.${typeParam.name} = holder.${typeParam.name};
+    </#list>
+    </#if>
       return ${minor.class}Holder;
     }
     </#if>

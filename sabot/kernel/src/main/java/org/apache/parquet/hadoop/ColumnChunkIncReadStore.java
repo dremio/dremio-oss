@@ -57,18 +57,52 @@ public class ColumnChunkIncReadStore implements PageReadStore {
   private Path path;
   private long rowCount;
   private List<FSDataInputStream> streams = new ArrayList<>();
+  private boolean useSingleStream;
 
   public ColumnChunkIncReadStore(long rowCount, CodecFactory codecFactory, BufferAllocator allocator,
-      FileSystem fs, Path path) {
+      FileSystem fs, Path path, boolean useSingleStream) {
     this.codecFactory = codecFactory;
     this.allocator = allocator;
     this.fs = fs;
     this.path = path;
     this.rowCount = rowCount;
+    this.useSingleStream = useSingleStream;
   }
 
+  public class SingleStreamColumnChunkIncPageReader extends ColumnChunkIncPageReader {
+    private long lastPosition;
 
-  public class ColumnChunkIncPageReader implements PageReader {
+    public SingleStreamColumnChunkIncPageReader(ColumnChunkMetaData metaData, ColumnDescriptor columnDescriptor, FSDataInputStream in) throws IOException {
+      super(metaData, columnDescriptor, in);
+      lastPosition = in.getPos();
+    }
+
+    @Override
+    public DictionaryPage readDictionaryPage() {
+      try {
+        in.seek(lastPosition);
+        final DictionaryPage dictionaryPage = super.readDictionaryPage();
+        lastPosition = in.getPos();
+        return dictionaryPage;
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
+      }
+    }
+
+    @Override
+    public DataPage readPage() {
+      try {
+        in.seek(lastPosition);
+        final DataPage dataPage = super.readPage();
+        lastPosition = in.getPos();
+        return dataPage;
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
+      }
+    }
+  }
+
+  class ColumnChunkIncPageReader implements PageReader {
 
     ColumnChunkMetaData metaData;
     ColumnDescriptor columnDescriptor;
@@ -77,7 +111,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     private long valueReadSoFar = 0;
 
     private DictionaryPage dictionaryPage;
-    private FSDataInputStream in;
+    protected FSDataInputStream in;
     private BytesDecompressor decompressor;
 
     // Release the data page buffer before reading the next page or in close
@@ -194,7 +228,9 @@ public class ColumnChunkIncReadStore implements PageReadStore {
               break;
           }
         }
-        in.close();
+        if (!useSingleStream) {
+          in.close();
+        }
         return null;
       } catch (OutOfMemoryException e) {
         throw e; // throw as it is
@@ -267,12 +303,23 @@ public class ColumnChunkIncReadStore implements PageReadStore {
   private Map<ColumnDescriptor, ColumnChunkIncPageReader> columns = new HashMap<>();
 
   public void addColumn(ColumnDescriptor descriptor, ColumnChunkMetaData metaData) throws IOException {
-    FSDataInputStream in = fs.open(path);
-    streams.add(in);
-    in.seek(metaData.getStartingPos());
-    ColumnChunkIncPageReader reader = new ColumnChunkIncPageReader(metaData, descriptor, in);
-
-    columns.put(descriptor, reader);
+    final FSDataInputStream in;
+    if (useSingleStream) {
+      if (streams.isEmpty()) {
+        in = fs.open(path);
+        streams.add(in);
+      } else {
+        in = streams.get(0);
+      }
+      in.seek(metaData.getStartingPos());
+      columns.put(descriptor, new SingleStreamColumnChunkIncPageReader(metaData, descriptor, in));
+    } else {
+      // create new stream per column
+      in = fs.open(path);
+      streams.add(in);
+      in.seek(metaData.getStartingPos());
+      columns.put(descriptor, new ColumnChunkIncPageReader(metaData, descriptor, in));
+    }
   }
 
   public void close() throws IOException {

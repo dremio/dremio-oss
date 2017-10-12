@@ -93,6 +93,8 @@ public class DiskRunManager implements AutoCloseable {
   private VectorContainer tempContainer;
   private MergeState mergeState = MergeState.TRY;
   private final SpillManager spillManager;
+  private boolean compressSpilledBatch;
+  private BufferAllocator compressSpilledBatchAllocator;
 
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
@@ -110,7 +112,8 @@ public class DiskRunManager implements AutoCloseable {
       ClassProducer producer,
       BufferAllocator parentAllocator,
       List<Ordering> orderings,
-      BatchSchema dataSchema
+      BatchSchema dataSchema,
+      boolean compressSpilledBatch
       ) {
     this.targetRecordCount = targetRecordCount;
     this.targetBatchSizeInBytes = targetBatchSizeInBytes;
@@ -118,12 +121,17 @@ public class DiskRunManager implements AutoCloseable {
     this.producer = producer;
     this.dataSchema = dataSchema;
     this.parentAllocator = parentAllocator;
+    this.compressSpilledBatch = compressSpilledBatch;
+    if (compressSpilledBatch) {
+      long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
+      compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
+    }
 
     final Configuration conf = FileSystemPlugin.getNewFsConf();
     conf.set(SpillManager.DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
     this.spillManager = new SpillManager(config, optionManager,
       String.format("q%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()), handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId),
-      conf);
+      conf, "sort spilling");
   }
 
   public long spillTimeNanos() {
@@ -364,12 +372,25 @@ public class DiskRunManager implements AutoCloseable {
   private int spillBatch(VectorContainer outgoing, int records, OutputStream out) throws IOException {
     try (WritableBatch batch = WritableBatch.getBatchNoHVWrap(records, outgoing, false)) {
       int batchSize = batch.getLength();
+      VectorAccessibleSerializable outputBatch;
 
-      final VectorAccessibleSerializable outputBatch = new VectorAccessibleSerializable(batch, null);
+      if (compressSpilledBatch) {
+        /* compression enabled - compress the spill batch.
+         * a valid allocator that will be used to allocate the memory for compressed buffers.
+         * this allocator will _only_ be used to allocate buffer used to store and write the compressed
+         * data.
+         */
+        outputBatch = new VectorAccessibleSerializable(batch, null, compressSpilledBatchAllocator, true);
+      }
+      else {
+        /* no need for an allocator on the spill path if compression is not enabled */
+        outputBatch = new VectorAccessibleSerializable(batch, null);
+      }
 
       // write length and data to file.
       Stopwatch watch = Stopwatch.createStarted();
       outputBatch.writeToStream(out);
+
       logger.debug("Took {} us to spill {} records", watch.elapsed(TimeUnit.MICROSECONDS), records);
       return batchSize;
     }
@@ -396,7 +417,7 @@ public class DiskRunManager implements AutoCloseable {
     }
 
     long totalSizeNeeded = 0;
-    // for now we always read one batch from all disk runs, so we need to make sure we have enough memory reserver
+    // for now we always read one batch from all disk runs, so we need to make sure we have enough memory reserved
     // to allocate the largest batch per run
     for(DiskRun run : diskRuns){
       long batchSize = nextPowerOfTwo(run.largestBatch);
@@ -461,7 +482,7 @@ public class DiskRunManager implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(this.spillManager), Collections.singleton(copierAllocator)));
+    AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(compressSpilledBatchAllocator), Collections.singleton(this.spillManager), Collections.singleton(copierAllocator)));
   }
 
   private class DiskRun implements AutoCloseable {
@@ -497,6 +518,7 @@ public class DiskRunManager implements AutoCloseable {
       final long memCapacity = nextPowerOfTwo(largestBatch);
       final BufferAllocator allocator = copierAllocator.newChildAllocator("diskrun", 0, memCapacity);
       iterator = new DiskRunIterator(batchCount, spillFile, container, allocator);
+
       return iterator;
     }
 
@@ -537,7 +559,8 @@ public class DiskRunManager implements AutoCloseable {
       Preconditions.checkArgument(batchIndex + 1 < batchIndexMax, "You tried to go beyond end of available batches to read.");
       container.zeroVectors();
 
-      final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(allocator);
+      /* uncompress the data when de-serializing the spilled data into ArrowBufs */
+      final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(allocator, compressSpilledBatch, compressSpilledBatchAllocator);
       serializer.readFromStream(inputStream);
 
       final VectorContainer incoming = serializer.get();
@@ -567,7 +590,7 @@ public class DiskRunManager implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(container, allocator, inputStream, spillFile);
+        AutoCloseables.close(container, allocator, inputStream, spillFile);
     }
 
     public int getNextId() throws IOException{

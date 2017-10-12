@@ -71,6 +71,7 @@ public class RootSchema extends AbstractSchema {
           final String sourceName = sourceConfig.getName();
           if (!isInternal(sourceName) ||
               "__home".equalsIgnoreCase(sourceName) ||
+              "$scratch".equalsIgnoreCase(sourceName) ||
               isSystemUser ||
               schemaConfig.exposeInternalSources()) {
             builder.put(sourceName, sourceConfig);

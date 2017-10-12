@@ -309,4 +309,9 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
       rowKeyVector.getMutator().setValueCount(count);
     }
   }
+
+  @Override
+  protected boolean supportsSkipAllQuery() {
+    return true;
+  }
 }

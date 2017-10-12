@@ -56,6 +56,7 @@ import org.apache.parquet.schema.Type;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
@@ -99,11 +100,12 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   private final ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates;
   private final boolean readInt96AsTimeStamp;
   private VectorizedBasedFilter vectorizedBasedFilter;
+  private final boolean useSingleStream;
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem,
                              ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates, boolean readInt96AsTimeStamp,
-                             UInt4Vector deltas) {
+                             UInt4Vector deltas, boolean useSingleStream) {
     super(context, columns, deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
@@ -111,13 +113,14 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     this.path = path;
     this.containsCorruptedDates = containsCorruptedDates;
     this.readInt96AsTimeStamp = readInt96AsTimeStamp;
-
+    this.useSingleStream = useSingleStream;
   }
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem,
-                             ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates, boolean readInt96AsTimeStamp) {
-    this(context, footer, rowGroupIndex, path, columns, fileSystem, containsCorruptedDates, readInt96AsTimeStamp, null);
+                             ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates, boolean readInt96AsTimeStamp,
+                             boolean useSingleStream) {
+    this(context, footer, rowGroupIndex, path, columns, fileSystem, containsCorruptedDates, readInt96AsTimeStamp, null, useSingleStream);
   }
 
   /**
@@ -265,10 +268,14 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       boolean schemaOnly = operatorContext == null;
 
       if (!schemaOnly) {
+        boolean useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
+        if (getColumns().size() >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
+          useSingleStream = true;
+        }
         pageReadStore = new ColumnChunkIncReadStore(recordCount,
                 CodecFactory.createDirectCodecFactory(fileSystem.getConf(),
                         new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0), operatorContext.getAllocator(),
-                fileSystem, filePath);
+                fileSystem, filePath, useSingleStream);
 
         for (String[] path : schema.getPaths()) {
           Type type = schema.getType(path);

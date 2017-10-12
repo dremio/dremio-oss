@@ -55,7 +55,7 @@ import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 // class to keep track of the read position of variable length columns
-final class PageReader {
+public class PageReader {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PageReader.class);
 
   public static final ParquetMetadataConverter METADATA_CONVERTER = ParquetFormatPlugin.parquetMetadataConverter;
@@ -108,22 +108,34 @@ final class PageReader {
 
   private final ParquetReaderStats stats;
 
-  PageReader(ColumnReader<?> parentStatus, FileSystem fs, Path path, ColumnChunkMetaData columnChunkMetaData)
-    throws ExecutionSetupException{
+  PageReader(ColumnReader<?> parentStatus, FSDataInputStream inputStream, Path path, ColumnChunkMetaData columnChunkMetaData) throws ExecutionSetupException {
     this.parentColumnReader = parentStatus;
     allocatedDictionaryBuffers = new ArrayList<ByteBuf>();
     codecFactory = parentColumnReader.parentReader.getCodecFactory();
     this.stats = parentColumnReader.parentReader.parquetReaderStats;
     long start = columnChunkMetaData.getFirstDataPageOffset();
+    this.inputStream = inputStream;
     try {
-      inputStream  = fs.open(path);
       this.dataReader = new ColumnDataReader(inputStream, start, columnChunkMetaData.getTotalSize());
       loadDictionaryIfExists(parentStatus, columnChunkMetaData, inputStream);
     } catch (IOException e) {
       throw new ExecutionSetupException("Error opening or reading metadata for parquet file at location: "
-          + path.getName(), e);
+        + path.getName(), e);
     }
+  }
 
+  PageReader(ColumnReader<?> parentStatus, FileSystem fs, Path path, ColumnChunkMetaData columnChunkMetaData)
+    throws ExecutionSetupException {
+    this(parentStatus, openFile(fs, path), path, columnChunkMetaData);
+  }
+
+  private static FSDataInputStream openFile(FileSystem fs, Path path) throws ExecutionSetupException {
+    try {
+      return fs.open(path);
+    } catch (IOException e) {
+      throw new ExecutionSetupException("Error opening or reading metadata for parquet file at location: "
+        + path.getName(), e);
+    }
   }
 
   private boolean isDictionaryEncoded(Collection<Encoding> encodings) {
