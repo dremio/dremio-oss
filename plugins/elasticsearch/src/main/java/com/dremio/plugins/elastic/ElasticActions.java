@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,8 +34,11 @@ import com.dremio.plugins.elastic.ElasticActions.Result;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ClusterMetadata;
 import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
 
 public class ElasticActions {
 
@@ -184,14 +188,88 @@ public class ElasticActions {
       return resource;
     }
 
+//    private JsonElement expandJoinQuery(String joinQuery) {
+//      // Siren: TODO I need to review this strategy when Vanguard Scroll is supported.
+//      if (joinQuery.length() > 2 && joinQuery.startsWith("\"__kibi_siren_join__")) {
+//        joinQuery = joinQuery.replace("__kibi_siren_join__", "");
+//        joinQuery = joinQuery.substring(1, joinQuery.length() - 1);
+//
+//        byte[] bquery = Base64.decodeBase64(joinQuery);
+//        joinQuery = StringUtils.toEncodedString(bquery, Charset.defaultCharset());
+//        JsonElement newElement = new JsonParser().parse(joinQuery);
+//        return newElement;
+//      }
+//      return null;
+//    }
+
+//    private String transformQuery() {
+//      System.out.println(query);
+//      JsonElement parser = new JsonParser().parse(query);
+//      JsonObject jObject = parser.getAsJsonObject();
+//      JsonObject queryObject = jObject.getAsJsonObject("query");
+//      JsonObject boolObject = queryObject.getAsJsonObject("bool");
+//      if (boolObject != null) {
+//        Boolean touched = false;
+//        JsonArray mustArray = boolObject.getAsJsonArray("must");
+//        final List<JsonElement> elements = new ArrayList();
+//        for (JsonElement iElement : mustArray) {
+//          jObject = ((JsonObject) iElement).getAsJsonObject("query_string");
+//          if (jObject != null) {
+//            JsonElement queryElement = jObject.get("query");
+//            JsonElement newElement = expandJoinQuery(queryElement.getAsString());
+//            if (newElement == null) {
+//              elements.add(iElement);
+//            } else {
+//              touched = true;
+//              elements.add(newElement);
+//            }
+//          } else {
+//            elements.add(iElement);
+//          }
+//        }
+//        if (touched == true) {
+//          boolObject.remove("must");
+//          JsonArray newMust = new JsonArray();
+//          for (JsonElement elem : elements) {
+//            newMust.add(elem);
+//          }
+//          boolObject.add("must", newMust);
+//        }
+//      } else {
+//        jObject = queryObject.getAsJsonObject("query_string");
+//        if (jObject != null) {
+//          JsonElement queryElement = jObject.get("query");
+//          JsonElement newElement = expandJoinQuery(queryElement.getAsString());
+//          if (newElement != null) {
+//            queryObject.remove("query_string");
+//            JsonElement newBool = new JsonObject();
+//            ((JsonObject) newBool).add("must", newElement);
+//            queryObject.add("bool", newBool);
+//          }
+//        }
+//      }
+//      return parser.toString();
+//    }
+
     @Override
     Invocation buildRequest(WebTarget initial, ContextListener context) {
       WebTarget t = initial
-          .path(resource)
-          .path("_search");
+        //.path("siren")
+        .path(resource)
+        .path("_search");
       for (Entry<String,String> entry : parameters.entrySet()) {
         t = t.queryParam(entry.getKey(), entry.getValue());
       }
+
+      //TODO Add support to siren joins
+//      System.out.println("=====================================");
+//      query = transformQuery();
+//      System.out.println(t);
+//      System.out.println(query);
+//      System.out.println("=====================================");
+      /*
+      curl -X POST "https://localhost:9220/siren/company/_search" -u admin:password --cacert /home/sergio/kibi/kibi-internal/pki/searchguard/ca.pem -d "{\"query\":{\"bool\":{\"must\":{\"join\":{\"indices\":[\"article\"],\"limit\":5000000,\"on\":[\"id\",\"companies\"],\"request\":{\"query\":{\"bool\":{\"filter\":{\"bool\":{\"must\":[]}},\"must\":[{\"match_all\":{}},{\"bool\":{\"must\":[{\"query_string\":{\"analyze_wildcard\":\"true\",\"query\":\"*\"}},{\"range\":{\"pdate\":{\"format\":\"epoch_millis\",\"gte\":1191936778025,\"lte\":1507555978025}}}],\"must_not\":[]}}]}}}}}}}}"
+      */
 
       context.addContext(t);
       context.addContext("Query", query);
@@ -216,7 +294,10 @@ public class ElasticActions {
 
     @Override
     Invocation buildRequest(WebTarget initial, ContextListener context) {
-      WebTarget target = initial.path("_search/scroll").queryParam("scroll", scrollTimeout);
+      WebTarget target = initial
+        //.path("siren")
+        .path("_search/scroll")
+        .queryParam("scroll", scrollTimeout);
       context.addContext("ScrollId", scrollId);
       context.addContext(target);
       return target.request().buildPost(Entity.text(scrollId));
@@ -237,7 +318,13 @@ public class ElasticActions {
     }
 
     public void delete(WebTarget target, InvocationCallback<Response> callback) {
-      target.path("_search/scroll").path(scrollId).request().buildDelete().submit(callback);
+      target
+        //.path("siren")
+        .path("_search/scroll")
+        .path(scrollId)
+        .request()
+        .buildDelete()
+        .submit(callback);
     }
   }
 
