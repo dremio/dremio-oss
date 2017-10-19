@@ -33,3 +33,5 @@ plugins/sample-data/dremio_hive_db/*
 plugins/hive/metastore_db/*
 .npmrc
 .externalToolBuilders*
+plugins/elasticsearch/build
+

@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic.execution;
 
 import java.io.IOException;
 import java.util.List;
+import java.math.BigDecimal;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
@@ -36,6 +37,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ArrowBuf;
 
+import org.elasticsearch.common.geo.GeoPoint;
 
 public class ElasticsearchJsonReader extends BaseJsonProcessor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticsearchJsonReader.class);
@@ -324,6 +326,28 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           writeDeclaredMap(map.map(fieldName), childSelection, definition.asNoList(), true, path, false);
         } else if (t == JsonToken.END_OBJECT) {
           return;
+        } else if (t == JsonToken.VALUE_STRING && definition.isGeoPoint()) {
+          // Siren: adds support for geo_points
+          String value = parser.getValueAsString();
+          int coma = value.indexOf(",");
+          Double lat;
+          Double lon;
+          if (coma > 0) {
+            BigDecimal decLat = new BigDecimal(value.substring(0, coma).trim());
+            BigDecimal decLon = new BigDecimal(value.substring(coma + 1).trim());
+            lat = decLat.doubleValue();
+            lon = decLon.doubleValue();
+          } else {
+            GeoPoint geoPoint = GeoPoint.fromGeohash(value);
+            lat = geoPoint.getLat();
+            lon = geoPoint.getLon();
+          }
+          MapWriter mapWriter = map.map(fieldName);
+          mapWriter.start();
+          mapWriter.float8("lat").writeFloat8(lat);
+          mapWriter.float8("lon").writeFloat8(lon);
+          mapWriter.end();
+          // Siren: end
         } else {
           definition.writeMap(map, t, parser);
         }

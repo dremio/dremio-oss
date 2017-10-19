@@ -361,8 +361,11 @@ class WriteHolders {
     for (FormatterAndType format : formatters) {
       try {
         return format.parseToLong(value);
-      } catch (IllegalArgumentException e) {
-        logger.debug("Failed to parse date time value {} with format {}", value, format, e);
+//      } catch (IllegalArgumentException e) {
+//        logger.debug("Failed to parse date time value {} with format {}", value, format, e);
+      } catch (Exception ex) {
+        // siren: ignores malformed dates
+        return 0;
       }
     }
     throw UserException.dataReadError()

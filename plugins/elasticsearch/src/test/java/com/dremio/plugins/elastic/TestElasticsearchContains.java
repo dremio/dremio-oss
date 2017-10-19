@@ -158,6 +158,46 @@ public class TestElasticsearchContains extends ElasticBaseTestQuery {
         .go();
   }
 
+  //********************************************************************************************************************
+  @Test
+  public void testSirenJoin1() throws Exception {
+
+    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+      new ElasticsearchCluster.ColumnData("location", STRING, new Object[][]{
+        {"San Francisco"},
+        {"Oakland"},
+        {"San Jose"}
+      })
+    };
+
+    elastic.load(schema, table, data);
+    String sql = String.format("select location from elasticsearch.%s.%s where contains(\"__kibi_siren_join__{\"join\":{\"indices\":[\"article\"],\"limit\":5000000,\"on\":[\"id\",\"companies\"],\"request\":{\"query\":{\"bool\":{\"filter\":{\"bool\":{\"must\":[]}},\"must\":[{\"match_all\":{}},{\"bool\":{\"must\":[{\"query_string\":{\"analyze_wildcard\":\"true\",\"query\":\"*\"}},{\"range\":{\"pdate\":{\"format\":\"epoch_millis\",\"gte\":1191936778025,\"lte\":1507555978025}}}],\"must_not\":[]}}]}}}}}\")", schema, table);
+    testBuilder().sqlQuery(sql).unOrdered()
+      .baselineColumns("location")
+      .baselineValues("Oakland")
+      .go();
+  }
+
+  @Test
+  public void testSirenJoin2() throws Exception {
+
+    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+      new ElasticsearchCluster.ColumnData("location", STRING, new Object[][]{
+        {"San Francisco"},
+        {"Oakland"},
+        {"San Jose"}
+      })
+    };
+
+    elastic.load(schema, table, data);
+    String sql = String.format("select location from elasticsearch.%s.%s where location = 'USA' AND contains(\"__kibi_siren_join__{\"join\":{\"indices\":[\"article\"],\"limit\":5000000,\"on\":[\"id\",\"companies\"],\"request\":{\"query\":{\"bool\":{\"filter\":{\"bool\":{\"must\":[]}},\"must\":[{\"match_all\":{}},{\"bool\":{\"must\":[{\"query_string\":{\"analyze_wildcard\":\"true\",\"query\":\"*\"}},{\"range\":{\"pdate\":{\"format\":\"epoch_millis\",\"gte\":1191936778025,\"lte\":1507555978025}}}],\"must_not\":[]}}]}}}}}\")", schema, table);
+    testBuilder().sqlQuery(sql).unOrdered()
+      .baselineColumns("location")
+      .baselineValues("Oakland")
+      .go();
+  }
+  //********************************************************************************************************************
+
   @Test
   public void testSimpleAnd2() throws Exception {
 

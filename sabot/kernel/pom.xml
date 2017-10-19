@@ -27,6 +27,7 @@
   <name>Sabot - Kernel</name>
 
   <dependencies>
+
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>

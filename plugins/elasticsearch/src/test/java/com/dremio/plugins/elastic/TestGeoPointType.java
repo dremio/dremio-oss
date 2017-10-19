@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic;
 
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.GEO_POINT;
@@ -54,6 +55,71 @@ public class TestGeoPointType extends ElasticBaseTestQuery {
             .baselineValues(ImmutableMap.of("lat", 35.67, "lon", -12.2))
             .go();
   }
+
+  // Siren: Adds format support for GeoPoint
+  @Test
+  public void testStringFormatGeoPoint() throws Exception {
+
+    ColumnData[] data = new ColumnData[]{
+      new ColumnData("location_field", GEO_POINT, new Object[][]{
+        {"1.2, 2.5"},
+        {"35.67, -12.2"}
+      })
+    };
+
+    elastic.load(schema, table, data);
+
+    testBuilder()
+      .sqlQuery("select location_field from elasticsearch." + schema + "." + table)
+      .unOrdered()
+      .baselineColumns("location_field")
+      .baselineValues(ImmutableMap.of("lat", 1.2, "lon", 2.5))
+      .baselineValues(ImmutableMap.of("lat", 35.67, "lon", -12.2))
+      .go();
+  }
+
+  @Test
+  @org.junit.Ignore("siren: double equality missing")
+  public void testGeoHashFormatGeoPoint() throws Exception {
+
+    ColumnData[] data = new ColumnData[]{
+      new ColumnData("location_field", GEO_POINT, new Object[][]{
+        {"drm3btev3e86"},
+        {"drm3btev3e86"}
+      })
+    };
+
+    elastic.load(schema, table, data);
+
+    testBuilder()
+      .sqlQuery("select location_field from elasticsearch." + schema + "." + table)
+      .unOrdered()
+      .baselineColumns("location_field")
+      .baselineValues("TBD")
+      .go();
+  }
+
+  @Test
+  @org.junit.Ignore("siren: geopoint array format missing")
+  public void testArrayFormatGeoPoint() throws Exception {
+
+    ColumnData[] data = new ColumnData[]{
+      new ColumnData("location_field", GEO_POINT, new Object[][]{
+        {ImmutableList.of(-77.03653, 38.897676)},
+        {ImmutableList.of(-77.03653, 38.897676)}
+      })
+    };
+
+    elastic.load(schema, table, data);
+
+    testBuilder()
+      .sqlQuery("select location_field from elasticsearch." + schema + "." + table)
+      .unOrdered()
+      .baselineColumns("location_field")
+      .baselineValues("TBD")
+      .go();
+  }
+  // siren: end
 
   @Test
   public void testSelectLatitudeFromGeoPointField() throws Exception {

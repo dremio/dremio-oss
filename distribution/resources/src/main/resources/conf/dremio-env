@@ -75,4 +75,4 @@
 
 # Extra Java options
 #
-#DREMIO_JAVA_EXTRA_OPTS=
+DREMIO_JAVA_EXTRA_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
