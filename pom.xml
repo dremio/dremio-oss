@@ -27,7 +27,7 @@
 
   <name>Dremio - Root</name>
   <description>Dremio will enable organizations to unlock the value of their data</description>
-  <url>https://github.com/dremio/dremio</url>
+  <url>https://github.com/dremio/dremio-oss</url>
 
   <properties>
     <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
