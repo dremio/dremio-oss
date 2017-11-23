@@ -92,7 +92,7 @@ export function summarizeState(acceleration) {
 }
 
 export function syntheticLayoutState(layout) {
-  if (layout.latestMaterializationState === 'FAILED' && layout.state === 'FAILED') return 'FAILED_FINAL';
+  if (layout.state === 'FAILED') return 'FAILED_FINAL';
   if (layout.latestMaterializationState === 'FAILED' && layout.state === 'ACTIVE') return 'FAILED_NONFINAL';
   if (layout.latestMaterializationState === 'DONE' && !layout.hasValidMaterialization) return 'EXPIRED';
   // todo: future: show a "RUNNING but it is a reattempt"

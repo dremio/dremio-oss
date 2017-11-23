@@ -16,8 +16,6 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import org.apache.calcite.plan.RelOptMaterialization;
-import org.apache.calcite.plan.SubstitutionProvider;
-import org.apache.calcite.plan.substitution.MaterializationProvider;
 
 import com.dremio.exec.server.options.OptionManager;
 
@@ -26,5 +24,5 @@ import com.dremio.exec.server.options.OptionManager;
  *
  */
 public interface SubstitutionProviderFactory {
-  public SubstitutionProvider getSubstitutionProvider(MaterializationProvider<RelOptMaterialization> materializationProvider, OptionManager options);
+  public SubstitutionProvider getSubstitutionProvider(MaterializationProvider materializationProvider, OptionManager options);
 }

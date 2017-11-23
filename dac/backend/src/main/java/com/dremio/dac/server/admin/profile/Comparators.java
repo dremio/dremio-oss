@@ -21,6 +21,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
+import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 
 /**
@@ -104,6 +105,13 @@ interface Comparators {
   Comparator<Pair<OperatorProfile, Integer>> operatorPeakMemory = new Comparator<Pair<OperatorProfile, Integer>>() {
     public int compare(final Pair<OperatorProfile, Integer> o1, final Pair<OperatorProfile, Integer> o2) {
       return Long.compare(o1.getLeft().getPeakLocalMemoryAllocated(), o2.getLeft().getPeakLocalMemoryAllocated());
+    }
+  };
+
+  Comparator<NodePhaseProfile> nodeAddress = new Comparator<NodePhaseProfile>() {
+    @Override
+    public int compare(NodePhaseProfile o1, NodePhaseProfile o2) {
+      return o1.getEndpoint().getAddress().compareTo(o2.getEndpoint().getAddress());
     }
   };
 }

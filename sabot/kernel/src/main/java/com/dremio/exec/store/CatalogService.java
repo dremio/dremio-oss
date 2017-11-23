@@ -24,7 +24,9 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 
 /**
@@ -71,12 +73,29 @@ public interface CatalogService extends AutoCloseable, Service {
   void unregisterSource(NamespaceKey source);
 
   /**
-   * Refresh metadata cached for given source
+   * Schedule regular updates for a source's metadata (names and dataset schemas)
    * @param source source name
+   * @param sourceConfig source configuration
+   */
+  void scheduleMetadataRefresh(NamespaceKey source, SourceConfig sourceConfig);
+
+  /**
+   * Refresh metadata cached for given source.
+   * @param source source name
+   * @param metadataPolicy Metadata update policy for 'source'
    * @return true if cached metadata has changed
    * @throws NamespaceException
    */
   boolean refreshSource(NamespaceKey source, MetadataPolicy metadataPolicy) throws NamespaceException;
+
+  /**
+   * Refresh dataset names for a given source. Only adds new names. Only the full metadata refresh {@Link refreshSource}
+   * can remove names and associated definitions
+   * @param source source name
+   * @param metadataPolicy Metadata update policy for 'source' -- only used for V1 storage plugins. To be removed once V1 support has sunset
+   * @throws NamespaceException
+   */
+  void refreshSourceNames(NamespaceKey source, MetadataPolicy metadataPolicy) throws NamespaceException;
 
   /**
    * Create a new dataset at this location and mutate the dataset before saving.
@@ -107,9 +126,4 @@ public interface CatalogService extends AutoCloseable, Service {
 
   @Deprecated
   StoragePluginRegistry getOldRegistry();
-
-  /**
-   * Test-only interface: trim away any background metadata update tasks that point to sources that no longer exist
-   */
-  void testTrimBackgroundTasks();
 }

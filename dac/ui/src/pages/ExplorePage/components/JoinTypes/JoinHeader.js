@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 
@@ -24,7 +25,6 @@ import { RECOMMENDED_JOIN, CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
 import { setJoinTab, clearJoinDataset } from 'actions/explore/join';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { h5 } from 'uiTheme/radium/typography';
 
 @Radium
 export class JoinHeader extends Component {
@@ -95,14 +95,14 @@ export class JoinHeader extends Component {
         : {};
 
       return (
-        <div
+        <h5
           className='transform-tab'
           data-qa={tab.name}
           style={[styles.tab, {color: '#000000'}, disabledStyle, activeTabStyle]}
           key={tab.id}
           onClick={this.setActiveTab.bind(this, tab.id)}>
           <span>{tab.name}</span>
-        </div>
+        </h5>
       );
     });
   }
@@ -128,7 +128,6 @@ const styles = {
     backgroundColor: PALE_NAVY
   },
   tab: {
-    ...h5,
     display: 'flex',
     height: 37,
     marginLeft: -5,

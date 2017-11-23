@@ -17,7 +17,6 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.BaseDataValueVector;
 import org.apache.arrow.vector.NullableTimeStampMilliVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
@@ -187,7 +186,7 @@ public abstract class ColumnReader<V extends ValueVector> {
     readLengthInBits = 0;
     recordsReadInThisIteration = 0;
     bytesReadInCurrentPass = 0;
-    vectorData = ((BaseDataValueVector) valueVec).getBuffer();
+    vectorData = valueVec.getDataBuffer();
   }
 
   public int capacity() {

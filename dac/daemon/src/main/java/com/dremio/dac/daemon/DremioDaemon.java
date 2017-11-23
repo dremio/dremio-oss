@@ -15,17 +15,27 @@
  */
 package com.dremio.dac.daemon;
 
+import static com.dremio.common.util.DremioVersionInfo.VERSION;
+import static com.dremio.dac.cmd.upgrade.Upgrade.TASKS_GREATEST_MAX_VERSION;
+import static com.dremio.dac.cmd.upgrade.Upgrade.UPGRADE_VERSION_ORDERING;
+import static com.dremio.dac.util.ClusterVersionUtils.fromClusterVersion;
+
+import java.io.File;
 import java.net.UnknownHostException;
 import java.util.logging.LogManager;
 
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import com.dremio.common.Version;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.cmd.upgrade.Upgrade;
 import com.dremio.dac.cmd.upgrade.UpgradeStats;
+import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.NASSourceConfigurator;
 import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
@@ -43,7 +53,14 @@ import com.dremio.dac.sources.OracleSourceConfigurator;
 import com.dremio.dac.sources.PostgresSourceConfigurator;
 import com.dremio.dac.sources.RedshiftSourceConfigurator;
 import com.dremio.dac.sources.S3SourceConfigurator;
+import com.dremio.dac.support.SupportService;
+import com.dremio.dac.support.SupportService.SupportStoreCreator;
+import com.dremio.dac.util.ClusterVersionUtils;
+import com.dremio.datastore.KVStore;
+import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.util.GuavaPatcher;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -79,14 +96,59 @@ public class DremioDaemon {
     }
   }
 
+  private static void checkVersion(DACConfig config) throws Exception {
+    final String dbDir = config.getConfig().getString(DremioConfig.DB_PATH_STRING);
+    final File dbFile = new File(dbDir);
+
+    if (!dbFile.exists()) {
+      // New installation. Skipping
+      logger.debug("initial setup: no version check");
+      return;
+    }
+
+    final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
+    final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
+    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true, false, true)) {
+      storeProvider.start();
+
+      final KVStore<String, ClusterIdentity> supportStore = storeProvider.getStore(SupportStoreCreator.class);
+      final ClusterIdentity identity = Preconditions.checkNotNull(supportStore.get(SupportService.CLUSTER_ID), "No Cluster Identity found");
+
+      final Version storeVersion = fromClusterVersion(identity.getVersion());
+      if (storeVersion == null || UPGRADE_VERSION_ORDERING.compare(storeVersion, TASKS_GREATEST_MAX_VERSION) < 0) {
+        // Check if autoupgrade is enabled
+        if (!config.isAutoUpgrade()) {
+          throw new IllegalStateException("KVStore has an older version than the server, please run the upgrade tool first");
+        }
+
+        UpgradeStats upgradeStats = Upgrade.upgrade(sabotConfig, classpathScan, storeProvider);
+        System.out.println(upgradeStats);
+      } else if (UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) < 0) {
+        // No upgrade task required. Safe to continue
+        logger.info("Newer version of Dremio detected but no upgrade required. Updating kvstore version from %s to %s.", storeVersion, VERSION);
+        identity.setVersion(ClusterVersionUtils.toClusterVersion(VERSION));
+        supportStore.put(SupportService.CLUSTER_ID, identity);
+      } else if (UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) > 0) {
+        // KVStore is newer than running server
+        final String msg = String.format("KVStore has a newer version (%s) than running Dremio server (%s)",
+          storeVersion.getVersion(), VERSION.getVersion());
+
+        if (!config.allowNewerKVStore) {
+          throw new IllegalStateException(msg);
+        }
+
+        logger.warn(msg);
+      }
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
       DACConfig config = DACConfig.newConfig();
 
-      // Check if autoupgrade is enabled
-      if (config.isAutoUpgrade() && isMaster(config)) {
-        UpgradeStats upgradeStats = Upgrade.upgrade(config);
-        System.out.println(upgradeStats);
+      if (isMaster(config)) {
+        // Check version before starting daemon
+        checkVersion(config);
       }
 
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();

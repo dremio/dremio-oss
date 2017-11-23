@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import FontIcon from 'components/Icon/FontIcon';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
-import { h3, bodySmall } from 'uiTheme/radium/typography';
+import { bodySmall } from 'uiTheme/radium/typography';
 
 
 import { PALE_NAVY, PALE_ORANGE } from 'uiTheme/radium/colors';
@@ -130,10 +131,10 @@ export default class DatasetsSearch extends Component {
 
   getHeader(inputValue) {
     return (
-      <header style={[styles.header, h3]}>
+      <h3 style={styles.header}>
         {la('Search Results for')} "{inputValue}"
         <FontIcon type='XBig' theme={styles.closeIcon} onClick={this.props.handleSearchHide.bind(this)}/>
-      </header>
+      </h3>
     );
   }
 
@@ -143,7 +144,7 @@ export default class DatasetsSearch extends Component {
       ? <div>{this.getDatasetsList(searchData, inputValue)}</div>
       : <div style={styles.notFound}>{la('Not found')}</div>;
     return visible ?
-      <section className='datasets-search' style={[styles.main]}>
+      <section className='datasets-search' style={styles.main}>
         {this.getHeader(inputValue)}
         <div className='dataset-wrapper' style={styles.datasetWrapper}>
           <ViewStateWrapper viewState={searchViewState}>

@@ -18,6 +18,7 @@ package com.dremio.exec.expr.fn;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
@@ -26,6 +27,8 @@ import com.dremio.exec.expr.annotations.Param;
 public class ExceptionFunction {
 
   public static final String EXCEPTION_FUNCTION_NAME = "__throwException";
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExceptionFunction.class);
 
   @FunctionTemplate(name = EXCEPTION_FUNCTION_NAME, isDeterministic = false)
   public static class ThrowException implements SimpleFunction {
@@ -45,6 +48,6 @@ public class ExceptionFunction {
   }
 
   public static void throwException(String message) {
-    throw new java.lang.RuntimeException(message);
+    throw UserException.functionError().message(message).build(logger);
   }
 }

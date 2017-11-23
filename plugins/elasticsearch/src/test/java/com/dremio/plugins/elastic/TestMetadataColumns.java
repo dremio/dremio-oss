@@ -617,6 +617,7 @@ public class TestMetadataColumns extends ElasticBaseTestQuery {
       .go();
   }
 
+  @Ignore("DX-7888")
   @Test
   public final void testFilterIDLike() throws Exception {
     final String cond1 = "_id LIKE '%" + ids[1] + "%'";

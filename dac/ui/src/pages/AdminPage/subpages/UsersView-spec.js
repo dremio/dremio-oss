@@ -19,7 +19,6 @@ import Immutable from 'immutable';
 import UsersView from './UsersView';
 
 describe('UsersView', () => {
-
   let commonProps;
   let context;
   beforeEach(() => {
@@ -36,7 +35,7 @@ describe('UsersView', () => {
       ]),
       removeUser: () => {}
     };
-    context = { location: {} };
+    context = { location: {}, loggedInUser: { userName: 'userName'} };
   });
 
   it('render elements', () => {
@@ -45,6 +44,21 @@ describe('UsersView', () => {
     expect(wrapper.find('.admin-header')).have.length(1);
     expect(wrapper.find('.filter')).have.length(1);
     expect(wrapper.find('StatefulTableViewer')).have.length(1);
+  });
+
+  describe('#getTableData', () => {
+    it('should return correct data with delete button when user name is not equal current logged in user', () => {
+      context.loggedInUser.userName = 'foo';
+      const instance = shallow(<UsersView {...commonProps}/>, {context}).instance();
+      const result = instance.getTableData().toJS()[0].data[3].props.children[1].type;
+      expect(result).to.be.eql('button');
+    });
+
+    it('should return correct data without delete button when user has current logged in user name', () => {
+      const instance = shallow(<UsersView {...commonProps}/>, {context}).instance();
+      const result = instance.getTableData().toJS()[0].data[3].props.children[1];
+      expect(result).to.be.false;
+    });
   });
 });
 

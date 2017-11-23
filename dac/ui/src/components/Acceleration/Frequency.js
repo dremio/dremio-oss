@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component, PropTypes} from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
-import { body } from 'uiTheme/radium/typography';
 import timeUtils from 'utils/timeUtils';
 import { TextField, Select } from 'components/Fields';
 
@@ -98,7 +98,7 @@ export default class Frequency extends Component {
   render() {
     const { curOption } = this.props;
     return (
-      <div style={body}>
+      <div>
         <Tabs activeTab={curOption}>
           <div tabId='NONE'>
           </div>
@@ -131,8 +131,7 @@ const styles = {
     width: 50,
     marginTop: 2,
     marginRight: 5,
-    top: -15,
-    ...body
+    top: -15
   },
   input: {
     width: 40,

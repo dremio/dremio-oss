@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 import { PALE_BLUE } from 'uiTheme/radium/colors';
-import { body } from 'uiTheme/radium/typography';
 import FilterSelectMenu from 'components/Fields/FilterSelectMenu';
 import SelectMenu from 'components/Fields/SelectMenu';
 import FontIcon from 'components/Icon/FontIcon';
@@ -54,6 +55,7 @@ const sortItems = Immutable.fromJS([ // todo: `la` loc not building correctly he
   {id: 'et', label: ('End Time')}
 ]);
 
+@injectIntl
 @Radium
 export default class JobsFilters extends Component {
   static contextTypes = {
@@ -65,7 +67,8 @@ export default class JobsFilters extends Component {
     style: PropTypes.object,
     dataWithItemsForFilters: PropTypes.object,
     loadItemsForFilter: PropTypes.func.isRequired,
-    onUpdateQueryState: PropTypes.func.isRequired
+    onUpdateQueryState: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -109,7 +112,7 @@ export default class JobsFilters extends Component {
   }
 
   getAllFilters() {
-    const { queryState } = this.props;
+    const { queryState, intl } = this.props;
     const { loggedInUser } = this.context;
     const startTime = queryState.getIn(['filters', 'st', 0]) || 0;
     const endTime = queryState.getIn(['filters', 'st', 1]) || 0;
@@ -145,7 +148,7 @@ export default class JobsFilters extends Component {
             onItemUnselect={this.removeInfoFromFilter.bind(this, 'jst')}
             selectedValues={selectedJst}
             items={itemsForStateFilter}
-            label={la('Status')}
+            label={intl.formatMessage({ id: 'Common.Status' })}
             name='jst'
           />
         )
@@ -162,7 +165,7 @@ export default class JobsFilters extends Component {
             onItemUnselect={this.removeInfoFromFilter.bind(this, 'qt')}
             selectedValues={selectedQt}
             items={itemsForQueryTypeFilter}
-            label={la('Type')}
+            label={intl.formatMessage({ id: 'Common.Type' })}
             name='qt'
           />
         )
@@ -181,7 +184,7 @@ export default class JobsFilters extends Component {
             selectedValues={selectedUsr}
             items={this.props.dataWithItemsForFilters.get('users')}
             loadItemsForFilter={this.props.loadItemsForFilter.bind(this, 'users')}
-            label={la('User')}
+            label={intl.formatMessage({ id: 'Common.User' })}
             name='usr'
           />
         )
@@ -201,7 +204,7 @@ export default class JobsFilters extends Component {
             selectedValues={selectedSpc}
             items={this.props.dataWithItemsForFilters.get('spaces')}
             loadItemsForFilter={this.props.loadItemsForFilter.bind(this, 'spaces')}
-            label={la('Space')}
+            label={intl.formatMessage({ id: 'Space.Space' })}
             name='spc'
           />
         )
@@ -290,7 +293,10 @@ export default class JobsFilters extends Component {
         style={[styles.filterBlock, {cursor: 'pointer'}]}
         onClick={this.toggleSortDirection}
       >
-        <label style={{cursor: 'pointer'}}>{`${la('Order by')} ${label}`}{this.renderSortDirectionIcon()}</label>
+        <label style={{cursor: 'pointer'}}>
+          {this.props.intl.formatMessage({ id: 'Job.OrderBy' }, { label })}
+          {this.renderSortDirectionIcon()}
+        </label>
         <div style={styles.sortDivider}/>
       </div>
     );
@@ -309,7 +315,7 @@ export default class JobsFilters extends Component {
   renderFilters() {
     const {queryState} = this.props;
     return (
-      <div style={[styles.base, body, styles.filtersHeader]}>
+      <div style={[styles.base, styles.filtersHeader]}>
         {this.renderDefaultFilters()}
         <ContainsText
           defaultValue={queryState.getIn(['filters', 'contains', 0])}
@@ -333,7 +339,7 @@ export default class JobsFilters extends Component {
 
   render() {
     return (
-      <div className='filters-header' style={[styles.base, body]}>
+      <div className='filters-header' style={styles.base}>
         {this.renderFilters()}
       </div>);
   }
@@ -347,7 +353,6 @@ const styles = {
     }
   },
   base: {
-    ...body,
     width: '100%',
     display: 'flex',
     alignItems: 'center',

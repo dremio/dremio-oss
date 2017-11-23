@@ -28,7 +28,9 @@ import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 
 /**
@@ -49,18 +51,30 @@ public class TestViewCreator extends BaseTestServer {
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace/folder/")).buildPost(Entity.json("{\"name\": \"myFolder\"}")), Folder.class);
 
-    Job job1 = jobsService.submitExternalJob(new SqlQuery("create view mySpace.myFolder.myView as select * from cp.nation_ctas.t1.\"0_0_0.parquet\"", DEFAULT_USERNAME), QueryType.UI_RUN);
+    Job job1 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("create view mySpace.myFolder.myView as select * from cp.nation_ctas.t1.\"0_0_0.parquet\"", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
 
     job1.getData().loadIfNecessary();
 
-    Job job2 = jobsService.submitExternalJob(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME), QueryType.UI_RUN);
+    Job job2 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job2.getData().loadIfNecessary();
     assertEquals(25, job2.getJobAttempt().getDetails().getOutputRecords().longValue());
 
-    Job job3 = jobsService.submitExternalJob(new SqlQuery("drop view mySpace.myFolder.myView", DEFAULT_USERNAME), QueryType.UI_RUN);
+    Job job3 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("drop view mySpace.myFolder.myView", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job3.getData().loadIfNecessary();
 
-    Job job4 = jobsService.submitExternalJob(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME), QueryType.UI_RUN);
+    Job job4 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
 
     try {
       job4.getData().loadIfNecessary();

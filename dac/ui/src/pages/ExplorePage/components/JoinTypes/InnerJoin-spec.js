@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
+import Immutable from 'immutable';
 
 import SelectWithPopover from 'components/Fields/SelectWithPopover';
 import JoinColumnMenu from 'pages/ExplorePage/components/JoinTypes/components/JoinColumnMenu';
@@ -30,8 +31,14 @@ describe('InnerJoin', () => {
   beforeEach(() => {
     minimalProps = {
       columnsInDragArea: Immutable.List(),
-      leftColumns: Immutable.List(),
-      rightColumns: Immutable.List(),
+      leftColumns: Immutable.fromJS([{
+        name: 'foo',
+        type: 'INTEGER'
+      }]),
+      rightColumns: Immutable.fromJS([{
+        name: 'baz',
+        type: 'INTEGER'
+      }]),
       removeColumn: () => {},
       addColumnToInnerJoin: () => {},
       stopDrag: () => {},
@@ -64,12 +71,43 @@ describe('InnerJoin', () => {
       expect(instance.leftDisabledColumnNames).to.equal(oldLeftDisabledColumnNames);
       expect(instance.rightDisabledColumnNames).to.equal(oldRightDisabledColumnNames);
 
-      instance.receiveProps({...commonProps, columnsInDragArea: Immutable.fromJS({
-        default: [],
-        custom: []
-      })}, commonProps);
+      instance.receiveProps({...commonProps, columnsInDragArea: Immutable.fromJS([{
+        default: { name: 'foo'}
+      }, {custom: { name: 'baz'}}])}, commonProps);
       expect(instance.leftDisabledColumnNames).to.not.equal(oldLeftDisabledColumnNames);
       expect(instance.rightDisabledColumnNames).to.not.equal(oldRightDisabledColumnNames);
+    });
+  });
+  describe('#getDisabledColumnNames', () => {
+    it('should return columns which is already in the drag area or with unsupported type', () => {
+      const props = {
+        leftColumns: Immutable.fromJS([
+          {
+            name: 'foo',
+            type: 'INTEGER'
+          },
+          {
+            name: 'bar',
+            type: 'MAP'
+          },
+          {
+            name: 'baz',
+            type: 'FLOAT'
+          },
+          {
+            name: 'bav',
+            type: 'LIST'
+          }
+        ]),
+        columnsInDragArea: Immutable.fromJS([
+          {
+            default: { name: 'foo' },
+            custom: []
+          }
+        ])
+      };
+      const disabledColumns = instance.getDisabledColumnNames(props, true);
+      expect(disabledColumns.toJS()).to.eql(['foo', 'bar', 'bav']);
     });
   });
 

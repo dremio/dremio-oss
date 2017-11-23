@@ -15,8 +15,9 @@
  */
 import uuid from 'uuid';
 import Immutable from 'immutable';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2, API_URL_V3 } from 'constants/Api';
 import { InvalidRSAA, InternalError, RequestError, ApiError } from 'redux-api-middleware/lib/errors';
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 class ApiUtils {
   isApiError(error) {
@@ -102,6 +103,15 @@ class ApiUtils {
       }
       throw error;
     });
+  }
+
+  fetch(endpoint, options = {}, version = 3) {
+    const apiVersion = (version === 3) ? API_URL_V3 : API_URL_V2;
+
+    const headers = new Headers(options.headers);
+    headers.append('Authorization', `_dremio${localStorageUtils.getAuthToken()}`);
+
+    return fetch(`${apiVersion}/${endpoint}`, { ...options, headers }).then(response => response.ok ? response : Promise.reject(response));
   }
 }
 

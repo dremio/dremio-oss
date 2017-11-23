@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
+@injectIntl
 @PureRender
 @Radium
 export default class ContainsText extends Component {
 
   static propTypes = {
     onEnterText: PropTypes.func.isRequired,
-    defaultValue: PropTypes.string
+    defaultValue: PropTypes.string,
+    intl: PropTypes.object.isRequired
   };
 
   constructor(props) {
@@ -52,7 +56,7 @@ export default class ContainsText extends Component {
           className='form-placeholder'
           defaultValue={this.props.defaultValue}
           type='text'
-          placeholder={la('Contains text...')}
+          placeholder={this.props.intl.formatMessage({ id: 'Job.ContainsText' })}
           style={styles.searchInput}
           onInput={this.handleContainsEnterText.bind(this)}/>
       </div>

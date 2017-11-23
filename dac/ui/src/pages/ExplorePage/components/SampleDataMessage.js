@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 import FontIcon from 'components/Icon/FontIcon';
-import { body } from 'uiTheme/radium/typography';
-
+import { FormattedMessage } from 'react-intl';
 
 const SampleDataMessage = () => (
-  <span style={{ ...body, ...styles.warntext }} data-qa='sample-data-message'>
+  <span style={styles.warntext} data-qa='sample-data-message'>
     <FontIcon type='Warning-Solid' style={styles.iconStyle} />
-    {la('Result based on sample dataset')}
+    <FormattedMessage id='Dataset.SampleDatasetWarn'/>
   </span>
 );
 

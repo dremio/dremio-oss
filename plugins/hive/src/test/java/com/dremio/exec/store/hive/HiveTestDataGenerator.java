@@ -22,6 +22,10 @@ import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Map;
@@ -196,6 +200,23 @@ public class HiveTestDataGenerator {
     if (emptyTableLocation.exists()) {
       FileUtils.forceDelete(emptyTableLocation);
     }
+
+    // create Parquet format based table
+    final File regionDir = new File(BaseTestQuery.getTempDir("region"));
+    regionDir.mkdirs();
+    final URL url = Resources.getResource("region.parquet");
+    if (url == null) {
+      throw new IOException(String.format("Unable to find path %s.", "region.parquet"));
+    }
+
+    final File file = new File(regionDir, "region.parquet");
+    file.deleteOnExit();
+    regionDir.deleteOnExit();
+    Files.copy(Paths.get(url.toURI()), Paths.get(file.toURI()));
+
+    final String parquetUpperSchemaTable = "create external table parquet_region(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
+      "stored as parquet location '" + file.getParent() + "'";
+    executeQuery(hiveDriver, parquetUpperSchemaTable);
 
     // create a Hive table that has columns with data types which are supported for reading in Dremio.
     testDataFile = generateAllTypesDataFile();

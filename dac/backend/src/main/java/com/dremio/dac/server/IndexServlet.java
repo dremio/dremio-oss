@@ -104,8 +104,14 @@ class IndexServlet implements Servlet {
 
   @Override
   public void service(ServletRequest servletRequest, ServletResponse response) throws ServletException, IOException {
-    ClientSettings settings = new ClientSettings(options.getOption(SupportService.SUPPORT_EMAIL_ADDR), options.getOption(SupportService.SUPPORT_EMAIL_SUBJECT),
-      options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED), options.getOption(AccelerationOptions.ENABLE_SUBHOUR_POLICIES));
+    ClientSettings settings = new ClientSettings(
+        options.getOption(SupportService.SUPPORT_EMAIL_ADDR),
+        options.getOption(SupportService.SUPPORT_EMAIL_SUBJECT),
+        options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED),
+        options.getOption(AccelerationOptions.ENABLE_SUBHOUR_POLICIES),
+        options.getOption(UIOptions.ALLOW_LOWER_PROVISIONING_SETTINGS),
+        options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE));
+
     String environment = config.allowTestApis ? "DEVELOPMENT" : "PRODUCTION";
     final ServerData indexConfig = new ServerData(environment, serverHealthMonitor, config.getConfig(), settings, getVersionInfo(), supportService.getClusterId().getIdentity());
 

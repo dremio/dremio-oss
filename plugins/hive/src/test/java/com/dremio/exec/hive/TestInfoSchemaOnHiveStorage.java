@@ -64,6 +64,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parquet_timestamp_nulls")
         .baselineValues("hive.default", "dummy")
         .baselineValues("hive.default", "sorted_parquet")
+        .baselineValues("hive.default", "parquet_region")
         .go();
 
     testBuilder()

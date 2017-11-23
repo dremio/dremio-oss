@@ -21,8 +21,8 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.calcite.plan.RelOptMaterialization;
-import org.apache.calcite.plan.substitution.MaterializationProvider;
 
+import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.annotations.VisibleForTesting;
@@ -39,7 +39,7 @@ import com.google.common.collect.Sets;
  * An abstraction used to maintain available materializations alongside a mapping from materialization handle to
  * {@link MaterializationDescriptor materialization} itself.
  */
-public class MaterializationList implements MaterializationProvider<RelOptMaterialization> {
+public class MaterializationList implements MaterializationProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationList.class);
 
   private final Map<TablePath, MaterializationDescriptor> mapping = Maps.newHashMap();
@@ -89,9 +89,10 @@ public class MaterializationList implements MaterializationProvider<RelOptMateri
    */
   @VisibleForTesting
   protected List<RelOptMaterialization> build(final MaterializationDescriptorProvider provider) {
-    final Set<String> exclusions = Sets.newHashSet(session.getMaterializationSettings().getExclusions());
+    final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
     final List<RelOptMaterialization> materializations = Lists.newArrayList();
-    for (final MaterializationDescriptor descriptor : provider.get(session.getMaterializationSettings().isIncludeIncompleteDatasets())) {
+    for (final MaterializationDescriptor descriptor :
+        provider.get(session.getSubstitutionSettings().isIncludingIncompleteDatasets())) {
       // skip if materialization is excluded
       // exclusion list is passed by AcceleratorTask
       if (exclusions.contains(descriptor.getAccelerationId()) || exclusions.contains(descriptor.getLayoutId())) {

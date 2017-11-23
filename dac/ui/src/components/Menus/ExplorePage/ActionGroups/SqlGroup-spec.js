@@ -45,7 +45,7 @@ describe('SqlGroup', () => {
   it('should include Calculated Field item when column type is MAP', () => {
     const wrapper = shallow(<SqlGroup {...commonProps} columnType={MAP}/>);
     expect(wrapper.containsMatchingElement(
-      <ColumnMenuItem title='Calculated Field...'/>
+      <ColumnMenuItem title='Calculated Field…'/>
     )).to.be.true;
   });
 });

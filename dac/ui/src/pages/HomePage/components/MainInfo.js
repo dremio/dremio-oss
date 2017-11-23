@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes, Component } from 'react';
+import { Component } from 'react';
 import { Link } from 'react-router';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
+import { injectIntl } from 'react-intl';
 
 import MainInfoMixin from 'dyn-load/pages/HomePage/components/MainInfoMixin';
 
@@ -35,6 +37,7 @@ import BrowseTable from './BrowseTable';
 import { HeaderButtons } from './HeaderButtons';
 import MainInfoItemName from './MainInfoItemName';
 
+@injectIntl
 @Radium
 @MainInfoMixin
 export default class MainInfo extends Component {
@@ -49,7 +52,8 @@ export default class MainInfo extends Component {
     viewState: PropTypes.instanceOf(Immutable.Map),
     updateRightTreeVisibility: PropTypes.func,
     rightTreeVisible: PropTypes.bool,
-    isInProgress: PropTypes.bool
+    isInProgress: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -167,24 +171,24 @@ export default class MainInfo extends Component {
     return {
       rowClassName: item.get('name'),
       data: {
-        [name.title]: {
+        [name.key]: {
           node: () => <MainInfoItemName item={item}/>,
           value: item.get('name')
         },
-        [datasets.title]: {
+        [datasets.key]: {
           node: () => datasetCount || datasetCount === 0 ? datasetCount : '—',
           value: datasetCount === undefined ? -1 : datasetCount
         },
-        [jobs.title]: {
+        [jobs.key]: {
           node: () => <Link to={item.getIn(['links', 'jobs'])}>{jobsCount}</Link>,
           value: jobsCount
         },
-        [descendant.title]: {
+        [descendant.key]: {
           node: () => descendantsNode || descendantsNode === 0 ? descendantsNode : '—',
           value: descendantsCount === undefined ? -1 : descendantsCount
         },
         // todo: fileType vs entityType?
-        [action.title]: {
+        [action.key]: {
           node: () => this.getButtonsDataCell(item.get('fileType'), item.get('name'), item)
         }
       }
@@ -192,13 +196,15 @@ export default class MainInfo extends Component {
   }
 
   getTableColumns() {
+    const { intl } = this.props;
     return [
-      { title: la('name'), flexGrow: 1 },
-      { title: la('datasets'), style: tableStyles.datasetsColumn },
-      { title: la('jobs'), style: tableStyles.digitColumn, width: 50 },
-      { title: la('descendants'), style: tableStyles.digitColumn },
+      { key: 'name', title: intl.formatMessage({id: 'Common.Name'}), flexGrow: 1 },
+      { key: 'datasets', title: intl.formatMessage({id: 'Dataset.Datasets'}), style: tableStyles.datasetsColumn },
+      { key: 'jobs', title: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 50 },
+      { key: 'descendants', title: intl.formatMessage({id: 'Dataset.Descendants'}), style: tableStyles.digitColumn },
       {
-        title: la('action'),
+        key: 'action',
+        title: intl.formatMessage({id: 'Common.Action'}),
         style: tableStyles.actionColumn,
         width: 150,
         disableSort: true

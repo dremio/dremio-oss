@@ -142,6 +142,20 @@ class JobsUtils {
     const url = `/jobs?filters=${encodeURIComponent(JSON.stringify({'contains':[id]}))}`;
     return createFullUrl ? (window.location.origin + url) : url;
   }
+
+  getReflectionsByRelationship(jobDetails) {
+    if (!jobDetails.get('acceleration')) { // failed planning, pre-1.3, etc guard
+      return {};
+    }
+
+    const reflectionRelationships = jobDetails.get('acceleration').get('reflectionRelationships').toJS();
+    const byRelationship = {};
+    for (const reflectionRelationship of reflectionRelationships) {
+      byRelationship[reflectionRelationship.relationship] = byRelationship[reflectionRelationship.relationship] || [];
+      byRelationship[reflectionRelationship.relationship].push(reflectionRelationship);
+    }
+    return byRelationship;
+  }
 }
 
 export default new JobsUtils();

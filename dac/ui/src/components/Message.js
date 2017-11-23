@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import invariant from 'invariant';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
 import FontIcon from 'components/Icon/FontIcon';
-import { body, fixedWidthDefault } from 'uiTheme/radium/typography';
+import { fixedWidthDefault } from 'uiTheme/radium/typography';
 
 import jobsUtils from 'utils/jobsUtils';
 
@@ -151,7 +152,7 @@ export default class Message extends Component {
     const separatedStyle = {paddingTop: 10, marginTop: 10, borderTop: '1px solid hsla(0, 0%, 0%, 0.2)'};
     details = details.map((e, i) => <div style={i ? separatedStyle : {}}>{e}</div>);
 
-    return <div children={details} style={[styles.details, body, this.props.detailsStyle]} />;
+    return <div children={details} style={[styles.details, this.props.detailsStyle]} />;
   }
 
   renderMessageForCode() { // this fcn assumes we have already checked that we have an ImmutableMap
@@ -211,7 +212,7 @@ export default class Message extends Component {
 
     return (
       <div className={`message ${messageType}`} style={[styles.wrap, style]}>
-        <div style={[styles.base, styles[messageType], body]} ref='messagePanel'>
+        <div style={[styles.base, styles[messageType]]} ref='messagePanel'>
           {this.renderIcon(messageType)}
           <span className='message-content' style={styles.messageText} onMouseUp={this.prevent}>
             {this.renderErrorMessageText()}

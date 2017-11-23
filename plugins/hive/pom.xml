@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugin</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>1.2.2-201710100154510864-d40e31c</version>
+    <version>1.3.0-201711211846350824-31f8d91</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -152,6 +152,7 @@
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
+            <id>copy-resources</id>
             <phase>generate-resources</phase>
             <goals><goal>copy-resources</goal></goals>
             <configuration>
@@ -169,6 +170,23 @@
                 </resource>
               </resources>
               <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-test-resources</id>
+            <phase>generate-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <resources>
+                <resource>
+                 <directory>${project.basedir}/../../sample-data/</directory>
+                  <includes>
+                    <include>region.parquet</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}/test-classes/</outputDirectory>
             </configuration>
           </execution>
         </executions>

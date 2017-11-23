@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import { Link } from 'react-router';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { loadSummaryDataset } from 'actions/resources/dataset';
 import { getViewState } from 'selectors/resources';
 import { getSummaryDataset } from 'selectors/datasets';
@@ -30,7 +31,7 @@ import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 
 import DatasetOverlayContentMixin from 'dyn-load/components/Dataset/DatasetOverlayContentMixin';
 
-import { body, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 import { CELL_EXPANSION_HEADER, WHITE } from 'uiTheme/radium/colors';
 import { FLEX_COL_START, FLEX_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
 
@@ -181,7 +182,6 @@ export default connect(mapStateToProps, { loadSummaryDataset })(DatasetOverlayCo
 
 const styles = {
   base: {
-    ...body,
     height: 100,
     marginTop: -1,
     paddingLeft: 5,

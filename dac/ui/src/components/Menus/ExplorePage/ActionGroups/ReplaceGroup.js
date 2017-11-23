@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { TEXT } from 'constants/DataTypes';
 import { REPLACEABLE_TYPES } from 'constants/columnTypeGroups';
@@ -35,28 +37,28 @@ export default class ReplaceGroup extends Component {
       <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_TEXT'
-        title={la('Extract Text...')}
+        title={la('Extract Text…')}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='REPLACE_TEXT'
-        title={la('Replace Text...')}
+        title={la('Replace Text…')}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='REPLACE'
-        title={la('Replace...')}
+        title={la('Replace…')}
         availableTypes={REPLACEABLE_TYPES}
         onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='SPLIT'
-        title={la('Split...')}
+        title={la('Split…')}
         availableTypes={[TEXT]}
         onClick={onClick}
       />

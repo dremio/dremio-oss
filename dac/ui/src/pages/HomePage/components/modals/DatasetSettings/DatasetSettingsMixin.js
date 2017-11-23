@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import {abilities} from 'utils/datasetUtils';
 
 export default function(input) {
@@ -22,7 +21,7 @@ export default function(input) {
       return contentRenderers;
     },
     getTabs() {
-      const {entity} = this.props;
+      const {entity, intl} = this.props;
 
       if (!entity) {
         return new Immutable.OrderedMap();
@@ -32,7 +31,7 @@ export default function(input) {
 
       const {canEditFormat, canSetAccelerationUpdates} = abilities(entity, entity.get('entityType'));
 
-      const format = canEditFormat && ['format', la('Format')];
+      const format = canEditFormat && ['format', intl.formatMessage({ id: 'File.Format' })];
 
       // If a file or folder has not been converted to a dataset, hide all other tabs
       // https://dremio.atlassian.net/browse/DX-3178
@@ -42,10 +41,10 @@ export default function(input) {
       }
 
       map.push(
-        ['overview', la('Overview')],
+        ['overview', intl.formatMessage({ id: 'Common.Overview' })],
         format,
-        ['acceleration', la('Reflections')],
-        canSetAccelerationUpdates && ['accelerationUpdates', la('Refresh Policy')]
+        ['acceleration', intl.formatMessage({ id: 'Acceleration.Reflections' })],
+        canSetAccelerationUpdates && ['accelerationUpdates', intl.formatMessage({ id: 'Acceleration.RefreshPolicy' })]
       );
 
       return new Immutable.OrderedMap(map);

@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Range;
 
 /**
  * Dataset Split key
@@ -37,14 +38,14 @@ public class DatasetSplitId {
   private static final Joiner SPLIT_ID_JOINER = Joiner.on(DELIMITER);
   private static final String EMPTY = "";
   private final String datasetId;
-  private final String splitIdentifier;
-  private final String splitId;
+  private final String splitKey;
+  private final String compoundSplitId;
 
   public DatasetSplitId(DatasetConfig config, DatasetSplit split, long splitVersion) {
     Preconditions.checkArgument(splitVersion > -1);
     this.datasetId = config.getId().getId();
-    this.splitIdentifier = split.getSplitKey();
-    this.splitId = SPLIT_ID_JOINER.join(datasetId, splitVersion, splitIdentifier);
+    this.splitKey = split.getSplitKey();
+    this.compoundSplitId = SPLIT_ID_JOINER.join(datasetId, splitVersion, splitKey);
   }
 
   @JsonCreator
@@ -54,20 +55,21 @@ public class DatasetSplitId {
       throw new IllegalArgumentException("Invalid dataset split id " + datasetSplitId);
     }
     this.datasetId = ids[0];
-    this.splitIdentifier = ids[2];
-    this.splitId = datasetSplitId;
+
+    this.splitKey = ids[2];
+    this.compoundSplitId = datasetSplitId;
   }
 
   // used for range query on kvstore
   private DatasetSplitId(String datasetId, String splitId) {
     this.datasetId = datasetId;
-    this.splitId = splitId;
-    this.splitIdentifier = EMPTY;
+    this.compoundSplitId = splitId;
+    this.splitKey = EMPTY;
   }
 
   @JsonValue
   public String getSpiltId() {
-    return splitId;
+    return compoundSplitId;
   }
 
   @JsonIgnore
@@ -77,12 +79,12 @@ public class DatasetSplitId {
 
   @JsonIgnore
   public String getSplitIdentifier() {
-    return splitIdentifier;
+    return splitKey;
   }
 
   @Override
   public int hashCode() {
-    return splitId.hashCode();
+    return compoundSplitId.hashCode();
   }
 
   @Override
@@ -90,7 +92,7 @@ public class DatasetSplitId {
     if (obj != null) {
       if (obj instanceof DatasetSplitId) {
         final DatasetSplitId other = (DatasetSplitId)obj;
-        return splitId.equals(other.splitId);
+        return compoundSplitId.equals(other.compoundSplitId);
       }
     }
     return false;
@@ -98,7 +100,7 @@ public class DatasetSplitId {
 
   @Override
   public String toString() {
-    return splitId;
+    return compoundSplitId;
   }
 
   public static SearchQuery getSplitsQuery(DatasetConfig datasetConfig) {
@@ -109,26 +111,43 @@ public class DatasetSplitId {
       SearchQueryUtils.newTermQuery(SPLIT_VERSION.getIndexFieldName(), datasetConfig.getReadDefinition().getSplitVersion()));
   }
 
+  public static Range<String> getSplitStringRange(DatasetConfig datasetConfig){
+    final long splitVersion = datasetConfig.getReadDefinition().getSplitVersion();
+    final long nextSplitVersion = splitVersion + 1;
+    final String datasetId = datasetConfig.getId().getId();
+
+    // create start and end id with empty split identifier
+    final String start = getStringId(datasetId, splitVersion);
+    final String end = getStringId(datasetId, nextSplitVersion);
+    return Range.closedOpen(start, end);
+  }
+
   public static FindByRange<DatasetSplitId> getAllSplitsRange(DatasetConfig datasetConfig) {
     final long splitVersion = datasetConfig.getReadDefinition().getSplitVersion();
     final long nextSplitVersion = splitVersion + 1;
     final String datasetId = datasetConfig.getId().getId();
 
-    final DatasetSplitId start = new DatasetSplitId(datasetId, String.format("%s%s%d%s", datasetId, DELIMITER, 0, DELIMITER));
-    final DatasetSplitId end = new DatasetSplitId(datasetId, String.format("%s%s%d%s", datasetId, DELIMITER, nextSplitVersion, DELIMITER));
+    final DatasetSplitId start = getId(datasetId, 0);
+    final DatasetSplitId end = getId(datasetId, nextSplitVersion);
 
     return new FindByRange<DatasetSplitId>()
       .setStart(start, true)
       .setEnd(end, false);
   }
 
+  private static String getStringId(String datasetId, long version) {
+    return String.format("%s%s%d%s", datasetId, DELIMITER, version, DELIMITER);
+  }
+
+  private static DatasetSplitId getId(String datasetId, long version) {
+    return new DatasetSplitId(datasetId, getStringId(datasetId, version));
+  }
+
   public static FindByRange<DatasetSplitId> getSplitsRange(DatasetConfig datasetConfig) {
-    final long splitVersion = datasetConfig.getReadDefinition().getSplitVersion();
-    final long nextSplitVersion = splitVersion + 1;
     final String datasetId = datasetConfig.getId().getId();
-    // create start and end id with empty split identifier
-    final DatasetSplitId start = new DatasetSplitId(datasetId, String.format("%s%s%d%s", datasetId, DELIMITER, splitVersion, DELIMITER));
-    final DatasetSplitId end = new DatasetSplitId(datasetId, String.format("%s%s%d%s", datasetId, DELIMITER, nextSplitVersion, DELIMITER));
+    Range<String> range = getSplitStringRange(datasetConfig);
+    final DatasetSplitId start = new DatasetSplitId(datasetId, range.lowerEndpoint());
+    final DatasetSplitId end = new DatasetSplitId(datasetId, range.upperEndpoint());
 
     return new FindByRange<DatasetSplitId>()
       .setStart(start, true)

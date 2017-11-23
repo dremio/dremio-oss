@@ -69,11 +69,11 @@ describe('ResourceTree', () => {
     });
     it('should render expand arrow only if node is expandable', () => {
       let renderedNode = shallow(instance.renderNode(homeNode));
-      expect(renderedNode.find('FontIcon')).to.have.length(2);
+      expect(renderedNode.find('Art')).to.have.length(2);
 
       const node = homeNode.set('type', 'VIRTUAL_DATASET');
       renderedNode = shallow(instance.renderNode(node));
-      expect(renderedNode.find('FontIcon')).to.have.length(0);
+      expect(renderedNode.find('Art')).to.have.length(0);
     });
     it('should render DatasetItemLabel only if node is dataset', () => {
       const node = Immutable.fromJS({
@@ -83,11 +83,11 @@ describe('ResourceTree', () => {
       });
       let renderedNode = shallow(instance.renderNode(node));
       expect(renderedNode.find('DatasetItemLabel')).to.have.length(1);
-      expect(renderedNode.find('FontIcon')).to.have.length(0);
+      expect(renderedNode.find('Art')).to.have.length(0);
 
       renderedNode = shallow(instance.renderNode(homeNode));
       expect(renderedNode.find('DatasetItemLabel')).to.have.length(0);
-      expect(renderedNode.find('FontIcon')).to.have.length(2);
+      expect(renderedNode.find('Art')).to.have.length(2);
     });
     it('should render node with .active-node class only if it is selected', () => {
       const node = Immutable.fromJS({

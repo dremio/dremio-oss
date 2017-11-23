@@ -50,3 +50,64 @@ const DATABASE_STATUSES_TO_ICON_TYPES = {
 export function getIconStatusDatabase(status) {
   return DATABASE_STATUSES_TO_ICON_TYPES[status] || 'Database';
 }
+
+export function getIconByEntityType(type) {
+  switch (type && type.toUpperCase()) {
+  case 'DATASET':
+  case 'VIRTUAL_DATASET':
+    return 'VirtualDataset';
+  case 'PHYSICALDATASET':
+  case 'PHYSICAL_DATASET':
+  case 'TABLE':
+    return 'PhysicalDataset';
+  case 'SPACE':
+    return 'Space';
+  case 'SOURCE':
+    return 'Database';
+  case 'HOME':
+    return 'Home';
+  case 'FILE':
+    return 'File';
+  case 'PHYSICAL_DATASET_SOURCE_FILE':
+    return 'File';
+  case 'PHYSICAL_DATASET_SOURCE_FOLDER':
+    return 'FolderData';
+  case 'PHYSICAL_DATASET_HOME_FILE':
+    return 'File';
+  case 'FOLDER':
+    return 'Folder';
+  default:
+    return 'FileEmpty';
+  }
+}
+
+export function getFormatMessageIdByEntityIconType(iconType) {
+  switch (iconType) {
+  case 'VirtualDataset':
+    return 'Dataset.VirtualDataset';
+  case 'PhysicalDataset':
+    return 'Dataset.PhysicalDataset';
+  case 'Space':
+    return 'Space.Space';
+  case 'Database':
+    return 'Source.Source';
+  case 'Home':
+    return 'Common.Home';
+  case 'File':
+    return 'File.File';
+  case 'FolderData':
+    return 'Folder.FolderData';
+  case 'Folder':
+    return 'Folder.Folder';
+  default:
+    return 'File.FileEmpty';
+  }
+}
+
+//TODO: when 'DX-8981 Phase 5 switch to react-intl' will be merged we could use localUtils.formatMessage
+export function getArtPropsByEntityIconType(iconType, intl) {
+  return {
+    src: `${iconType}.svg`,
+    alt: intl.formatMessage({ id: getFormatMessageIdByEntityIconType(iconType) })
+  };
+}

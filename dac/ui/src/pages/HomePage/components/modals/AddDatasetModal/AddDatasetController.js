@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import { createDataset, createDatasetFromExisting } from 'actions/explore/sqlActions';
@@ -71,7 +72,7 @@ const DS_CONFIG = {
     ]
   }
 };
-
+// I think this component is unused and all files in AddDatasetModal directory
 @pureRender
 class AddDatasetController extends Component {
   static contextTypes = {

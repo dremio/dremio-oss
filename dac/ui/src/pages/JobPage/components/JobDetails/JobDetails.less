@@ -14,6 +14,25 @@
  * limitations under the License.
  */
 .job-details{
+  h4 {
+    margin: 15px 0;
+  }
+
+  h5 {
+    margin: 7px 0;
+  }
+
+  .tab-wrapper > * {
+    padding: 10px 10px 10px;
+
+    & > .detail-row:first-child {
+      margin-top: 0;
+      h4 {
+        margin-top: 0;
+      }
+    }
+  }
+
   .quote-block{
     &::before{
       content: '';
@@ -34,6 +53,7 @@
       top: 20px;
     }
   }
+
   .CodeMirror {
     height: auto;
     background: #fff;
@@ -45,12 +65,10 @@
       color: #333333;
     }
   }
+
   .detail-row{
     clear: both;
-    padding: 8px 10px;
-    .sub-title{
-      color: #999;
-    }
+    margin: 8px 0;
     .sql-wrap{
       margin: 10px 0 0;
     }

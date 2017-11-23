@@ -103,7 +103,7 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
           DatasetConfig ds = namespaceService.get().findDatasetByUUID(input.getId().getId());
           return new AccelerationInfo(
             input.getId().getId(),
-            SqlUtils.quotedCompound(ds.getFullPathList()),
+            (ds==null) ? "":SqlUtils.quotedCompound(ds.getFullPathList()),
             input.getState().name(),
             selfOrEmpty(input.getRawLayouts().getLayoutList()).size(),
             input.getRawLayouts().getEnabled(),

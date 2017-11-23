@@ -299,7 +299,7 @@ public class SchemaMerger {
 
   private static void recordAnnotations(SchemaPath path, ElasticField elasticField, ResultBuilder resultToPopulate){
     if(elasticField != null){
-      if(elasticField.getIndexing() != Indexing.NOT_ANALYZED){
+      if(elasticField.getIndexing() != Indexing.NOT_ANALYZED || elasticField.isNormalized()){
         resultToPopulate.isNotGroupable(path);
       }
 

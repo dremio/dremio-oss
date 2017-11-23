@@ -115,6 +115,7 @@ public class WebServer implements Service {
   // after the start up completes
   private final SingletonRegistry registry;
   private final Provider<RestServerV2> restServerProvider;
+  private final Provider<APIServer> apiServerProvider;
   private final Server embeddedJetty = new Server();
   private final Provider<ServerHealthMonitor> serverHealthMonitor;
   private final DACConfig config;
@@ -134,6 +135,7 @@ public class WebServer implements Service {
       Provider<NodeEndpoint> endpointProvider,
       Provider<SabotContext> context,
       Provider<RestServerV2> restServer,
+      Provider<APIServer> apiServer,
       String uiType,
       boolean isInternalUS) {
     this.config = config;
@@ -142,6 +144,7 @@ public class WebServer implements Service {
     this.serverHealthMonitor = serverHealthMonitor;
     this.context = context;
     this.restServerProvider = restServer;
+    this.apiServerProvider = apiServer;
     this.uiType = uiType;
     this.isInternalUS = isInternalUS;
   }
@@ -214,6 +217,14 @@ public class WebServer implements Service {
     final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
     restHolder.setInitOrder(2);
     servletContextHandler.addServlet(restHolder, "/apiv2/*");
+
+    // Public API
+    ResourceConfig apiServer = apiServerProvider.get();
+    apiServer.register(new DremioBinder(registry));
+
+    final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
+    apiHolder.setInitOrder(3);
+    servletContextHandler.addServlet(apiHolder, "/api/v3/*");
 
     if (config.verboseAccessLog) {
       accessLogFilter = new AccessLogFilter();

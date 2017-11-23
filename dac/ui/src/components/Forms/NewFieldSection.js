@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { PrevalidatedTextField } from 'components/Fields';
 import FieldWithError from 'components/Fields/FieldWithError';
 import Checkbox from 'components/Fields/Checkbox';
@@ -94,7 +95,7 @@ export default class NewFieldSection extends Component {
           style={formLabel}>
           <PrevalidatedTextField
             {...newFieldName}
-            style={{...styles.text, body}}/>
+            style={styles.text}/>
         </FieldWithError>
         { showDropSource && <FieldWithError
           label={la('Options')}
@@ -105,7 +106,7 @@ export default class NewFieldSection extends Component {
             {...dropSourceField}
             onChange={this.handleCheckboxChange}
             label={`Drop Source Field (${this.getSourceColumnName()})`}
-            style={{...body, ...styles.checkbox}}/>
+            style={styles.checkbox}/>
         </FieldWithError> }
       </div>
     );

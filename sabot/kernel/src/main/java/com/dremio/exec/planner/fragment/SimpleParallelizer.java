@@ -83,7 +83,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     long sliceTarget = context.getPlannerSettings().getSliceTarget();
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
 
-    final int configuredMaxWidthPerNode = (int) optionManager.getOption(ExecConstants.MAX_WIDTH_PER_NODE);
+    final long configuredMaxWidthPerNode = context.getClusterResourceInformation().getAverageExecutorCores(optionManager);
     final double maxWidthFactor = context.getWorkStatsProvider().get().getMaxWidthFactor();
     this.maxWidthPerNode = (int) Math.max(1, configuredMaxWidthPerNode * maxWidthFactor);
 

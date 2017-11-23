@@ -148,6 +148,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
   protected abstract QueryMetadata getMetadata(SqlQuery query);
 
+  protected abstract boolean hasMetadata();
 
   @Override
   public TransformResult visit(TransformJoin join) throws Exception {

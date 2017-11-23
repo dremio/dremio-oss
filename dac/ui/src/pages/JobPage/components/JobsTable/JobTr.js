@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import StateIconTypes from 'constants/jobPage/StateIconType.json';
 import FontIcon from 'components/Icon/FontIcon';
@@ -24,7 +26,7 @@ import TextHighlight from 'components/TextHighlight';
 import jobsUtils from 'utils/jobsUtils';
 import timeUtils from 'utils/timeUtils';
 
-import { body, fixedWidthSmall } from 'uiTheme/radium/typography';
+import { fixedWidthSmall } from 'uiTheme/radium/typography';
 import { PALE_ORANGE } from 'uiTheme/radium/colors';
 
 const DATASET_HEIGHT = 14;
@@ -80,7 +82,7 @@ export default class JobTr extends Component {
         id={job.get('id')}
         className='jobs-table-tr'
         onClick={onClick}
-        style={[trStyles, body]}>
+        style={trStyles}>
         <div style={styles.headerRow}>
           <div style={styles.td}>
             <FontIcon type={StateIconTypes[jobState]}/>

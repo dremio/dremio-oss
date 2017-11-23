@@ -184,11 +184,11 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
     @Override
     public void planSubstituted(final DremioRelOptMaterialization materialization,
                                 final List<RelNode> substitutions,
-                                final RelNode query, final RelNode target, final long millisTaken) {
+                                final RelNode target, final long millisTaken) {
       calls.add(new ObserverCall(){
         @Override
         public void doCall(AttemptObserver observer) {
-          observer.planSubstituted(materialization, substitutions, query, target, millisTaken);
+          observer.planSubstituted(materialization, substitutions, target, millisTaken);
         }});
     }
 
@@ -221,11 +221,11 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
 
 
     @Override
-    public void planNormalized(final long millisTaken) {
+    public void planNormalized(final long millisTaken, final List<RelNode> normalizedQueryPlans) {
       calls.add(new ObserverCall(){
         @Override
         public void doCall(AttemptObserver observer) {
-          observer.planNormalized(millisTaken);
+          observer.planNormalized(millisTaken, normalizedQueryPlans);
         }});
     }
 

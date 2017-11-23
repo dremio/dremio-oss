@@ -22,7 +22,7 @@ import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirma
 import { POWER_BI_MANUAL } from 'constants/links.json';
 
 import FileUtils from 'utils/FileUtils';
-import browserUtils from 'utils/browserUtils';
+import config from 'utils/config';
 import jobsUtils from 'utils/jobsUtils';
 import { constructFullPathAndEncode } from 'utils/pathUtils';
 
@@ -130,7 +130,7 @@ const fetchDownloadTableau = ({ href }) => ({
         }
       }
     ],
-    headers: { Accept: browserUtils.getPlatform().os.family === 'OS X' ? 'application/tds+drill' : 'application/tds' },
+    headers: { Accept: config.tdsMimeType },
     method: 'GET',
     endpoint: `${API_URL_V2}${href}`
   }

@@ -14,36 +14,45 @@
  * limitations under the License.
  */
 
-import React      from 'react';
+import React from 'react';
 import { render } from 'react-dom';
-import $          from  'jquery';
+import $ from  'jquery';
 import Immutable  from 'immutable';
 import reactTapEvent from 'react-tap-event-plugin';
 
 import './vendor/chat';
 import './vendor/gtm';
+import sentryUtil from 'utils/sentryUtil';
+import metrics from './metrics';
 
-import 'imports?this=>window!script!jsplumb/dist/js/jsPlumb-2.1.4-min.js';
+import 'imports-loader?this=>window!script-loader!jsplumb/dist/js/jsPlumb-2.1.4-min.js';
 
+// import config from 'utils/config';
+
+// useful debugging leaks...
 window.React = React;
 window.$ = $;
+window.Immutable = Immutable;
 
-window.Immutable = Immutable; // TODO: stop polluting the global namespace here unnecessarily
+window.DremioMetrics = metrics;
 
 window.la = (key) => {
-  if (typeof key !== 'string') {
-    console.error('INCORRECT TRANSLATE KEY');
-  }
+  // (config.environment !== 'PRODUCTION') && console.warn('using unsupported localization function for:', key);
   return key;
 };
 
 import './main.less';
+// add css here to be sure that its content will appear after compiled main.less content.
+// when import .css file inside of .less file than .css content appears at the top of the file
+// no matter of @import ordering
+// the reason why typography.css import is here because it conflicts with reset.less imported inside
+// of main.less file
+import './uiTheme/css/typography.css';
 import 'font-awesome/css/font-awesome.css';
 
-import sentryUtil from 'utils/sentryUtil';
 sentryUtil.install();
 
-import Root           from './containers/Root';
+import Root from './containers/Root';
 import configureStore from './store/configureStore';
 
 const store = configureStore();

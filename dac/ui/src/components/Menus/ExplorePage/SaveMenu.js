@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import MenuItem from './MenuItem';
 import Menu from './Menu';
@@ -30,7 +32,7 @@ export default class SaveMenu extends Component {
   constructor(props) {
     super(props);
 
-    this.saveAs = props.action.bind(null, { name: 'saveAs', label: la('Save As...') });
+    this.saveAs = props.action.bind(null, { name: 'saveAs', label: la('Save As…') });
     this.save = props.action.bind(null, { name: 'save', label: la('Save') });
   }
 
@@ -43,7 +45,7 @@ export default class SaveMenu extends Component {
         <MenuItem
           className='save-as-menu-item'
           onClick={this.saveAs}>
-          {la('Save As...')}
+          {la('Save As…')}
         </MenuItem>
       </Menu>
     );

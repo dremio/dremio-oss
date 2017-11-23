@@ -34,6 +34,8 @@ message NodeEndpoint {
   optional string provision_id = 102;
   // direct memory capacity in bytes
   optional int64 max_direct_memory = 103;
+  // available number of cores per executor
+  optional int32 available_cores = 104;
 }
 
 message DremioServiceInstance {

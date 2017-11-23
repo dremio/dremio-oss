@@ -46,6 +46,7 @@ import com.dremio.exec.serialization.ProtoSerializer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobException;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobWarningException;
 import com.dremio.service.jobs.JobsService;
 import com.google.common.annotations.VisibleForTesting;
@@ -91,12 +92,14 @@ public class ProfileResource {
   @Produces(APPLICATION_JSON)
   public String getProfileJSON(@PathParam("queryid") String queryId,
       @QueryParam("attempt") @DefaultValue("0") int attempt) throws IOException {
-    QueryProfile profile = jobsService.getProfile(new JobId(queryId), attempt);
-    if (profile != null) {
-      return new String(SERIALIZER.serialize(profile));
+    final QueryProfile profile;
+    try {
+      profile = jobsService.getProfile(new JobId(queryId), attempt);
+    } catch (JobNotFoundException ignored) {
+      // TODO: should this be JobResourceNotFoundException?
+      throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
-
-    throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
+    return new String(SERIALIZER.serialize(profile));
   }
 
   @GET
@@ -104,8 +107,11 @@ public class ProfileResource {
   @Produces(TEXT_HTML)
   public Viewable getProfile(@PathParam("queryid") String queryId,
       @QueryParam("attempt") @DefaultValue("0") int attempt) {
-    QueryProfile profile = jobsService.getProfile(new JobId(queryId), attempt);
-    if (profile == null) {
+    final QueryProfile profile;
+    try {
+      profile = jobsService.getProfile(new JobId(queryId), attempt);
+    } catch (JobNotFoundException ignored) {
+      // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
     final boolean debug = context.getOptionManager().getOption(ExecConstants.DEBUG_QUERY_PROFILE);

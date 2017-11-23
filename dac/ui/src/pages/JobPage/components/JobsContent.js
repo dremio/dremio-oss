@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import $ from 'jquery';
 import Immutable  from 'immutable';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
 
 import socket from 'utils/socket';
 
@@ -32,6 +34,7 @@ export const SEPARATOR_WIDTH = 10;
 export const MIN_LEFT_PANEL_WIDTH = 500;
 const MIN_RIGHT_PANEL_WIDTH = 330;
 
+@injectIntl
 @Radium
 @PureRender
 export default class JobsContent extends Component {
@@ -46,6 +49,7 @@ export default class JobsContent extends Component {
     dataWithItemsForFilters: PropTypes.object,
     isNextJobsInProgress: PropTypes.bool,
     location: PropTypes.object,
+    intl: PropTypes.object.isRequired,
 
     loadItemsForFilter: PropTypes.func,
     loadNextJobs: PropTypes.func
@@ -152,7 +156,7 @@ export default class JobsContent extends Component {
   }
 
   render() {
-    const { jobId, jobs, queryState, onUpdateQueryState, viewState, location } = this.props;
+    const { jobId, jobs, queryState, onUpdateQueryState, viewState, location, intl } = this.props;
     const query = location.query || {};
     const resizeStyle = this.state.isResizing ? styles.noSelection : {};
 
@@ -167,7 +171,7 @@ export default class JobsContent extends Component {
         <ViewStateWrapper viewState={viewState} style={{display: 'flex'}}>
           <ViewCheckContent
             viewState={viewState}
-            message={la('No matching jobs found.')}
+            message={intl.formatMessage({ id: 'Job.NoMatchingJobsFound' })}
             dataIsNotAvailable={!jobs.size}
           >
             <div className='job-wrapper' style={styles.jobWrapper}

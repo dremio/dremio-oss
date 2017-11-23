@@ -277,16 +277,22 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
       // Support legacy drill driver. If the client info is empty or it exists
       // and doesn't contain dremio, assume it is Apache Drill format.
-      if(inbound.hasClientInfos()){
+      boolean legacyDriver = false;
+      if (inbound.hasClientInfos()) {
         RpcEndpointInfos endpointInfos = inbound.getClientInfos();
-        builder = builder.withClientInfos(endpointInfos);
-        if(!endpointInfos.hasName() || !endpointInfos.getName().toLowerCase().contains("dremio")){
-          builder.withLegacyCatalog();
-          builder.withInitialQuoting(Quoting.BACK_TICK);
+        builder.withClientInfos(endpointInfos);
+        if (!endpointInfos.hasName() ||
+            !endpointInfos.getName().toLowerCase().contains("dremio")) {
+          legacyDriver = true;
         }
       } else {
-        builder.withLegacyCatalog();
-        builder.withInitialQuoting(Quoting.BACK_TICK);
+        legacyDriver = true;
+      }
+      if (legacyDriver) {
+        builder.withLegacyCatalog()
+            .withInitialQuoting(Quoting.BACK_TICK)
+            // backward compatibility is only supported for scalar types
+            .setSupportComplexTypes(false);
       }
 
       // check if we have quoting that we want to set.
@@ -327,7 +333,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
           "\tRecord Format: %s\n" +
           "\tSupport Complex Types: %s\n" +
           "\tName: %s\n" +
-          "\tVesion: %s (%d.%d.%d)\n" +
+          "\tVersion: %s (%d.%d.%d)\n" +
           "\tApplication: %s\n",
           uuid.toString(), remote.getHostString(), remote.getPort(), inbound.getRpcVersion(),
           inbound.hasRecordBatchFormat() ? inbound.getRecordBatchFormat().name() : "n/a",

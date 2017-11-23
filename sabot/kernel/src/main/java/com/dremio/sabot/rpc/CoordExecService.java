@@ -27,6 +27,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -196,6 +197,12 @@ public class CoordExecService implements Service {
         execToCoord.get().dataArrived(header, dBody, sender);
         break;
 
+      case RpcType.REQ_NODE_QUERY_STATUS_VALUE:
+        NodeQueryStatus nodeQueryStatus = get(pBody, NodeQueryStatus.PARSER);
+        execToCoord.get().nodeQueryStatusUpdate(nodeQueryStatus);
+        sender.send(OK);
+        break;
+
       default:
         throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
       }
@@ -210,6 +217,7 @@ public class CoordExecService implements Service {
         .add(RpcType.REQ_CANCEL_FRAGMENTS, FragmentHandle.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_FRAGMENT_STATUS, FragmentStatus.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_QUERY_DATA, QueryData.class, RpcType.ACK, Ack.class)
+        .add(RpcType.REQ_NODE_QUERY_STATUS, NodeQueryStatus.class, RpcType.ACK, Ack.class)
         .build();
   }
 
@@ -242,6 +250,11 @@ public class CoordExecService implements Service {
 
     @Override
     public void dataArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
+      throw new RpcException("This daemon doesn't support coordination operations.");
+    }
+
+    @Override
+    public void nodeQueryStatusUpdate(NodeQueryStatus update) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
 

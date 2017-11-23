@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>1.2.2-201710100154510864-d40e31c</version>
+    <version>1.3.0-201711211846350824-31f8d91</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -394,11 +394,6 @@
       <version>2.7.6</version>
     </dependency>
     <dependency>
-      <groupId>org.codehaus.janino</groupId>
-      <artifactId>commons-compiler-jdk</artifactId>
-      <version>2.7.6</version>
-    </dependency>
-    <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
@@ -527,6 +522,7 @@
         <version>3.0</version>
         <configuration>
           <excludes combine.children="append">
+            <exclude>**/src/main/resources/*.properties</exclude>
             <exclude>**/src/test/resources/**</exclude>
           </excludes>
         </configuration>

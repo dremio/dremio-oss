@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
+import { FormattedMessage } from 'react-intl';
 
 import MenuItem from 'components/Menus/MenuItem';
 import DividerHr from 'components/Menus/DividerHr';
@@ -29,14 +31,14 @@ export default class AnalyzeMenuItems extends Component {
   render() {
     return (
       <div>
-        <MenuItem onTouchTap={this.props.openTableau}>{la('Tableau')}</MenuItem>
-        <MenuItem onTouchTap={this.props.openPowerBI}>{la('Power BI')}</MenuItem>
-        <MenuItem onTouchTap={this.props.openQlikSense}>{la('Qlik Sense')}</MenuItem>
+        <MenuItem onTouchTap={this.props.openTableau}><FormattedMessage id='Dataset.Tableau'/></MenuItem>
+        <MenuItem onTouchTap={this.props.openPowerBI}><FormattedMessage id='Dataset.PowerBI'/></MenuItem>
+        <MenuItem onTouchTap={this.props.openQlikSense}><FormattedMessage id='Dataset.QlikSense'/></MenuItem>
         <DividerHr />
         <MenuItem isInformational> {/* todo: loc safety (string concat) */}
           <span>
             {/* todo: loc safety (string concat) */}
-            <a href={DREMIO_CONNECTOR} target='_blank'>{la('Dremio Connector')}</a> {la('required')}
+            <a href={DREMIO_CONNECTOR} target='_blank'><FormattedMessage id='Dataset.DremioConnector'/></a> <FormattedMessage id='Dataset.Required'/>
           </span>
         </MenuItem>
       </div>

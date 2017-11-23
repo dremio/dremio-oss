@@ -18,8 +18,6 @@ import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import Immutable from 'immutable';
 
-import { h3 } from 'uiTheme/radium/typography';
-
 @Radium
 @pureRender
 export default class UsersV2 extends Component {
@@ -77,7 +75,7 @@ export default class UsersV2 extends Component {
     return (
       <div>
         <div className='admin-header' style={style.adminHeader}>
-          <h3 style={h3}>{la('Authentication')}</h3>
+          <h3>{la('Authentication')}</h3>
         </div>
         <div style={style.wrapper}>
           <span style={style.title}>Authentication Type</span>

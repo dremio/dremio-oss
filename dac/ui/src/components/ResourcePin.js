@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import classNames from 'classnames';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
 

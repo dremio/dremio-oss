@@ -21,6 +21,7 @@ import java.io.PrintStream;
 import java.util.List;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.commons.io.ByteOrderMark;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 
@@ -118,6 +119,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
       this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
       DataOutputStream fos = fs.create(path);
       stream = new PrintStream(fos);
+      stream.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
       logger.debug("Created file: {}", path);
     } catch (IOException e) {
       throw UserException.dataWriteError(e)
@@ -173,6 +175,23 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     @Override
     public void writeField() throws IOException {
       addField(fieldId, reader.readObject().toString());
+    }
+  }
+
+  @Override
+  public FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new NullTextConverter(fieldId, fieldName, reader);
+  }
+
+  public class NullTextConverter extends FieldConverter {
+
+    public NullTextConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      addField(fieldId, null);
     }
   }
 

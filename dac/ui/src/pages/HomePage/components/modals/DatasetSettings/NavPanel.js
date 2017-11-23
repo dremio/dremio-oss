@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component, PropTypes} from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
 import { FLEX_COL_START_START } from 'uiTheme/radium/flexStyle';
-import { body } from 'uiTheme/radium/typography';
 import { PALE_BLUE } from 'uiTheme/radium/colors';
 
 // todo: abstract out style and move this to generic components
@@ -63,7 +63,6 @@ const styles = {
     marginLeft: 10,
     marginRight: 10,
     width: 170,
-    ...body,
     padding: '5px 5px',
     border: '1px solid rgba(0,0,0,0)',
     height: 25,

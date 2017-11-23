@@ -13,24 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import classNames from 'classnames';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
 
-import { body } from 'uiTheme/radium/typography';
 import { CONTAINER_ENTITY_TYPES } from 'constants/Constants';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 import DragSource from 'components/DragComponents/DragSource';
-import exploreUtils from 'utils/explore/exploreUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import EllipsedText from 'components/EllipsedText';
+import { getIconByEntityType, getArtPropsByEntityIconType } from 'utils/iconUtils';
 
 import Tree from './Tree';
 
 import './ResourceTree.less';
 
+@injectIntl
 @Radium
 export default class ResourceTree extends Component {
   static propTypes = {
@@ -42,7 +44,8 @@ export default class ResourceTree extends Component {
     isNodeExpanded: PropTypes.func,
     handleSelectedNodeChange: PropTypes.func,
     handleNodeClick: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   static isNodeExpandable = (node) => CONTAINER_ENTITY_TYPES.has(node.get('type'))
@@ -58,22 +61,19 @@ export default class ResourceTree extends Component {
     const nodeId = this.props.formatIdFromNode(node);
     const isDisabled = this.props.isDatasetsDisabled && !CONTAINER_ENTITY_TYPES.has(node.get('type'));
     const arrowIconType = this.props.isNodeExpanded(node) ? 'TriangleDown' : 'TriangleRight';
+    const arrowAlt = this.props.isNodeExpanded(node) ? 'Undisclosed' : 'Disclosed';
 
     const iconForArrow = ResourceTree.isNodeExpandable(node)
-      ? (
-        <FontIcon
-          type={arrowIconType}
-          theme={styles.arrow}
-        />
-      )
+      ? <Art src={`${arrowIconType}.svg`} alt={this.props.intl.formatMessage({ id: `Common.${arrowAlt}` })} style={styles.arrow} />
       : <div style={styles.emptyDiv}></div>;
 
     const classes = classNames('node', {'active-node': this.props.selectedNodeId === nodeId});
-    const iconType = exploreUtils.getIconByEntityType(node.get('type'));
+    const iconType = getIconByEntityType(node.get('type'));
+    const iconForResourceProps = getArtPropsByEntityIconType(iconType, this.props.intl);
 
     const nodeElement = ResourceTree.isNodeExpandable(node) ?
       <div style={{ display: 'flex', minWidth: 0 }}>
-        <FontIcon type={iconType} theme={styles.icon}/>
+        <Art {...iconForResourceProps} style={styles.icon}/>
         <EllipsedText className='node-text' style={styles.text} text={node.get('name')} />
       </div>
       :
@@ -92,7 +92,7 @@ export default class ResourceTree extends Component {
         onMouseUp={e => e.preventDefault()}
         style={isDisabled ? styles.disabled : {}}
       >
-        <div style={{...styles.node, ...body}} className={classes}>
+        <div style={{...styles.node}} className={classes}>
           {iconForArrow}
           {nodeElement}
         </div>
@@ -149,12 +149,10 @@ const styles = {
     cursor: 'pointer'
   },
   arrow: {
-    Container: {
-      width: 20
-    },
-    Icon: {
-      marginTop: 4
-    }
+    width: 28,
+    height: 28,
+    marginTop: 1,
+    marginRight: -8
   },
   emptyDiv: {
     height: 24,
@@ -163,14 +161,8 @@ const styles = {
     flex: '0 0 auto'
   },
   icon: {
-    Icon: {
-      width: 21,
-      height: 21
-    },
-    Container: {
-      width: 21,
-      height: 21
-    }
+    width: 21,
+    height: 21
   },
   text: {
     marginLeft: 5,

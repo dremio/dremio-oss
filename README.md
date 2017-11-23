@@ -11,16 +11,15 @@ Documentation is available at https://docs.dremio.com.
 ### (a) Prerequisites
 
 * Oracle JDK 7 (some tests currently fail on JDK 8)
-* Protobuf 2.5 (using Homebrew: `brew install protobuf250 && brew link protobuf250 --force`)
 * (Optional) Maven 3.3.9 or later (using Homebrew: `brew install maven`)
 
 Run the following commands to verify that you have the correct versions of Maven and JDK installed:
 
     java -version
-    protoc --version
     mvn --version
 
 ### (b) Clone the Repository
+
     git clone https://github.com/dremio/dremio-oss.git dremio
 
 ### (c) Build the Code

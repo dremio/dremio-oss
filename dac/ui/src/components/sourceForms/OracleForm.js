@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import SingleHost from 'components/Forms/SingleHost';
@@ -61,13 +63,13 @@ export class OracleForm extends Component {
           <General fields={fields} editing={editing}>
             <SingleHost fields={fields} title='Host' style={{marginBottom: 15}}/>
             <div style={section}>
-              <FieldWithError label='SID' {...fields.config.instance}>
+              <FieldWithError label='SID' errorPlacement='right' {...fields.config.instance}>
                 <TextField {...fields.config.instance}/>
               </FieldWithError>
             </div>
             <Credentials fields={fields}/>
             <div style={{...section}}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>

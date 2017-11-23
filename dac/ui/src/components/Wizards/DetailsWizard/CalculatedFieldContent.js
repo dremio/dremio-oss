@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
 

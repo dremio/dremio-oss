@@ -41,7 +41,7 @@ public class RunStartedListener extends NoOpJobStatusListener {
   }
 
   @Override
-  public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+  public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
   }
 
   @Override

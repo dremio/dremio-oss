@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import Popover from 'material-ui/Popover';
 
 import FontIcon from 'components/Icon/FontIcon';
 
-import { body, formDefault, formPlaceholder } from 'uiTheme/radium/typography';
+import { formDefault, formPlaceholder } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
 import { PALE_BLUE, HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
@@ -59,7 +60,7 @@ class DragAreaColumn extends Component {
     this.renderContent = this.renderContent.bind(this);
     this.showPopover = this.showPopover.bind(this);
     this.handleRequestClose = this.handleRequestClose.bind(this);
-    this.onDragEnd = this.onDragEnd.bind(this);
+    this.handleDrop = this.handleDrop.bind(this);
     this.moveColumn = this.moveColumn.bind(this);
     this.disableColor = this.disableColor.bind(this);
     this.enableColor = this.enableColor.bind(this);
@@ -95,7 +96,7 @@ class DragAreaColumn extends Component {
     }
   }
 
-  onDragEnd(data) {
+  handleDrop(data) {
     const { type, id, item, index } = this.props;
     const selectedItem = {
       columnName: data.id,
@@ -208,7 +209,7 @@ class DragAreaColumn extends Component {
           onClick={this.showPopover}
           data-qa={`join-search-field-area-${index}-${type}`}
         >
-          <span style={body}>Drag a field here</span>
+          <span>Drag a field here</span>
         </div>
       );
     } else if (column.get('empty')) {
@@ -221,7 +222,7 @@ class DragAreaColumn extends Component {
             <input
               style={[styles.search, formPlaceholder, {fontSize: 11}]}
               onChange={this.handlePatternChange.bind(this)}
-              placeholder={la('Choose field...')}
+              placeholder={la('Choose field…')}
             />
             <FontIcon type='Search' theme={styles.icon}/>
           </div>
@@ -245,7 +246,7 @@ class DragAreaColumn extends Component {
     return (
       <div style={[styles.content, styles.largeContent]} key='custom-content'>
         <FontIcon type={typeToIconType[item.get('type')]} key='custom-type' theme={styles.type}/>
-        <span style={[styles.name, body]} key='custom-name'>
+        <span style={styles.name} key='custom-name'>
           {column.get('name')}
         </span>
       </div>
@@ -274,7 +275,7 @@ class DragAreaColumn extends Component {
           onDragEnd={this.props.onDragEnd}
           id={column.get('name')}>
           <DragTarget
-            onDrop={this.onDragEnd}
+            onDrop={this.handleDrop}
             dragType={this.props.dragType}
             moveColumn={this.moveColumn}
             index={this.props.index}

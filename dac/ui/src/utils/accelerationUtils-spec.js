@@ -85,7 +85,7 @@ describe('accelerationUtils', () => {
       expect(syntheticLayoutState({latestMaterializationState: 'CANARY'})).to.equal('CANARY');
     });
     it('FAILED_FINAL', () => {
-      expect(syntheticLayoutState({latestMaterializationState: 'FAILED', state: 'FAILED'})).to.equal('FAILED_FINAL');
+      expect(syntheticLayoutState({state: 'FAILED'})).to.equal('FAILED_FINAL');
     });
     it('FAILED_NONFINAL', () => {
       expect(syntheticLayoutState({latestMaterializationState: 'FAILED', state: 'ACTIVE'})).to.equal('FAILED_NONFINAL');

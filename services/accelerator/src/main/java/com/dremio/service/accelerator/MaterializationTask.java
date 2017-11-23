@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
 
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -41,7 +40,6 @@ import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
@@ -75,6 +73,7 @@ import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobException;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -282,8 +281,14 @@ public abstract class MaterializationTask {
         .setLayoutVersion(layout.getVersion())
         .setMaterializationId(id.getId());
 
-    jobRef.set(context.jobsService.submitJobWithExclusions(query, QueryType.ACCELERATOR_CREATE, datasetPathList,
-        datasetVersion, listener, materializationSummary, new SubstitutionSettings(exclusions, false)));
+    jobRef.set(context.jobsService.submitJob(
+        JobRequest.newMaterializationJobBuilder(materializationSummary,
+            new SubstitutionSettings(exclusions, false))
+            .setSqlQuery(query)
+            .setQueryType(QueryType.ACCELERATOR_CREATE)
+            .setDatasetPath(datasetPathList)
+            .setDatasetVersion(datasetVersion)
+            .build(), listener));
 
     return future;
   }
@@ -350,7 +355,7 @@ public abstract class MaterializationTask {
 
   protected abstract Materialization getOrCreateMaterialization();
 
-  public abstract void updateMetadataAndSave();
+  public abstract void updateMetadataAndSave(long refreshChainStartTime);
 
   protected abstract String getCtasSql(List<String> source, MaterializationId id, Materialization materialization);
 
@@ -467,15 +472,15 @@ public abstract class MaterializationTask {
    * than this.
    * @return the earliest expiration. if no accelerations, Long.MAX_VALUE is returned
    */
-  private long getFirstExpiration() {
+  private Optional<Long> getFirstExpiration() {
     if (jobRef.get().getJobAttempt().getInfo().getAcceleration() == null) {
-      return Long.MAX_VALUE;
+      return Optional.absent();
     }
     List<Substitution> substitutions = jobRef.get().getJobAttempt().getInfo().getAcceleration().getSubstitutionsList();
     if (substitutions == null || substitutions.isEmpty()) {
-      return Long.MAX_VALUE;
+      return Optional.absent();
     }
-    return FluentIterable.from(substitutions)
+    return Optional.of(FluentIterable.from(substitutions)
       .transform(new Function<Substitution, Long>() {
         @Nullable
         @Override
@@ -503,7 +508,7 @@ public abstract class MaterializationTask {
           return o1.compareTo(o2);
         }
       })
-      .get(0); // the list is guaranteed to be non-empty because of check at beginning of method.
+      .get(0)); // the list is guaranteed to be non-empty because of check at beginning of method.
   }
 
   /**
@@ -512,18 +517,8 @@ public abstract class MaterializationTask {
    * @return the minimum ttl value
    */
   private Optional<Long> getTtl() {
-    final ImmutableList.Builder<List<String>> builder = ImmutableList.builder();
-    logicalPlan.get().accept(new StatelessRelShuttleImpl() {
-      @Override
-      public RelNode visit(final TableScan scan) {
-        List<String> qualifiedName = scan.getTable().getQualifiedName();
-        if (!qualifiedName.get(0).equals(context.acceleratorStorageName)) {
-          builder.add(qualifiedName);
-        }
-        return super.visit(scan);
-      }
-    });
-    List<List<String>> paths = builder.build();
+    List<List<String>> paths = AccelerationUtils.getScans(logicalPlan.get(), context.acceleratorStorageName);
+
     if (paths.isEmpty()) {
       return Optional.absent();
     }
@@ -651,7 +646,7 @@ public abstract class MaterializationTask {
     }
 
     @Override
-    public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
       if (phase == PlannerPhase.LOGICAL) {
         logicalPlan.set(after);
       }
@@ -707,8 +702,11 @@ public abstract class MaterializationTask {
                 .add("materialization", materialization.getId().getId())
                 .add("layout", materialization.getLayoutId().getId())
         );
-        long ttl = getTtl().or(gracePeriod);
-        long firstExpiration = getFirstExpiration();
+        Optional<Long> ttlOpt = getTtl();
+        Optional<Long> firstExpirationOpt = getFirstExpiration();
+        assert (ttlOpt.isPresent() || firstExpirationOpt.isPresent()) : "Cannot determine TTL";
+        long firstExpiration = firstExpirationOpt.or(Long.MAX_VALUE);
+        long ttl = ttlOpt.or(gracePeriod);
         long jobStart = jobRef.get().getJobAttempt().getInfo().getStartTime();
 
         // if ttl is not set, use the default grace period

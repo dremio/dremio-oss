@@ -18,7 +18,9 @@ package com.dremio.exec.server;
 import java.util.Collection;
 import java.util.Set;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.server.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.ServiceSet;
@@ -26,6 +28,7 @@ import com.dremio.service.coordinator.ServiceSet;
 public class ClusterResourceInformation {
 
   private volatile long averageExecutorMemory = 0;
+  private volatile int averageExecutorCores = 0;
 
   public ClusterResourceInformation(final ClusterCoordinator coordinator) {
     final ServiceSet executorSet = coordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR);
@@ -33,14 +36,17 @@ public class ClusterResourceInformation {
       @Override
       public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
         computeAverageMemory(executorSet.getAvailableEndpoints());
+        computeAverageExecutorCores(executorSet.getAvailableEndpoints());
       }
 
       @Override
       public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
         computeAverageMemory(executorSet.getAvailableEndpoints());
+        computeAverageExecutorCores(executorSet.getAvailableEndpoints());
       }
     });
     computeAverageMemory(executorSet.getAvailableEndpoints());
+    computeAverageExecutorCores(executorSet.getAvailableEndpoints());
   }
 
   private void computeAverageMemory(final Collection<NodeEndpoint> executors) {
@@ -56,6 +62,19 @@ public class ClusterResourceInformation {
     }
   }
 
+  private void computeAverageExecutorCores(final Collection<NodeEndpoint> executors) {
+    if (executors == null || executors.isEmpty()) {
+      averageExecutorCores = 0;
+    } else {
+      int totalCoresAcrossExecutors = 0;
+      for (final NodeEndpoint endpoint: executors) {
+        totalCoresAcrossExecutors += endpoint.getAvailableCores();
+      }
+
+      averageExecutorCores = totalCoresAcrossExecutors / executors.size();
+    }
+  }
+
   /**
    * Get the average maximum direct memory of executors in the cluster.
    *
@@ -63,5 +82,23 @@ public class ClusterResourceInformation {
    */
   public long getAverageExecutorMemory() {
     return averageExecutorMemory;
+  }
+
+  /**
+   * Get the average number of cores in executor nodes.
+   * This will be used as the default value of MAX_WIDTH_PER_NODE
+   *
+   * @return average number of executor cores
+   */
+  public long getAverageExecutorCores(final OptionManager optionManager) {
+    long configuredMaxWidthPerNode = optionManager.getOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY).num_val;
+    if (configuredMaxWidthPerNode == 0) {
+      /* user has not overridden the default, use the default MAX_WIDTH_PER_NODE which is average
+       * number of cores as computed by ClusterResourceInformation.
+       */
+      return (long)averageExecutorCores;
+    } else {
+      return configuredMaxWidthPerNode;
+    }
   }
 }

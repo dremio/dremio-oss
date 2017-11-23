@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
-import { body } from 'uiTheme/radium/typography';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 
 @Radium
@@ -71,7 +71,7 @@ export default class RecommendedJoinItem extends Component {
     const matchingKeys = currentKeys.keySeq();
 
     return matchingKeys.map((matchingKey, i) => (
-      <div key={i} style={{ display: 'flex', width: '100%', ...body }}>
+      <div key={i} style={{ display: 'flex', width: '100%' }}>
         <div data-qa='Current Dataset Key' style={{width: '100%'}}>{matchingKey}</div>
         <div style={{width: '100%'}}>=</div>
         <div data-qa='Matching Key' style={{width: '100%'}}>{currentKeys.get(matchingKey)}</div>
@@ -91,7 +91,7 @@ export default class RecommendedJoinItem extends Component {
         key='base'
         style={[styles.base, activeStyle]}
         onClick={this.selectRecommendation}>
-        <div style={[styles.name, body]}>
+        <div style={styles.name}>
           <DatasetItemLabel
             name={this.getRecommendedDatasetName()}
             fullPath={fullPathList}
@@ -100,10 +100,10 @@ export default class RecommendedJoinItem extends Component {
             typeIcon='VirtualDataset' // TODO get dataset type from server. DX-5884
           />
         </div>
-        <div style={[styles.type]}>
+        <div style={styles.type}>
           {this.renderJoinType()}
         </div>
-        <div style={[styles.cur, body]}>
+        <div style={styles.cur}>
           <div style={styles.keys}>
             {this.renderMatchingKeys()}
           </div>

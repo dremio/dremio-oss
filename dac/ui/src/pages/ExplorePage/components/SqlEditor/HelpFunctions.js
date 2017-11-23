@@ -13,20 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
+import {safeHtml} from 'common-tags';
 
 import { loadHelpGridData } from 'actions/explore/sqlActions';
 import DragSource from 'components/DragComponents/DragSource';
 import { SearchField } from 'components/Fields';
+import FontIcon from 'components/Icon/FontIcon';
 
 import { fixedWidthSmall, formDescription, fixedWidthBold } from 'uiTheme/radium/typography';
 
 import './HelpFunctions.less';
 
+@injectIntl
 @Radium
 @pureRender
 export class HelpFunctions extends Component {
@@ -35,7 +40,8 @@ export class HelpFunctions extends Component {
     addFuncToSqlEditor: PropTypes.func.isRequired,
     loadHelpGridData: PropTypes.func.isRequired,
     gridHelpData: PropTypes.object.isRequired,
-    heightPanel: PropTypes.number
+    heightPanel: PropTypes.number,
+    intl: PropTypes.object.isRequired
   };
 
   state = {
@@ -47,21 +53,9 @@ export class HelpFunctions extends Component {
     this.loadData(this.state.filter);
   }
 
-  componentDidUpdate() {
-    if (this.refs.activeItem) {
-      this.scrollTop(this.refs.activeItem);
-    }
-  }
-
   loadData = (value) => {
     this.setState({ filter: value });
-    this.props.loadHelpGridData(value, 'helpfunc');
-  }
-
-  scrollTop = (activeItem) => {
-    const currentTop = $(activeItem).position().top;
-    const scrollTop = $(this.refs.scroll).scrollTop() + currentTop;
-    $(this.refs.scroll).animate({ scrollTop }, 'fast');
+    this.props.loadHelpGridData(value);
   }
 
   expandFuncInfo = (id) => {
@@ -80,29 +74,60 @@ export class HelpFunctions extends Component {
       ? <div className='example' style={[styles.insideDescription, styles.example]}>{item.get('example')}</div>
       : null;
     const nameToInsert = item.get('name').toUpperCase();
+
+    const argsHTML = !item.get('args') ? '' : safeHtml`${item.get('args')}`.replace(/{|}|\[|\]/g, (symbol) => {
+      if (symbol === '[') {
+        return '';
+      } else if (symbol === ']') {
+        return '';
+      } else if (symbol === '{') {
+        return '<i>';
+      } else if (symbol === '}') {
+        return '</i>';
+      }
+    });
+
+    const descriptionHTML = !item.get('description') ? '' : safeHtml`${item.get('description')}`.replace(/{{|}}/g, (match) => {
+      if (match === '{{') {
+        return '<i>';
+      } else if (match === '}}') {
+        return '</i>';
+      }
+    });
+
+    const insert = (evt) => {
+      evt.stopPropagation();
+      this.props.addFuncToSqlEditor(nameToInsert, item.get('args'));
+    };
+
     return (
       <div
         className='func_for_sql_editor' style={[styles.func, activeFuncStyle]}
         key={`helpFunction-${item.get('id')}`}
         ref={isActiveItem ? 'activeItem' : undefined}
         onMouseUp={e => e.preventDefault()}
-        onDoubleClick={this.props.addFuncToSqlEditor.bind(this, nameToInsert, item.get('args'))}
         onClick={this.expandFuncInfo.bind(this, item.get('id'))}>
         <DragSource
           dragType={this.props.dragType}
           id={nameToInsert}
           args={item.get('args')}
           key={item.get('id')}>
-          <div style={{display: 'flex', alignItems: 'baseline'}}>
+          <div style={{display: 'flex', alignItems: 'flex-start'}}>
+            <FontIcon
+              style={{ height: 10, marginTop: -6, cursor: 'pointer', marginRight: 3}} // fudge factor makes it look v-aligned better
+              type='Add'
+              hoverType='AddHover'
+              theme={styles.addIcon}
+              onClick={insert}/>
             <div style={fixedWidthSmall}>{nameToInsert}</div>
             <div style={[fixedWidthSmall, {marginLeft: 5}]}
-              dangerouslySetInnerHTML={{__html: `${item.get('args')}`}}/>
-            <div style={styles.arrow}>></div>
+              dangerouslySetInnerHTML={{__html: argsHTML}}/>
+            <div style={styles.arrow}>{'>'}</div>
             <div style={fixedWidthBold}>{item.get('returnType')}</div>
           </div>
         </DragSource>
         <div className='inside-text' style={[styles.insideText, activeDes]}>
-          <div style={styles.insideDescription} dangerouslySetInnerHTML={{__html: item.get('description')}}></div>
+          <div style={styles.insideDescription} dangerouslySetInnerHTML={{__html: descriptionHTML}}></div>
           {example}
         </div>
       </div>
@@ -126,12 +151,12 @@ export class HelpFunctions extends Component {
           style={styles.searchWrap}
           inputStyle={styles.searchInput}
           searchIconTheme={styles.searchIcon}
-          placeholder={la('Search functions...')}
+          placeholder={this.props.intl.formatMessage({ id: 'Dataset.SearchFunctions' })}
           onChange={this.loadData}
           value={this.state.filter}
         />
         <div className='content-wrap' style={styles.contentWrap}>
-          <div style={{height: this.props.heightPanel, overflowY: 'scroll'}} ref='scroll'>
+          <div style={{height: this.props.heightPanel, overflowY: 'scroll', paddingTop: 2}} ref='scroll'>
             {this.renderFunctionsList()}
           </div>
         </div>
@@ -173,11 +198,11 @@ const styles = {
   },
   func: {
     fontFamily: 'Roboto, sans-serif',
-    padding: '3px 8px',
+    padding: '5px 8px',
     clear: 'both',
     position: 'relative',
     height: 'auto',
-    cursor: 'move'
+    cursor: 'pointer'
   },
   insideText: {
     padding: '1px 0',

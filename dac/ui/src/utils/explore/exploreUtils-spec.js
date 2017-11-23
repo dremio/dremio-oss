@@ -250,23 +250,6 @@ describe('exploreUtils', () => {
     });
   });
 
-  describe('method describeSqlFuncs', () => {
-    it('should return string with parenthesis if argument equal ()', () => {
-      const result = exploreUtils.describeSqlFuncs('timeofday', '()');
-      expect(result).to.eql('timeofday()');
-    });
-
-    it('should return string with parenthesis if argument equal (DISTINCT [field name] {givenfield})', () => {
-      const result = exploreUtils.describeSqlFuncs('count', '(DISTINCT [field name] {givenfield})');
-      expect(result).to.eql('count()');
-    });
-
-    it('should return string only function name when args is empty', () => {
-      const result = exploreUtils.describeSqlFuncs('current_date', '');
-      expect(result).to.eql('current_date');
-    });
-  });
-
   describe('method getMappedDataForTransform', () => {
     it('should return map drop data to server format', () => {
       const data = {

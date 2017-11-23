@@ -15,35 +15,43 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Map;
+import java.util.Collection;
+import java.util.concurrent.ConcurrentMap;
+
+import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 /**
  * Manages workload and query level allocators
  */
+@ThreadSafe
 public class QueriesClerk implements AutoCloseable {
 
   private static final String INSTANT_MAX_ALLOCATION_CONFIG = "allocators.instant.max";
   private static final String BACKGROUND_MAX_ALLOCATION_CONFIG = "allocators.background.max";
   private static final String GENERAL_MAX_ALLOCATION_CONFIG = "allocators.general.max";
 
+  private final ExecToCoordTunnelCreator tunnelCreator;
   private final BufferAllocator nrtAllocator;
   private final BufferAllocator generalAllocator;
   private final BufferAllocator backgroundAllocator;
 
-  private final Map<QueryId, QueryClerk> clerks = Maps.newHashMap();
+  private final ConcurrentMap<QueryId, QueryTicket> queryTickets = Maps.newConcurrentMap();
 
-  QueriesClerk(BufferAllocator parentAllocator, SabotConfig config) {
+  QueriesClerk(BufferAllocator parentAllocator, SabotConfig config, ExecToCoordTunnelCreator tunnelCreator) {
+    this.tunnelCreator = tunnelCreator;
     nrtAllocator = parentAllocator.newChildAllocator("nrt-workload-allocator", 0,
       getLongConfig(config, INSTANT_MAX_ALLOCATION_CONFIG, Long.MAX_VALUE));
     generalAllocator = parentAllocator.newChildAllocator("general-workload-allocator", 0,
@@ -60,8 +68,48 @@ public class QueriesClerk implements AutoCloseable {
   }
 
   /**
-   * creates a fragment ticket for the passed fragment, may create a new query clerk if no clerk is already
-   * cached. Closing the ticket will return the reservation and eventually close the corresponding clerk along with
+   * Creates a query ticket (along with a query-level allocator) for a given query, if such a ticket has not already
+   * been created.
+   * Multi-thread safe
+   */
+  public QueryTicket getOrCreateQueryTicket(QueryId queryId, WorkloadClass workloadClass, long maxAllocation,
+                                            NodeEndpoint foreman, NodeEndpoint assignment) {
+    QueryTicket queryTicket = queryTickets.get(queryId);
+    if (queryTicket == null) {
+      final BufferAllocator queryAllocator =
+        getWorkloadAllocator(workloadClass)
+          .newChildAllocator("query-" + QueryIdHelper.getQueryId(queryId), 0, maxAllocation);
+      queryTicket = new QueryTicket(this, queryId, queryAllocator, foreman, assignment, tunnelCreator);
+      QueryTicket insertedTicket = queryTickets.putIfAbsent(queryId, queryTicket);
+      if (insertedTicket != null) {
+        // Race condition: another user managed to insert a query ticket. Let's close ours and use theirs
+        Preconditions.checkState(insertedTicket != queryTicket);
+        try {
+          AutoCloseables.close(queryTicket);  // NB: closing the ticket will close the query allocator
+        } catch (Exception e) {
+          // Ignored
+        }
+        queryTicket = insertedTicket;
+      }
+    }
+    return queryTicket;
+  }
+
+  /**
+   * Remove a query ticket from this queries clerk
+   * <p>
+   * Multi-thread safe
+   */
+  public void removeQueryTicket(QueryTicket queryTicket) throws Exception {
+    final QueryTicket removedQueryTicket = queryTickets.remove(queryTicket.getQueryId());
+    Preconditions.checkState(removedQueryTicket == queryTicket,
+      "closed query ticket was not found in the query tickets' map");
+    AutoCloseables.close(queryTicket);
+  }
+
+  /**
+   * creates a fragment ticket for the passed fragment, may create a new query ticket if no query ticket is already
+   * cached. Closing the ticket will return the reservation and eventually close the corresponding query ticket along with
    * its allocator
    *
    * @param fragment fragment plan
@@ -69,40 +117,38 @@ public class QueriesClerk implements AutoCloseable {
    */
   public FragmentTicket newFragmentTicket(PlanFragment fragment) {
     final QueryId queryId = fragment.getHandle().getQueryId();
+    final int majorFragmentId = fragment.getHandle().getMajorFragmentId();
     final WorkloadClass workloadClass = fragment.getPriority().getWorkloadClass();
     final long maxAllocation = fragment.getContext().getQueryMaxAllocation();
 
-    synchronized (clerks) {
-
-      QueryClerk queryClerk = clerks.get(queryId);
-      if (queryClerk == null) {
-        queryClerk = newQueryAllocator(queryId, workloadClass, maxAllocation);
-        clerks.put(queryId, queryClerk);
-      }
-
-      return new FragmentTicket(queryClerk);
-    }
+    QueryTicket queryTicket = getOrCreateQueryTicket(queryId, workloadClass, maxAllocation, fragment.getForeman(), fragment.getAssignment());
+    // Note: applying query limit to the phase, as that doesn't add any additional restrictions. If an when we have
+    // phase limits on the plan fragment, we could apply them here.
+    PhaseTicket phaseTicket = queryTicket.getOrCreatePhaseTicket(majorFragmentId, maxAllocation);
+    return new FragmentTicket(phaseTicket);
   }
 
-  private QueryClerk newQueryAllocator(QueryId queryId, WorkloadClass workloadClass, long maxAllocation) {
-    final BufferAllocator workloadAllocator;
+  /**
+   * @return all the active query tickets
+   */
+  Collection<QueryTicket> getActiveQueryTickets() {
+    return ImmutableList.copyOf(queryTickets.values());
+  }
+
+  /**
+   * Get the allocator that corresponds to the appropriate workload
+   */
+  private BufferAllocator getWorkloadAllocator(WorkloadClass workloadClass) {
     switch (workloadClass) {
       case BACKGROUND:
-        workloadAllocator = backgroundAllocator;
-        break;
+        return backgroundAllocator;
       case GENERAL:
-        workloadAllocator = generalAllocator;
-        break;
+        return generalAllocator;
       case NRT:
-        workloadAllocator = nrtAllocator;
-        break;
+        return nrtAllocator;
       default: // REALTIME priority is not handled for now
         throw new IllegalStateException("Unknown work class: " + workloadClass);
     }
-
-    final BufferAllocator childAllocator = workloadAllocator.newChildAllocator("query-" + QueryIdHelper.getQueryId(queryId),
-      0, maxAllocation);
-    return new QueryClerk(queryId, childAllocator);
   }
 
   @Override
@@ -111,16 +157,16 @@ public class QueriesClerk implements AutoCloseable {
   }
 
   public class FragmentTicket implements AutoCloseable {
-    private QueryClerk clerk;
+    private PhaseTicket phaseTicket;
     private boolean closed;
 
-    private FragmentTicket(QueryClerk clerk) {
-      this.clerk = Preconditions.checkNotNull(clerk, "QueryClerk should not be null");
-      clerk.reserve();
+    private FragmentTicket(PhaseTicket phaseTicket) {
+      this.phaseTicket = Preconditions.checkNotNull(phaseTicket, "PhaseTicket should not be null");
+      phaseTicket.reserve();
     }
 
     public BufferAllocator newChildAllocator(String name, long initReservation, long maxAllocation) {
-      return clerk.getAllocator().newChildAllocator(name, initReservation, maxAllocation);
+      return phaseTicket.getAllocator().newChildAllocator(name, initReservation, maxAllocation);
     }
 
     @Override
@@ -128,14 +174,9 @@ public class QueriesClerk implements AutoCloseable {
       Preconditions.checkState(!closed, "Trying to close FragmentTicket more than once");
       closed = true;
 
-      synchronized (clerks) {
-        if (clerk.release()) {
-          final QueryClerk queryClerk = clerks.remove(clerk.getQueryId());
-          Preconditions.checkState(queryClerk == clerk,
-            "closed query allocator was not found in the query allocators' map");
-
-          AutoCloseables.close(clerk);
-        }
+      if (phaseTicket.release()) {
+        // NB: The query ticket removes itself from the queries clerk when its last phase ticket is removed
+        phaseTicket.getQueryTicket().removePhaseTicket(phaseTicket);
       }
     }
   }

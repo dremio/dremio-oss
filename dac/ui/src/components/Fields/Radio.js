@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { BLUE } from 'uiTheme/radium/colors';
 import Checkbox, { checkboxPropTypes } from './Checkbox';
@@ -54,8 +56,7 @@ const styles = {
     padding: '5px 2px',
     border: '1px solid #bbb',
     borderRadius: '50%',
-    background: '#fff',
-    alignSelf: 'center' // DX-8124 needed for FF<=50 checkbox style issue
+    background: '#fff'
   },
   dot: {
     background: BLUE,

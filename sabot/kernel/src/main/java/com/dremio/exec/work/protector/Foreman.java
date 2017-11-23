@@ -29,6 +29,7 @@ import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -170,6 +171,13 @@ public class Foreman {
     }
 
     manager.dataFromScreenArrived(header, data, sender);
+  }
+
+  public void updateNodeQueryStatus(NodeQueryStatus status) {
+    AttemptManager manager = attemptManager;
+    if(manager != null && manager.getQueryId().equals(status.getId())){
+      manager.updateNodeQueryStatus(status);
+    }
   }
 
   private boolean recoverFromFailure(AttemptReason reason) {

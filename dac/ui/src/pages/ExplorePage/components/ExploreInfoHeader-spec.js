@@ -376,7 +376,7 @@ describe('ExploreInfoHeader', () => {
       sinon.stub(instance, 'isEditedDataset').returns(true);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
       expect(node.find('FontIcon')).to.have.length(1);
-      expect(node.find('EllipsedText').props().text).to.be.contains('displayTable (edited)');
+      expect(node.find('EllipsedText').props().text).to.be.contains('displayTable{"0":{"id":"Dataset.Edited"}}');
     });
 
     it('should not render (edited) dataset label when isEditedDataset returns false', () => {

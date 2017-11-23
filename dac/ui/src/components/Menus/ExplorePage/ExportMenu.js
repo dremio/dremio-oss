@@ -13,54 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
-import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
+import PropTypes from 'prop-types';
 
-import { EXPORT_TYPES, UNSUPPORTED_TYPE_COLUMNS } from 'constants/explorePage/exportTypes';
+import { MAP, LIST, MIXED } from 'constants/DataTypes';
+
+const UNSUPPORTED_TYPE_COLUMNS = {
+  'CSV': new Set([MAP, LIST, MIXED])
+};
+
 import MenuItem from './MenuItem';
 import Menu from './Menu';
 
-@Radium
-@pureRender
-export default class ExportMenu extends Component {
+const TYPES = [
+  { label: 'JSON', name: 'JSON' },
+  { label: 'CSV', name: 'CSV' },
+  { label: 'Parquet', name: 'PARQUET' }
+];
+
+export default class ExportMenu extends PureComponent {
   static propTypes = {
-    type: PropTypes.string,
     action: PropTypes.func,
     datasetColumns: PropTypes.array
   };
 
-  static defaultProps = {
-    exportOptions: []
-  }
-
-  static defaultMenuItem = {
-    label: 'JSON',
-    name: 'JSON'
-  }
+  static defaultMenuItem = TYPES[0]
 
   renderMenuItems() {
     const datasetColumns = new Set(this.props.datasetColumns);
     const isTypesIntersected = (types) => !![...types].filter(type => datasetColumns.has(type)).length;
 
-    return EXPORT_TYPES.map(name => {
-      const types = UNSUPPORTED_TYPE_COLUMNS[name];
+    return TYPES.map(type => {
+      const types = UNSUPPORTED_TYPE_COLUMNS[type.name];
       const disabled = types && isTypesIntersected(types);
-      const onClick = disabled ? () => {} : this.props.action.bind(this, {name, label: name});
+      const onClick = disabled ? () => {} : () => this.props.action(type);
 
-      return (
-        <MenuItem key={name} onClick={onClick} disabled={disabled}>
-          {name}
-        </MenuItem>
-      );
+      return <MenuItem key={type.name} onClick={onClick} disabled={disabled}>{type.label}</MenuItem>;
     });
   }
 
   render() {
-    return (
-      <Menu>
-        {this.renderMenuItems()}
-      </Menu>
-    );
+    return <Menu>{this.renderMenuItems()}</Menu>;
   }
 }

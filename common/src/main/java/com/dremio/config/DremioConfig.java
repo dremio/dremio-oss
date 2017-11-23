@@ -71,6 +71,7 @@ public class DremioConfig extends NestedConfig {
   public static final String WEB_TOKEN_CACHE_SIZE = "services.coordinator.web.tokens.cache.size";
   public static final String SCHEDULER_SERVICE_THREAD_COUNT = "services.coordinator.scheduler.threads";
   public static final String WEB_TOKEN_CACHE_EXPIRATION = "services.coordinator.web.tokens.cache.expiration_minutes";
+  public static final String TASK_ON_IDLE_LOAD_SHED = "debug.task.on_idle_load_shed";
   public static final String KERBEROS_PRINCIPAL = "services.kerberos.principal";
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
 

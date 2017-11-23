@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { Toggle } from 'components/Fields';
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
+import {getUniqueName} from 'utils/pathUtils';
 import { commonStyles } from '../commonStyles';
 import AccelerationGridController from './AccelerationGridController';
 
@@ -29,7 +31,7 @@ export default class AccelerationRaw extends Component {
 
   static getFields() {
     return [
-      'rawLayouts.layoutList[].id.id',
+      'rawLayouts.layoutList[].id',
       'rawLayouts.layoutList[].name',
       'rawLayouts.layoutList[].details.partitionDistributionStrategy',
       'rawLayouts.layoutList[].details.partitionFieldList[].name',
@@ -46,8 +48,12 @@ export default class AccelerationRaw extends Component {
 
   addNewLayout = () => {
     const { rawLayouts } = this.props.fields;
+    const name = getUniqueName(la('New Reflection'), proposedName => {
+      return !rawLayouts.layoutList.some(layout => layout.name.value === proposedName);
+    });
+
     rawLayouts.layoutList.addField({
-      name: la('New Reflection'),
+      name,
       details: {
         displayFieldList: [],
         partitionFieldList: [],
@@ -67,10 +73,10 @@ export default class AccelerationRaw extends Component {
   renderHeader = () => {
     const { enabled } = this.props.fields.rawLayouts;
     const toggleLabel = (
-      <div style={commonStyles.toggleLabel}>
+      <h3 style={commonStyles.toggleLabel}>
         <FontIcon type='RawMode' theme={commonStyles.iconTheme}/>
         {la('Raw Reflections')}
-      </div>
+      </h3>
     );
     return (
       <div style={commonStyles.header}>

@@ -25,13 +25,10 @@ import com.google.common.collect.ImmutableList;
  */
 public class SubstitutionSettings {
 
-  private static final SubstitutionSettings EMPTY = new SubstitutionSettings();
+  private static final SubstitutionSettings EMPTY = new SubstitutionSettings(ImmutableList.<String>of(), false);
+
   private final List<String> exclusions;
   private final boolean includeIncompleteDatasets;
-
-  public SubstitutionSettings() {
-    this(ImmutableList.<String>of(), false);
-  }
 
   public SubstitutionSettings(List<String> exclusions, boolean includeIncompleteDatasets) {
     this.exclusions = ImmutableList.copyOf(exclusions);
@@ -50,11 +47,12 @@ public class SubstitutionSettings {
   public List<String> getExclusions() {
     return exclusions;
   }
+
   /**
    * can include incomplete datasets
    * @return boolean
    */
-  public boolean isIncludeIncompleteDatasets() {
+  public boolean isIncludingIncompleteDatasets() {
     return includeIncompleteDatasets;
   }
 

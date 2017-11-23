@@ -154,6 +154,8 @@ public class EventBasedRecordWriter {
       return recordWriter.getNewUnionConverter(fieldId, fieldName, reader);
     }
     switch (type) {
+      case NULL:
+        return recordWriter.getNewNullConverter(fieldId, fieldName, reader);
       case UNION:
         return recordWriter.getNewUnionConverter(fieldId, fieldName, reader);
       case MAP:

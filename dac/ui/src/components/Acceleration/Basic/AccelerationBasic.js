@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import { FLEX_COL_START } from 'uiTheme/radium/flexStyle';
-import { pathLink, body } from 'uiTheme/radium/typography';
+import { pathLink } from 'uiTheme/radium/typography';
 import { modalFormProps } from 'components/Forms';
 import { Toggle } from 'components/Fields';
 import { commonStyles } from '../commonStyles';
@@ -54,13 +55,13 @@ export class AccelerationBasic extends Component {
 
     let found = this.props.acceleration.getIn([
       'aggregationLayouts', 'layoutList'
-    ]).some(layout => layout.getIn(['id', 'id']) === layoutId);
+    ]).some(layout => layout.get('id') === layoutId);
 
     if (found) return 'AGGREGATION';
 
     found = this.props.acceleration.getIn([
       'rawLayouts', 'layoutList'
-    ]).some(layout => layout.getIn(['id', 'id']) === layoutId);
+    ]).some(layout => layout.get('id') === layoutId);
 
     if (found) return 'RAW';
 
@@ -71,10 +72,10 @@ export class AccelerationBasic extends Component {
     const { fields, location, fullPath, acceleration } = this.props;
     const { enabled } = fields.rawLayouts || {};
     const toggleLabel = (
-      <div style={commonStyles.toggleLabel}>
+      <h3 style={commonStyles.toggleLabel}>
         <FontIcon type='RawMode' theme={commonStyles.iconTheme}/>
         {la('Raw Reflections (Automatic)')}
-      </div>
+      </h3>
     );
 
     const firstRawLayout = acceleration.getIn('rawLayouts.layoutList.0'.split('.'));
@@ -134,7 +135,6 @@ const styles = {
     overflow: 'hidden'
   },
   body: {
-    ...body,
     ...FLEX_COL_START,
     height: '100%',
     paddingLeft: 10
@@ -150,7 +150,6 @@ const styles = {
     alignItems: 'center'
   },
   column: {
-    ...body,
     height: 30
   },
   formSection: {

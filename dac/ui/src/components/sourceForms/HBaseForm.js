@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
@@ -57,7 +59,7 @@ export class HBaseForm extends Component {
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Zookeeper Quorum')}</h3>
+              <h2 style={sectionTitle}>{la('Zookeeper Quorum')}</h2>
               <div style={{ display: 'flex' }}>
                 <FieldWithError {...fields.config.zkQuorum} errorPlacement='top'>
                   <TextField {...fields.config.zkQuorum}/>
@@ -66,7 +68,7 @@ export class HBaseForm extends Component {
               </div>
             </div>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Zookeeper Port')}</h3>
+              <h2 style={sectionTitle}>{la('Zookeeper Port')}</h2>
               <FieldWithError {...fields.config.port} errorPlacement='top'>
                 <TextField {...fields.config.port} type='number'/>
               </FieldWithError>

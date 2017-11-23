@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import FontIcon from 'components/Icon/FontIcon';
 import EllipsedText from 'components/EllipsedText';
-
-import { body } from 'uiTheme/radium/typography';
 
 import SortDragArea from './components/SortDragArea';
 
@@ -49,15 +48,15 @@ class SortMultiply extends Component {
   render() {
     return ( // todo: loc
       <div className='inner-join' style={[styles.base]} onMouseUp={this.props.handleDragStop}>
-        <div style={[styles.header]}>
-          <div style={[styles.name, body]}>
+        <div style={styles.header}>
+          <div style={styles.name}>
             <EllipsedText text={`“${this.props.dataset.getIn(['displayFullPath', -1])}” fields:`}/>
           </div>
-          <div style={[styles.name, body, {borderRight: 'none'}]}>
+          <div style={[styles.name, {borderRight: 'none'}]}>
             {la('Sort fields:')}
           </div>
         </div>
-        <div style={[styles.inner]}>
+        <div style={styles.inner}>
           <DragColumnMenu
             items={this.props.columns || Immutable.List()}
             disabledColumnNames={this.getNamesOfColumnsInDragArea()}
@@ -65,7 +64,7 @@ class SortMultiply extends Component {
             onDragEnd={this.props.handleDragStop}
             handleDragStart={this.props.handleDragStart}
             dragType={this.props.dragType}
-            style={[styles.dragNameStyle]}
+            style={styles.dragNameStyle}
             name={this.props.path + ' <current>'}/>
           <SortDragArea
             columnsField={this.props.columnsField}
@@ -76,7 +75,7 @@ class SortMultiply extends Component {
           />
         </div>
         <span
-          style={[styles.addJoinStyle, body]}
+          style={styles.addJoinStyle}
           onClick={this.props.addAnother}> {/* todo: ax, consistency: button */}
           <FontIcon type='Add' hoverType='AddHover' theme={{Container: {display: 'flex', alignItems: 'center'}}}/>
           {la('Add a Sort Field')}

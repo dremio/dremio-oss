@@ -21,7 +21,7 @@ import { FieldWithError, TextField } from 'components/Fields';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
 import { isRequired, applyValidators } from 'utils/validation';
@@ -137,7 +137,6 @@ export default connectComplexForm({
 
 const styles = {
   base: {
-    ...body,
     display: 'flex',
     flexDirection: 'row',
     margin: '10px 0 10px 10px'

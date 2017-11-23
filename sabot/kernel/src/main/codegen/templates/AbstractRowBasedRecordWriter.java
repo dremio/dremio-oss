@@ -55,6 +55,11 @@ public abstract class AbstractRowBasedRecordWriter extends RowBasedRecordWriter 
     throw new UnsupportedOperationException("Doesn't support writing RepeatedList");
   }
 
+  @Override
+  public FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader) {
+    throw new UnsupportedOperationException("Doesn't support writing Null");
+  }
+
 <#list vv.types as type>
   <#list type.minor as minor>
   <#assign typeMapping = TypeMappings[minor.class]!{}>

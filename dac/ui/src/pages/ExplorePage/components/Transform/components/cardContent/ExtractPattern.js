@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import Select from 'components/Fields/Select';
 import Checkbox from 'components/Fields/Checkbox';
@@ -23,8 +25,10 @@ import TextField from 'components/Fields/TextField';
 
 import { applyValidators, isRequired, isRegularExpression } from 'utils/validation';
 
-import { body, bodySmall } from 'uiTheme/radium/typography';
+import { bodySmall } from 'uiTheme/radium/typography';
 import { inlineFieldWrap, inlineLabel } from 'uiTheme/radium/exploreTransform';
+
+// todo: loc
 
 @Radium
 class ExtractPattern extends Component {
@@ -65,11 +69,11 @@ class ExtractPattern extends Component {
       },
       {
         option: 'INDEX',
-        label: 'Index...'
+        label: 'Index…'
       },
       {
         option: 'CAPTURE_GROUP',
-        label: 'Capture Group...'
+        label: 'Capture Group…'
       }
     ];
   }
@@ -110,14 +114,14 @@ class ExtractPattern extends Component {
             <TextField
               data-qa='PatternExpression'
               {...pattern}
-              style={{...styles.text, ...body}}/>
+              style={styles.text}/>
           </FieldWithError>
         </div>
         <div style={[styles.item, styles.checkboxItem]}>
           <Checkbox
             {...fields.ignoreCase}
             label={`Ignore case (${columnName})`}
-            style={{...body, ...styles.checkbox}}/>
+            style={styles.checkbox}/>
         </div>
       </div>
     );

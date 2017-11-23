@@ -16,6 +16,7 @@
 package com.dremio.sabot.rpc;
 
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
@@ -31,5 +32,6 @@ public interface ExecToCoordHandler {
 
   void dataArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException;
 
+  void nodeQueryStatusUpdate(NodeQueryStatus update) throws RpcException;
 
 }

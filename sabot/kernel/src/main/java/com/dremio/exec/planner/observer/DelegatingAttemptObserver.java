@@ -110,13 +110,13 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken) {
-    observer.planNormalized(millisTaken);
+  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
+    observer.planNormalized(millisTaken, normalizedQueryPlans);
   }
 
   @Override
-  public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode query, RelNode target, long millisTaken) {
-    observer.planSubstituted(materialization, substitutions, query, target, millisTaken);
+  public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
+    observer.planSubstituted(materialization, substitutions, target, millisTaken);
   }
 
   @Override

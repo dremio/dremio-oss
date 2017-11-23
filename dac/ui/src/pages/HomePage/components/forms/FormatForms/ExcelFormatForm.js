@@ -13,49 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import { Checkbox, TextField, FieldWithError } from 'components/Fields';
 
+@injectIntl
 export default class ExcelFormatForm extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static getFields() {
     return ['extractHeader', 'hasMergedCells', 'sheetName'];
   }
 
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     const {
+      intl,
       disabled,
       fields: { Excel: { extractHeader, hasMergedCells, sheetName }}
-      } = this.props;
+    } = this.props;
 
     return (
       <div>
         <div style={styles.row}>
           <div style={styles.options}>
             <Checkbox disabled={disabled} style={styles.checkbox} dataQa='extract-field-names'
-              label={la('Extract Field Names')} {...extractHeader}/>
+              label={intl.formatMessage({ id: 'File.ExtractFieldNames' })} {...extractHeader}/>
           </div>
           <div style={styles.options}>
             <Checkbox
               disabled={disabled}
               style={styles.checkbox}
-              label={la('Expand Merged Cells')}
+              label={intl.formatMessage({ id: 'File.ExpandMergedCells' })}
               {...hasMergedCells}
             />
           </div>
         </div>
         <div style={styles.row}>
-          <FieldWithError label={la('Sheet Name')} {...sheetName}>
+          <FieldWithError label={intl.formatMessage({ id: 'File.SheetName' })} {...sheetName}>
             <TextField {...sheetName} style={styles.textField}/>
           </FieldWithError>
         </div>

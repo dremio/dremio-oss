@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 import './Users.less'; // TODO to Vasyl, need to use Radium
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import Radium from 'radium';
 
@@ -26,7 +27,6 @@ import FontIcon from 'components/Icon/FontIcon';
 import StatefulTableViewer from 'components/StatefulTableViewer';
 
 import { pageContent, page } from 'uiTheme/radium/general';
-import { h3, body } from 'uiTheme/radium/typography';
 
 @Radium
 @pureRender
@@ -39,8 +39,9 @@ export default class UsersView extends Component {
   }
 
   static contextTypes = {
-    location: PropTypes.object.isRequired
-  }
+    location: PropTypes.object.isRequired,
+    loggedInUser: PropTypes.object.isRequired
+  };
 
   componentDidMount() { // todo: is anything using this?
     this.refs.searchInputs.value = this.context.location.query.filter || '';
@@ -82,12 +83,14 @@ export default class UsersView extends Component {
             <Link to={editUserLink} data-qa='edit-user'>
               <button style={styles.actionBtn}><FontIcon type='Edit' theme={styles.actionIcon}/></button>
             </Link>
-            <button
-              data-qa='delete-user'
-              style={styles.actionBtn}
-              onClick={this.props.removeUser.bind(this, user) }>
-              <FontIcon theme={styles.actionIcon} type='Delete'/>
-            </button>
+            {
+              this.context.loggedInUser.userName !== userName && <button
+                data-qa='delete-user'
+                style={styles.actionBtn}
+                onClick={this.props.removeUser.bind(this, user) }>
+                <FontIcon theme={styles.actionIcon} type='Delete'/>
+              </button>
+            }
           </span>
         ]
       };
@@ -99,9 +102,9 @@ export default class UsersView extends Component {
     const columns = this.getTableColumns();
     const tableData = this.getTableData();
     return (
-      <div id='admin-user' style={[body, page]}>
+      <div id='admin-user' style={page}>
         <div className='admin-header' style={styles.adminHeader}>
-          <h3 style={h3}>{la('Users')}</h3>
+          <h3>{la('Users')}</h3>
           <LinkButton
             to={{...location, state: {modal: 'AddUserModal'}}}
             buttonStyle='primary'
@@ -119,7 +122,7 @@ export default class UsersView extends Component {
               <input
                 type='text'
                 placeholder={la('Search users')}
-                style={[styles.searchInput, body]}
+                style={styles.searchInput}
                 onChange={this.props.search}
                 ref='searchInputs'
             />
@@ -166,6 +169,7 @@ const styles = {
   },
   searchInput: {
     display: 'block',
+    fontSize: 12,
     border: '1px solid rgba(0,0,0, .1)',
     borderRadius: 2,
     width: '100%',

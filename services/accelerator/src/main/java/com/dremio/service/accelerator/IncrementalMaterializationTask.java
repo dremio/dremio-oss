@@ -91,7 +91,7 @@ public class IncrementalMaterializationTask extends MaterializationTask {
    * So we submit a task to wait for the result and then update the materialization
    */
   @Override
-  public void updateMetadataAndSave() {
+  public void updateMetadataAndSave(long refreshChainStartTime) {
     final Materialization materialization = getMaterialization();
 
     long maxValue = Long.MIN_VALUE;
@@ -118,6 +118,7 @@ public class IncrementalMaterializationTask extends MaterializationTask {
       .append(new MaterializationUpdate().setJobId(getJob().getJobId()).setTimestamp(timeStamp))
       .toList();
     materialization.setUpdatesList(updates);
+    materialization.setRefreshChainStartTime(refreshChainStartTime);
     save(materialization);
 
     if (outputRecords > 0) {

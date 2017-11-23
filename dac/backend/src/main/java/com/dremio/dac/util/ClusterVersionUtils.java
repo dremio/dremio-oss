@@ -21,7 +21,9 @@ import com.dremio.dac.proto.model.source.ClusterVersion;
 /**
  * Helper methods to convert from/to {@link ClusterVersion}
  */
-public class ClusterVersionUtils {
+public final class ClusterVersionUtils {
+
+  private ClusterVersionUtils() {}
 
   public static ClusterVersion toClusterVersion(Version version) {
     return new ClusterVersion()

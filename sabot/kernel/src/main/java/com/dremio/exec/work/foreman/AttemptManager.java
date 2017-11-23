@@ -35,6 +35,7 @@ import com.dremio.exec.planner.sql.handlers.commands.CommandCreator;
 import com.dremio.exec.planner.sql.handlers.commands.CommandRunner;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -238,6 +239,10 @@ public class AttemptManager implements Runnable {
 
   public void updateStatus(FragmentStatus status) {
     queryManager.getFragmentStatusListener().statusUpdate(status);
+  }
+
+  public void updateNodeQueryStatus(NodeQueryStatus status) {
+    queryManager.updateNodeQueryStatus(status);
   }
 
   public QueryProfile getQueryProfile() {

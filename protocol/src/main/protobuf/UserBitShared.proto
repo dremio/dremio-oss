@@ -287,6 +287,8 @@ message AccelerationProfile {
   optional int64 millis_taken_normalizing = 4;
   optional int64 millis_taken_substituting = 5;
   repeated LayoutMaterializedViewProfile layout_profiles = 7;
+  repeated string normalized_query_plans = 8;
+  optional bytes acceleration_details = 9;
 }
 
 message LayoutMaterializedViewProfile {
@@ -306,8 +308,9 @@ message LayoutMaterializedViewProfile {
   optional int64 millis_taken_substituting = 15;
   repeated SubstitutionProfile substitutions = 16;
   repeated string normalized_plans = 17;
-  repeated string normalized_query_plans = 18;
+  repeated string normalized_query_plans = 18 [deprecated = true];
   optional string name = 19;
+  optional string optimized_plan = 20;
 }
 
 message SubstitutionProfile {
@@ -324,6 +327,7 @@ message PlanPhaseProfile {
 message MajorFragmentProfile {
   optional int32 major_fragment_id = 1;
   repeated MinorFragmentProfile minor_fragment_profile = 2;
+  repeated NodePhaseProfile node_phase_profile = 3;
 }
 
 message MinorFragmentProfile {
@@ -365,6 +369,11 @@ message StreamProfile {
   optional int64 batches = 2;
   optional int64 schemas = 3;
   optional int64 size = 4; // in bytes
+}
+
+message NodePhaseProfile {
+  optional NodeEndpoint endpoint = 1;
+  optional int64 max_memory_used = 2;
 }
 
 message MetricValue {

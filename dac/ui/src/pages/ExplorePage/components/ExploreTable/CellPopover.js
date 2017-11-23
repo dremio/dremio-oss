@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import $ from 'jquery';
 import classNames from 'classnames';
@@ -24,7 +25,6 @@ import result from 'lodash/result';
 import JSONTree from 'react-json-tree';
 import { FLEX_COL_START } from 'uiTheme/radium/flexStyle';
 import { LIST, MAP } from 'constants/DataTypes';
-import { body } from 'uiTheme/radium/typography';
 import exploreUtils from 'utils/explore/exploreUtils';
 import SelectedTextPopover from './SelectedTextPopover';
 import getTheme from './themeTreeMap';
@@ -217,7 +217,6 @@ export default class CellPopover extends Component {
 
 const styles = {
   selectedDrop: {
-    ...body,
     background: '#FFF',
     listStyle: 'none',
     margin: 0,

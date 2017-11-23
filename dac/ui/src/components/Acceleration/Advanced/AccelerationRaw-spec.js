@@ -34,7 +34,7 @@ describe('AccelerationRaw', () => {
       fields: {
         rawLayouts: {
           enabled: false,
-          layoutList: ['col1', 'col2']
+          layoutList: [{name:{value:'col1'}}, {name:{value:'col2'}}]
         }
       }
     };

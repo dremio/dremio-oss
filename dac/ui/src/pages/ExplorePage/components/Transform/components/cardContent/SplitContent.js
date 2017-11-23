@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import Select from 'components/Fields/Select';
 import { FieldWithError, TextField, Checkbox } from 'components/Fields';
 
 import { LINE_START_START, FLEX_COL_START_START } from 'uiTheme/radium/flexStyle';
-import { body } from 'uiTheme/radium/typography';
 
 @PureRender
 @Radium
@@ -86,8 +87,7 @@ const styles = {
     marginLeft: 10
   },
   select: {
-    width: 140,
-    ...body
+    width: 140
   },
   textField: {
     width: 230,
@@ -95,7 +95,6 @@ const styles = {
     marginLeft: 10
   },
   check: {
-    marginLeft: 10,
-    ...body
+    marginLeft: 10
   }
 };

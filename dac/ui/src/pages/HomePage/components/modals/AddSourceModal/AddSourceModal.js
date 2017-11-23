@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
+import { injectIntl, FormattedMessage } from 'react-intl';
 import { createSource, createSampleSource } from 'actions/resources/sources';
 import Modal from 'components/Modals/Modal';
 import ViewStateWrapper from 'components/ViewStateWrapper';
@@ -34,6 +36,7 @@ const TIME_BEFORE_MESSAGE = 5000;
 
 const VIEW_ID = 'ADD_SOURCE_MODAL';
 
+@injectIntl
 @AddSourceModalMixin
 export class AddSourceModal extends Component {
 
@@ -50,7 +53,8 @@ export class AddSourceModal extends Component {
     createSource: PropTypes.func,
     spaces: PropTypes.instanceOf(Immutable.List).isRequired,
     sources: PropTypes.instanceOf(Immutable.List).isRequired,
-    createSampleSource: PropTypes.func.isRequired
+    createSampleSource: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   constructor(props) {
@@ -65,7 +69,9 @@ export class AddSourceModal extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.source !== undefined) {
+    // we want to update to show the picked source
+    // but only reset it when re-shown (otherwise it pops back to the picker screen while animating out on hide)
+    if (nextProps.source !== undefined || (nextProps.isOpen && !this.props.isOpen)) {
       this.setState({lastSource: nextProps.source});
     }
   }
@@ -75,10 +81,11 @@ export class AddSourceModal extends Component {
     this.props.hide(...args);
   }
 
-  getTitle(source) { // todo: loc
+  getTitle(source) {
+    const { intl } = this.props;
     return source
-      ? `New ${source.label} Source: Step 2 of 2`
-      : 'New Source: Step 1 of 2';
+      ? intl.formatMessage({ id: 'Source.NewSourceStep2'}, {sourceLabel: source.label})
+      : intl.formatMessage({ id: 'Source.NewSourceStep1' });
   }
 
   confirm = () => {
@@ -141,9 +148,11 @@ export class AddSourceModal extends Component {
   }
 
   renderLongSubmitLabel = () => {
-    return this.state.isSubmitTakingLong ? <span>
-      {la('Retrieving details for larger sources may take a few minutes…')}
-    </span> : null;
+    return this.state.isSubmitTakingLong ? (
+      <span>
+        <FormattedMessage id='Source.LargerSourcesWarning' />
+      </span>
+    ) : null;
   }
 
   render() {

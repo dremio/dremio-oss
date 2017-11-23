@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import exploreUtils from 'utils/explore/exploreUtils';
 import exploreTransforms from 'utils/exploreTransforms';
@@ -430,7 +432,9 @@ const styles = {
   base: {
     position: 'relative',
     overflowY: 'visible',
-    opacity: 1
+    opacity: 1,
+    display: 'flex',
+    flexGrow: 1
   },
   buttons: {
     display: 'flex',

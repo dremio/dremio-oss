@@ -1930,6 +1930,91 @@
 ```
 {
   accelerated: true | false,
+  acceleration: {
+    reflectionRelationships: [
+      {
+        accelerationSettings: {
+          gracePeriod: 1,
+          method: "FULL" | "INCREMENTAL",
+          refreshField: "abc",
+          refreshPeriod: 1,
+        },
+        dataset: {
+          id: "abc",
+          path: [
+            "abc",
+            ...
+          ],
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        },
+        materialization: {
+          id: "abc",
+          refreshChainStartTime: 1,
+        },
+        reflection: {
+          currentByteSize: 1,
+          details: {
+            dimensionFieldList: [
+              {
+                granularity: "DATE" | "NORMAL",
+                name: "abc",
+              },
+              ...
+            ],
+            displayFieldList: [
+              { /** LayoutFieldApiDescriptor **/
+                name: "abc",
+              },
+              ...
+            ],
+            distributionFieldList: [
+              { /** LayoutFieldApiDescriptor **/
+                name: "abc",
+              },
+              ...
+            ],
+            measureFieldList: [
+              { /** LayoutFieldApiDescriptor **/
+                name: "abc",
+              },
+              ...
+            ],
+            partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
+            partitionFieldList: [
+              { /** LayoutFieldApiDescriptor **/
+                name: "abc",
+              },
+              ...
+            ],
+            sortFieldList: [
+              { /** LayoutFieldApiDescriptor **/
+                name: "abc",
+              },
+              ...
+            ],
+          },
+          error: {
+            code: "PIPELINE_FAILURE" | "MATERIALIZATION_FAILURE" | "OTHER",
+            materializationFailure: {
+              jobId: "abc",
+              materializationId: "abc",
+            },
+            message: "abc",
+            stackTrace: "abc",
+          },
+          hasValidMaterialization: true | false,
+          id: "abc",
+          latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
+          name: "abc",
+          state: "ACTIVE" | "FAILED",
+          totalByteSize: 1,
+          type: "RAW" | "AGGREGATION",
+        },
+        relationship: "CONSIDERED" | "MATCHED" | "CHOSEN",
+      },
+      ...
+    ],
+  },
   attemptDetails: [
     {
       profileUrl: "abc",
@@ -2134,6 +2219,7 @@
     },
     endpoint: {
       address: "abc",
+      availableCores: 1,
       fabricPort: 1,
       maxDirectMemory: 1,
       provisionId: "abc",
@@ -4180,13 +4266,12 @@ any
           stackTrace: "abc",
         },
         hasValidMaterialization: true | false,
-        id: {
-          id: "abc",
-        },
+        id: "abc",
         latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
         name: "abc",
         state: "ACTIVE" | "FAILED",
         totalByteSize: 1,
+        type: "RAW" | "AGGREGATION",
       },
       ...
     ],
@@ -4317,13 +4402,12 @@ any
           stackTrace: "abc",
         },
         hasValidMaterialization: true | false,
-        id: {
-          id: "abc",
-        },
+        id: "abc",
         latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
         name: "abc",
         state: "ACTIVE" | "FAILED",
         totalByteSize: 1,
+        type: "RAW" | "AGGREGATION",
       },
       ...
     ],

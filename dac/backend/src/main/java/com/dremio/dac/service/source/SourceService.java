@@ -17,11 +17,13 @@ package com.dremio.dac.service.source;
 
 import static com.dremio.dac.util.DatasetsUtil.toDatasetConfig;
 import static com.dremio.dac.util.DatasetsUtil.toPhysicalDatasetConfig;
+import static com.dremio.exec.store.StoragePluginRegistryImpl.isInternal;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Collections.singletonList;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -38,13 +40,16 @@ import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetName;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
+import com.dremio.dac.model.sources.Source;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
+import com.dremio.dac.service.errors.ResourceExistsException;
 import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.util.JSONUtil;
@@ -77,6 +82,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -107,8 +113,11 @@ public class SourceService {
   }
 
   public SourceConfig registerSourceWithRuntime(SourceUI source) throws ExecutionSetupException, NamespaceException {
-    final SourceConfig sourceConfig = source.asSourceConfig();
-    StoragePluginConfig config = configurator.configure(source.getConfig());
+    return registerSourceWithRuntime(source.asSourceConfig(), source.getConfig());
+  }
+
+  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, com.dremio.dac.model.sources.Source source) throws ExecutionSetupException, NamespaceException {
+    StoragePluginConfig config = configurator.configure(source);
     if (logger.isDebugEnabled()) {
       logger.debug("Connection Object: \n{}\n", JSONUtil.toString(config));
     }
@@ -118,6 +127,55 @@ public class SourceService {
 
   public void unregisterSourceWithRuntime(SourceName sourceName) {
     plugins.deletePlugin(sourceName.getName());
+  }
+
+  public SourceConfig createSource(SourceConfig sourceConfig, com.dremio.dac.model.sources.Source source) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
+    validateSourceConfig(sourceConfig);
+
+    Preconditions.checkArgument(sourceConfig.getId().getId() == null, "Source id is immutable.");
+    Preconditions.checkArgument(sourceConfig.getVersion() == null, "Source tag is immutable.");
+
+    // check if source already exists with the given name.
+    if (namespaceService.exists(new SourcePath(new SourceName(sourceConfig.getName())).toNamespaceKey(), SOURCE)) {
+      throw new ResourceExistsException(String.format("A source with the name [%s] already exists.", sourceConfig.getName()));
+    }
+
+    sourceConfig.setCtime(System.currentTimeMillis());
+
+    return registerSourceWithRuntime(sourceConfig, source);
+  }
+
+  public SourceConfig updateSource(String id, SourceConfig sourceConfig, Source source) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
+    validateSourceConfig(sourceConfig);
+
+    SourceConfig oldSourceConfig = getById(id);
+
+    Preconditions.checkArgument(id.equals(sourceConfig.getId().getId()), "Source id is immutable.");
+    Preconditions.checkArgument(oldSourceConfig.getName().equals(sourceConfig.getName()), "Source name is immutable.");
+    Preconditions.checkArgument(oldSourceConfig.getType().equals(sourceConfig.getType()), "Source type is immutable.");
+
+    return registerSourceWithRuntime(sourceConfig, source);
+  }
+
+  public void deleteSource(SourceConfig sourceConfig) throws NamespaceException {
+    namespaceService.deleteSource(new NamespaceKey(sourceConfig.getName()), sourceConfig.getVersion());
+    plugins.deletePlugin(sourceConfig.getName());
+  }
+
+  private void validateSourceConfig(SourceConfig sourceConfig) {
+    // TODO: move this further down to the namespace or catalog service.  For some reason InputValidation does not work on SourceConfig.
+    Preconditions.checkNotNull(sourceConfig);
+    Preconditions.checkArgument(sourceConfig.getName().length() > 2, "Source names need to be at least 3 characters long.");
+    Preconditions.checkArgument(!sourceConfig.getName().contains("."), "Source names can not contain periods.");
+    Preconditions.checkArgument(!sourceConfig.getName().contains("\""), "Source names can not contain double quotes.");
+    Preconditions.checkArgument(!sourceConfig.getName().startsWith(HomeName.HOME_PREFIX), "Source names can not start with the '%s' character.", HomeName.HOME_PREFIX);
+    // TODO: add more specific numeric limits here, we never want to allow a 0 ms refresh.
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy(), "Source metadata policy cannot be null.");
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getAuthTtlMs(), "Source metadata policy values can not be null.");
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getDatasetDefinitionExpireAfterMs(), "Source metadata policy values can not be null.");
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getDatasetDefinitionRefreshAfterMs(), "Source metadata policy values can not be null.");
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getDatasetUpdateMode(), "Source metadata policy values can not be null.");
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getNamesRefreshMs(), "Source metadata policy values can not be null.");
   }
 
   public void checkSourceExists(SourceName sourceName) throws SourceNotFoundException, NamespaceException {
@@ -540,5 +598,45 @@ public class SourceService {
       throw new SourceNotFoundException(sourceName);
     }
     return plugin;
+  }
+
+  public List<SourceConfig> getSources() {
+    final List<SourceConfig> sources = new ArrayList();
+
+    for (SourceConfig sourceConfig : namespaceService.getSources()) {
+      if (isInternal(sourceConfig)) {
+        continue;
+      }
+
+      sources.add(sourceConfig);
+    }
+
+    return sources;
+  }
+
+  public SourceConfig getById(String id) throws SourceNotFoundException {
+    try {
+      SourceConfig config = namespaceService.getSourceById(id);
+      return config;
+    } catch (NamespaceNotFoundException e) {
+      throw new SourceNotFoundException(id);
+    }
+  }
+
+  public SourceState getStateForSource(SourceConfig sourceConfig) {
+    SourceState state;
+    try {
+      state = getSourceState(sourceConfig.getName());
+    } catch (SourceNotFoundException e) {
+      // if state is null, that means the source is registered in namespace, but the plugin is not yet available
+      // we should ignore the source in this case
+      logger.debug(String.format("%s not found. Possibly still loading schema info", sourceConfig.getName()));
+      state = SourceState.badState(e);
+    } catch (RuntimeException e) {
+      logger.debug("Failed to get the state of source {}", sourceConfig.getName(), e);
+      state = SourceState.badState(e);
+    }
+
+    return state;
   }
 }

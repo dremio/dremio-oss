@@ -3,7 +3,6 @@
 |Name                                                        |Version             |License             |
 |------------------------------------------------------------|--------------------|--------------------|
 |Aggregate Designer Algorithm                                |6                   |Apache 2.0          |
-|almost-equal                                                |1.1.0               |MIT                 |
 |Antlr 3.4 Runtime                                           |3.4                 |BSD 3-clause        |
 |AntLR Parser Generator                                      |2.7.7               |Public Domain       |
 |ANTLR StringTemplate                                        |3.2.1               |BSD 3-clause        |
@@ -44,9 +43,9 @@
 |Apache Parquet Jackson                                      |1.8.1-fast-201704081924160565-5949da6|Apache 2.0          |
 |Apache PDFBox                                               |1.8.10              |Apache 2.0          |
 |Apache POI                                                  |3.13                |Apache 2.0          |
-|Apache POI                                                  |3.14                |Apache 2.0          |
-|Apache POI                                                  |3.14                |Apache 2.0          |
 |Apache POI                                                  |3.13                |Apache 2.0          |
+|Apache POI                                                  |3.14                |Apache 2.0          |
+|Apache POI                                                  |3.14                |Apache 2.0          |
 |Apache Thrift                                               |0.9.2               |Apache 2.0          |
 |Apache Thrift                                               |0.9.2               |Apache 2.0          |
 |Apache Tika core                                            |1.11                |Apache 2.0          |
@@ -74,7 +73,6 @@
 |ASM Debug All                                               |5.0.3               |BSD 3-clause        |
 |attr-accept                                                 |1.1.0               |MIT                 |
 |AWS SDK for Java                                            |1.7.4               |Apache 2.0          |
-|babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-polyfill                                              |6.23.0              |MIT                 |
 |babel-runtime                                               |5.8.38              |MIT                 |
 |babel-runtime                                               |6.25.0              |MIT                 |
@@ -84,17 +82,17 @@
 |Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs|1.52                |MIT                 |
 |Bouncy Castle Provider                                      |1.52                |MIT                 |
 |Bouncy Castle S/MIME API                                    |1.52                |MIT                 |
-|bowser                                                      |1.7.1               |MIT                 |
-|c3                                                          |0.4.11              |MIT                 |
+|bowser                                                      |1.8.0               |MIT                 |
+|c3                                                          |0.4.18              |MIT                 |
 |Calcite Core                                                |1.12.0-20170418222444-252bd40|Apache 2.0          |
 |Calcite Linq4j                                              |1.12.0-20170418222444-252bd40|Apache 2.0          |
 |chain-function                                              |1.0.0               |MIT                 |
 |change-emitter                                              |0.1.6               |MIT                 |
 |ClassMate                                                   |1.1.0               |Apache 2.0          |
 |classnames                                                  |2.2.5               |MIT                 |
-|codemirror                                                  |5.28.0              |MIT                 |
+|codemirror                                                  |5.30.0              |MIT                 |
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
-|color-space                                                 |1.14.7              |MIT                 |
+|common-tags                                                 |1.4.0               |MIT                 |
 |Commons BeanUtils Core                                      |1.8.0               |Apache 2.0          |
 |Commons CLI                                                 |1.2                 |Apache 2.0          |
 |Commons Codec                                               |1.4                 |Apache 2.0          |
@@ -116,8 +114,8 @@
 |config                                                      |1.2.1               |Apache 2.0          |
 |copy-to-clipboard                                           |3.0.8               |MIT                 |
 |core-js                                                     |1.2.7               |MIT                 |
-|core-js                                                     |2.5.0               |MIT                 |
-|create-react-class                                          |15.6.0              |BSD-3-Clause        |
+|core-js                                                     |2.5.1               |MIT                 |
+|create-react-class                                          |15.6.2              |MIT                 |
 |csprng                                                      |0.1.2               |MIT                 |
 |Curator Client                                              |2.7.1               |Apache 2.0          |
 |Curator Framework                                           |2.7.1               |Apache 2.0          |
@@ -134,7 +132,7 @@
 |deep-equal                                                  |1.0.1               |MIT                 |
 |Digester                                                    |1.8                 |Apache 2.0          |
 |disposables                                                 |1.0.1               |Apache-2.0          |
-|dnd-core                                                    |2.4.0               |MIT                 |
+|dnd-core                                                    |2.5.4               |BSD-3-Clause        |
 |dom-helpers                                                 |3.2.1               |MIT                 |
 |dom-helpers                                                 |2.4.0               |MIT                 |
 |Dremio Fast Threads                                         |1.0                 |Dremio Free Software License 1.0|
@@ -150,7 +148,7 @@
 |exenv                                                       |1.2.2               |BSD-3-Clause        |
 |exenv                                                       |1.2.0               |BSD-3-Clause        |
 |fastutil                                                    |6.5.7               |Apache 2.0          |
-|fbjs                                                        |0.8.14              |BSD-3-Clause        |
+|fbjs                                                        |0.8.16              |MIT                 |
 |file-saver                                                  |1.3.3               |MIT                 |
 |Findbugs Annotations under Apache License                   |1.3.9-1             |Apache 2.0          |
 |FindBugs-Annotations                                        |3.0.1               |LGPL v2             |
@@ -175,7 +173,7 @@
 |Hamcrest Core                                               |1.3                 |BSD 3-clause        |
 |HdrHistogram                                                |2.1.6               |CC0 1.0 Universal   |
 |Hibernate Validator Engine                                  |5.2.4.Final         |Apache 2.0          |
-|history                                                     |2.1.2               |MIT                 |
+|history                                                     |3.3.0               |MIT                 |
 |Hive Contrib                                                |1.2.1               |Apache 2.0          |
 |Hive HBase Handler                                          |1.2.1               |Apache 2.0          |
 |Hive Metastore                                              |1.2.1               |Apache 2.0          |
@@ -183,17 +181,20 @@
 |HK2 Implementation Utilities                                |2.4.0-b34           |CDDL 1.1            |
 |hoconfig-js                                                 |0.1.12              |MIT                 |
 |hoist-non-react-statics                                     |1.2.0               |BSD-3-Clause        |
-|hoist-non-react-statics                                     |1.1.0               |BSD-3-Clause        |
+|hoist-non-react-statics                                     |2.3.1               |BSD-3-Clause        |
 |HPPC Collections                                            |0.7.1               |Apache 2.0          |
 |htrace-core                                                 |3.1.0-incubating    |Apache 2.0          |
 |HttpClient                                                  |4.2.5               |Apache 2.0          |
 |HttpClient                                                  |3.1                 |Apache 2.0          |
 |humanable                                                   |0.0.2               |MIT                 |
-|husl                                                        |5.0.3               |MIT                 |
 |hyphenate-style-name                                        |1.0.2               |BSD-3-Clause        |
-|iconv-lite                                                  |0.4.18              |MIT                 |
-|immutable                                                   |3.8.1               |BSD-3-Clause        |
+|iconv-lite                                                  |0.4.19              |MIT                 |
+|immutable                                                   |3.8.2               |MIT                 |
 |inline-style-prefixer                                       |2.0.5               |MIT                 |
+|intl-format-cache                                           |2.0.5               |BSD-3-Clause        |
+|intl-messageformat                                          |2.1.0               |BSD-3-Clause        |
+|intl-messageformat-parser                                   |1.2.0               |BSD-3-Clause        |
+|intl-relativeformat                                         |2.0.0               |BSD-3-Clause        |
 |invariant                                                   |2.2.2               |BSD-3-Clause        |
 |is-promise                                                  |2.1.0               |MIT                 |
 |is-stream                                                   |1.1.0               |MIT                 |
@@ -299,16 +300,14 @@
 |lodash.flow                                                 |3.5.0               |MIT                 |
 |lodash.isarguments                                          |3.1.0               |MIT                 |
 |lodash.isarray                                              |3.0.4               |MIT                 |
-|lodash.isempty                                              |4.2.1               |MIT                 |
+|lodash.isempty                                              |4.4.0               |MIT                 |
 |lodash.isplainobject                                        |3.2.0               |MIT                 |
 |lodash.keys                                                 |3.1.2               |MIT                 |
-|lodash.keys                                                 |4.2.0               |MIT                 |
 |lodash.keysin                                               |3.0.8               |MIT                 |
 |lodash.merge                                                |4.6.0               |MIT                 |
 |lodash.throttle                                             |4.1.1               |MIT                 |
 |lodash._basefor                                             |3.0.3               |MIT                 |
 |lodash._getnative                                           |3.9.1               |MIT                 |
-|lodash._root                                                |3.0.1               |MIT                 |
 |Log4j Implemented Over SLF4J                                |1.7.10              |MIT                 |
 |Logback Access Module                                       |1.1.3               |EPL 1.0             |
 |Logback Classic Module                                      |1.0.13              |EPL 1.0             |
@@ -343,10 +342,10 @@
 |MinLog                                                      |1.3.0               |BSD 3-clause        |
 |Mockito                                                     |1.10.19             |MIT                 |
 |Module: Language: Groovy                                    |2.2.1               |Apache 2.0          |
-|moment                                                      |2.18.1              |MIT                 |
+|moment                                                      |2.19.1              |MIT                 |
+|monaco-editor                                               |0.10.0              |MIT                 |
 |MongoDB Java Driver                                         |3.2.0               |Apache 2.0          |
 |mousetrap                                                   |1.6.1               |Apache-2.0          |
-|mumath                                                      |3.3.4               |Unlicense           |
 |Netty/Buffer                                                |4.0.41.Final        |Apache 2.0          |
 |Netty/Codec                                                 |4.0.41.Final        |Apache 2.0          |
 |Netty/Common                                                |4.0.41.Final        |Apache 2.0          |
@@ -354,7 +353,7 @@
 |Netty/TomcatNative [OpenSSL - Dynamic]                      |1.1.33.Fork24       |Apache 2.0          |
 |Netty/Transport                                             |4.0.41.Final        |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.0.41.Final        |Apache 2.0          |
-|node-fetch                                                  |1.7.2               |MIT                 |
+|node-fetch                                                  |1.7.3               |MIT                 |
 |normalizr                                                   |2.3.1               |MIT                 |
 |object-assign                                               |4.1.1               |MIT                 |
 |Objenesis                                                   |2.4                 |Apache 2.0          |
@@ -371,7 +370,8 @@
 |procyon-compilertools                                       |0.5.32              |Apache 2.0          |
 |procyon-core                                                |0.5.32              |Apache 2.0          |
 |promise                                                     |7.3.1               |MIT                 |
-|prop-types                                                  |15.5.10             |BSD-3-Clause        |
+|prop-types                                                  |15.5.8              |BSD-3-Clause        |
+|prop-types                                                  |15.6.0              |MIT                 |
 |prop-types-extra                                            |1.0.1               |MIT                 |
 |Protocol Buffer Java API                                    |2.5.0               |BSD 3-clause        |
 |protostuff :: api                                           |1.4.4               |Apache 2.0          |
@@ -380,56 +380,56 @@
 |pure-color                                                  |1.3.0               |MIT                 |
 |pure-render-decorator                                       |1.2.1               |MIT                 |
 |qsocks                                                      |3.2.1               |BSD-2-Clause        |
-|query-string                                                |3.0.3               |MIT                 |
+|query-string                                                |4.3.4               |MIT                 |
 |querystringify                                              |1.0.0               |MIT                 |
-|radium                                                      |0.19.4              |MIT                 |
-|raf                                                         |3.3.2               |MIT                 |
-|raven-js                                                    |3.17.0              |BSD-2-Clause        |
-|react                                                       |15.6.1              |BSD-3-Clause        |
-|react-addons-create-fragment                                |15.6.0              |BSD-3-Clause        |
-|react-addons-shallow-compare                                |15.6.0              |BSD-3-Clause        |
-|react-addons-transition-group                               |15.6.0              |BSD-3-Clause        |
+|radium                                                      |0.19.5              |MIT                 |
+|raf                                                         |3.4.0               |MIT                 |
+|raven-js                                                    |3.18.1              |BSD-2-Clause        |
+|react                                                       |15.6.2              |MIT                 |
+|react-addons-create-fragment                                |15.6.2              |MIT                 |
+|react-addons-shallow-compare                                |15.6.2              |MIT                 |
+|react-addons-transition-group                               |15.6.2              |MIT                 |
 |react-base16-styling                                        |0.5.3               |MIT                 |
-|react-base16-styling                                        |0.4.7               |MIT                 |
-|react-bootstrap                                             |0.30.10             |MIT                 |
+|react-bootstrap                                             |0.31.3              |MIT                 |
 |react-copy-to-clipboard                                     |4.3.1               |MIT                 |
 |react-date-range                                            |0.9.4               |MIT                 |
-|react-dnd                                                   |2.4.0               |MIT                 |
-|react-dnd-html5-backend                                     |2.4.1               |MIT                 |
+|react-dnd                                                   |2.5.4               |BSD-3-Clause        |
+|react-dnd-html5-backend                                     |2.5.4               |BSD-3-Clause        |
 |react-dock                                                  |0.2.4               |MIT                 |
 |react-document-title                                        |2.0.3               |MIT                 |
-|react-dom                                                   |15.6.1              |BSD-3-Clause        |
-|react-dom-factories                                         |1.0.1               |BSD-3-Clause        |
-|react-dropzone                                              |4.0.0               |MIT                 |
+|react-dom                                                   |15.6.2              |MIT                 |
+|react-dom-factories                                         |1.0.2               |MIT                 |
+|react-dropzone                                              |4.1.3               |MIT                 |
 |react-event-listener                                        |0.4.5               |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
-|react-input-autosize                                        |1.1.4               |MIT                 |
+|react-input-autosize                                        |1.2.0               |MIT                 |
+|react-intl                                                  |2.4.0               |BSD-3-Clause        |
 |react-json-tree                                             |0.10.9              |MIT                 |
-|react-json-tree                                             |0.10.3              |MIT                 |
 |react-lazy-cache                                            |3.0.1               |MIT                 |
 |react-modal                                                 |1.9.7               |MIT                 |
-|react-motion                                                |0.5.0               |MIT                 |
+|react-monaco-editor                                         |0.10.1              |MIT                 |
+|react-motion                                                |0.5.2               |MIT                 |
 |react-notification-system                                   |0.2.15              |MIT                 |
-|react-overlays                                              |0.6.12              |MIT                 |
-|react-overlays                                              |0.8.0               |MIT                 |
+|react-overlays                                              |0.8.2               |MIT                 |
+|react-overlays                                              |0.7.2               |MIT                 |
 |react-prop-types                                            |0.4.0               |MIT                 |
 |react-pure-render                                           |1.0.2               |MIT                 |
 |react-redux                                                 |4.4.8               |MIT                 |
-|react-router                                                |2.8.1               |MIT                 |
+|react-router                                                |3.2.0               |MIT                 |
 |react-router-redux                                          |4.0.8               |MIT                 |
 |react-select                                                |1.0.0-rc.5          |MIT                 |
 |react-side-effect                                           |1.1.3               |MIT                 |
 |react-tap-event-plugin                                      |2.0.1               |Apache-2.0          |
-|react-transition-group                                      |2.2.0               |BSD-3-Clause        |
-|react-transition-group                                      |1.2.0               |BSD-3-Clause        |
-|react-virtualized                                           |9.9.0               |MIT                 |
+|react-transition-group                                      |1.2.1               |BSD-3-Clause        |
+|react-transition-group                                      |2.2.1               |BSD-3-Clause        |
+|react-virtualized                                           |9.10.1              |MIT                 |
 |reactable                                                   |0.14.1              |MIT                 |
 |recompose                                                   |0.20.2              |MIT                 |
 |redbox-react                                                |1.5.0               |MIT                 |
 |Redshift                                                    |1.1.17.1017         |Amazon Redshift JDBC Driver License|
 |redux                                                       |3.7.2               |MIT                 |
 |redux-api-middleware                                        |1.0.3               |MIT                 |
-|redux-auth-wrapper                                          |0.5.2               |MIT                 |
+|redux-auth-wrapper                                          |1.1.0               |MIT                 |
 |redux-devtools                                              |3.4.0               |MIT                 |
 |redux-devtools-dock-monitor                                 |1.1.2               |MIT                 |
 |redux-devtools-instrument                                   |1.8.2               |MIT                 |
@@ -487,7 +487,6 @@
 |url-parse                                                   |1.1.9               |MIT                 |
 |uuid                                                        |2.0.3               |MIT                 |
 |warning                                                     |3.0.0               |BSD-3-Clause        |
-|warning                                                     |2.1.0               |BSD-2-Clause        |
 |whatwg-fetch                                                |2.0.3               |MIT                 |
 |ws                                                          |1.1.4               |MIT                 |
 |Xalan Java                                                  |2.7.1               |Apache 2.0          |

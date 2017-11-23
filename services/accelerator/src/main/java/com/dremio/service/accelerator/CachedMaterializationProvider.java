@@ -325,7 +325,10 @@ public class CachedMaterializationProvider implements MaterializationDescriptorP
 
   @Override
   public void update(MaterializationDescriptor materializationDescriptor) {
-    compareAndSetCache(materializationDescriptor);
+    enabled = options.getOption(MATERIALIZATION_CACHE_ENABLED);
+    if (enabled && upToDate) {
+      compareAndSetCache(materializationDescriptor);
+    }
   }
 
   private List<MaterializationDescriptor> getValid() {
@@ -363,6 +366,27 @@ public class CachedMaterializationProvider implements MaterializationDescriptorP
     } else {
       // cache value is not up to date, we go straight to the provider
       return provider.get(includeInComplete);
+    }
+  }
+
+  @Override
+  public void remove(String materializationId) {
+    enabled = options.getOption(MATERIALIZATION_CACHE_ENABLED);
+    if (enabled && upToDate) {
+      boolean exchanged;
+      do {
+        Map<String, MaterializationDescriptor> old = cached.get();
+        //check if materialization is present or not
+        if (!old.containsKey(materializationId)) {
+          break;
+        }
+        //copy over everything
+        Map<String, MaterializationDescriptor> updated =  Maps.newHashMap(old);
+        //remove the specific materialization.
+        updated.remove(materializationId);
+        //update the cache.
+        exchanged = cached.compareAndSet(old, updated);
+      } while(!exchanged);
     }
   }
 }

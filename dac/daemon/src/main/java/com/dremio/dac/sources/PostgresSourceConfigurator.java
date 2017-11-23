@@ -35,11 +35,11 @@ public class PostgresSourceConfigurator extends SingleSourceToStoragePluginConfi
 
   @Override
   public StoragePluginConfig configureSingle(PostgresConfig source) {
-    PostgresConfig postgres = source;
-    String hostname = checkNotNull(postgres.getHostname(), "missing hostname");
-    String port = checkNotNull(postgres.getPort(), "missing port");
-    String db = checkNotNull(postgres.getDatabaseName(), "missing database");
-    Integer fetchSize = postgres.getFetchSize();
+    final PostgresConfig postgres = source;
+    final String hostname = checkNotNull(postgres.getHostname(), "missing hostname");
+    final String port = checkNotNull(postgres.getPort(), "missing port");
+    final String db = checkNotNull(postgres.getDatabaseName(), "missing database");
+    final Integer fetchSize = postgres.getFetchSize();
 
     // Unfortunate Redshift jdbc driver problem:  Redshift jdbc driver will intercept postgres's connection
     // since redshift registers for both jdbc:postgresql and jdbc:redshift.  So, "OpenSourceSubProtocolOverride=true"
@@ -47,11 +47,13 @@ public class PostgresSourceConfigurator extends SingleSourceToStoragePluginConfi
     // http://stackoverflow.com/questions/31951518/redshift-and-postgres-jdbc-driver-both-intercept-jdbc-postgresql-connection-st
     // http://jira.pentaho.com/browse/PDI-14493
     // http://docs.aws.amazon.com/redshift/latest/mgmt/configure-jdbc-options.html
-    JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.POSTGRES_DRIVER,
+    final JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.POSTGRES_DRIVER,
         "jdbc:postgresql://" + hostname + ":" + port + "/" + db + "?OpenSourceSubProtocolOverride=true",
         postgres.getUsername(),
         postgres.getPassword(),
-        fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
+        fetchSize != null ? fetchSize : 0, // Using 0 as default to match UI
+        null,
+        false
         );
 
     return config;

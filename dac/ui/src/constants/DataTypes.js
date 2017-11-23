@@ -29,8 +29,8 @@ export const DATETIME = 'DATETIME';
 export const LIST = 'LIST';
 export const MAP = 'MAP';
 export const GEO = 'GEO';
-export const OTHER = 'OTHER';
 export const JSONTYPE = 'JSON'; // todo: no icon - is this actually a thing?
+export const OTHER = 'OTHER'; // todo: merge OTHER and ANY
 export const ANY = 'ANY';
 
 export const typeToIconType = {

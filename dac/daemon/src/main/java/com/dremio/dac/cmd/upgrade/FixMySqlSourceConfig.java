@@ -67,7 +67,9 @@ public class FixMySqlSourceConfig extends UpgradeTask {
           config.getUrl().replace("jdbc:mysql", "jdbc:mariadb"),
           config.getUsername(),
           config.getPassword(),
-          config.getFetchSize());
+          config.getFetchSize(),
+          null,
+          true);
         System.out.println("  Updating MySQL source " + source.getName());
         pluginSystemTable.put(source.getName(), updated);
       }

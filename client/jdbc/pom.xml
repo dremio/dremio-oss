@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.client</groupId>
     <artifactId>dremio-client-parent</artifactId>
-    <version>1.2.2-201710100154510864-d40e31c</version>
+    <version>1.3.0-201711211846350824-31f8d91</version>
   </parent>
   <artifactId>dremio-client-jdbc</artifactId>
   <name>Client - JDBC Driver</name>

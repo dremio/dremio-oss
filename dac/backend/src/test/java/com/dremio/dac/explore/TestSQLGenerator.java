@@ -30,6 +30,7 @@ import static org.junit.Assert.fail;
 import java.util.Collections;
 import java.util.List;
 
+
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
@@ -727,6 +728,11 @@ public class TestSQLGenerator {
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
         return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null);
+      }
+
+      @Override
+      protected boolean hasMetadata() {
+        return true;
       }
 
     };

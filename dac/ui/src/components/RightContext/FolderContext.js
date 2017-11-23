@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import Immutable from 'immutable';
 import Toggle from 'material-ui/Toggle';
@@ -25,7 +26,6 @@ import { getViewState } from 'selectors/resources';
 import { convertDatasetToFolder, convertFolderToDataset } from 'actions/home';
 
 import {title, contextCard, cardTitle, contextAttrs, attrLabel, attrValue} from 'uiTheme/radium/rightContext';
-
 
 export const TOGGLE_VIEW_ID = 'toggleFolderPhysicalDataset';
 
@@ -88,7 +88,7 @@ export class FolderContext extends Component {
 
     return <div>
       {entity.get('fileSystemFolder') && this.renderPhysicalDatasetSwitch()}
-      <div style={title}>About this Folder</div>
+      <h4 style={title}>About this Folder</h4>
       <div style={contextCard}>
         <div style={cardTitle}>Details</div>
         <ul style={contextAttrs}>

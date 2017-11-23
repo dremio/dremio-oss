@@ -301,7 +301,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
     @Override
     public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
-      ValueVector v = fieldVectorMap.get(field.getName());
+      ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
       if (v == null || v.getClass() != clazz) {
         // Field does not exist add it to the map
         v = TypeHelper.getNewVector(field, context.getAllocator());
@@ -310,14 +310,14 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
               "Class %s was provided, expected %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
         }
         v.allocateNew();
-        fieldVectorMap.put(field.getName(), v);
+        fieldVectorMap.put(field.getName().toLowerCase(), v);
       }
       return clazz.cast(v);
     }
 
     @Override
     public ValueVector getVector(String name) {
-      return fieldVectorMap.get(name);
+      return fieldVectorMap.get((name !=null) ? name.toLowerCase() : name);
     }
 
     @Override

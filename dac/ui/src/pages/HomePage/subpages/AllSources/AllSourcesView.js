@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import moment from 'moment';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { Link } from 'react-router';
+import { injectIntl } from 'react-intl';
 
 import EllipsedText from 'components/EllipsedText';
 
@@ -34,12 +36,14 @@ import * as allSpacesAndAllSources from 'uiTheme/radium/allSpacesAndAllSources';
 import BrowseTable from '../../components/BrowseTable';
 import { tableStyles } from '../../tableStyles';
 
+@injectIntl
 @Radium
 @pureRender
 export default class AllSourcesView extends Component {
   static propTypes = {
     sources: PropTypes.object,
-    toggleActivePin: PropTypes.func.isRequired
+    toggleActivePin: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   }
 
   static contextTypes = {
@@ -54,7 +58,7 @@ export default class AllSourcesView extends Component {
       return { // todo: loc
         rowClassName: item.get('name'),
         data: {
-          [name.title]: {
+          [name.key]: {
             node: () => (
               <div style={allSpacesAndAllSources.listItem}>
                 {icon}
@@ -75,15 +79,15 @@ export default class AllSourcesView extends Component {
               return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
             }
           },
-          [datasets.title]: {
+          [datasets.key]: {
             node: () => item.get('numberOfDatasets'),
             value: item.get('numberOfDatasets')
           },
-          [created.title]: {
+          [created.key]: {
             node: () => moment(item.get('created')).format('MM/DD/YYYY'),
             value: new Date(item.get('created'))
           },
-          [action.title]: {
+          [action.key]: {
             node: () => (
               <span className='action-wrap'>
                 <SettingsBtn
@@ -100,12 +104,14 @@ export default class AllSourcesView extends Component {
   }
 
   getTableColumns() {
+    const { intl } = this.props;
     return [
-      { title: la('name'), flexGrow: 1 },
-      { title: la('datasets'), style: tableStyles.datasetsColumn },
-      { title: la('created') },
+      { key: 'name', title: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1 },
+      { key: 'datasets', title: intl.formatMessage({ id: 'Dataset.Datasets' }), style: tableStyles.datasetsColumn },
+      { key: 'created', title: intl.formatMessage({ id: 'Common.Created' }) },
       {
-        title: la('action'),
+        key: 'action',
+        title: intl.formatMessage({ id: 'Common.Action' }),
         style: tableStyles.actionColumn,
         disableSort: true,
         width: 60
@@ -117,19 +123,20 @@ export default class AllSourcesView extends Component {
     return (
       this.context.loggedInUser.admin && <LinkButton
         buttonStyle='primary'
-        to={{ ...location, state: { modal: 'AddSourceModal', source: null }}}
+        to={{ ...location, state: { modal: 'AddSourceModal' }}}
         style={allSpacesAndAllSources.addButton}>
-        {la('Add Source')}
+        {this.props.intl.formatMessage({ id: 'Source.AddSource' })}
       </LinkButton>
     );
   }
 
 
   render() {
-    const totalItems = this.props.sources.size;
+    const { intl, sources } = this.props;
+    const totalItems = sources.size;
     return (
       <BrowseTable
-        title={`${la('All Sources')} (${totalItems})`}
+        title={`${intl.formatMessage({ id: 'Source.AllSources' })} (${totalItems})`}
         tableData={this.getTableData()}
         columns={this.getTableColumns()}
         buttons={this.renderAddButton()}

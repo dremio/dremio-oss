@@ -23,7 +23,6 @@ describe('DatasetItemLabel', () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
-      name: 'ds1',
       fullPath: Immutable.List(['Prod-sample', 'ds1']),
       typeIcon: 'VirtualDataset'
     };
@@ -36,6 +35,7 @@ describe('DatasetItemLabel', () => {
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<DatasetItemLabel {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
+    expect(wrapper.find('EllipsedText').first().props().text).to.equal('ds1');
   });
 
   it('should render TextHighlight, DatasetOverlayContent', () => {

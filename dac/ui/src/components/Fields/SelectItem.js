@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { formDefault, unavailable } from 'uiTheme/radium/typography';
 import { PALE_BLUE, PALE_NAVY } from 'uiTheme/radium/colors';

@@ -16,9 +16,6 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import org.apache.calcite.plan.RelOptMaterialization;
-import org.apache.calcite.plan.SubstitutionProvider;
-import org.apache.calcite.plan.substitution.MaterializationProvider;
-import org.apache.calcite.plan.substitution.UnifyingSubstitutionProvider;
 
 import com.dremio.exec.server.options.OptionManager;
 
@@ -33,7 +30,7 @@ public class DefaultSubstitutionProviderFactory implements SubstitutionProviderF
 
   @Override
   public SubstitutionProvider getSubstitutionProvider(
-      MaterializationProvider<RelOptMaterialization> materializationProvider, OptionManager options) {
+      MaterializationProvider materializationProvider, OptionManager options) {
     return new UnifyingSubstitutionProvider(materializationProvider);
   }
 }

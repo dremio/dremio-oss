@@ -23,12 +23,15 @@ import java.util.List;
 import java.util.Objects;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.proto.model.job.JobAttemptUI;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.Job;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -38,17 +41,23 @@ import com.google.common.collect.ImmutableList;
  */
 public class JobUI {
   private final JobId jobId;
-  private final List<JobAttempt> attempts;
+  private final List<JobAttemptUI> attempts;
   private final JobData data;
 
   public JobUI(Job job) {
     this.jobId = job.getJobId();
-    this.attempts = job.getAttempts();
+    this.attempts = FluentIterable.from(job.getAttempts())
+      .transform(new Function<JobAttempt, JobAttemptUI>() {
+        @Override
+        public JobAttemptUI apply(JobAttempt input) {
+          return toUI(input);
+        }
+      }).toList();
     this.data = new JobDataWrapper(job.getData());
   }
 
   @JsonCreator
-  public JobUI(@JsonProperty("jobId") JobId jobId, @JsonProperty("jobAttempt") JobAttempt jobConfig) {
+  public JobUI(@JsonProperty("jobId") JobId jobId, @JsonProperty("jobAttempt") JobAttemptUI jobConfig) {
     this.jobId = jobId;
     this.attempts = ImmutableList.of(checkNotNull(jobConfig, "jobAttempt is null"));
     this.data = null;
@@ -58,7 +67,7 @@ public class JobUI {
     return jobId;
   }
 
-  public JobAttempt getJobAttempt() {
+  public JobAttemptUI getJobAttempt() {
     checkState(attempts.size() >=1, "There should be at least one attempt in JobUI");
     int lastAttempt = attempts.size() - 1;
     return attempts.get(lastAttempt);
@@ -67,7 +76,7 @@ public class JobUI {
 
   @Override
   public String toString() {
-    final JobAttempt jobAttempt = getJobAttempt();
+    final JobAttemptUI jobAttempt = getJobAttempt();
     return format("{JobId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
             getJobId(), jobAttempt.getInfo().getSql(),
             PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
@@ -94,6 +103,20 @@ public class JobUI {
       }
     }
     return false;
+  }
+
+  private static JobAttemptUI toUI(JobAttempt attempt) {
+    if (attempt == null) {
+      return null;
+    }
+    return new JobAttemptUI()
+      .setState(attempt.getState())
+      .setInfo(attempt.getInfo())
+      .setStats(attempt.getStats())
+      .setDetails(attempt.getDetails())
+      .setReason(attempt.getReason())
+      .setAttemptId(attempt.getAttemptId())
+      .setEndpoint(attempt.getEndpoint());
   }
 }
 

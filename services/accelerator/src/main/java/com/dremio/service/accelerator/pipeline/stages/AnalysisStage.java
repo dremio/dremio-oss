@@ -82,7 +82,7 @@ public class AnalysisStage implements Stage {
 
     context.setAccelerationAnalysisPlan(plan);
 
-    List<ViewFieldType> fields = ViewFieldsHelper.getViewFields(config);
+    List<ViewFieldType> fields = ViewFieldsHelper.getViewFields(refreshedDatasetConfig);
     if (fields == null || fields.isEmpty()) {
       fields = Views.viewToFieldTypes(Views.relDataTypeToFieldType(plan.getRowType()));
     }

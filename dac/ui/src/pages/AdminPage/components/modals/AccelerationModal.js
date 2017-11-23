@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Modal from 'components/Modals/Modal';
 import AccelerationController from 'components/Acceleration/AccelerationController';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';

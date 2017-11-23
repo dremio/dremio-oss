@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { propTypes as reduxFormPropTypes } from 'redux-form';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import deepEqual from 'deep-equal';
+import { injectIntl } from 'react-intl';
 import { debounce } from 'lodash/function';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
@@ -32,14 +34,17 @@ import { label, divider } from 'uiTheme/radium/forms';
 import { PALE_GREY } from 'uiTheme/radium/colors';
 import { ExcelFormatForm, TextFormatForm, XLSFormatForm } from './FormatForms';
 
-function validate(values) {
+function validate(values, props) {
+  const { intl } = props;
   const errors = {};
   const curType = values.type && values[values.type];
   if (curType) {
     errors[values.type] = {};
     for (const key in curType) {
-      if (curType[key] === '') {
-        errors[values.type][key] = 'Field can not be empty';
+      // "sheetName" field on XLS form can be empty
+      // https://dremio.atlassian.net/browse/DX-7497
+      if (!curType[key] && curType[key] !== false && key !== 'sheetName') {
+        errors[values.type][key] = intl.formatMessage({ id: 'Error.NotEmptyField' });
       }
     }
   }
@@ -52,15 +57,6 @@ const typeToForm = {
   XLS: XLSFormatForm
 };
 
-const formatOptions = [
-  {option: 'Unknown', label: 'Unknown'},
-  {option: 'Text', label: 'Text (delimited)'},
-  {option: 'JSON', label: 'JSON'},
-  {option: 'Parquet', label: 'Parquet'},
-  {option: 'Excel', label: 'Excel'},
-  {option: 'XLS', label: 'XLS'}
-];
-
 const FIELDS = ['type', 'version', 'location'];
 const SECTIONS = Object.keys(typeToForm).map((key) => prefixSection(key)(typeToForm[key]));
 const DEBOUNCE_DELAY = 100;
@@ -72,7 +68,9 @@ const typeToInitialValues = {
     comment: '#',
     lineDelimiter: '\r\n',
     escape: '"',
-    trimHeader: true
+    trimHeader: true,
+    extractHeader: false,
+    skipFirstLine: false
   },
   Excel: {
     extractHeader: false,
@@ -98,11 +96,8 @@ export class FileFormatForm extends Component {
     previewViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     previewData: PropTypes.instanceOf(Immutable.Map),
     updateFormDirtyState: PropTypes.func,
-    cancelText: PropTypes.string
-  };
-
-  static defaultProps = { // todo: loc
-    cancelText: 'Cancel'
+    cancelText: PropTypes.string,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -165,17 +160,27 @@ export class FileFormatForm extends Component {
   }
 
   render() {
-    const {fields, handleSubmit, onCancel, viewState, previewData, previewViewState, cancelText} = this.props;
+    const {fields, handleSubmit, onCancel, viewState, previewData, previewViewState, cancelText, intl} = this.props;
     const line = fields.type.value === 'Text' ? <hr style={divider}/> : null;
+
+    const formatOptions = [
+      {option: 'Unknown', label: intl.formatMessage({ id: 'File.Unknown' })},
+      {option: 'Text', label: intl.formatMessage({ id: 'File.TextDelimited' })},
+      {option: 'JSON', label: intl.formatMessage({ id: 'File.JSON' })},
+      {option: 'Parquet',  label: intl.formatMessage({ id: 'File.Parquet' })},
+      {option: 'Excel',  label: intl.formatMessage({ id: 'File.Excel' })},
+      {option: 'XLS', label: intl.formatMessage({ id: 'File.XLS' })}
+    ];
+
     return (
       <ModalForm
         {...modalFormProps(this.props)}
         formBodyStyle={styles.formBodyStyle}
         confirmStyle={styles.confirmStyle}
         wrapperStyle={styles.formWrapper}
-        confirmText='Save'
+        confirmText={intl.formatMessage({ id: 'Common.Save' })}
         style={{ width: '100%' }}
-        cancelText={cancelText}
+        cancelText={cancelText || intl.formatMessage({ id: 'Common.Cancel' })}
         onSubmit={handleSubmit(this.onSubmit)}
         onCancel={onCancel}>
         <FormBody style={styles.formBody} dataQa='file-format-form'>
@@ -184,7 +189,7 @@ export class FileFormatForm extends Component {
             hideSpinner
           >
             <div>
-              <label style={[label]}>Format</label>
+              <label style={[label]}>{intl.formatMessage({ id: 'File.Format' })}</label>
               <Select
                 {...fields.type}
                 dataQa='fileFormat'
@@ -200,6 +205,7 @@ export class FileFormatForm extends Component {
           viewState={previewViewState}
           spinnerStyle={{height: 'calc(100% - 48px)', paddingBottom: 0}}
           spinnerDelay={0}
+          style={{ display: 'flex'}}
         >
           <div className='table-parent' style={styles.previewTable}>
             {previewData.get('rows') && <ExploreTableController
@@ -241,7 +247,7 @@ function mapStateToProps(state, props) {
   };
 }
 
-export default connectComplexForm(
+export default injectIntl(connectComplexForm(
   {
     form: 'fileFormatForm',
     fields: FIELDS,
@@ -249,7 +255,7 @@ export default connectComplexForm(
   },
   SECTIONS,
   mapStateToProps
-)(FileFormatForm);
+)(FileFormatForm));
 
 
 const styles = {
@@ -274,7 +280,9 @@ const styles = {
   previewTable: {
     maxWidth: '98%',
     position: 'relative',
-    left: '1%'
+    left: '1%',
+    display: 'flex',
+    flexGrow: 1
   },
   confirmStyle: {
     position: 'relative'

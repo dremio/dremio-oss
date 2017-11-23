@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/Pin</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Pin" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup" transform="translate(12.000000, 12.000000) scale(-1, 1) translate(-12.000000, -12.000000) ">
+                <g id="icon-box-24-copy-14" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Stroke-149-+-Stroke-150" transform="translate(11.500000, 11.500000) scale(-1, 1) translate(-11.500000, -11.500000) translate(5.000000, 5.000000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
+                    <path d="M4.54166667,8.45833333 L0.709147859,12.2908521" id="Stroke-149"></path>
+                    <path d="M11.5416667,5.54166667 L12.7083333,4.375 L8.625,0.291666667 L7.45833333,1.45833333 L8.04166667,2.04166667 L5.125,4.95833333 L2.79166667,4.95833333 L1.91666667,5.83333333 L7.16666667,11.0833333 L8.04166667,10.2083333 L8.04166667,7.875 L10.9583333,4.95833333 L11.5416667,5.54166667 L11.5416667,5.54166667 Z" id="Stroke-150"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
+import { injectIntl, FormattedMessage } from 'react-intl';
 
 import { FormatField, Checkbox } from 'components/Fields';
 import { label, divider } from 'uiTheme/radium/forms';
 
-// todo: loc
-
+@injectIntl
 export default class TextFormatForm extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static getFields() {
@@ -92,6 +95,7 @@ export default class TextFormatForm extends Component {
   render() {
     const {
       disabled,
+      intl,
       fields: {
         Text: {fieldDelimiter, quote, comment, lineDelimiter, escape, extractHeader, trimHeader, skipFirstLine}
       }
@@ -107,52 +111,69 @@ export default class TextFormatForm extends Component {
         disabled
       };
     };
-
+    const fieldDelimiterOptions = [
+      {option: ',', label: intl.formatMessage({ id: 'File.Comma' })}, {option: '\\t', label: intl.formatMessage({ id: 'File.Tab' })}, {option: '|', label: intl.formatMessage({ id: 'File.Pipe' })}
+    ];
+    const quoteOptions = [
+      {option: '"', label: intl.formatMessage({ id: 'File.DoubleQuote' })}, {option: "'", label: intl.formatMessage({ id: 'File.SingleQuote' })}
+    ];
+    const commentOptions = [
+      {option: '#', label: intl.formatMessage({ id: 'File.NumberSign' })}, {option: '//', label: intl.formatMessage({ id: 'File.DoubleSlash' })}
+    ];
+    const lineDelimiterOptions = [
+      {option: '\\r\\n', label: intl.formatMessage({ id: 'File.WindowsDelimiter' })}, {option: '\\n', label: intl.formatMessage({ id: 'File.LinuxDelimiter' })}
+    ];
+    const escapeOptions = [
+      {option: '"', label: intl.formatMessage({ id: 'File.DoubleQuote' })},
+      {option: '`', label: intl.formatMessage({ id: 'File.BackQuote' })},
+      {option: '\\', label: intl.formatMessage({ id: 'File.Backslash' })}
+    ];
     return (
       <div>
         <div style={styles.row}>
           <FormatField
             {...fieldProps(fieldDelimiter)}
-            label={la('Field Delimiter')}
-            options={[{option: ',', label: 'Comma'}, {option: '\\t', label: 'Tab'}, {option: '|', label: 'Pipe'}]}
+            label={intl.formatMessage({ id: 'File.FieldDelimiter' })}
+            options={fieldDelimiterOptions}
           />
           <FormatField
             {...fieldProps(quote)}
-            label={la('Quote')}
-            options={[{option: '"', label: 'Double Quote'}, {option: "'", label: 'Single Quote'}]}
+            label={intl.formatMessage({ id: 'File.Quote' })}
+            options={quoteOptions}
           />
           <FormatField
             {...fieldProps(comment)}
-            label={la('Comment')}
-            options={[{option: '#', label: 'Number Sign'}, {option: '//', label: 'Double Slash'}]}
+            label={intl.formatMessage({ id: 'File.Comment' })}
+            options={commentOptions}
           />
         </div>
         <hr style={divider}/>
         <div style={styles.row}>
           <FormatField
             {...fieldProps(lineDelimiter)}
-            label={la('Line Delimiter')}
-            options={[{option: '\\r\\n', label: 'CRLF - Windows'}, {option: '\\n', label: 'LF - Unix/Linux'}]}
+            label={intl.formatMessage({ id: 'File.LineDelimiter' })}
+            options={lineDelimiterOptions}
           />
           <FormatField
             {...fieldProps(escape)}
-            label={la('Escape')}
-            options={[
-              {option: '"', label: 'Double Quote'},
-              {option: '`', label: 'Back Quote'},
-              {option: '\\', label: 'Backslash'}
-            ]}
+            label={intl.formatMessage({ id: 'File.Escape' })}
+            options={escapeOptions}
           />
           <div style={styles.field}>
-            <label style={label}>Options</label>
+            <label style={label}><FormattedMessage id='Common.Options' /></label>
             <div style={styles.options}>
               <Checkbox disabled={disabled} style={styles.checkbox} dataQa='extract-field-names'
-                label={la('Extract Field Names')} {...extractHeader}/>
+                label={intl.formatMessage({ id: 'File.ExtractFieldNames' })} {...extractHeader}/>
               <Checkbox disabled={disabled} style={styles.checkbox} dataQa='skip-first-line'
-                label={la('Skip First Line')} {...skipFirstLine}/>
+                label={intl.formatMessage({ id: 'File.SkipFirstLine' })} {...skipFirstLine}/>
             </div>
             <div style={styles.options}>
-              <Checkbox disabled={disabled} style={styles.checkbox} label={la('Trim Field Names')} {...trimHeader}/>
+              <Checkbox
+                disabled={disabled}
+                style={styles.checkbox}
+                label={intl.formatMessage({ id: 'File.TrimFieldNames' })}
+                {...trimHeader}
+              />
             </div>
           </div>
         </div>

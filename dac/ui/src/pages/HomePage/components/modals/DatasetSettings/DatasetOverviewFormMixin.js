@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Link } from 'react-router';
+import { FormattedMessage } from 'react-intl';
 
 import { abilities } from 'utils/datasetUtils';
 
@@ -40,7 +41,7 @@ export default function(input) {
 
       return (
         <Link to={moveLink} style={{marginTop: 15, display: 'block'}}>
-          {la('move')}
+          <FormattedMessage id = 'Common.Move' />
         </Link>
       );
     }

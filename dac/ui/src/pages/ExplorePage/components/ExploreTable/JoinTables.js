@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import { connect } from 'react-redux';
 import pureRender from 'pure-render-decorator';
 
+import PropTypes from 'prop-types';
+
 import EllipsedText from 'components/EllipsedText';
-import { formLabel, body, formDescription } from 'uiTheme/radium/typography';
+import { formLabel, formDescription } from 'uiTheme/radium/typography';
 import { getJoinTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 import Spinner from 'components/Spinner';
@@ -30,6 +32,7 @@ import { accessEntity } from 'actions/resources/lru';
 
 import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
 
+import { ExploreInfoHeader } from '../ExploreInfoHeader';
 import ExploreTableController from './ExploreTableController';
 
 const WIDTH_SCALE = 0.495;
@@ -76,7 +79,7 @@ export class JoinTables extends Component {
       const customTableContent = joinViewState && joinViewState.get('isInProgress')
         ? (
           <Spinner
-            style={{...styles.emptyTable, ...body}}
+            style={styles.emptyTable}
             iconStyle={{color: 'gray'}}
           />
         )
@@ -105,7 +108,7 @@ export class JoinTables extends Component {
 
   render() {
     const { location, sqlSize, rightTreeVisible, dataset, exploreViewState } = this.props;
-    const fullPath = dataset.get('displayFullPath') && constructFullPath(dataset.get('displayFullPath'));
+    const nameForDisplay = ExploreInfoHeader.getNameForDisplay(dataset);
     const scale = this.shouldRenderSecondTable()
       ? WIDTH_SCALE
       : 1;
@@ -113,7 +116,7 @@ export class JoinTables extends Component {
     return (
       <div style={[styles.base]}>
         <div style={[styles.tableBlock, tableBlockStyle]}>
-          <div style={styles.header}><EllipsedText text={fullPath} /></div>
+          <div style={styles.header}><EllipsedText text={nameForDisplay} /></div>
           <ExploreTableController
             pageType={this.props.pageType}
             dataset={this.props.dataset}
@@ -154,6 +157,7 @@ export default connect(mapStateToProps, {
 const styles = {
   base: {
     display: 'flex',
+    flexGrow: 1,
     backgroundColor: '#F5FCFF'
   },
   tableBlock: {

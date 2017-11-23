@@ -20,10 +20,11 @@ import OverviewContent from './OverviewContent';
 
 describe('OverviewContent', () => {
 
+  let minimalProps;
   let commonProps;
   let wrapper;
   beforeEach(() => {
-    commonProps = {
+    minimalProps = {
       jobDetails: Immutable.fromJS({
         jobId: {
           id: 'jobid'
@@ -54,12 +55,15 @@ describe('OverviewContent', () => {
         ]
       })
     };
+    commonProps = {
+      ...minimalProps
+    };
 
     wrapper = shallow(<OverviewContent {...commonProps}/>);
   });
 
   it('should render with minimal props without exploding', () => {
-    expect(wrapper).to.have.length(1);
+    expect(shallow(<OverviewContent {...minimalProps}/>)).to.have.length(1);
   });
 
   describe('checkResultOfProfile', () => {

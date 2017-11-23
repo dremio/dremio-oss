@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {body, formLabel} from 'uiTheme/radium/typography';
+import {formLabel} from 'uiTheme/radium/typography';
 
 export const methodTitle = {
   margin: '8px 0 10px 8px',
   padding: '0 5px 0 5px',
   lineHeight: '24px',
-  ...body,
   height: 24
 };
 
@@ -29,7 +28,6 @@ export const methodTab = {
   justifyContent: 'center',
   margin: '8px 0 10px 8px',
   padding: '0 5px 0 5px',
-  ...body,
   height: 24,
   minWidth: 40,
   borderRadius: 2,

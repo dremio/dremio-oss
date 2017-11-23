@@ -16,10 +16,15 @@
 package com.dremio.exec.planner.common;
 
 import java.util.AbstractList;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.volcano.RelSubset;
@@ -59,9 +64,11 @@ import org.apache.calcite.util.Pair;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
+import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.exec.store.OldNamespaceTable;
+import com.dremio.service.Pointer;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.exec.store.NamespaceTable;
 import com.google.common.base.Preconditions;
@@ -682,6 +689,84 @@ public final class MoreRelOptUtil {
 
       return super.visitChild(parent, i, child);
     }
+  }
+
+  /**
+   * Find the path to the node that matches the predicate
+   * @param root
+   * @param predicate
+   * @return
+   */
+  public static List<Integer> findPathToNode(final RelNode root, final Predicate<RelNode> predicate) {
+    final Deque<Integer> stack = new ArrayDeque<>();
+    final List<Integer> result = new ArrayList<>();
+    final Pointer<Boolean> found = new Pointer<>(false);
+    root.accept(new RoutingShuttle() {
+      @Override
+      public RelNode visitChildren(RelNode rel) {
+        for (Ord<RelNode> input : Ord.zip(rel.getInputs())) {
+          stack.addLast(input.i);
+          rel = visitChild(rel, input.i, input.e);
+          stack.removeLast();
+          if (found.value) {
+            return rel;
+          }
+        }
+        return rel;
+      }
+      @Override
+      public RelNode visit(RelNode other) {
+        if (found.value) {
+          return other;
+        }
+        if (predicate.apply(other)) {
+          result.addAll(stack);
+          found.value = true;
+          return other;
+        }
+        return super.visit(other);
+      }
+    });
+
+    Preconditions.checkState(found.value);
+
+    if (!found.value) {
+      return ImmutableList.of(-1);
+    }
+
+    return result;
+  }
+
+  /**
+   * Find the node at a given path.  The output from {@link this.findPathToNode} when used as input will return the
+   * found node
+   * @param root
+   * @param path
+   * @return
+   */
+  public static RelNode findNodeAtPath(final RelNode root, final Iterable<Integer> path) {
+    final Iterator<Integer> iter = path.iterator();
+
+    RelNode node = root.accept(new RoutingShuttle() {
+      @Override
+      public RelNode visit(RelNode other) {
+        return super.visit(other);
+      }
+
+      @Override
+      protected RelNode visitChildren(RelNode rel) {
+        if (!iter.hasNext()) {
+          return rel;
+        }
+
+        int child = iter.next();
+
+        return rel.getInput(child).accept(this);
+      }
+    });
+
+    Preconditions.checkNotNull(node);
+    return node;
   }
 
 }

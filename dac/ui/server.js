@@ -17,7 +17,6 @@
 
 const webpack = require('webpack');
 const webpackDevMiddleware = require('webpack-dev-middleware');
-const webpackHotMiddleware = require('webpack-hot-middleware');
 const proxy = require('http-proxy-middleware');
 
 // -- Probably a better treatment without new
@@ -29,33 +28,12 @@ const testConfig = require('./webpack.tests.config');
 const userConfig = require('./webpackUtils/userConfig');
 const isProductionBuild = process.env.NODE_ENV === 'production';
 
-const stats = { // make it easier to find the error when the build fails
-  hash: false,
-  version: false,
-  timings: false,
-  assets: false,
-  entrypoints: false,
-  chunks: false,
-  chunkModules: false,
-  modules: false,
-  reasons: false,
-  depth: false,
-  usedExports: false,
-  providedExports: false,
-  children: false,
-  source: false,
-  errors: true,
-  errorDetails: true,
-  warnings: false,
-  publicPath: false
-};
 
 const port = 3005;
 const compiler = webpack(config);
 const devMiddleware = webpackDevMiddleware(compiler, {
   noInfo: true,
-  publicPath: config.output.publicPath,
-  stats,
+  output: config.output,
   // todo: upgrade default reporter so that the error is in the repsonse (and postback to open source)
   watchOptions: {
     // Watching node_modules results in excessive of polling which eats cpu
@@ -66,16 +44,10 @@ app.use(devMiddleware);
 
 let testMiddleware;
 if (!isProductionBuild) {
-  const testCompiler = webpack(testConfig);
-  testMiddleware = webpackDevMiddleware(testCompiler, {
-    publicPath: testConfig.output.publicPath,
-    stats
-  });
+  const testCompiler = webpack(config);
+  testMiddleware = webpackDevMiddleware(testCompiler, config);
   app.use(testMiddleware);
-  app.use(webpackHotMiddleware(testCompiler));
 }
-
-app.use(webpackHotMiddleware(compiler)); // todo: what happens in prod mode?
 
 let storedProxy;
 let prevAPIOrigin;
@@ -110,7 +82,7 @@ app.use(function(req, res, next) {
   }
 });
 
-console.log('Building...');
+console.log('Building…');
 
 app.listen(port, function(error) {
   if (error) {

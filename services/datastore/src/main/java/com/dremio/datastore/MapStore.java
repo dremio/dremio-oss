@@ -34,9 +34,11 @@ import com.google.common.primitives.UnsignedBytes;
 class MapStore implements ByteStore {
 
   private final ConcurrentSkipListMap<byte[], ByteBuffer> map;
+  private final String name;
 
-  public MapStore(){
+  public MapStore(String name){
     this.map = new ConcurrentSkipListMap<>(UnsignedBytes.lexicographicalComparator());
+    this.name = name;
   }
 
   @Override
@@ -140,4 +142,25 @@ class MapStore implements ByteStore {
     map.clear();
   }
 
+  @Override
+  public KVAdmin getAdmin() {
+    return new MapKVAdmin();
+  }
+
+  private class MapKVAdmin extends KVAdmin {
+
+    @Override
+    public String getStats() {
+      StringBuilder sb = new StringBuilder();
+      sb.append(name);
+      sb.append('\n');
+      sb.append("\tmap store stats");
+      sb.append('\n');
+      sb.append("\t\t* total records: ");
+      sb.append(map.size());
+      sb.append('\n');
+      return sb.toString();
+    }
+
+  }
 }

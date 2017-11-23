@@ -114,9 +114,18 @@ public class TestJobService extends BaseTestServer {
     final DatasetPath ds2 = new DatasetPath("s.ds2");
     final DatasetPath ds3 = new DatasetPath("s.ds3");
 
-    Job job1_0 = jobsService.submitJob(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds1.toNamespaceKey(), new DatasetVersion("v1"), JobStatusListener.NONE);
-    Job job2_0 = jobsService.submitJob(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds2.toNamespaceKey(), new DatasetVersion("v1"), JobStatusListener.NONE);
-    Job job3_0 = jobsService.submitJob(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds3.toNamespaceKey(), new DatasetVersion("v1"), JobStatusListener.NONE);
+    Job job1_0 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds1.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v1")).build(), NoOpJobStatusListener.INSTANCE);
+    Job job2_0 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds2.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v1")).build(), NoOpJobStatusListener.INSTANCE);
+    Job job3_0 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds3.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v1")).build(), NoOpJobStatusListener.INSTANCE);
 
     job1_0.getData().loadIfNecessary();
     job2_0.getData().loadIfNecessary();
@@ -126,9 +135,18 @@ public class TestJobService extends BaseTestServer {
     assertEquals(1, jobsService.getJobsCount(ds2.toNamespaceKey()));
     assertEquals(1, jobsService.getJobsCount(ds3.toNamespaceKey()));
 
-    Job job1_2 = jobsService.submitJob(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds1.toNamespaceKey(), new DatasetVersion("v1"), JobStatusListener.NONE);
-    Job job1_3 = jobsService.submitJob(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds1.toNamespaceKey(), new DatasetVersion("v2"), JobStatusListener.NONE);
-    Job job2_2 = jobsService.submitJob(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds2.toNamespaceKey(), new DatasetVersion("v2"), JobStatusListener.NONE);
+    Job job1_2 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds1.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v1")).build(), NoOpJobStatusListener.INSTANCE);
+    Job job1_3 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds1.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v2")).build(), NoOpJobStatusListener.INSTANCE);
+    Job job2_2 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds2.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v2")).build(), NoOpJobStatusListener.INSTANCE);
 
     job1_2.getData().loadIfNecessary();
     job1_3.getData().loadIfNecessary();
@@ -144,8 +162,10 @@ public class TestJobService extends BaseTestServer {
     assertEquals(1, jobsService.getJobsCountForDataset(ds2.toNamespaceKey(), new DatasetVersion("2")));
     assertEquals(1, jobsService.getJobsCountForDataset(ds3.toNamespaceKey(), new DatasetVersion("1")));
 
-    Job job1_4 = jobsService.submitJob(
-            getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"), QueryType.UNKNOWN, ds1.toNamespaceKey(), new DatasetVersion("v1"), JobStatusListener.NONE);
+    Job job1_4 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .setDatasetPath(ds1.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("v1")).build(), NoOpJobStatusListener.INSTANCE);
     job1_4.getData().loadIfNecessary();
     List<Job> jobs = ImmutableList.copyOf(jobsService.getAllJobs());
     assertEquals(7, jobs.size());
@@ -424,7 +444,10 @@ public class TestJobService extends BaseTestServer {
   public void testCTASAndDropTable() throws Exception {
     // Create a table
     SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select * from cp.\"json/users.json\" LIMIT 1");
-    Job ctasJob = jobsService.submitJob(ctas, QueryType.UI_RUN, null, null, JobStatusListener.NONE);
+    Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
 
     FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(StoragePluginRegistry.class).getPlugin("$scratch");
@@ -436,7 +459,10 @@ public class TestJobService extends BaseTestServer {
 
     // Now drop the table
     SqlQuery dropTable = getQueryFromSQL("DROP TABLE \"$scratch\".\"ctas\"");
-    Job dropTableJob = jobsService.submitJob(dropTable, QueryType.ACCELERATOR_DROP, null, null, JobStatusListener.NONE);
+    Job dropTableJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(dropTable)
+        .setQueryType(QueryType.ACCELERATOR_DROP)
+        .build(), NoOpJobStatusListener.INSTANCE);
     dropTableJob.getData().loadIfNecessary();
 
     // Make sure the table data directory is deleted
@@ -466,7 +492,9 @@ public class TestJobService extends BaseTestServer {
   public void testJobCleanup() throws Exception {
     jobsService = (LocalJobsService) l(JobsService.class);
     SqlQuery ctas = getQueryFromSQL("SHOW SCHEMAS");
-    Job job = jobsService.submitJob(ctas, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
 
     SabotContext context = l(SabotContext.class);
@@ -481,7 +509,7 @@ public class TestJobService extends BaseTestServer {
     cleanupTask.cleanup();
 
     //make sure that the job output directory is gone
-    assertFalse(jobsService.getjobResultsStore().jobOutputDirectoryExists(job.getJobId()));
+    assertFalse(jobsService.getJobResultsStore().jobOutputDirectoryExists(job.getJobId()));
     job = jobsService.getJob(job.getJobId());
     assertFalse(new JobDetailsUI(job).getResultsAvailable());
 
@@ -577,21 +605,27 @@ public class TestJobService extends BaseTestServer {
   @Test
   public void testExplain() throws Exception {
     SqlQuery ctas = getQueryFromSQL("EXPLAIN PLAN FOR SELECT * FROM sys.version");
-    Job ctasJob = jobsService.submitJob(ctas, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
   }
 
   @Test
   public void testAlterOption() throws Exception {
     SqlQuery ctas = getQueryFromSQL("alter session set \"planner.enable_multiphase_agg\"=true");
-    Job ctasJob = jobsService.submitJob(ctas, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
   }
 
   @Test
   public void testAliasedQuery() throws Exception {
     SqlQuery ctas = getQueryFromSQL("SHOW SCHEMAS");
-    Job ctasJob = jobsService.submitJob(ctas, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
   }
 

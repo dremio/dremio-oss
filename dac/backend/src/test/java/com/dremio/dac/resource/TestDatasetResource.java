@@ -32,9 +32,11 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -85,6 +87,8 @@ public class TestDatasetResource extends BaseTestServer {
     source.setCtime(System.currentTimeMillis());
     source.setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD);
     source.setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD);
+    // Please note: if this source is ever refreshed, the physical dataset added below will disappear
+    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.NEVER_REFRESH_POLICY));
     source.setConfig(nas);
     getSourceService().registerSourceWithRuntime(source);
     addPhysicalDataset(DATASET_PATH, DatasetType.PHYSICAL_DATASET);
@@ -92,7 +96,7 @@ public class TestDatasetResource extends BaseTestServer {
 
   @After
   public void clear() throws Exception {
-    getNamespaceService().deleteSource(new SourcePath(SOURCE_NAME).toNamespaceKey(), 1);
+    getNamespaceService().deleteSource(new SourcePath(SOURCE_NAME).toNamespaceKey(), 0);
   }
 
   @Test

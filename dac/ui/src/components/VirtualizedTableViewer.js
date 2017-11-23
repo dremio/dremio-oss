@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { AutoSizer, Table, Column } from 'react-virtualized';
 import classNames from 'classnames';
 import Immutable from 'immutable';
@@ -145,13 +146,13 @@ export default class VirtualizedTableViewer extends Component {
                 {columns.map((item) =>
                   <Column
                     key={item.title}
-                    dataKey={item.title}
+                    dataKey={item.key}
                     style={item.style}
                     headerRenderer={(options) => this.renderHeader(options, item.style)}
                     width={item.width || 100}
                     flexGrow={item.flexGrow}
                     disableSort={item.disableSort}
-                    cellRenderer={(opts) => this.renderCell(opts, item.title)}
+                    cellRenderer={(opts) => this.renderCell(opts, item.key)}
                   />
                 )}
               </Table>

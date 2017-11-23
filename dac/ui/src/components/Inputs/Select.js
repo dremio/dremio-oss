@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import ReactSelect from 'react-select';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import './Select.less'; // For now it's nessesary because react-select use css
 

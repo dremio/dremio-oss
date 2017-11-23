@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
 
-import { h3 } from 'uiTheme/radium/typography';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
 @Radium
@@ -30,9 +30,9 @@ export default class RunningJobsHeader extends Component {
   //TODO: jobCount will be used after beta2
   render() {
     return (
-      <div className='running-jobs-header' style={[style.base, h3]}>
+      <h3 className='running-jobs-header' style={[style.base]}>
         Jobs
-      </div>
+      </h3>
     );
   }
 }

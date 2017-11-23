@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import { connect }   from 'react-redux';
 import shallowEqual from 'shallowequal';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { USERS_VIEW_ID, searchUsers, removeUser } from 'actions/admin';
 import { showConfirmationDialog } from 'actions/confirmation';
 import { getUsers } from 'selectors/admin';

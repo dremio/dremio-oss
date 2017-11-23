@@ -29,12 +29,12 @@ describe('AccelerationBasic', () => {
         version: 1,
         aggregationLayouts: {
           // WARNING: this might not be exactly accurate - but it's enough for the test
-          layoutList: [{id:{id:'a'}, details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}],
+          layoutList: [{id:'a', details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}],
           enabled: true
         },
         rawLayouts: {
           // WARNING: this might not be exactly accurate - but it's enough for the test
-          layoutList: [{id:{id:'b'}, details: {displayFieldList: ['cm1']}}],
+          layoutList: [{id:'b', details: {displayFieldList: ['cm1']}}],
           enabled: true
         },
         columnsDimensions: [{column: 'cd1'}],

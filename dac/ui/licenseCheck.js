@@ -171,7 +171,7 @@ const KNOWN = {
   'chain-function@1.0.0': {
     noFile: true
   },
-  'react-dom-factories@1.0.1': {
+  'react-dom-factories@1.0.2': {
     noFile: true // cannot find in weird react repo structure
   }
 };

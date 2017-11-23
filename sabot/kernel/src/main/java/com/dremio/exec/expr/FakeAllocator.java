@@ -15,21 +15,27 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocatorL;
+import io.netty.buffer.UnsafeDirectLittleEndian;
 
 /**
  * Non-functional allocator to be used when doing field materialization.
  */
 public class FakeAllocator implements BufferAllocator {
 
+  private static final UnsafeDirectLittleEndian emptyUdle = (new PooledByteBufAllocatorL()).empty;
+  private static ArrowBuf empty = new ArrowBuf(new AtomicInteger(), null, emptyUdle, null, null, 0, 0, true);
   public static BufferAllocator INSTANCE = new FakeAllocator();
 
-  private FakeAllocator(){}
+  private FakeAllocator() {}
 
   @Override
   public void assertOpen() {
@@ -68,7 +74,7 @@ public class FakeAllocator implements BufferAllocator {
 
   @Override
   public ArrowBuf getEmpty() {
-    return null;
+    return empty;
   }
 
   @Override
@@ -110,5 +116,4 @@ public class FakeAllocator implements BufferAllocator {
   public String toVerboseString() {
     throw new UnsupportedOperationException();
   }
-
 }

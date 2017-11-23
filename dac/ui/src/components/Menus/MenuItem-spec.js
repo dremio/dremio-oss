@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes } from 'react';
+import PropTypes from 'prop-types';
 import { shallow, mount } from 'enzyme';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MenuItem from './MenuItem';

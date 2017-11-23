@@ -36,6 +36,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.common.DACUnauthorizedException;
@@ -62,6 +63,7 @@ import com.dremio.service.users.UserService;
 @Secured
 @Path("/user/{userName}")
 public class UserResource {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserResource.class);
 
   private final UserService userService;
   private final NamespaceService namespaceService;
@@ -121,8 +123,21 @@ public class UserResource {
     checkUser(userName, "create");
     User newUser = SimpleUser.newBuilder(userForm.getUserConfig()).setCreatedAt(System.currentTimeMillis()).build();
     newUser = userService.createUser(newUser, userForm.getPassword());
-    namespaceService.addOrUpdateHome(new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey(),
-      new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName.getName()));
+    try {
+      namespaceService.addOrUpdateHome(new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey(),
+        new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName.getName()));
+    } catch (Exception e) {
+      try {
+        userService.deleteUser(newUser.getUserName(), newUser.getVersion());
+      } catch (UserNotFoundException e1) {
+        logger.warn("Could not delete a user {} after failing to create corresponding home space", userName.getName());
+      } finally {
+        throw UserException.unsupportedError()
+          .message("Could not create user '%s', make sure you don't already have a similar user with different casing", newUser.getUserName())
+          .addContext("Cause", e.getMessage())
+          .build();
+      }
+    }
     return new UserUI(new UserResourcePath(userName), userName, newUser);
   }
 

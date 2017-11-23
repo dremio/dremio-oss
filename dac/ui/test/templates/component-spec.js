@@ -35,7 +35,7 @@ describe('$TEST_SUBJECT$', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ...', () => {
+  it('should render common props without exploding', () => {
     const wrapper = shallow(<$TEST_SUBJECT$ {...commonProps}/>);
     expect(wrapper).to.have.length(1);
   });

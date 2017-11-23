@@ -13,29 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import { Checkbox, TextField, FieldWithError } from 'components/Fields';
 import { divider } from 'uiTheme/radium/forms';
 
+@injectIntl
 export default class XLSFormatForm extends Component {
-
   static propTypes = {
     fields: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static getFields() {
     return ['extractHeader', 'hasMergedCells', 'sheetName'];
   }
 
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     const {
       disabled,
+      intl,
       fields: { XLS: { extractHeader, hasMergedCells, sheetName }}
       } = this.props;
 
@@ -44,19 +45,19 @@ export default class XLSFormatForm extends Component {
         <div style={styles.row}>
           <div style={styles.options}>
             <Checkbox disabled={disabled} style={styles.checkbox} dataQa='extract-field-names'
-              label={la('Extract Field Names')} {...extractHeader}/>
+              label={intl.formatMessage({ id: 'File.ExtractFieldNames' })} {...extractHeader}/>
           </div>
           <div style={styles.options}>
             <Checkbox
               disabled={disabled}
               style={styles.checkbox}
-              label={la('Expand Merged Cells')}
+              label={intl.formatMessage({ id: 'File.ExpandMergedCells' })}
               {...hasMergedCells}
             />
           </div>
         </div>
         <div style={styles.row}>
-          <FieldWithError label={la('Sheet Name')} {...sheetName}>
+          <FieldWithError label={intl.formatMessage({ id: 'File.SheetName' })} {...sheetName}>
             <TextField {...sheetName} style={styles.textField}/>
           </FieldWithError>
         </div>

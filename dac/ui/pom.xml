@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>1.2.2-201710100154510864-d40e31c</version>
+    <version>1.3.0-201711211846350824-31f8d91</version>
   </parent>
 
   <artifactId>dremio-dac-ui</artifactId>
@@ -52,7 +52,12 @@
             <exclude>build/**</exclude>
             <exclude>coverage/**</exclude>
             <exclude>.nyc_output/**</exclude>
+            <exclude>**/*.pattern</exclude>
           </excludes>
+          <mapping>
+            <!-- full file names -->
+            <browserslistrc>SCRIPT_STYLE</browserslistrc>
+          </mapping>
         </configuration>
       </plugin>
       <plugin>
@@ -107,6 +112,7 @@
           <environmentVariables>
             <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
             <DREMIO_BETA>${dremio.beta}</DREMIO_BETA>
+            <DREMIO_RELEASE>${dremio.release}</DREMIO_RELEASE>
           </environmentVariables>
         </configuration>
 
@@ -120,7 +126,7 @@
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <arguments>install</arguments>
+              <arguments>install --no-save</arguments>
             </configuration>
           </execution>
 
@@ -194,6 +200,22 @@
        <properties>
            <dremio.beta>true</dremio.beta>
        </properties>
+    </profile>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <configuration>
+              <excludes combine.children="append">
+                <exclude>**/sourcemaps/**</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

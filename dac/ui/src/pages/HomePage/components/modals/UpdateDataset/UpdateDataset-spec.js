@@ -109,14 +109,5 @@ describe('UpdateDataset', () => {
       );
       expect(ApiUtils.attachFormSubmitHandlers).to.be.calledOnce;
     });
-
-    it('should be cancel modal without submitting', () => {
-      instance.submit('cancel');
-      expect(commonProps.createDatasetFromExisting).to.have.not.been.called;
-      expect(commonProps.moveDataSet).to.have.not.been.called;
-      expect(commonProps.renameSpaceDataset).to.have.not.been.called;
-      expect(ApiUtils.attachFormSubmitHandlers).to.have.not.been.called;
-      expect(commonProps.hide).to.be.calledOnce;
-    });
   });
 });

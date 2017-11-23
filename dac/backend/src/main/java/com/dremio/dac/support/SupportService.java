@@ -16,13 +16,11 @@
 package com.dremio.dac.support;
 
 import static com.dremio.common.util.DremioVersionInfo.VERSION;
-import static com.dremio.dac.util.ClusterVersionUtils.fromClusterVersion;
 import static com.dremio.dac.util.ClusterVersionUtils.toClusterVersion;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -52,7 +50,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.common.Version;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.util.DremioVersionInfo;
@@ -94,6 +91,8 @@ import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -190,26 +189,6 @@ public class SupportService implements Service {
     return identity;
   }
 
-  private void checkVersion(ClusterIdentity identity) {
-    // compare the stored version with the current server version
-    final Version storeVersion = fromClusterVersion(identity.getVersion());
-    if (storeVersion == null || storeVersion.compareTo(VERSION) < 0) {
-      throw new IllegalStateException("KVStore has an older version than the server, please run the upgrade tool first");
-    }
-
-    if (storeVersion.compareTo(VERSION) > 0) {
-      // KVStore is newer than running server
-      final String msg = String.format("KVStore has a newer version (%s) than running Dremio server (%s)",
-        storeVersion.getVersion(), VERSION.getVersion());
-
-      if (!config.allowNewerKVStore) {
-        throw new IllegalStateException(msg);
-      }
-
-      logger.warn(msg);
-    }
-  }
-
   @Override
   public void start() throws Exception {
 
@@ -224,8 +203,6 @@ public class SupportService implements Service {
           .setVersion(toClusterVersion(VERSION))
           .setCreated(System.currentTimeMillis());
       identity = storeIdentity(identity);
-    } else {
-      checkVersion(identity);
     }
 
     this.identity = identity;
@@ -285,7 +262,8 @@ public class SupportService implements Service {
 
   }
 
-  public DownloadDataResponse downloadSupportRequest(String userId, JobId jobId) throws UserNotFoundException, FileNotFoundException, IOException {
+  public DownloadDataResponse downloadSupportRequest(String userId, JobId jobId)
+      throws UserNotFoundException, IOException, JobNotFoundException {
     Pointer<User> config = new Pointer<>();
     Pointer<Boolean> outIncludesLogs = new Pointer<>();
     Pointer<String> outSubmissionId = new Pointer<>();
@@ -351,7 +329,9 @@ public class SupportService implements Service {
     return new SupportResponse(false, false, null);
   }
 
-  private Path generateSupportRequest(String userId, JobId jobId, Pointer<Boolean> outIncludesLogs, Pointer<User> outUserConfig, Pointer<String> outSubmissionId) throws FileNotFoundException, IOException, UserNotFoundException{
+  private Path generateSupportRequest(String userId, JobId jobId, Pointer<Boolean> outIncludesLogs,
+                                      Pointer<User> outUserConfig, Pointer<String> outSubmissionId)
+      throws IOException, UserNotFoundException, JobNotFoundException {
     final String submissionId = UUID.randomUUID().toString();
     outSubmissionId.value = submissionId;
 
@@ -393,7 +373,8 @@ public class SupportService implements Service {
     return path;
   }
 
-  private boolean recordHeader(OutputStream output, JobId id, User user, String submissionId) throws UserNotFoundException, IOException {
+  private boolean recordHeader(OutputStream output, JobId id, User user, String submissionId)
+      throws UserNotFoundException, IOException, JobNotFoundException {
 
     SupportHeader header = new SupportHeader();
 
@@ -413,7 +394,7 @@ public class SupportService implements Service {
     return true;
   }
 
-  private QueryProfile recordProfile(OutputStream out, JobId id, int attempt) throws IOException{
+  private QueryProfile recordProfile(OutputStream out, JobId id, int attempt) throws IOException, JobNotFoundException {
     QueryProfile profile = jobsService.get().getProfile(id, attempt);
     ProtostuffUtil.toJSON(out, profile, SchemaUserBitShared.QueryProfile.WRITE, false);
     return profile;
@@ -429,7 +410,10 @@ public class SupportService implements Service {
           Arrays.asList(LOGS_STORAGE_PLUGIN), userId);
       final CompletionListener listener = new CompletionListener();
 
-      jobsService.get().submitJob(query, QueryType.UI_INTERNAL_RUN, null, null, listener);
+      jobsService.get().submitJob(JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(QueryType.UI_INTERNAL_RUN)
+          .build(), listener);
 
       boolean completed = false;
       try {
@@ -532,7 +516,7 @@ public class SupportService implements Service {
     }
 
     @Override
-    public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
 
     }
 

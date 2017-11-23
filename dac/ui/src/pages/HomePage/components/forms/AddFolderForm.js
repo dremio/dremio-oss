@@ -13,18 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
+
 import { FieldWithError, TextField } from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
 import { sectionTitle, formRow, description } from 'uiTheme/radium/forms';
 
 const FIELDS = ['name'];
 
-function validate(values) {
-  return applyValidators(values, [isRequired('name', la('Folder Name'))]);
+function validate(values, props) {
+  const { intl } = props;
+  return applyValidators(values, [isRequired('name', intl.formatMessage({ id: 'Folder.Name' }))]);
 }
 
 export class AddFolderForm extends Component {
@@ -33,25 +38,21 @@ export class AddFolderForm extends Component {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
     fields: PropTypes.object,
-    handleSubmit: PropTypes.func.isRequired
+    handleSubmit: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
-  constructor(props) {
-    super(props);
-  }
-
   render() {
-    const {fields, handleSubmit, onFormSubmit} = this.props;
-    const sectionDescription = la('Dremio folders work just like your desktop ones;' +
-      ' they add another layer of organization within a Space.');
-    const secTitle = la('Add a Folder to the Space');
+    const {fields, handleSubmit, onFormSubmit, intl} = this.props;
+    const sectionDescription = intl.formatMessage({ id: 'Folder.AddFileModalDescription' });
+    const secTitle = intl.formatMessage({ id: 'Folder.AddFolderToSpace' });
     return (
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody>
-          <h3 style={sectionTitle}>{secTitle}</h3>
+          <h2 style={sectionTitle}>{secTitle}</h2>
           <div style={description}>{sectionDescription}</div>
           <div style={formRow}>
-            <FieldWithError label={la('Folder Name')} errorPlacement='right' {...fields.name}>
+            <FieldWithError label={intl.formatMessage({ id: 'Folder.Name' })} errorPlacement='right' {...fields.name}>
               <TextField initialFocus {...fields.name}/>
             </FieldWithError>
           </div>
@@ -61,8 +62,8 @@ export class AddFolderForm extends Component {
   }
 }
 
-export default connectComplexForm({
+export default injectIntl(connectComplexForm({
   form: 'addFolder',
   fields: FIELDS,
   validate
-})(AddFolderForm);
+})(AddFolderForm));

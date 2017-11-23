@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { Cell } from 'fixed-data-table-2';
 import Immutable from 'immutable';
 import shallowEqual from 'fbjs/lib/shallowEqual';
 import { pick } from 'lodash/object';
 import { MAP, TEXT, LIST } from 'constants/DataTypes';
+import { DATE_TYPES, NUMBER_TYPES } from 'constants/columnTypeGroups';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
@@ -223,11 +225,17 @@ export default class ExploreTableCell extends Component {
     const emptyStyle = (cellValue === null || cellValue === '') ? styles.nullCell : {};
     const removedStyle = row && row.deleted ? styles.removedCell : {};
 
+    const isNumericCell = (DATE_TYPES.indexOf(columnType) !== -1 || NUMBER_TYPES.indexOf(columnType) !== -1)
+      && cellValue !== null;
+    const extraWrapStyle = isNumericCell ? { display: 'flex', justifyContent: 'flex-end' } : {};
+    // position is absolute by default. We need set "relative" for align
+    const extraCellStyle = isNumericCell ? { position: 'relative' } : {};
+
     return (
       <Cell
         width={width}
         height={height}
-        style={style}
+        style={{ ...style, ...extraWrapStyle }}
         className={'explore-cell ' + (showEllipsis ? 'explore-cell-overflow' : '')}
         ref='cellContent'
         onMouseDown={this.onMouseDown}
@@ -236,7 +244,7 @@ export default class ExploreTableCell extends Component {
           <div className='cell-data'>
             <span
               onMouseEnter={this.onMouseEnter}
-              style={{...emptyStyle, ...removedStyle}}
+              style={{...emptyStyle, ...removedStyle, ...extraCellStyle }}
               className='cell-wrap' data-columnname={this.props.columnName}>
               {dataFormatUtils.formatValue(cellValue, this.getCellType() || columnType, row)}
             </span>

@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import { FormattedMessage, injectIntl } from 'react-intl';
 
 import { showConfirmationDialog } from 'actions/confirmation';
 import { resetNewQuery } from 'actions/explore/view';
@@ -30,6 +32,7 @@ import { parseResourceId } from 'utils/pathUtils';
 
 import './NewQueryButton.less';
 
+@injectIntl
 @Radium
 export class NewQueryButton extends Component {
 
@@ -38,7 +41,8 @@ export class NewQueryButton extends Component {
     currentSql: PropTypes.string,
 
     showConfirmationDialog: PropTypes.func,
-    resetNewQuery: PropTypes.func
+    resetNewQuery: PropTypes.func,
+    intl: PropTypes.object.isRequired
   }
 
   static contextTypes = {
@@ -58,17 +62,17 @@ export class NewQueryButton extends Component {
   }
 
   handleClick = () => {
-    const { location, currentSql } = this.props;
+    const { location, currentSql, intl } = this.props;
     if (location.pathname === '/new_query') {
       if (currentSql !== undefined && currentSql.trim()) {
         this.props.showConfirmationDialog({
-          title: la('Unsaved Changes Warning'),
+          title: intl.formatMessage({id: 'Common.UnsavedWarning'}),
           text: [
-            la('Performing this action will cause you to lose your current SQL.'),
-            la('Are you sure you want to continue?')
+            intl.formatMessage({id: 'NewQuery.UnsavedChangesWarning'}),
+            intl.formatMessage({id: 'NewQuery.UnsavedChangesWarningPrompt'})
           ],
-          confirmText: la('Continue'),
-          cancelText: la('Cancel'),
+          confirmText: intl.formatMessage({id: 'Common.Continue'}),
+          cancelText: intl.formatMessage({id: 'Common.Cancel'}),
           confirm: () => {
             this.props.resetNewQuery(EXPLORE_VIEW_ID);
           }
@@ -86,7 +90,7 @@ export class NewQueryButton extends Component {
       <div className='new-query-button' style={styles.base}>
         <a data-qa='new-query-button' onClick={this.handleClick} style={styles.link}>
           <FontIcon theme={styles.icon} type='QueryPlain' />
-          {la('New Query')}
+          <FormattedMessage id='NewQuery.NewQuery'/>
         </a>
       </div>
     );
@@ -135,7 +139,8 @@ const styles = {
       height: '1.5em',
       display: 'inline-block',
       verticalAlign: '-0.45em',
-      marginRight: 9
+      marginRight: 9,
+      fontSize: 'inherit'
     }
   }
 };

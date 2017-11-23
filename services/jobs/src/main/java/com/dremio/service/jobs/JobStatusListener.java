@@ -27,34 +27,6 @@ import com.dremio.service.jobs.metadata.QueryMetadata;
  * If we end up taking more methods from {@link AttemptObserver}, change this to a subclass of {@link AttemptObserver}.
  */
 public interface JobStatusListener {
-  /**
-   * A listener which does nothing
-   */
-  JobStatusListener NONE = new JobStatusListener() {
-    @Override
-    public void jobSubmitted(JobId jobId) {
-    }
-
-    @Override
-    public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
-    }
-
-    @Override
-    public void metadataCollected(QueryMetadata metadata) {
-    }
-
-    @Override
-    public void jobFailed(Exception e) {
-    }
-
-    @Override
-    public void jobCompleted() {
-    }
-
-    @Override
-    public void jobCancelled() {
-    }
-  };
 
   /**
    * Called when the job is submitted to the query engine
@@ -62,7 +34,7 @@ public interface JobStatusListener {
    */
   void jobSubmitted(JobId jobId);
 
-  void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken);
+  void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken);
 
   /**
    * Called when all query metadata has been collected.

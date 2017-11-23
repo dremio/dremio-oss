@@ -31,6 +31,7 @@ import org.apache.arrow.vector.util.TransferPair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -129,9 +130,12 @@ public class DiskRunManager implements AutoCloseable {
 
     final Configuration conf = FileSystemPlugin.getNewFsConf();
     conf.set(SpillManager.DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
-    this.spillManager = new SpillManager(config, optionManager,
-      String.format("q%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()), handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId),
-      conf, "sort spilling");
+    // If the location URI doesn't contain any schema, fall back to local.
+    conf.set(FileSystem.FS_DEFAULT_NAME_KEY, FileSystem.DEFAULT_FS);
+
+    final String id = String.format("esort-%s.%s.%s.%s",QueryIdHelper.getQueryId(handle.getQueryId()),
+        handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId);
+    this.spillManager = new SpillManager(config, optionManager, id, conf, "sort spilling");
   }
 
   public long spillTimeNanos() {

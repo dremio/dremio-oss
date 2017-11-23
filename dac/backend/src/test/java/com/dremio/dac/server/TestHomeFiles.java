@@ -64,7 +64,9 @@ import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -152,7 +154,10 @@ public class TestHomeFiles extends BaseTestServer {
       SqlUtils.quoteIdentifier(HomeFileConfig.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
 
     doc("querying file");
-    JobUI job = new JobUI(jobsService.submitExternalJob(query, QueryType.UI_PREVIEW));
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE));
     job.getData().loadIfNecessary();
     JobDataFragment truncData = job.getData().truncate(500);
     assertEquals(1, truncData.getReturnedRowCount());
@@ -206,7 +211,9 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(FileType.JSON, file2Format.getFileType());
 
     doc("querying file");
-    job = new JobUI(jobsService.submitExternalJob(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME), com.dremio.service.job.proto.QueryType.UNKNOWN));
+    job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), NoOpJobStatusListener.INSTANCE));
     job.getData().loadIfNecessary();
     truncData = job.getData().truncate(500);
     assertEquals(1, truncData.getReturnedRowCount());
@@ -313,7 +320,9 @@ public class TestHomeFiles extends BaseTestServer {
 
     doc("querying excel file");
     final JobsService jobsService = l(JobsService.class);
-    JobUI job = new JobUI(jobsService.submitExternalJob(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME), com.dremio.service.job.proto.QueryType.UNKNOWN));
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), NoOpJobStatusListener.INSTANCE));
     job.getData().loadIfNecessary();
     JobDataFragment truncData = job.getData().truncate(500);
     assertEquals(6, truncData.getReturnedRowCount());
@@ -370,7 +379,9 @@ public class TestHomeFiles extends BaseTestServer {
       filePath = new FilePath(path);
     }
     final JobsService jobsService = l(JobsService.class);
-    JobUI job = new JobUI(jobsService.submitExternalJob(new SqlQuery(format("select * from %s", filePath.toPathString()), DEFAULT_USER_NAME), com.dremio.service.job.proto.QueryType.UNKNOWN));
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(format("select * from %s", filePath.toPathString()), DEFAULT_USER_NAME))
+        .build(), NoOpJobStatusListener.INSTANCE));
     JobDataFragment truncData = job.getData().truncate(rows + 1);
     assertEquals(rows, truncData.getReturnedRowCount());
     assertEquals(columns, truncData.getColumns().size());

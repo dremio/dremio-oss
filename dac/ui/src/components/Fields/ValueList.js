@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import FieldList, {RemoveButton} from 'components/Fields/FieldList';
 import FieldWithError from 'components/Fields/FieldWithError';
 import TextField from 'components/Fields/TextField';
@@ -21,7 +22,6 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 import { FLEX_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
-import { body } from 'uiTheme/radium/typography';
 import EllipsedText from 'components/EllipsedText';
 
 const MAX_WIDTH = 262;
@@ -147,7 +147,6 @@ const styles = {
     margin: '8px 0'
   },
   itemText: {
-    ...body,
     marginLeft: 10
   },
   addButton: {

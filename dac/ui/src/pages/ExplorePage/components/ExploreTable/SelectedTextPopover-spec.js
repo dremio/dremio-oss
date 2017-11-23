@@ -64,7 +64,7 @@ describe('SelectedTextPopover', () => {
     it('should call renderForItemsOfList if location.state has listOfItems', () => {
       const location = {
         ...commonProps.location,
-        state: { listOfItems: ['Extract', 'Replace', 'Split', 'Keep Only', 'Exclude'] }
+        state: { listOfItems: ['Extract', 'Replace', 'Split', 'Keep Only', 'Exclude'] } // todo: why does this use UI strings?
       };
       wrapper.setProps({ location });
       expect(instance.renderForItemsOfList.calledOnce).to.be.true;
@@ -75,7 +75,7 @@ describe('SelectedTextPopover', () => {
   describe('getItemsForColumnType', () => {
     it('should return filtered items if type !== TEXT && type !== LIST && type !== MAP', () => {
       expect(instance.getItemsForColumnType('INTEGER')).to.eql(
-        instance.items.filter(item => item.get('name') !== 'Extract' && item.get('name') !== 'Split')
+        instance.items.filter(item => item.get('name') !== 'Extract…' && item.get('name') !== 'Split…')
       );
     });
 
@@ -113,7 +113,7 @@ describe('SelectedTextPopover', () => {
       sinon.spy(instance, 'renderItem');
       const newState = { columnName: 'revenue', columnType: 'INTEGER' };
       instance.renderForItemsOfList(newState);
-      expect(instance.items.get(0).get('name')).to.eql('Extract');
+      expect(instance.items.get(0).get('name')).to.eql('Extract…');
       expect(instance.renderItem).to.be.calledWith(instance.items.get(0), newState);
     });
   });

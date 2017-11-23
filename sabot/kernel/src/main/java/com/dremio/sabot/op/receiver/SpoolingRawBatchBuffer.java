@@ -31,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.AutoCloseables;
@@ -70,6 +71,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     SPOOLING_CONFIG.set(DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
     SPOOLING_CONFIG.set("fs.file.impl", LocalSyncableFileSystem.class.getName());
     SPOOLING_CONFIG.set("fs.file.impl.disable.cache", "true");
+    // If the location URI doesn't contain any schema, fall back to local.
+    SPOOLING_CONFIG.set(FileSystem.FS_DEFAULT_NAME_KEY, FileSystem.DEFAULT_FS);
   }
 
   private static final float STOP_SPOOLING_FRACTION = (float) 0.5;
@@ -132,21 +135,16 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   }
 
   private void setupOutputStream() {
-    final List<String> directories = new ArrayList<>(config.getStringList(ExecConstants.SPILL_DIRS));
-    if (directories.isEmpty()) {
-      throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
-    }
-
     try {
-       final String qid = QueryIdHelper.getQueryId(handle.getQueryId());
-       final int majorFragmentId = handle.getMajorFragmentId();
-       final int minorFragmentId = handle.getMinorFragmentId();
-       final String id =  Joiner.on(Path.SEPARATOR).join(qid, majorFragmentId, minorFragmentId);
-       final String fileName = String.format("%s.%s", oppositeId, bufferIndex);
+      final String qid = QueryIdHelper.getQueryId(handle.getQueryId());
+      final int majorFragmentId = handle.getMajorFragmentId();
+      final int minorFragmentId = handle.getMinorFragmentId();
+      final String id = String.format("spool-%s.%s.%s.%s.%s",
+          qid, majorFragmentId, minorFragmentId, oppositeId, bufferIndex);
 
-       this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, "spooling sorted exchange");
-       this.spillFile = spillManager.getSpillFile(fileName);
-       outputStream = spillFile.create();
+      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, "spooling sorted exchange");
+      this.spillFile = spillManager.getSpillFile("batches");
+      outputStream = spillFile.create();
     } catch(Exception ex) {
       throw Throwables.propagate(ex);
     }

@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import FieldWithError from 'components/Fields/FieldWithError';
 import TextField from 'components/Fields/TextField';
@@ -96,7 +98,7 @@ export default class MongoDbOptions extends Component {
           </div>
         </div>
         <div style={section}>
-          <h3 style={sectionTitle}>{la('Data Access')}</h3>
+          <h2 style={sectionTitle}>{la('Data Access')}</h2>
 
           <div style={styles.checkboxWithHelp}>
             <Checkbox {...useSsl} label={la('Require SSL Encryption')}/>

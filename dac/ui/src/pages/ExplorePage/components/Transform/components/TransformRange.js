@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import d3 from 'd3';
 import moment from 'moment';
 
 import Checkbox from 'components/Fields/Checkbox';
 import { isDateType, dateTypeToFormat, convertToUnix } from 'constants/DataTypes';
 import { isEmptyValue } from 'utils/validation';
-import { body } from 'uiTheme/radium/typography';
 
 import TransformRangeBound from './TransformRangeBound';
 import TransformRangeGraph from './TransformRangeGraph';
@@ -160,8 +160,8 @@ export default class TransformRange extends Component {
       return  (<div style={[styles.footer]}>
         <Checkbox
           {...keepNull}
-          label={<span style={body}>{la('Keep null values')}</span>}
-          labelStyle={{ ...body, ...styles.labelChecked }}
+          label={<span>{la('Keep null values')}</span>}
+          labelStyle={styles.labelChecked }
           dummyInputStyle={styles.dummyStyle}
           style={styles.checkbox}
         />
@@ -254,8 +254,7 @@ const styles = {
     margin: '0 10px'
   },
   pad: {
-    paddingLeft: 10,
-    ...body
+    paddingLeft: 10
   },
   dummyStyle: {
     marginTop: 3

@@ -28,11 +28,11 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
-import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 
@@ -51,8 +51,11 @@ public class TestJobResultsStore extends BaseTestServer {
     populateInitialData();
     final JobsService jobsService = l(JobsService.class);
     final DatasetPath ds1 = new DatasetPath("s.ds1");
-    Job job1_0 = jobsService.submitJob(new SqlQuery("select * from LocalFS1.\"dac-sample1.json\" limit 10", ds1.toParentPathList(), DEFAULT_USERNAME),
-        QueryType.UNKNOWN, ds1.toNamespaceKey(), new DatasetVersion("1"), JobStatusListener.NONE);
+    Job job1_0 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from LocalFS1.\"dac-sample1.json\" limit 10", ds1.toParentPathList(), DEFAULT_USERNAME))
+        .setDatasetPath(ds1.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("1"))
+        .build(), NoOpJobStatusListener.INSTANCE);
     job1_0.getData().loadIfNecessary();
     JobDataFragment result = job1_0.getData().truncate(10);
     JobDataFragment storedResult = jobsService.getJob(job1_0.getJobId()).getData().truncate(10);

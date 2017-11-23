@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 
+@injectIntl
 @Radium
 @PureRender
 class VisibilityToggler extends Component {
@@ -26,7 +29,8 @@ class VisibilityToggler extends Component {
     title: PropTypes.object.isRequired,
     children: PropTypes.node.isRequired,
     isOpen: PropTypes.bool,
-    style: PropTypes.object
+    style: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   constructor(props) {
@@ -44,12 +48,15 @@ class VisibilityToggler extends Component {
   }
 
   render() {
-    const { title, style } = this.props;
+    const { title, style, intl } = this.props;
     const { isOpen } = this.state;
+    const iconType = isOpen ? 'TriangleDown.svg' : 'TriangleRight.svg';
+    const iconAlt = intl.formatMessage({ id: `Common.${isOpen ? 'Undisclosed' : 'Disclosed'}` });
+
     return (
       <div style={style}>
         <span onClick={this.toggleVisible} style={styles.title}>
-          <FontIcon type={isOpen ? 'TriangleDown' : 'TriangleRight'} theme={styles.triangle} />
+          <Art src={iconType} alt={iconAlt} style={styles.triangle} />
           {title}
         </span>
         {this.state.isOpen ? this.props.children : null}
@@ -68,14 +75,7 @@ const styles = {
     padding: '2px 0'
   },
   triangle: {
-    Container: {
-      width: 20,
-      height: 10
-    },
-    Icon: {
-      width: 20,
-      height: 10,
-      backgroundPosition: '50% -4px'
-    }
+    width: 20,
+    height: 20
   }
 };

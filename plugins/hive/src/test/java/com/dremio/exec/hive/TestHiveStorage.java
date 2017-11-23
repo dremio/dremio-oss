@@ -38,7 +38,6 @@ import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
@@ -249,6 +248,51 @@ public class TestHiveStorage extends HiveTestBase {
             new LocalDateTime(Date.valueOf("2013-07-05").getTime()),
             "char")
         .go();
+  }
+
+  @Test
+  public void testLowUpperCasingForParquet() throws Exception {
+    try {
+      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      final String query = "SELECT * FROM hive.parquet_region";
+
+      // Make sure the plan has Hive scan with native parquet reader
+      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+
+      testBuilder().sqlQuery(query)
+        .ordered()
+        .baselineColumns(
+          "r_regionkey",
+          "r_name",
+          "r_comment")
+        .baselineValues(
+          0L,
+          "AFRICA",
+          "lar deposits. blithe"
+        )
+        .baselineValues(
+          1L,
+          "AMERICA",
+          "hs use ironic, even "
+        )
+        .baselineValues(
+          2L,
+          "ASIA",
+          "ges. thinly even pin"
+        )
+        .baselineValues(
+          3L,
+          "EUROPE",
+          "ly final courts cajo"
+        )
+        .baselineValues(
+          4L,
+          "MIDDLE EAST",
+          "uickly special accou"
+        ).go();
+    } finally {
+      test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    }
   }
 
   /**

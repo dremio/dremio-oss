@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 
+import java.io.IOException;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -85,7 +86,7 @@ public class TestRocksDBStore {
   @Before
   public void setUpStore() {
     ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
-    store = new RocksDBStore(new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4);
+    store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4);
 
     // Making sure test is repeatable
     Random random = new Random(42);
@@ -95,7 +96,7 @@ public class TestRocksDBStore {
   }
 
   @After
-  public void closeStore() {
+  public void closeStore() throws IOException {
     store.close();
   }
 
@@ -150,7 +151,7 @@ public class TestRocksDBStore {
   }
 
   @Test()
-  public void testClosed() throws InterruptedException, ExecutionException {
+  public void testClosed() throws Exception {
     ExecutorService executor = Executors.newFixedThreadPool(4);
     Future<?>[] futures = new Future[256];
 

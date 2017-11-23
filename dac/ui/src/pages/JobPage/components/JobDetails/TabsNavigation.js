@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import TabsNavigationItem from './TabsNavigationItem';
 
+@injectIntl
 @Radium
 @PureRender
 export default class TabsNavigation extends Component {
@@ -28,17 +31,19 @@ export default class TabsNavigation extends Component {
     changeTab: PropTypes.func,
     style: PropTypes.object,
     attemptDetails: PropTypes.instanceOf(Immutable.List),
-    showJobProfile: PropTypes.func
+    showJobProfile: PropTypes.func,
+    intl: PropTypes.object.isRequired
   }
 
   constructor(props) {
     super(props);
 
     this.tabHash = Immutable.fromJS([
-      {name: 'overview', label: la('Overview')},
-      {name: 'details', label: la('Details')},
-      {name: 'profiles', label: la('Profiles')},
-      {name: 'profile', label: la('Profile')}
+      {name: 'overview', label: props.intl.formatMessage({ id: 'Common.Overview' })},
+      {name: 'details', label: props.intl.formatMessage({ id: 'Job.Details' })},
+      {name: 'acceleration', label: props.intl.formatMessage({ id: 'Acceleration.Acceleration' })},
+      {name: 'profiles', label: props.intl.formatMessage({ id: 'Job.Profiles' })},
+      {name: 'profile', label: props.intl.formatMessage({ id: 'Job.Profile' })}
     ]);
   }
 

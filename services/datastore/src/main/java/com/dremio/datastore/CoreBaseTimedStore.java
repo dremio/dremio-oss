@@ -53,6 +53,11 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
+  public KVAdmin getAdmin() {
+    return kvStore.getAdmin();
+  }
+
+  @Override
   public Iterable<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByRange<KVStoreTuple<K>> range) {
     try (TimedBlock b = time(getName() + ".find(FindByRange)")) {
       return kvStore.find(range);
@@ -159,8 +164,8 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
     }
 
     @Override
-    public int reIndex() {
-      return kvStore.reIndex();
+    public int reindex() {
+      return kvStore.reindex();
     }
   }
 

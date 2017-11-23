@@ -41,7 +41,7 @@ describe('ExportMenu', () => {
     });
 
     it('should render export menu items when passed', () => {
-      expect(wrapper.find('MenuItem')).to.have.length(2);
+      expect(wrapper.find('MenuItem')).to.have.length(3);
     });
 
     it('should call action when menu item is clicked', () => {

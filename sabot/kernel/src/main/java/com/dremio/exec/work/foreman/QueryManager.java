@@ -29,11 +29,14 @@ import com.dremio.exec.planner.PlanCaptureAttemptObserver;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
+import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -48,11 +51,12 @@ import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.NodeStatusListener;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -72,7 +76,7 @@ class QueryManager {
 
   private ImmutableMap<NodeEndpoint, NodeTracker> nodeMap = ImmutableMap.of();
   private ImmutableMap<FragmentHandle, FragmentData> fragmentDataMap = ImmutableMap.of();
-  private List<MajorFragmentReporter> reporters = ImmutableList.of();
+  private ImmutableList<MajorFragmentReporter> reporters = ImmutableList.of();
 
   // the following mutable variables are used to capture ongoing query status
   private long startPlanningTime;
@@ -100,7 +104,8 @@ class QueryManager {
     this.prepareId = prepareId;
     this.schemaTreeProvider = schemaTreeProvider;
 
-    capturer = new PlanCaptureAttemptObserver(verboseProfiles, context.getFunctionRegistry());
+    capturer = new PlanCaptureAttemptObserver(verboseProfiles, context.getFunctionRegistry(),
+      context.getAccelerationManager().newPopulator());
     observers.add(capturer);
     observers.add(new TimeMarker());
   }
@@ -183,12 +188,15 @@ class QueryManager {
       majors.put(fragment.getHandle().getMajorFragmentId(), data);
     }
 
-    final ImmutableList.Builder<MajorFragmentReporter> reportersBuilder = ImmutableList.builder();
-    for(Map.Entry<Integer, Collection<FragmentData>> e : majors.asMap().entrySet()){
-      reportersBuilder.add(new MajorFragmentReporter(e.getKey(), e.getValue()));
+    // Major fragments are required to be dense: numbered 0 through N-1
+    MajorFragmentReporter[] tempReporters = new MajorFragmentReporter[majors.asMap().size()];
+    for(Map.Entry<Integer, Collection<FragmentData>> e : majors.asMap().entrySet()) {
+      Preconditions.checkElementIndex(e.getKey(), majors.asMap().size());
+      Preconditions.checkState(tempReporters[e.getKey()] == null);
+      tempReporters[e.getKey()] = new MajorFragmentReporter(e.getKey(), e.getValue());
     }
 
-    this.reporters = reportersBuilder.build();
+    this.reporters = ImmutableList.copyOf(tempReporters);
     this.nodeMap = ImmutableMap.copyOf(trackers);
     this.fragmentDataMap = ImmutableMap.copyOf(dataCollectors);
   }
@@ -320,7 +328,7 @@ class QueryManager {
     // get stats from schema tree provider
     profileBuilder.addAllPlanPhases(schemaTreeProvider.getMetadataStatsCollector().getPlanPhaseProfiles());
 
-    for(MajorFragmentReporter reporter : reporters){
+    for(MajorFragmentReporter reporter : reporters) {
       final MajorFragmentProfile.Builder builder = MajorFragmentProfile.newBuilder().setMajorFragmentId(reporter.majorFragmentId);
       reporter.add(builder);
       profileBuilder.addFragmentProfile(builder);
@@ -504,9 +512,17 @@ class QueryManager {
     }
   };
 
+  public void updateNodeQueryStatus(NodeQueryStatus status) {
+    NodeEndpoint endpoint = status.getEndpoint();
+    for (NodePhaseStatus phaseStatus : status.getPhaseStatusList()) {
+      reporters.get(phaseStatus.getMajorFragmentId()).updatePhaseStatus(endpoint, phaseStatus);
+    }
+  }
+
   private class MajorFragmentReporter {
     private final int majorFragmentId;
     private ImmutableList<FragmentData> fragments;
+    private final Map<NodeEndpoint, NodePhaseStatus> perNodeStatus = Maps.newConcurrentMap();
 
     public MajorFragmentReporter(int majorFragmentId, Collection<FragmentData> fragments) {
       super();
@@ -519,6 +535,17 @@ class QueryManager {
       for(FragmentData data : fragments){
         builder.addMinorFragmentProfile(data.getProfile());
       }
+      for (Map.Entry<NodeEndpoint, NodePhaseStatus> endpointStatus : perNodeStatus.entrySet()) {
+        NodePhaseProfile nodePhaseProfile = NodePhaseProfile.newBuilder()
+          .setEndpoint(endpointStatus.getKey())
+          .setMaxMemoryUsed(endpointStatus.getValue().getMaxMemoryUsed())
+          .build();
+        builder.addNodePhaseProfile(nodePhaseProfile);
+      }
+    }
+
+    public void updatePhaseStatus(NodeEndpoint assignment, NodePhaseStatus status) {
+      perNodeStatus.put(assignment, status);
     }
   }
 

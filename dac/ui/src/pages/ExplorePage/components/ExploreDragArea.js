@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import DragTarget from 'components/DragComponents/DragTarget';
 

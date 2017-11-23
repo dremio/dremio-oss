@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { h3, body } from 'uiTheme/radium/typography';
 import { BORDER_TABLE, CELL_EXPANSION_HEADER, WHITE, PALE_ORANGE } from 'uiTheme/radium/colors';
 
 export const commonStyles = {
@@ -30,7 +29,6 @@ export const commonStyles = {
   },
   toggleLabel: {
     display: 'flex',
-    ...h3,
     width: 400, // todo: clean up this hack
     marginLeft: -10
   },
@@ -44,7 +42,6 @@ export const commonStyles = {
     width: 'auto'
   },
   formText: {
-    ...body,
     padding: 5,
     backgroundColor: WHITE
   },

@@ -16,7 +16,6 @@
 import typography from './typography';
 
 export const title = {
-  ...typography.h4,
   margin: '0 0 5px 10px'
 };
 

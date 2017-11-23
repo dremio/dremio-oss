@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import uuid from 'uuid';
 
 import FieldList, {AddButton, RemoveButton} from 'components/Fields/FieldList';
-import {body} from 'uiTheme/radium/typography';
 import { section, sectionTitle, description as descriptionStyle } from 'uiTheme/radium/forms';
 
 import Host from './Host';
@@ -87,7 +87,7 @@ export default class HostList extends Component {
       : null;
     return (
       <div className='hosts' style={section}>
-        <h3 style={sectionTitle}>{title || la('Hosts')}</h3>
+        <h2 style={sectionTitle}>{title || la('Hosts')}</h2>
         {description}
         <FieldList items={fields.config.hostList} itemHeight={50} getKey={getKey} minItems={1}>
           <HostItem/>
@@ -107,7 +107,6 @@ const styles = {
     marginBottom: -10
   },
   des: {
-    ...body,
     ...descriptionStyle,
     marginBottom: 15
   },

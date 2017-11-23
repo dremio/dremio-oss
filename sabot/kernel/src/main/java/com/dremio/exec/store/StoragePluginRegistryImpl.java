@@ -119,7 +119,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
                                    final PersistentStoreProvider provider,
                                    final SystemTablePluginProvider sysPluginProvider) {
     this.context = checkNotNull(context);
-    this.catalog = catalog;
+    this.catalog = checkNotNull(catalog);
     this.lpPersistence = checkNotNull(context.getLpPersistence());
     this.classpathScan = checkNotNull(context.getClasspathScan());
     this.sysPluginProvider = sysPluginProvider;
@@ -250,9 +250,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     if(manuallyAddedPlugins.remove(name) == null){
       pluginSystemTable.delete(name);
     }
-    if (catalog != null) {
-      catalog.unregisterSource(new NamespaceKey(name));
-    }
+    catalog.unregisterSource(new NamespaceKey(name));
   }
 
   private void closePlugin(StoragePlugin<?> plugin) {
@@ -310,6 +308,14 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
         }
         pluginSourceTypes.put(name, (sourceConfig == null ? null : sourceConfig.getType()));
 
+        if (name != null && newPlugin.getStoragePlugin2() == null) {
+          // NB: V1 storage plugins must be scheduled only after the plugin is added to 'plugins', as that's the
+          // only way V1 plugins are accessible
+          if (sourceConfig == null) {
+            sourceConfig = decorate(new SourceConfig().setType(SourceType.UNKNOWN).setName(name));
+          }
+          catalog.scheduleMetadataRefresh(new NamespaceKey(name), sourceConfig);
+        }
         return newPlugin;
       }
     }
@@ -421,6 +427,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
       throw new ExecutionSetupException(String.format("Failure finding StoragePlugin constructor for config %s",
           pluginConfig));
     }
+    final NamespaceKey sourceKey = (name == null ? null : new NamespaceKey(name));
 
     try {
       plugin = c.newInstance(pluginConfig, context, name);
@@ -436,8 +443,12 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
       try {
         if (name != null) {
           final NamespaceService ns = context.getNamespaceService(SYSTEM_USERNAME);
-          final NamespaceKey sourceKey = new NamespaceKey(name);
           if (ns != null) {
+            // At restart, the source configuration is not passed into source creation. Instead, we use the
+            // configuration that's already stored in the namespace service
+            if (sourceConfig == null && atRestart && ns.exists(sourceKey, Type.SOURCE)) {
+              sourceConfig = ns.getSource(sourceKey);
+            }
             if (sourceConfig == null) {
               sourceConfig = decorate(new SourceConfig().setType(SourceType.UNKNOWN).setName(name));
             }
@@ -446,9 +457,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
               ns.addOrUpdateSource(sourceKey, sourceConfig);
             }
           }
-          if (catalog != null) {
-            catalog.registerSource(sourceKey, plugin.getStoragePlugin2());
-          }
+          catalog.registerSource(sourceKey, plugin.getStoragePlugin2());
         }
       } catch (ConcurrentModificationException ce) {
         if (sourceConfig == null) {
@@ -466,12 +475,16 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
         }
       }
       if (updateSourceInNamespace) {
-        if(plugin.getStoragePlugin2() == null){
+        if (plugin.getStoragePlugin2() == null){
           refreshSourceMetadataInNamespace(name, plugin, SYSTEM_USERNAME);
-        }else {
-          final NamespaceKey sourceKey = new NamespaceKey(name);
-          catalog.refreshSource(sourceKey, sourceConfig.getMetadataPolicy() == null ? CatalogService.DEFAULT_METADATA_POLICY : sourceConfig.getMetadataPolicy());
+        } else {
+          catalog.refreshSourceNames(sourceKey, sourceConfig.getMetadataPolicy() == null ? CatalogService.DEFAULT_METADATA_POLICY : sourceConfig.getMetadataPolicy());
         }
+      }
+      if (name != null && plugin.getStoragePlugin2() != null) {
+        // NB: V1 storage plugins cannot be scheduled until the plugin is added to 'plugins', as that's the
+        // only way V1 plugins are accessible
+        catalog.scheduleMetadataRefresh(sourceKey, sourceConfig);
       }
       return plugin;
     } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException

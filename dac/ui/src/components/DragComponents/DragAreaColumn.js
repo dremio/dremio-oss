@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Popover from 'material-ui/Popover';
 
@@ -23,7 +24,7 @@ import { SearchField } from 'components/Fields';
 import ColumnDragItem from 'utils/ColumnDragItem';
 import EllipsedText from 'components/EllipsedText';
 
-import { body, formDefault } from 'uiTheme/radium/typography';
+import { formDefault } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
 import { PALE_BLUE, HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
@@ -79,7 +80,7 @@ class DragAreaColumn extends Component {
     }
   }
 
-  onDragEnd = (data) => {
+  handleDrop = (data) => {
     if (this.checkDropPosibility()) {
       this.props.field.onChange(data.id);
     }
@@ -200,7 +201,7 @@ class DragAreaColumn extends Component {
           style={[styles.content, styles.largeContent, styles.empty]}
           key='custom-content'
           onClick={this.showPopover}>
-          <span style={body}>Drag a field here</span>
+          <span>Drag a field here</span>
         </div>
       );
     } else if (!field.value) {
@@ -215,7 +216,7 @@ class DragAreaColumn extends Component {
             inputStyle={styles.searchInput}
             value={this.state.pattern}
             onChange={this.handlePatternChange}
-            placeholder={la('Choose field...')}
+            placeholder={la('Choose field…')}
           />
           <Popover
             ref='menu'
@@ -240,7 +241,7 @@ class DragAreaColumn extends Component {
     return (
       <div style={[styles.content, styles.largeContent]} key='custom-content'>
         <FontIcon type={typeToIconType[selectedColumn.get('type')]} key='custom-type' theme={styles.type}/>
-        <EllipsedText style={{...styles.name, ...body}} text={field.value} />
+        <EllipsedText style={styles.name} text={field.value} />
       </div>
     );
   }
@@ -266,7 +267,7 @@ class DragAreaColumn extends Component {
           onDragEnd={this.props.onDragEnd}
           id={columnName}>
           <DragTarget
-            onDrop={this.onDragEnd}
+            onDrop={this.handleDrop}
             dragType={this.props.dragType}
             moveColumn={this.moveColumn}
             index={this.props.index}

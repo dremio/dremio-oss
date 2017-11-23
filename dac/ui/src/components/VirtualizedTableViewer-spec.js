@@ -31,10 +31,10 @@ describe('VirtualizedTableViewer-spec', () => {
         descendants: {node: '12'}
       }]),
       columns: [
-        {title: 'name'},
-        {title: 'owner'},
-        {title: 'jobs'},
-        {title: 'descendants'}
+        {key: 'name', title: 'name'},
+        {key: 'owner', title: 'owner'},
+        {key: 'jobs', title: 'jobs'},
+        {key: 'descendants', title: 'descendants'}
       ]
     };
   });

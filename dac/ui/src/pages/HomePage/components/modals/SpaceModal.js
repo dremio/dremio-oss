@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
+import { injectIntl } from 'react-intl';
 
 import Modal from 'components/Modals/Modal';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
@@ -29,6 +31,7 @@ import './Modal.less';
 
 export const VIEW_ID = 'SpaceModal';
 
+@injectIntl
 @SpaceModalMixin
 export class SpaceModal extends Component {
 
@@ -42,7 +45,8 @@ export class SpaceModal extends Component {
     createNewSpace: PropTypes.func,
     updateSpace: PropTypes.func,
     initialFormValues: PropTypes.object,
-    updateFormDirtyState: PropTypes.func
+    updateFormDirtyState: PropTypes.func,
+    intl: PropTypes.object.isRequired
   }
 
   static contextTypes = {
@@ -86,11 +90,11 @@ export class SpaceModal extends Component {
   }
 
   render() {
-    const { isOpen, entity } = this.props;
+    const { isOpen, entity, intl } = this.props;
     return (
       <Modal
         size='small'
-        title={entity ? la('Edit Space') : la('Add Space')}
+        title={entity ? intl.formatMessage({ id: 'Space.EditSpace' }) : intl.formatMessage({ id: 'Space.AddSpace' })}
         isOpen={isOpen}
         hide={this.hide}>
         {this.renderForm()}

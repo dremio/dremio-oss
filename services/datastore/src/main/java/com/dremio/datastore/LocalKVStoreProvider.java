@@ -16,6 +16,7 @@
 package com.dremio.datastore;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 
 import javax.inject.Provider;
@@ -24,6 +25,7 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
+import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.indexed.LocalIndexedStore;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.services.fabric.api.FabricService;
@@ -34,7 +36,7 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Datastore provider for master node.
  */
-public class LocalKVStoreProvider implements KVStoreProvider {
+public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStoreProviderImpl.StoreWithId> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalKVStoreProvider.class);
   private final CoreStoreProviderImpl coreStoreProvider;
   private final Provider<FabricService> fabricService;
@@ -103,7 +105,13 @@ public class LocalKVStoreProvider implements KVStoreProvider {
   }
 
   public void scan() throws Exception {
-    ((CoreStoreProviderImpl)coreStoreProvider).scan();
+    coreStoreProvider.scan();
+  }
+
+
+  @Override
+  public Iterator<StoreWithId> iterator() {
+    return coreStoreProvider.iterator();
   }
 
   @Override
@@ -114,7 +122,7 @@ public class LocalKVStoreProvider implements KVStoreProvider {
   }
 
   public Map<StoreBuilderConfig, CoreKVStore<?, ?>> getStores() {
-    return ((CoreStoreProviderImpl)coreStoreProvider).getStores();
+    return coreStoreProvider.getStores();
   }
 
   public CoreKVStore<?, ?> getOrCreateStore(StoreBuilderConfig config) {

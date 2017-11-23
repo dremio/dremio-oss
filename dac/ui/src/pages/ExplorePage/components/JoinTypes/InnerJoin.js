@@ -13,21 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import FontIcon from 'components/Icon/FontIcon';
 import SelectWithPopover from 'components/Fields/SelectWithPopover';
 
-import { body, bodySmall, formDefault } from 'uiTheme/radium/typography';
+import { bodySmall, formDefault } from 'uiTheme/radium/typography';
 import { PALE_BLUE, PALE_GREY } from 'uiTheme/radium/colors';
 import { INLINE_NOWRAP_ROW_FLEX_START } from 'uiTheme/radium/flexStyle';
-
+import { MAP, LIST, OTHER, GEO, MIXED, ANY } from 'constants/DataTypes';
 import JoinColumnMenu from './components/JoinColumnMenu';
 import JoinDragArea from './components/JoinDragArea';
 
 const DEFAULT_WIDTH = 200;
+
+export const NOT_SUPPORTED_TYPES = new Set([MAP, LIST, OTHER, GEO, MIXED, ANY]);
 
 @Radium
 export class InnerJoin extends Component {
@@ -44,8 +47,8 @@ export class InnerJoin extends Component {
     dragType: PropTypes.string.isRequired,
     type: PropTypes.string,
     fields: PropTypes.object,
-    defaultPath: PropTypes.string,
-    customPath: PropTypes.string,
+    defaultNameForDisplay: PropTypes.string,
+    customNameForDisplay: PropTypes.string,
     isDragInProgress: PropTypes.bool,
     columnDragName: PropTypes.string,
     columnsInDragArea: PropTypes.instanceOf(Immutable.List)
@@ -95,13 +98,22 @@ export class InnerJoin extends Component {
   receiveProps(nextProps, oldProps) {
     // disabledColumnNames is wholly derived from these props, so only recalculate it when one of them has changed
     if (nextProps.columnsInDragArea !== oldProps.columnsInDragArea) {
-      this.leftDisabledColumnNames = Immutable.Set(
-        nextProps.columnsInDragArea.map((col) =>  col.getIn(['default', 'name']))
-      );
-      this.rightDisabledColumnNames = Immutable.Set(
-        nextProps.columnsInDragArea.map((col) =>  col.getIn(['custom', 'name']))
-      );
+      this.leftDisabledColumnNames = this.getDisabledColumnNames(nextProps, true);
+      this.rightDisabledColumnNames = this.getDisabledColumnNames(nextProps, false);
     }
+  }
+  getDisabledColumnNames(props, isLeftSide) {
+    const columns = isLeftSide ? props.leftColumns : props.rightColumns;
+    const columnsInDragArea = Immutable.Set(props.columnsInDragArea.map(
+      (col) => col.getIn([isLeftSide ? 'default' : 'custom', 'name']))
+    );
+    const disabledColumns = columns
+      .filter(
+        (column) =>
+          NOT_SUPPORTED_TYPES.has(column.get('type')) ||
+            columnsInDragArea.has(column.get('name'))
+      );
+    return Immutable.Set(disabledColumns.map((column) => column.get('name')));
   }
 
   getDragPart() {
@@ -154,7 +166,7 @@ export class InnerJoin extends Component {
       <div className='inner-join' style={[styles.base]} onMouseUp={this.props.stopDrag}>
         <div style={styles.wrap}>
           <div style={[styles.item]}>
-            <span style={[styles.font, body]}>Type: </span>
+            <span style={[styles.font]}>{la('Type: ')}</span>
             <SelectWithPopover
               dataQa='selectedJoinType'
               items={this.items}
@@ -171,7 +183,7 @@ export class InnerJoin extends Component {
             onDragEnd={this.props.stopDrag}
             handleDragStart={this.props.onDragStart}
             dragType={this.props.dragType}
-            path={this.props.defaultPath}/>
+            nameForDisplay={this.props.defaultNameForDisplay}/>
           {this.getDragPart()}
           <JoinColumnMenu
             type='custom'
@@ -180,7 +192,7 @@ export class InnerJoin extends Component {
             onDragEnd={this.props.stopDrag}
             handleDragStart={this.props.onDragStart}
             dragType={this.props.dragType}
-            path={this.props.customPath}/>
+            nameForDisplay={this.props.customNameForDisplay}/>
         </div>
         <div style={styles.center}>
           <div style={[styles.add]} onClick={this.props.addEmptyColumnToInnerJoin}> {/* todo: ax, consistency: button */}
@@ -227,8 +239,7 @@ const styles = {
     borderBottom: `2px solid ${PALE_GREY}`,
     justifyContent: 'center',
     backgroundColor: PALE_BLUE,
-    padding: '0 10px',
-    ...body
+    padding: '0 10px'
   },
   add: {
     display: 'flex',

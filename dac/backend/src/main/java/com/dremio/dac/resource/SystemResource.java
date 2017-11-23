@@ -41,7 +41,9 @@ import com.dremio.dac.proto.model.system.NodeInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 
 
@@ -108,7 +110,10 @@ public class SystemResource {
             "   name,\n" +
             "   port";
 
-    JobUI job = new JobUI(jobsService.get().submitExternalJob(new SqlQuery(sql, Arrays.asList("sys"), securityContext), QueryType.UI_INTERNAL_RUN));
+    JobUI job = new JobUI(jobsService.get().submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(sql, Arrays.asList("sys"), securityContext))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE));
     // TODO: Truncate the results to 500, this will change in DX-3333
     final JobDataFragment pojo = job.getData().truncate(500);
 

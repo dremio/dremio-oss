@@ -53,7 +53,9 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.accelerator.AccelerationService;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
@@ -206,7 +208,7 @@ public class DatasetResource {
         .setRefreshField(descriptor.getRefreshField());
       namespaceService.addOrUpdateDataset(datasetPath.toNamespaceKey(), config);
       // we need to rebuild the dependency graph to ensure existing refresh chains take the updated settings into account
-      accelerationService.buildRefreshDependencyGraph();
+      accelerationService.startBuildDependencyGraph();
     }
   }
 
@@ -300,7 +302,10 @@ public class DatasetResource {
     final SqlQuery query = new SqlQuery(
         String.format("select * from %s", datasetPath.toPathString()),
         securityContext.getUserPrincipal().getName());
-    final JobUI job = new JobUI(jobsService.submitExternalJob(query, QueryType.UI_PREVIEW));
+    final JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE));
 
     return InitialDataPreviewResponse.of(job.getData().truncate(limit));
   }

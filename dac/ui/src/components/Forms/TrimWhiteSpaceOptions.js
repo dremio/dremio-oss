@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import Radio from 'components/Fields/Radio';
 
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 @Radium
 export default class TrimWhiteSpaceOptions extends Component {
@@ -53,17 +55,17 @@ export default class TrimWhiteSpaceOptions extends Component {
             {...action}
             radioValue='BOTH'
             label='Trim from both sides'
-            style={{...body, ...styles.radio}}/>
+            style={styles.radio}/>
           <Radio
             {...action}
             radioValue='LEFT'
             label='Trim from the start (Trim Left)'
-            style={{...body, ...styles.radio}}/>
+            style={styles.radio}/>
           <Radio
             {...action}
             radioValue='RIGHT'
             label='Trim from the end (Trim Right)'
-            style={{...body, ...styles.radio}}/>
+            style={styles.radio}/>
         </div>
       </div>
     );

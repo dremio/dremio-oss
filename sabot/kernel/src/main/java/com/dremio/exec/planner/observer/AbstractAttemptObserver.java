@@ -62,7 +62,7 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken) {
+  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
   }
 
   @Override
@@ -80,7 +80,6 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   @Override
   public void planSubstituted(DremioRelOptMaterialization materialization,
                               List<RelNode> substitutions,
-                              RelNode query,
                               RelNode target,
                               long millisTaken) {
   }

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
-import { body } from 'uiTheme/radium/typography';
 
 import { modalFooter } from 'uiTheme/radium/modal';
 
@@ -65,7 +65,7 @@ export default class ConfirmCancelFooter extends Component {
     return (
       <div className='confirm-cancel-footer'
         style={[this.props.modalFooter ? modalFooter : styles.nonModalFooter, styles.base, this.props.style]}>
-        <div style={[body, {alignSelf: 'center'}]}>{footerChildren}</div>
+        <div style={{alignSelf: 'center'}}>{footerChildren}</div>
         {
           cancel && !hideCancel &&
             <SimpleButton

@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import Checkbox from 'components/Fields/Checkbox';
 import EllipsedText from 'components/EllipsedText';
 import Meter from 'components/Meter';
 
-import { formDescription, body } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
 
@@ -93,7 +95,6 @@ const styles = {
   checkbox: {
     width: 200,
     marginTop: -2,
-    ...body,
     overflow: 'hidden'
   },
   progressWrap: {

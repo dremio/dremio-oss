@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes, Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import Immutable  from 'immutable';
 import classNames from 'classnames';
 
 import FontIcon from 'components/Icon/FontIcon';
-import { h4 } from 'uiTheme/radium/typography';
 
 import './FinderNav.less';
 
@@ -45,7 +45,7 @@ export default class FinderNav extends Component {
 
     return (
       <div className={wrapClass}>
-        <div className='finder-nav-title' data-qa={title} style={{...h4, fontWeight: 500}}>
+        <h4 className='finder-nav-title' data-qa={title}>
           <Link className='pointer' to={listHref}>{title} »</Link>
           {addHref && (
             <Link
@@ -55,7 +55,7 @@ export default class FinderNav extends Component {
               <FontIcon type='Add' hoverType='AddHover' theme={styles.fontIcon}/>
             </Link>
           )}
-        </div>
+        </h4>
         <div className='nav-list'>
           {!isInProgress && <FinderNavSection
             items={navItems}

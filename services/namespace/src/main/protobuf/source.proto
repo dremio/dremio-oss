@@ -33,7 +33,7 @@ message SourceConfig {
   optional int64 version = 8;
   optional TimePeriod accelerationTTL = 9 [deprecated = true];
   optional MetadataPolicy metadata_policy = 10;
-  optional int64 last_refresh_date = 11; // last refresh date
+  optional int64 last_refresh_date = 11 [deprecated = true]; // last refresh date moved to its own key/value store
   // materialization refresh period
   optional int64 accelerationRefreshPeriod = 12;
   // materialization grace period
@@ -92,4 +92,16 @@ enum SourceType {
   UNKNOWN = 17;
   HOME = 18;
   CLASSPATH = 19; // test-only
+}
+
+// Internally computed details about a source. Background tasks will routinely change this data
+message SourceInternalData {
+  // Source's name
+  optional string name = 1;
+  // Version used for OCC
+  optional int64 version = 2;
+  // system time (in milliseconds) when this source finished a refresh of the metadata of each of its datasets
+  optional int64 last_full_refresh_date_ms = 3;
+  // system time (in milliseconds) when this source finished a refresh of the names of its datasets
+  optional int64 last_name_refresh_date_ms = 4;
 }

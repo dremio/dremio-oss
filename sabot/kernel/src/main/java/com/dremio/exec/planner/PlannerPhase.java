@@ -309,7 +309,7 @@ public enum PlannerPhase {
   /**
    * Singleton rule that reduces constants inside a {@link LogicalCalc}.
    */
-  static final ReduceExpressionsRule CALC_REDUCE_EXPRESSIONS_CALCITE_RULE =
+  public static final ReduceExpressionsRule CALC_REDUCE_EXPRESSIONS_CALCITE_RULE =
     new CalcReduceExpressionsRule(LogicalCalc.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**

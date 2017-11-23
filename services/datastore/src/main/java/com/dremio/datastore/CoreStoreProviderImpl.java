@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,13 +50,14 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
  * Service that manages creation and management of various store types.
  */
-public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
+public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Iterable<CoreStoreProviderImpl.StoreWithId>  {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoreStoreProviderImpl.class);
   public static final String MEMORY_MODE_OPTION = "dremio.debug.kv.force";
@@ -173,7 +175,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
   public int reIndex(String id) {
     CoreKVStore<?, ?> kvStore = getStore(id);
     if (kvStore instanceof CoreIndexedStore<?, ?>) {
-      return ((CoreIndexedStore<?, ?>)kvStore).reIndex();
+      return ((CoreIndexedStore<?, ?>)kvStore).reindex();
     } else {
       throw new IllegalArgumentException("ReIndexed should be called on a Indexed Store. " +
           id + " is not indexed.");
@@ -185,6 +187,9 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
     return byteManager.getStore(name);
   }
 
+  public Iterator<StoreWithId> iterator(){
+    return Iterators.unmodifiableIterator(stores.asMap().values().iterator());
+  }
 
   @Override
   public synchronized void close() throws Exception {
@@ -370,7 +375,10 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService {
     }
   }
 
-  private class StoreWithId {
+  /**
+   * A description of a Store along with an associated name.
+   */
+  public static class StoreWithId {
     private final String id;
     private final StoreBuilderConfig storeBuilderConfig;
     private final CoreKVStore<Object, Object> store;

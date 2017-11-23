@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="55px" height="24px" viewBox="0 0 55 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 3.8.3 (29802) - http://www.bohemiancoding.com/sketch -->
+    <title>Slice 1</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Group-2">
+            <g id="File" transform="translate(31.000000, 0.000000)">
+                <g id="Icon/File">
+                    <g id="Icons">
+                        <g id="Icon/File">
+                            <g id="Group">
+                                <g id="icon-box-24-copy-7">
+                                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                                </g>
+                                <g transform="translate(5.500000, 3.500000)">
+                                    <polygon id="Stroke-2837" stroke="#77818F" points="14 17 0 17 0 0 10.2666667 0 14 4"></polygon>
+                                    <polyline id="Stroke-2838" stroke="#77818F" points="10 0 10 4 14 4"></polyline>
+                                    <path d="M1.5,9.5 L4.5,9.5 L4.5,11.5 L1.5,11.5 L1.5,9.5 L1.5,9.5 Z M5.5,9.5 L8.5,9.5 L8.5,11.5 L5.5,11.5 L5.5,9.5 L5.5,9.5 Z M9.5,9.5 L12.5,9.5 L12.5,11.5 L9.5,11.5 L9.5,9.5 L9.5,9.5 Z M1.5,6.5 L4.5,6.5 L4.5,8.5 L1.5,8.5 L1.5,6.5 L1.5,6.5 Z M5.5,6.5 L8.5,6.5 L8.5,8.5 L5.5,8.5 L5.5,6.5 L5.5,6.5 Z M1.5,3.5 L4.5,3.5 L4.5,5.5 L1.5,5.5 L1.5,3.5 L1.5,3.5 Z M5.5,3.5 L8.5,3.5 L8.5,5.5 L5.5,5.5 L5.5,3.5 L5.5,3.5 Z M9.5,6.5 L12.5,6.5 L12.5,8.5 L9.5,8.5 L9.5,6.5 L9.5,6.5 Z M1.5,12.5 L4.5,12.5 L4.5,14.5 L1.5,14.5 L1.5,12.5 L1.5,12.5 Z M5.5,12.5 L8.5,12.5 L8.5,14.5 L5.5,14.5 L5.5,12.5 L5.5,12.5 Z M9.5,12.5 L12.5,12.5 L12.5,14.5 L9.5,14.5 L9.5,12.5 L9.5,12.5 Z" id="Rectangle-125" fill="#77818F"></path>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+            <g id="File-Empty">
+                <g id="Icon/File-Empty">
+                    <g id="Icons">
+                        <g id="Icon/File-Empty">
+                            <g id="Group">
+                                <g id="icon-box-24-copy-7">
+                                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                                </g>
+                                <g transform="translate(5.000000, 3.000000)" stroke="#77818F">
+                                    <polygon id="Stroke-2837" points="14.5 17.5 0.5 17.5 0.5 0.5 10.7666667 0.5 14.5 4.5"></polygon>
+                                    <polyline id="Stroke-2838" points="10.5 0.5 10.5 4.5 14.5 4.5"></polyline>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+            <g id="Arrow-Right" transform="translate(28.000000, 12.000000) scale(-1, 1) translate(-28.000000, -12.000000) translate(16.000000, 0.000000)">
+                <g id="Icon/Arrow-Right">
+                    <g id="Icons">
+                        <g id="Icon/Arrow-Right">
+                            <g id="Group">
+                                <g id="icon-box-24-copy-14">
+                                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                                </g>
+                                <polygon id="Fill-123" fill="#77818F" transform="translate(12.000000, 12.500000) rotate(90.000000) translate(-12.000000, -12.500000) " points="12 14.5 8.5 11.0754986 9.08818636 10.5 12 13.3490028 14.9118136 10.5 15.5 11.0754986"></polygon>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

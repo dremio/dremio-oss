@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import RightTreeTabs from 'pages/HomePage/components/RightTreeTabs';
 import RightTreeTab from 'pages/HomePage/components/RightTreeTab';
 
-import { h5, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 import rightContext from './RightContext';
 
 import './PullOutRightTree.less';
@@ -69,7 +70,7 @@ class PullOutRightTree extends Component {
           </div>
           <div className='home-about-activity-summary pull-left'>
             <div style={styles.topInfo}>
-              <div className='home-about-activity-author-name' style={[styles.floatLeft, h5]}>{userName}</div>
+              <h5 className='home-about-activity-author-name' style={[styles.floatLeft]}>{userName}</h5>
               <div className='home-about-activity-timestamp' style={[styles.activityTime, formDescription]}>{when}</div>
             </div>
             {notes}
