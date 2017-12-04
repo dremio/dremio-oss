@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>1.3.0-201711211846350824-31f8d91</version>
+    <version>1.3.1-201712020438070881-a7af5c8</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>

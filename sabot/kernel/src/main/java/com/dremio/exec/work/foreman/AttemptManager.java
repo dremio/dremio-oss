@@ -19,6 +19,7 @@ import java.util.Date;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.exec.work.protector.FragmentsStateListener;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.dremio.common.CatastrophicFailure;
@@ -123,15 +124,16 @@ public class AttemptManager implements Runnable {
    * @param queryRequest the query to execute
    */
   public AttemptManager(
-      final SabotContext context,
-      final AttemptId attemptId,
-      final UserRequest queryRequest,
-      final AttemptObserver observer,
-      final UserSession session,
-      final OptionProvider options,
-      final CoordToExecTunnelCreator tunnelCreator,
-      final Cache<Long, PreparedPlan> plans
-      ) {
+    final SabotContext context,
+    final AttemptId attemptId,
+    final UserRequest queryRequest,
+    final AttemptObserver observer,
+    final UserSession session,
+    final OptionProvider options,
+    final CoordToExecTunnelCreator tunnelCreator,
+    final Cache<Long, PreparedPlan> plans,
+    final FragmentsStateListener fragmentsStateListener
+    ) {
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
     this.queryIdString = QueryIdHelper.getQueryId(queryId);
@@ -146,7 +148,8 @@ public class AttemptManager implements Runnable {
     this.queryContext = new QueryContext(session, sabotContext, queryId, priority, maxAllocation);
     this.observers = AttemptObservers.of(observer);
     this.queryManager = new QueryManager(queryId, queryContext, new CompletionListenerImpl(), prepareId,
-      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), queryContext.getSchemaTreeProvider());
+      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), queryContext.getSchemaTreeProvider(),
+      fragmentsStateListener);
 
     final OptionManager optionManager = queryContext.getOptions();
     if(options != null){
@@ -791,5 +794,4 @@ public class AttemptManager implements Runnable {
     }
 
   }
-
 }

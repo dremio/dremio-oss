@@ -17,7 +17,6 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchConstants.DEFAULT_READ_TIMEOUT_MILLIS;
 import static com.dremio.plugins.elastic.ElasticsearchConstants.DEFAULT_SCROLL_TIMEOUT_MILLIS;
-import static com.dremio.plugins.elastic.ElasticsearchConstants.ES_CONFIG_DEFAULT_BATCH_SIZE;
 import static java.lang.String.format;
 import static org.junit.Assert.fail;
 
@@ -163,9 +162,10 @@ public class ElasticsearchCluster implements Closeable {
 
   private int sslPort;
   private Client client;
+  private int scrollSize;
 
-  public ElasticsearchCluster(int size, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled) throws IOException {
-    this(size, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, null);
+  public ElasticsearchCluster(int size, int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled) throws IOException {
+    this(size, scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, null);
   }
 
   /**
@@ -173,13 +173,14 @@ public class ElasticsearchCluster implements Closeable {
    * @param sslEnabled only compatible with size == 1
    * @throws IOException
    */
-  public ElasticsearchCluster(int size, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, Integer presetSSLPort) throws IOException {
+  public ElasticsearchCluster(int size, int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, Integer presetSSLPort) throws IOException {
     if (size < 1) {
       throw new IllegalArgumentException("Cluster size must be at least 1");
     }
     if (sslEnabled && size != 1) {
       throw new IllegalArgumentException("only single node cluster supported for ssl. size = " + size);
     }
+    this.scrollSize = scrollSize;
     this.random = random;
     logger.info("--> Initializing elasticsearch cluster with {} nodes", size);
     nodes = new Node[size];
@@ -428,7 +429,7 @@ public class ElasticsearchCluster implements Closeable {
 
     ElasticsearchStoragePluginConfig config = new ElasticsearchStoragePluginConfig(
         hosts,
-        ES_CONFIG_DEFAULT_BATCH_SIZE,
+        scrollSize,
         DEFAULT_SCROLL_TIMEOUT_MILLIS,
         DEFAULT_READ_TIMEOUT_MILLIS,
         false, /* show hidden schema */
@@ -1244,7 +1245,7 @@ public class ElasticsearchCluster implements Closeable {
    * @throws Exception
    */
   public static void main(String[] args) throws Exception {
-    ElasticsearchCluster c = new ElasticsearchCluster(1, new Random(), true, false, false, true, 4443);
+    ElasticsearchCluster c = new ElasticsearchCluster(1, 4000, new Random(), true, false, false, true, 4443);
     System.out.println(c);
     ColumnData[] data = ElasticBaseTestQuery.getBusinessData();
     c.load("foo", "bar", data);

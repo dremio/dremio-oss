@@ -46,6 +46,7 @@ import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.store.SchemaTreeProvider;
 import com.dremio.exec.work.EndpointListener;
+import com.dremio.exec.work.protector.FragmentsStateListener;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
@@ -90,6 +91,8 @@ class QueryManager {
   // How many fragments have finished their execution.
   private final AtomicInteger finishedFragments = new AtomicInteger(0);
 
+  private final FragmentsStateListener fragmentsStateListener;
+
   public QueryManager(
     final QueryId queryId,
     final QueryContext context,
@@ -97,12 +100,14 @@ class QueryManager {
     final Pointer<QueryId> prepareId,
     final AttemptObservers observers,
     final boolean verboseProfiles,
-    final SchemaTreeProvider schemaTreeProvider) {
+    final SchemaTreeProvider schemaTreeProvider,
+    final FragmentsStateListener fragmentsStateListener) {
     this.queryId =  queryId;
     this.completionListener = completionListener;
     this.context = context;
     this.prepareId = prepareId;
     this.schemaTreeProvider = schemaTreeProvider;
+    this.fragmentsStateListener = fragmentsStateListener;
 
     capturer = new PlanCaptureAttemptObserver(verboseProfiles, context.getFunctionRegistry(),
       context.getAccelerationManager().newPopulator());
@@ -164,7 +169,20 @@ class QueryManager {
       // since we're in the fragment done clause and this was a change from previous
       final NodeTracker node = nodeMap.get(status.getProfile().getEndpoint());
       node.fragmentComplete();
-      finishedFragments.incrementAndGet();
+      /**
+       * For OOM related reattempts, we ensure that fragments are terminated
+       * from previous attempt before query is reattempted. Every time a fragment is
+       * moved to state FAILED, CANCELLED OR FINISHED, this function is called and
+       * we check if the number of fragments finished is equal to the total number
+       * of plan fragments. Once the condition is met, we invoke the observer
+       * callback and Foreman.Observer will issue the reattempt due to OOM.
+       * If the query failure reason was not OOM, allFragmentsRetired() callback
+       * is a NOOP.
+       */
+
+      if (finishedFragments.incrementAndGet() == fragmentDataMap.size()) {
+        fragmentsStateListener.allFragmentsRetired();
+      }
     }
   }
 
@@ -548,5 +566,4 @@ class QueryManager {
       perNodeStatus.put(assignment, status);
     }
   }
-
 }
