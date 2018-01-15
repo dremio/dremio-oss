@@ -25,6 +25,7 @@ message ElasticAnnotation {
   optional bool doc_value_missing = 3;
   repeated string date_formats = 4;
   optional ElasticSpecialType special_type = 5;
+  optional bool normalized = 6;
 }
 
 // Subset of types to handle special type handling needs.

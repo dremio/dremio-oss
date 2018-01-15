@@ -19,6 +19,8 @@ import { HIGHLIGHTED_TABLE, PALE_ORANGE } from 'uiTheme/radium/colors';
 
 const DISTANCE_BETWEEN_NEW_COLUMNS = 5;
 
+// todo: loc
+
 class Transforms {
   constructor() {
     this.defaultTransform = this.defaultTransform.bind(this);
@@ -65,7 +67,7 @@ class Transforms {
       if (addedByUiColumnIndex !== -1) {
         tmpRow = tmpRow.splice(addedByUiColumnIndex, 1);
       }
-      return tmpRow.splice(colIndex + 1, 0, 'loading...');
+      return tmpRow.splice(colIndex + 1, 0, 'loading…');
     });
   }
 

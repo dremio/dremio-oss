@@ -19,8 +19,13 @@ export default function(input) {
       return false;
     },
 
+    //  metrics collection (does not configure intercom itself)
     _getExtraBootData() {
-      return {};
+      return {
+        'screen_width': screen.width,
+        'screen_height': screen.height,
+        'device_pixel_ratio': window.devicePixelRatio
+      };
     }
   });
 }

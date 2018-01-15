@@ -33,6 +33,8 @@ public class JdbcStorageConfig extends StoragePluginConfig {
   private final String username;
   private final String password;
   private final int fetchSize;
+  private final String database;
+  private final boolean showOnlyConnDatabase;
 
   @JsonCreator
   public JdbcStorageConfig(
@@ -40,13 +42,17 @@ public class JdbcStorageConfig extends StoragePluginConfig {
       @JsonProperty("url") String url,
       @JsonProperty("username") String username,
       @JsonProperty("password") String password,
-      @JsonProperty(value = "fetchSize", defaultValue = "0") int fetchSize) {
+      @JsonProperty(value = "fetchSize", defaultValue = "0") int fetchSize,
+      @JsonProperty("database") String database,
+      @JsonProperty(value = "showOnlyConnDatabase", defaultValue = "false") boolean showOnlyConnDatabase) {
     super();
     this.driver = driver;
     this.url = url;
     this.username = username;
     this.password = password;
     this.fetchSize = fetchSize;
+    this.database = database;
+    this.showOnlyConnDatabase = showOnlyConnDatabase;
   }
 
   public String getDriver() {
@@ -69,6 +75,14 @@ public class JdbcStorageConfig extends StoragePluginConfig {
     return fetchSize;
   }
 
+  public String getDatabase() {
+    return database;
+  }
+
+  public boolean showOnlyConnDatabase() {
+    return showOnlyConnDatabase;
+  }
+
   @Override
   public int hashCode() {
     final int prime = 31;
@@ -78,6 +92,8 @@ public class JdbcStorageConfig extends StoragePluginConfig {
     result = prime * result + ((url == null) ? 0 : url.hashCode());
     result = prime * result + ((username == null) ? 0 : username.hashCode());
     result = prime * result + fetchSize;
+    result = prime * result + ((database == null) ? 0 : database.hashCode());
+    result = prime * result + ((showOnlyConnDatabase) ? Boolean.TRUE.hashCode() : Boolean.FALSE.hashCode());
     return result;
   }
 
@@ -122,6 +138,16 @@ public class JdbcStorageConfig extends StoragePluginConfig {
       return false;
     }
     if (fetchSize !=  other.fetchSize) {
+      return false;
+    }
+    if (database == null) {
+      if (other.database != null) {
+        return false;
+      }
+    } else if (!database.equals(other.database)) {
+      return false;
+    }
+    if (showOnlyConnDatabase != other.showOnlyConnDatabase) {
       return false;
     }
     return true;

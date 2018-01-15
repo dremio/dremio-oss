@@ -494,7 +494,8 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     ProvisioningHandlingException {
 
     if (storedCluster.getClusterConfig().getVersion() != modifiedCluster.getClusterConfig().getVersion()) {
-      throw new ConcurrentModificationException("Version of submitted Cluster does not match stored. Please refetch");
+      throw new ConcurrentModificationException(String.format("Version of submitted Cluster does not match stored. " +
+        "Stored Version: %d . Provided Version: %d . Please refetch", storedCluster.getClusterConfig().getVersion(), modifiedCluster.getClusterConfig().getVersion()));
     }
     if (ClusterState.DELETED == storedCluster.getDesiredState()) {
       throw new IllegalStateException("Cluster in the process of deletion. No modification is allowed");

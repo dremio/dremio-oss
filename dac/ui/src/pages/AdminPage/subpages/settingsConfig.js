@@ -24,6 +24,12 @@ export const SECTIONS = new Map([
     ['exec.queue.small', 'Concurrent queries (small queries)'],
     ['exec.queue.timeout_millis', 'Queue timeout']
   ])],
+  ['Reflection Queue Control', new Map([
+    ['reflection.queue.enable', ''],
+    ['reflection.queue.large', 'Concurrent reflections (large queries)'],
+    ['reflection.queue.small', 'Concurrent reflections (small queries)'],
+    ['reflection.queue.timeout_millis', 'Reflection queue timeout']
+  ])],
   ['Query Memory Control', new Map([
     ['exec.queue.memory.enable', ''], // todo: ax
     ['exec.queue.memory.large', 'Maximum query memory (large queries)'],
@@ -55,6 +61,7 @@ export const FIELD_OVERRIDES = {
   'exec.queue.memory.large': ByteField,
   'exec.queue.memory.small': ByteField,
   'exec.queue.timeout_millis': DurationField,
+  'reflection.queue.timeout_millis': DurationField,
 
   'dremio.exec.operator_batch_bytes': ByteField
 };

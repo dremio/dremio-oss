@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { ModalForm, modalFormProps, FormBody } from 'components/Forms';
-import { body } from 'uiTheme/radium/typography';
 import { section, label } from 'uiTheme/radium/forms';
 import { Radio, FieldSelect } from 'components/Fields';
 import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
@@ -93,7 +93,7 @@ export class AccelerationUpdatesForm extends Component {
       ? la('Incremental update based on new files')
       : la('Incremental update');
     return (
-      <div style={body}>
+      <div>
         <div style={section}>
           <span style={styles.label}>
             {la('Refresh Method')}

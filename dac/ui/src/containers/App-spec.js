@@ -55,15 +55,20 @@ describe('App-spec', () => {
       sinon.stub(instance, '_getWindowOrigin').returns('http://localhost:4000');
       instance.handleGlobalError(undefined, 'message', 'https://foo');
       expect(instance.displayError).to.not.be.called;
-      instance.handleGlobalError(undefined, 'message', null);
-      expect(instance.displayError).to.be.calledWith('message');
       instance.handleGlobalError(undefined, 'message', instance._getWindowOrigin());
-      expect(instance.displayError).to.be.calledTwice;
+      expect(instance.displayError).to.be.called;
+    });
+
+    it('should ignore when url is ""', () => {
+      sinon.stub(instance, 'displayError');
+      instance.handleGlobalError(undefined, 'message', '');
+      expect(instance.displayError).to.not.be.called;
     });
 
     it('should pass error || message to displayError', () => {
       sinon.stub(instance, 'displayError');
-      instance.handleGlobalError(undefined, 'message', null, null, null, 'error');
+      sinon.stub(instance, '_getWindowOrigin').returns('http://localhost:4000');
+      instance.handleGlobalError(undefined, 'message', instance._getWindowOrigin(), null, null, 'error');
       expect(instance.displayError).to.be.calledWith('error');
     });
 

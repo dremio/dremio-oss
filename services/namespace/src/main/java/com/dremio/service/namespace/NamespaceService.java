@@ -71,7 +71,11 @@ public interface NamespaceService {
 
   SourceConfig getSource(NamespaceKey sourcePath) throws NamespaceException;
 
+  SourceConfig getSourceById(String id) throws NamespaceNotFoundException;
+
   SpaceConfig getSpace(NamespaceKey spacePath) throws NamespaceException;
+
+  SpaceConfig getSpaceById(String id) throws NamespaceNotFoundException;
 
   /**
    * Returns {@link DatasetConfig configuration} corresponding to given path.
@@ -157,6 +161,17 @@ public interface NamespaceService {
    * @return
    */
   int getSplitCount(FindByCondition condition);
+
+
+  /**
+   * Delete any orphaned splits from the Namespace.
+   *
+   * NOTE: this cannot be run in parallel with any other metadata updates as that may cause
+   * generation of split orphans while the dataset is initially getting setup.
+   *
+   * @return The number of splits deleted.
+   */
+  int deleteSplitOrphans();
 
   /**
    * Delete given splits

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import {title, contextCard, cardTitle, contextAttrs, attrLabel, attrValue} from 'uiTheme/radium/rightContext';
 
@@ -39,7 +41,7 @@ export default class Folder extends Component {
   render() {
     const {entity} = this.props;
     return <div>
-      <div style={title}>About this Space</div>
+      <h4 style={title}>About this Space</h4>
       <div style={contextCard}>
         <div style={cardTitle}>Details</div>
         <ul style={contextAttrs}>

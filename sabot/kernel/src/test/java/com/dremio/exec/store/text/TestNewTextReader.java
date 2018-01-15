@@ -22,8 +22,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 
+import org.apache.commons.io.ByteOrderMark;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -32,8 +34,10 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
+import com.dremio.test.UserExceptionMatcher;
 
 public class TestNewTextReader extends BaseTestQuery {
 
@@ -199,5 +203,65 @@ public class TestNewTextReader extends BaseTestQuery {
         .baselineValues("a", "a", "a\n3")
         .build()
         .run();
+  }
+
+  @Test
+  public void testBomUtf8() throws Exception {
+    // Simple .csv file with a UTF-8 BOM. Should read successfully
+    File testFolder = tempDir.newFolder("testUtf8Folder");
+    File testFile = new File(testFolder, "utf8.csv");
+    PrintStream p = new PrintStream(testFile);
+    p.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
+    p.print("A,B\n");
+    p.print("5,7\n");
+    p.close();
+
+    testBuilder()
+      .sqlQuery(String.format("select * from table(dfs.`%s` (type => 'text', " +
+        "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
+        testFile.getAbsolutePath()))
+      .unOrdered()
+      .baselineColumns("A","B")
+      .baselineValues("5", "7")
+      .go();
+  }
+
+  @Test
+  public void testErrorBomUtf16() throws Exception {
+    // UTF-16 BOM should cause a dataReadError user exception
+    File testFolder = tempDir.newFolder("testUtf16Folder");
+    File testFile = new File(testFolder, "utf16.csv");
+    PrintStream p = new PrintStream(testFile);
+    p.write(ByteOrderMark.UTF_16LE.getBytes(), 0, ByteOrderMark.UTF_16LE.length());
+    p.print("A,B\n");
+    p.print("5,7\n");
+    p.close();
+
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
+      "DATA_READ ERROR: UTF-16 files not supported"));
+    // NB: using test() instead of testBuilder() because it unwraps the thrown RpcException and re-throws the
+    // underlying UserException (which is then matched with the UserExceptionMatcher)
+    test(String.format("select * from table(dfs.`%s` (type => 'text', " +
+        "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
+      testFile.getAbsolutePath()));
+  }
+
+  @Test
+  public void testShortFile() throws Exception {
+    // short file: 2 characters worth (shorter than the UTF-8 BOM), without BOMs
+    File testFolder = tempDir.newFolder("testShortFilesFolder");
+    File testFile2 = new File(testFolder, "twobyte.csv");
+    PrintStream p2 = new PrintStream(testFile2);
+    p2.print("y\n");
+    p2.close();
+
+    testBuilder()
+      .sqlQuery(String.format("select * from table(dfs.`%s` (type => 'text', " +
+          "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true)) ",
+        testFile2.getAbsolutePath()))
+      .unOrdered()
+      .baselineColumns("y")
+      .expectsEmptyResultSet()
+      .go();
   }
 }

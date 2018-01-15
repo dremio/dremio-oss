@@ -17,7 +17,6 @@
 import java.lang.Override;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import com.dremio.exec.vector.BaseDataValueVector;
 import com.dremio.exec.vector.BaseValueVector;
 import com.dremio.exec.vector.VariableWidthVector;
 

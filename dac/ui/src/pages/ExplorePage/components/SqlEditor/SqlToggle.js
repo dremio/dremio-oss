@@ -13,18 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
-
-import FontIcon from 'components/Icon/FontIcon';
+import { FormattedMessage, injectIntl } from 'react-intl';
+import PropTypes from 'prop-types';
+import Art from 'components/Art';
 
 import { toggleExploreSql } from 'actions/explore/ui';
 
 import { formLabel } from 'uiTheme/radium/typography';
 
+@injectIntl
 @pureRender
 @Radium
 export class SqlToggle extends Component {
@@ -35,7 +37,8 @@ export class SqlToggle extends Component {
 
     //connected
     toggleExploreSql: PropTypes.func.isRequired,
-    sqlState: PropTypes.bool
+    sqlState: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -48,22 +51,20 @@ export class SqlToggle extends Component {
   };
 
   render() {
-    const {dataset, sqlState, style} = this.props;
+    const { dataset, sqlState, style, intl } = this.props;
     const canToggle = !dataset.get('isNewQuery');
-    const directionIconType = sqlState ? 'TriangleDown' : 'TriangleRight';
+    const iconType = sqlState ? 'TriangleDown.svg' : 'TriangleRight.svg';
+    const iconAlt = intl.formatMessage({ id: `Common.${sqlState ? 'Undisclosed' : 'Disclosed'}` });
+
     return (
       <div
         className='sql-toggle'
         data-qa='sql-toogle'
         onClick={canToggle ? this.handleToggleClick : undefined}
         style={[styles.base, canToggle && {cursor: 'pointer', marginLeft: sqlState ? 5 : 0}, style]}>
-        { canToggle &&
-          <FontIcon
-            type={directionIconType}
-            theme={styles.iconStyle}/>
-        }
+        {canToggle && <Art src={iconType} alt={iconAlt} style={styles.iconStyle}/>}
         <span style={[formLabel]}>
-          {la('SQL Editor')}
+          <FormattedMessage id='SQL.SQLEditor'/>
         </span>
       </div>
     );
@@ -83,15 +84,9 @@ const styles = {
     marginLeft: 10
   },
   iconStyle: {
-    Icon: {
-      width: 24,
-      height: 24
-    },
-    Container: {
-      width: 24,
-      height: 24,
-      display: 'inline-flex',
-      alignItems: 'center'
-    }
+    width: 24,
+    height: 24,
+    display: 'inline-flex',
+    alignItems: 'center'
   }
 };

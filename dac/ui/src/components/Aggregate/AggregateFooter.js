@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import FontIcon from 'components/Icon/FontIcon';
-import { body } from 'uiTheme/radium/typography';
 import { fieldAreaWidth } from './aggregateStyles';
 
 @pureRender
@@ -71,24 +71,21 @@ const styles = {
     height: 30,
     display: 'flex',
     alignItems: 'center',
-    paddingLeft: 10,
-    ...body
+    paddingLeft: 10
   },
   center: {
     width: '100%',
     height: 30,
     display: 'flex',
     alignItems: 'center',
-    paddingLeft: 10,
-    ...body
+    paddingLeft: 10
   },
   right: {
     height: 30,
     display: 'flex',
     alignItems: 'center',
     paddingLeft: 10,
-    width: '100%',
-    ...body
+    width: '100%'
   },
   add: {
     display: 'flex',

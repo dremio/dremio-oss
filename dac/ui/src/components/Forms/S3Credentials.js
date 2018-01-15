@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import { description, section, sectionTitle, formRow } from 'uiTheme/radium/forms';
 
@@ -53,7 +55,7 @@ export default class S3Credentials extends Component {
 
     return (
       <div className='credentials' style={section}>
-        <h3 style={sectionTitle}>{la('Credentials')}</h3>
+        <h2 style={sectionTitle}>{la('Credentials')}</h2>
         <div style={{display: 'inline-flex'}}>
           <FieldWithError errorPlacement='top' label={la('AWS Access Key')} {...accessKey} style={formRow}>
             <TextField {...accessKey}/>

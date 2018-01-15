@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
@@ -54,7 +56,7 @@ export class NASForm extends Component {
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
             <div style={section}>
-              <div style={sectionTitle}>{la('Mount')}</div>
+              <h2 style={sectionTitle}>{la('Mount')}</h2>
               <div style={formRow}>
                 <FieldWithError errorPlacement='top' label={la('Path')} {...fields.config.path}>
                   <TextField {...fields.config.path}/>
@@ -65,7 +67,7 @@ export class NASForm extends Component {
               </div>
             </div>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <MetadataRefresh fields={fields} hideObjectNames/>
               </AdvancedOptionsExpandable>

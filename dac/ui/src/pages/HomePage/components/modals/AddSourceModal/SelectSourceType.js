@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { sortBy } from 'lodash/collection';
-
+import { FormattedMessage, injectIntl } from 'react-intl';
 import SelectConnectionButton from 'components/SelectConnectionButton';
 
 import { FLEX_START_WRAP } from 'uiTheme/radium/flexStyle';
-import { h3 } from 'uiTheme/radium/typography';
 
 import { sourceProperties } from 'dyn-load/constants/sourceTypes';
 
@@ -35,10 +35,12 @@ const disabledSourceTypes = sortBy(
   ['enterprise', 'label']
 );
 
+@injectIntl
 export default class SelectSourceType extends Component {
   static propTypes = {
     onSelectSource: PropTypes.func.isRequired,
-    onAddSampleSource: PropTypes.func.isRequired
+    onAddSampleSource: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
   renderSourceTypes(connections) {
     return connections.map((item) => {
@@ -53,7 +55,7 @@ export default class SelectSourceType extends Component {
         label={item.label}
         pillText={pillText}
         disabled={item.disabled}
-        iconType={item.sourceType}
+        iconType={`sources/${item.sourceType}`}
         key={item.sourceType}
         onClick={!item.disabled ? this.props.onSelectSource.bind(this, item) : undefined}/>;
     });
@@ -63,12 +65,14 @@ export default class SelectSourceType extends Component {
     return (
       <div className='SelectSourceType'>
         <div className='main'>
-          <h3>{la('Data Source Types')}</h3>
+          <h3 className='normalWeight'>
+            <FormattedMessage id = 'Source.DataSourceTypes'/>
+          </h3>
           <div className='source-type-section' style={FLEX_START_WRAP}>
             { this.renderSourceTypes(enabledSourceTypes) }
             <SelectConnectionButton
-              label={la('Sample Source')}
-              iconType={'Sample-Source'}
+              label={this.props.intl.formatMessage({ id: 'Source.SampleSource' })}
+              iconType={'sources/SampleSource'}
               onClick={this.props.onAddSampleSource}/>
           </div>
           <div className='source-type-section' style={FLEX_START_WRAP}>

@@ -18,6 +18,7 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.aliasName;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
+import static com.dremio.plugins.elastic.ElasticsearchConstants.ES_CONFIG_DEFAULT_BATCH_SIZE;
 import static com.dremio.plugins.elastic.ElasticsearchType.BOOLEAN;
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 import static com.dremio.plugins.elastic.ElasticsearchType.FLOAT;
@@ -88,6 +89,12 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
+  public @interface ElasticScrollSize {
+    int scrollSize() default ES_CONFIG_DEFAULT_BATCH_SIZE;
+  }
+
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.TYPE})
   public @interface ScriptsEnabled {
 
     /**
@@ -142,7 +149,13 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       if (showIDColumnAnnotation != null) {
         showIDColumn = showIDColumnAnnotation.enabled();
       }
-      elastic = new ElasticsearchCluster(elasticSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled);
+      ElasticScrollSize elasticScrollSize = this.getClass().getAnnotation(ElasticScrollSize.class);
+      int scrollSize = ES_CONFIG_DEFAULT_BATCH_SIZE;
+      if (elasticScrollSize != null) {
+        scrollSize = elasticScrollSize.scrollSize();
+      }
+
+      elastic = new ElasticsearchCluster(elasticSize, scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled);
       getSabotContext().getStorage()
         .createOrUpdate(ElasticsearchStoragePluginConfig.NAME, elastic.config(), true);
 

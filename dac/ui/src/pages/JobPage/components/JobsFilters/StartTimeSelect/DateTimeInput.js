@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
 
+import PropTypes from 'prop-types';
+
 import FontIcon from 'components/Icon/FontIcon';
-
-import { h5 } from 'uiTheme/radium/typography';
-
 import MaskedInput from './MaskedInput';
 
 const MAX_MONTH = 12;
@@ -85,7 +84,7 @@ export default class DateTimeInput extends Component {
     const dateValue = currentMoment.format('M/D/YYYY');
     return (
       <div style={[style.base]} className='date-time-input'>
-        <div style={h5}>{label}</div>
+        <h5>{label}</h5>
         <div style={[style.innerBlock]}>
           <FontIcon type='Date' theme={style.iconStyle}/>
           <MaskedInput

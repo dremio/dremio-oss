@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import Immutable from 'immutable';
+import { injectIntl, FormattedMessage } from 'react-intl';
 import FontIcon from 'components/Icon/FontIcon';
 import { CENTER } from 'uiTheme/radium/flexStyle';
 
@@ -34,6 +36,7 @@ import browserUtils from 'utils/browserUtils';
 
 export const VIEW_ID = 'QlikStateModal';
 
+@injectIntl
 export class QlikStateModal extends Component {
 
   static propTypes = {
@@ -46,7 +49,8 @@ export class QlikStateModal extends Component {
     qlikAppInfo: PropTypes.object,
     showQlikProgress: PropTypes.func,
     openQlikSense: PropTypes.func,
-    hideQlikModal: PropTypes.func
+    hideQlikModal: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -56,26 +60,22 @@ export class QlikStateModal extends Component {
   };
 
   static ERROR_MESSAGES = {
-    //TODO wrap in 'la' loc
-    QLIK_GET_APP: 'Failed to get the dataset information from Dremio',
-    QLIK_CONNECT_FAILED:
-      'We could not connect to Qlik Sense. Please make sure the application is open before retrying.',
-    QLIK_DSN:
-      'Dremio ODBC DSN could not be found. Make sure that DSN “Dremio Connector” is configured before retrying.',
-    QLIK_UNKNOWN: 'We could not connect to Qlik Sense. Please check your settings and try again.',
-    QLIK_CUSTOM_ERROR: 'An error occurred while communicating with Qlik Sense:'
+    QLIK_GET_APP: 'GetAppFailed',
+    QLIK_CONNECT_FAILED: 'Qlik.ConnectFailed1',
+    QLIK_DSN: 'DSNNotFound',
+    QLIK_UNKNOWN: 'Qlik.ConnectFailed2',
+    QLIK_CUSTOM_ERROR: 'Qlik.CustomError'
   };
 
   renderErrorInfo() {
     const error = this.props.qlikError.get('error');
-    let errorMessage;
-
     const code = error.get('code');
-    errorMessage = QlikStateModal.ERROR_MESSAGES[code];
-
-    if (code === 'QLIK_CUSTOM_ERROR') {
-      errorMessage += '\n' + error.get('moreInfo');
-    }
+    const errorMessage = (code === 'QLIK_CUSTOM_ERROR')
+      ? <div>
+        <p><FormattedMessage id={QlikStateModal.ERROR_MESSAGES[code]} /></p>
+        <p>{error.get('moreInfo')}</p>
+      </div>
+      : <FormattedMessage id={QlikStateModal.ERROR_MESSAGES[code]} />;
 
     const showIEMessage =
       (code === 'QLIK_CONNECT_FAILED' && ['IE', 'Microsoft Edge'].includes(browserUtils.getPlatform().name));
@@ -84,17 +84,14 @@ export class QlikStateModal extends Component {
       <div style={styles.contentStyle}>
         <FontIcon type='ErrorSolid' iconStyle={{width: 120, height: 120}} style={styles.iconWrap}/>
         <div>
-          {errorMessage && errorMessage.split('\n').map((line) => <p>{line}</p>)}
-
+          {errorMessage}
           {
-            // TODO: loc
             showIEMessage ? (
               <div style={{marginTop: '1em'}}>
-                Internet Explorer and Microsoft Edge may not be able to connect to Qlik Sense without a Windows
-                configuration change. {' '}
+                <FormattedMessage id='Qlik.IEEdgeErrors' />
                 <a href='https://docs.dremio.com/client-applications/qlik-sense.html'
                   target='_blank'>
-                  {la('Learn more…')}
+                  {this.props.intl.formatMessage({ id: 'Common.LearnMore' })}
                 </a>
               </div>
             ) : ''
@@ -109,7 +106,9 @@ export class QlikStateModal extends Component {
       <div style={{...styles.contentStyle, ...styles.contentProgressStyle}}>
         <FontIcon type='NarwhalLogo' iconStyle={{width: 90, height: 90}} style={styles.iconWrapLeft}/>
         <div style={{position: 'relative', flex: 1}}>
-          <div style={styles.progressMessage}>{la('Establishing connection to Qlik Sense…')}</div>
+          <div style={styles.progressMessage}>
+            {this.props.intl.formatMessage({ id: 'Qlik.EstablishingConnection' })}
+          </div>
           <div style={styles.dashedBehind}></div>
         </div>
         <div style={styles.rightSide}>
@@ -129,13 +128,13 @@ export class QlikStateModal extends Component {
         <FontIcon type='NarwhalLogo' iconStyle={{width: 90, height: 90}} style={styles.iconWrapLeft}/>
         <div style={{position: 'relative'}}>
           <p style={{marginBottom: '1em'}}>
-            {la('Your Qlik Sense app')} {' “' + qlikAppInfo.appName + '” '} {la('is ready.')}
+            <FormattedMessage id='Qlik.AppReady' values={{ appName: qlikAppInfo.appName }} />
           </p>
           <ol style={styles.list}>
             <li>Start Qlik Sense Desktop (or {' '}
               <Link to={qlikUrl} target='_blank'>open in your browser</Link>).</li>
             <li>When you first open the app, click <b>Open</b> to view the <b>Data load editor</b>.</li>
-            <li>{la('Confirm the dimensions and measures.')}</li>
+            <li><FormattedMessage id='Qlik.ConfirmDimAndMes' /></li>
             <li>Click on <b>Load data</b>. Once done, you are ready to work with your data.</li>
           </ol>
         </div>
@@ -156,7 +155,7 @@ export class QlikStateModal extends Component {
   }
 
   renderModalFooter() {
-    const { qlikInProgress, qlikAppCreationSuccess } = this.props;
+    const { qlikInProgress, qlikAppCreationSuccess, intl } = this.props;
 
     if (qlikAppCreationSuccess) {
       return (
@@ -165,7 +164,10 @@ export class QlikStateModal extends Component {
             data-qa='confirm'
             type='button'
             buttonStyle='primary'
-            onClick={this.hide}>{la('Done')}</SimpleButton>
+            onClick={this.hide}
+          >
+            <FormattedMessage id='Common.Done' />
+          </SimpleButton>
         </ModalFooter>
       );
     }
@@ -173,8 +175,8 @@ export class QlikStateModal extends Component {
     return (
       <ConfirmCancelFooter
         canSubmit={!qlikInProgress}
-        confirmText={la('Retry')}
-        cancelText={la('Cancel')}
+        confirmText={intl.formatMessage({ id: 'Common.Retry' })}
+        cancelText={intl.formatMessage({ id: 'Common.Cancel' })}
         cancel={this.hide}
         confirm={this.retry}/>
     );
@@ -193,13 +195,13 @@ export class QlikStateModal extends Component {
   }
 
   render() {
-    const { qlikDialogVisible } = this.props;
+    const { qlikDialogVisible, intl } = this.props;
     return (
       <Modal
         hide={this.hide}
         size='small'
         isOpen={qlikDialogVisible}
-        title={la('Connect to Qlik Sense')}>
+        title={intl.formatMessage({ id: 'Qlik.Connect' })}>
         <div className='qlik-sense-error' style={styles.base}>
           {this.renderModalContent()}
           {this.renderModalFooter()}

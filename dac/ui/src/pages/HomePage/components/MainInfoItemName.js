@@ -13,22 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { Link } from 'react-router';
 import CopyButton from 'components/Buttons/CopyButton';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import EllipsedText from 'components/EllipsedText';
+import { injectIntl } from 'react-intl';
 import { constructFullPath, splitFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
 import { getIconDataTypeFromEntity } from 'utils/iconUtils';
 
+@injectIntl
 @Radium
 export default class MainInfoItemName extends Component {
 
   static propTypes = {
-    item: PropTypes.instanceOf(Immutable.Map).isRequired
+    item: PropTypes.instanceOf(Immutable.Map).isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -97,7 +101,7 @@ export default class MainInfoItemName extends Component {
   }
 
   render() {
-    const { item } = this.props;
+    const { item, intl } = this.props;
     const fileType = item.get('fileType');
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
     const href = this.getHref(item);
@@ -111,7 +115,11 @@ export default class MainInfoItemName extends Component {
         <Link style={linkStyle} to={href}>
           {this.renderDatasetItemLabel()}
         </Link>
-        { fullPath && <CopyButton text={fullPath} title={la('Copy Path')} style={{transform: 'translateY(1px)'}} /> }
+        { fullPath && <CopyButton
+          text={fullPath}
+          title={intl.formatMessage({ id: 'Path.Copy' })}
+          style={{transform: 'translateY(1px)'}}
+        /> }
       </div>
     );
   }

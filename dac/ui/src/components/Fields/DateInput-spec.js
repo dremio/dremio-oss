@@ -20,6 +20,14 @@ import { DATE, TIME, dateTypeToFormat, DATETIME } from 'constants/DataTypes';
 import DateInput from './DateInput';
 
 describe('DateInput', () => {
+  beforeEach(() => {
+    sinon.stub(moment, 'now').returns(Date.now()); // lock in the date to avoid cross-millisecond tests
+  });
+
+  afterEach(() => {
+    moment.now.restore();
+  });
+
   it('should render <input>', () => {
     const wrapper = shallow(<DateInput value='0' />);
     expect(wrapper.find('input')).to.have.length(1);
@@ -42,7 +50,7 @@ describe('DateInput', () => {
     });
 
     it('should merge date with time correctly, even at the end of a month leading up to a month with fewer days', () => {
-      sinon.stub(moment, 'now').returns(Date.parse('Feb 1, 2017 12:51:56 AM')); // tests actually found bug on this day/time
+      moment.now.returns(Date.parse('Feb 1, 2017 12:51:56 AM')); // tests actually found bug on this day/time
 
       const dateTest = '2010-12-30';
       const timeTest = '12-13-23.123';
@@ -50,8 +58,6 @@ describe('DateInput', () => {
       const dateMoment = moment(dateTest, dateTypeToFormat[DATE]);
       const timeMoment = moment(timeTest, dateTypeToFormat[TIME]);
       expect(DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)).to.be.eql(result);
-
-      moment.now.restore();
     });
   });
 

@@ -20,6 +20,7 @@ import java.util.Map;
 
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.IndexedStore;
+import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.google.common.base.Function;
@@ -67,6 +68,11 @@ public class LocalIndexedStore<K, V> implements IndexedStore<K, V> {
   @Override
   public List<Integer> getCounts(SearchQuery... conditions) {
     return coreIndexedStore.getCounts(conditions);
+  }
+
+  @Override
+  public KVAdmin getAdmin() {
+    return coreIndexedStore.getAdmin();
   }
 
   @Override

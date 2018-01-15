@@ -15,12 +15,15 @@
  */
 package com.dremio.dac.model.job;
 
+import static com.dremio.dac.model.job.acceleration.UiMapper.toUI;
+import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
 import static com.google.common.collect.ImmutableList.copyOf;
 
 import java.util.List;
 
 import org.apache.calcite.util.Util;
 
+import com.dremio.dac.model.job.acceleration.AccelerationDetailsUI;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.exec.proto.beans.RequestType;
 import com.dremio.service.job.proto.FileSystemDatasetProfile;
@@ -74,6 +77,7 @@ public class JobDetailsUI {
   private final String datasetVersion;
   private final Boolean resultsAvailable;
   private final MaterializationSummary materializationFor;
+  private final AccelerationDetailsUI acceleration;
 
 
   @JsonCreator
@@ -108,7 +112,8 @@ public class JobDetailsUI {
       @JsonProperty("datasetType") DatasetType datasetType,
       @JsonProperty("datasetVersion") String datasetVersion,
       @JsonProperty("resultsAvailable") Boolean resultsAvailable,
-      @JsonProperty("materializationFor") MaterializationSummary materializationFor) {
+      @JsonProperty("materializationFor") MaterializationSummary materializationFor,
+      @JsonProperty("acceleration") AccelerationDetailsUI acceleration) {
     this.jobId = jobId;
     this.queryType = queryType;
     this.datasetPathList = datasetPathList;
@@ -140,6 +145,7 @@ public class JobDetailsUI {
     this.datasetVersion = datasetVersion;
     this.resultsAvailable = resultsAvailable;
     this.materializationFor = materializationFor;
+    this.acceleration = acceleration;
   }
 
   public JobDetailsUI(Job job){
@@ -192,7 +198,8 @@ public class JobDetailsUI {
         DatasetType.VIRTUAL_DATASET, // TODO: return correct result. This is closest since only the ui submits queries and they are using virtual datasets...
         datasetVersion,
         resultsAvailable,
-        attempts.get(0).getInfo().getMaterializationFor()
+        attempts.get(0).getInfo().getMaterializationFor(),
+        toUI(deserialize(attempts.get(0).getAccelerationDetails()))
         );
 
 
@@ -322,4 +329,7 @@ public class JobDetailsUI {
     return materializationFor;
   }
 
+  public AccelerationDetailsUI getAcceleration() {
+    return acceleration;
+  }
 }

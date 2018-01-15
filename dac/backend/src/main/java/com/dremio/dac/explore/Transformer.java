@@ -48,6 +48,8 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
@@ -107,7 +109,7 @@ class Transformer {
 
   /**
    * Reaply the provided operations onto the original dataset and execute it.
-   * @param original
+   * @param newVersion
    * @param operations
    * @return
    * @throws NamespaceException
@@ -180,9 +182,14 @@ class Transformer {
    * @throws DatasetNotFoundException
    * @throws NamespaceException
    */
-  private VirtualDatasetUI transformWithExtract(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform) throws DatasetNotFoundException, NamespaceException{
+  @VisibleForTesting
+  VirtualDatasetUI transformWithExtract(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform) throws DatasetNotFoundException, NamespaceException{
     final ExtractTransformActor actor = new ExtractTransformActor(baseDataset.getState(), false, username(), executor);
     final TransformResult result = transform.accept(actor);
+    if (!actor.hasMetadata()) {
+      VirtualDatasetState vss = protectAgainstNull(result, transform);
+      actor.getMetadata(new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext));
+    }
     VirtualDatasetUI dataset = asDataset(newVersion, path, baseDataset, transform, result, actor.getMetadata());
 
     // save the dataset version.
@@ -241,20 +248,13 @@ class Transformer {
     final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), false, username(), path, executor);
     final TransformResult transformResult = transform.accept(actor);
 
-    final DatasetAndJob resultToReturn;
-
-    if(actor.getMetadata() != null) {
-      // if this was a sql update, the actor will have started a job.
-      resultToReturn = new DatasetAndJob(actor.getJob(), asDataset(newVersion, path, original, transform, transformResult, actor.getMetadata()));
-    } else {
-      // if the actor didn't require a query, it didn't start a job and we need to start one here.
+    if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
       final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
-      final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
-      JobUI job = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
-      resultToReturn = new DatasetAndJob(job, asDataset(newVersion, path, original, transform, transformResult, collector.getMetadata()));
+      actor.getMetadata(query);
     }
-
+    final DatasetAndJob resultToReturn = new DatasetAndJob(actor.getJob(), asDataset(newVersion, path, original,
+      transform, transformResult, actor.getMetadata()));
     // save this dataset version.
     datasetService.putVersion(resultToReturn.getDataset());
 
@@ -283,20 +283,13 @@ class Transformer {
     final ExecuteTransformActor actor = new ExecuteTransformActor(QueryType.UI_PREVIEW, newVersion, original.getState(), true, username(), path, executor);
     final TransformResult transformResult = transform.accept(actor);
 
-    final JobUI job;
-    final VirtualDatasetUI dataset;
-    if(actor.getMetadata() != null) {
-      // if this was a sql update, the actor will have started a job.
-      job = actor.getJob();
-      dataset = asDataset(newVersion, path, original, transform, transformResult, actor.getMetadata());
-    } else {
-      // if the actor didn't require a query, it didn't start a job and we need to start one here.
+    if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
       final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
-      final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
-      job = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, path, newVersion, collector);
-      dataset = asDataset(newVersion, path, original, transform, transformResult, collector.getMetadata());
+      actor.getMetadata(query);
     }
+    final JobUI job = actor.getJob();
+    final VirtualDatasetUI dataset = asDataset(newVersion, path, original, transform, transformResult, actor.getMetadata());
 
     // save this dataset version.
     datasetService.putVersion(dataset);
@@ -351,13 +344,20 @@ class Transformer {
       return metadata;
     }
 
+    @Override
+    protected boolean hasMetadata() {
+      return (metadata != null);
+    }
+
     public QueryMetadata getMetadata() {
+      Preconditions.checkNotNull(metadata);
       return metadata;
     }
 
   }
 
-  private class ExecuteTransformActor extends TransformActor {
+  @VisibleForTesting
+  class ExecuteTransformActor extends TransformActor {
 
     private final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
     private volatile QueryMetadata metadata;
@@ -384,10 +384,23 @@ class Transformer {
     protected QueryMetadata getMetadata(SqlQuery query) {
       this.job = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
       this.metadata = collector.getMetadata();
+
+      // If above QueryExecutor finds the query in the job store, QueryMetadata will never be set.
+      // In this case, regenerate QueryMetadata below.
+      if (this.metadata == null) {
+        this.metadata = QueryParser.extract(query, context);
+      }
+
       return metadata;
     }
 
+    @Override
+    protected boolean hasMetadata() {
+      return (metadata != null);
+    }
+
     public QueryMetadata getMetadata() {
+      Preconditions.checkNotNull(metadata);
       return metadata;
     }
 

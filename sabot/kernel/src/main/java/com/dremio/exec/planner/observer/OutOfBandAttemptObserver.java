@@ -117,11 +117,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(final long millisTaken) {
+  public void planNormalized(final long millisTaken, final List<RelNode> normalizedQueryPlans) {
     serializedExec.execute(new DeferredRunnable() {
       @Override
       public void doRun() {
-        innerObserver.planNormalized(millisTaken);
+        innerObserver.planNormalized(millisTaken, normalizedQueryPlans);
       }
     });
   }
@@ -129,11 +129,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   @Override
   public void planSubstituted(final DremioRelOptMaterialization materialization,
                               final List<RelNode> substitutions,
-                              final RelNode query, final RelNode target, final long millisTaken) {
+                              final RelNode target, final long millisTaken) {
     serializedExec.execute(new DeferredRunnable() {
       @Override
       public void doRun() {
-        innerObserver.planSubstituted(materialization, substitutions, query, target, millisTaken);
+        innerObserver.planSubstituted(materialization, substitutions, target, millisTaken);
       }
     });
   }

@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import { Link } from 'react-router';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import { injectIntl } from 'react-intl';
 
 import TableControlsMenu from 'components/Menus/ExplorePage/TableControlsMenu';
 import TableControlsViewMixin from 'dyn-load/pages/ExplorePage/components/TableControlsViewMixin';
@@ -28,13 +30,13 @@ import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
 
 import { PALE_BLUE } from 'uiTheme/radium/colors.js';
-import { body } from 'uiTheme/radium/typography';
 import { sqlEditorButton } from 'uiTheme/radium/buttons';
 
 import './TableControls.less';
 import SqlToggle from './SqlEditor/SqlToggle';
 import SampleDataMessage from './SampleDataMessage';
 
+@injectIntl
 @pureRender
 @Radium
 @TableControlsViewMixin
@@ -60,7 +62,8 @@ class TableControls extends Component {
     dropdownState: PropTypes.bool.isRequired,
     anchorEl: PropTypes.object,
     rightTreeVisible: PropTypes.bool,
-    approximate: PropTypes.bool
+    approximate: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   constructor(props) {
@@ -90,7 +93,7 @@ class TableControls extends Component {
   }
 
   render() {
-    const { columns, isGraph, rightTreeVisible, dataset } = this.props;
+    const { columns, isGraph, rightTreeVisible, dataset, intl } = this.props;
     const { location } = this.context;
     const classWrap = classNames('control-wrap', { 'inactive-element': isGraph });
     const toggleButton = !this.props.sqlState
@@ -110,7 +113,7 @@ class TableControls extends Component {
               key='calc'
               innerText={styles.innerTextStyle}
               type={ButtonTypes.SECONDARY} icon='AddFields'
-              text={la('Add Field')}
+              text={intl.formatMessage({ id: 'Dataset.AddField' })}
               styles={{...sqlEditorButton, ...styles.activeButton}}
               iconStyle={{ Container: styles.iconContainer, Icon: styles.iconBox }}
               onClick={this.props.addField}/>
@@ -118,7 +121,7 @@ class TableControls extends Component {
               key='groupBy'
               innerText={{...styles.innerTextStyle}}
               type={ButtonTypes.SECONDARY} icon='GroupBy'
-              text={la('Group By')}
+              text={intl.formatMessage({ id: 'Dataset.GroupBy' })}
               styles={{...sqlEditorButton, ...styles.activeButton}}
               iconStyle={{ Container: {...styles.iconContainer}, Icon: styles.iconBox }}
               onClick={this.props.groupBy}/>
@@ -126,7 +129,7 @@ class TableControls extends Component {
               key='join'
               innerText={styles.innerTextStyle}
               type={ButtonTypes.SECONDARY} icon='Join'
-              text={la('Join')}
+              text={intl.formatMessage({ id: 'Dataset.Join' })}
               styles={{...sqlEditorButton, ...styles.activeButton}}
               iconStyle={{ Container: styles.iconContainer, Icon: styles.iconBox }}
               onClick={this.props.join}/>
@@ -136,8 +139,8 @@ class TableControls extends Component {
         <div className='right-controls'>
           <div className='controls'>
             <div className={classWrap}>
-              <span style={body}>{la('Fields:\u00a0')}</span>
-              <span style={[body, { color: '#52b8d8' }]}>
+              <span>{`${intl.formatMessage({ id: 'Dataset.Fields' })}:\u00a0`}</span>
+              <span style={{ color: '#52b8d8' }}>
                 <Link
                   className='separator-line columns-text'
                   data-qa='edit-columns-link'

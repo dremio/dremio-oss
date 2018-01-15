@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import { formLabel } from 'uiTheme/radium/typography';
 import { WHITE, CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';
@@ -78,7 +80,7 @@ export class AccelerationAdvanced extends Component {
 
     const found = this.props.acceleration.getIn([
       'aggregationLayouts', 'layoutList'
-    ]).some(layout => layout.getIn(['id', 'id']) === layoutId);
+    ]).some(layout => layout.get('id') === layoutId);
 
     return found ? 'AGGREGATION' : 'RAW';
   }

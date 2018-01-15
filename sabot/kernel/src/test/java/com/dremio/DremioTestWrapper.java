@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -624,7 +625,7 @@ public class DremioTestWrapper {
       logger.debug("reading batch with " + loader.getRecordCount() + " rows, total read so far " + totalRecords);
       totalRecords += loader.getRecordCount();
       for (int j = 0; j < loader.getRecordCount(); j++) {
-        Map<String, Object> record = new TreeMap<>();
+        Map<String, Object> record = new LinkedHashMap<>();
         for (VectorWrapper<?> w : loader) {
           Object obj = w.getValueVector().getAccessor().getObject(j);
           if (obj != null) {

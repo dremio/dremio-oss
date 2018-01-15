@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
 
+import PropTypes from 'prop-types';
+
 import StateIconTypes from 'constants/jobPage/StateIconType.json';
 import FontIcon from 'components/Icon/FontIcon';
-
-import { body } from 'uiTheme/radium/typography';
 
 @Radium
 @PureRender
@@ -52,7 +52,7 @@ export default class StateDropDown extends Component {
             value={item.get('value')}
             checked={checked} />
           <FontIcon type={StateIconTypes[item.get('value')]} theme={style.IconTheme}/>
-          <span style={body}>{item.get('label')}</span>
+          <span>{item.get('label')}</span>
         </div>);
     });
     const allLabel = selectedOptions.size !== 0

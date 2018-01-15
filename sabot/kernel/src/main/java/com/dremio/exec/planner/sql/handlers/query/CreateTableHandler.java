@@ -145,12 +145,10 @@ public class CreateTableHandler implements SqlToPlanHandler {
 
     // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
     // Only insert project when the field count from the child is same as that of the queryRowType.
-    convertedRelNode = queryRowType.getFieldCount() == convertedRelNode.getRowType().getFieldCount() ?
-        PrelTransformer.addRenamedProject(config, convertedRelNode, queryRowType) : convertedRelNode;
 
     convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
         convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
-        convertedRelNode, schema.createNewTable(tableName, options, storageOptions));
+        convertedRelNode, schema.createNewTable(tableName, options, storageOptions), queryRowType);
 
     convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
         config.getContext(), convertedRelNode);

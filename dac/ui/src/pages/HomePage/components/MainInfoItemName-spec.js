@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
+import { shallow } from 'enzyme';
 
 import MainInfoItemName from './MainInfoItemName';
 
@@ -91,8 +91,8 @@ describe('MainInfoItemName', () => {
   });
 
   it('should render name as text', () => {
-    const wrapper = mount(<MainInfoItemName {...commonProps}/>, {context});
-    expect(wrapper.find('.last-File').text()).to.eql('foo');
+    const wrapper = shallow(<MainInfoItemName {...commonProps}/>, {context});
+    expect(wrapper.find('EllipsedText').props().text).to.eql('foo');
   });
 
   it('should render FontIcon type depending on fileType', () => {

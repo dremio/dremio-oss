@@ -203,7 +203,7 @@ public class ServerMetaProvider {
       final ServerMeta.Builder metaBuilder = session.getRecordBatchFormat() != RecordBatchFormat.DRILL_1_0
           ? ServerMeta.newBuilder(DEFAULT)
           : ServerMeta.newBuilder(DRILL_1_0_DEFAULT);
-      PlannerSettings plannerSettings = new PlannerSettings(session.getOptions(), dContext.getFunctionImplementationRegistry());
+      PlannerSettings plannerSettings = new PlannerSettings(session.getOptions(), dContext.getFunctionImplementationRegistry(), dContext.getClusterResourceInformation());
 
       ParserConfig config = ParserConfig.newInstance(session, plannerSettings);
 

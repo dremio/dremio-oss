@@ -13,22 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
-import SingleHost from 'components/Forms/SingleHost';
+import SingleHostOptionalPort from 'components/Forms/SingleHostOptionalPort';
 import Credentials from 'components/Forms/Credentials';
 import JDBCOptions from 'components/Forms/JDBCOptions';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { section, sectionTitle } from 'uiTheme/radium/forms';
+import { Checkbox, FieldWithError, TextField } from 'components/Fields';
+import { section, sectionTitle, formRow } from 'uiTheme/radium/forms';
 import AdvancedOptionsExpandable from 'components/Forms/AdvancedOptionsExpandable';
 
 import { SQLSERVER } from 'dyn-load/constants/sourceTypes';
 
-const SECTIONS = [General, SingleHost, Credentials, JDBCOptions, MetadataRefresh];
+const SECTIONS = [General, SingleHostOptionalPort, Credentials, JDBCOptions, MetadataRefresh];
 const DEFAULT_PORT = 1433;
 
 class SQLServerForm extends Component {
@@ -50,13 +53,28 @@ class SQLServerForm extends Component {
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
-            <SingleHost fields={fields} title='Connection'/>
-            <Credentials fields={fields}/>
-            <div style={{...section}}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+            <SingleHostOptionalPort fields={fields} title='Connection'/>
+            <div style={section}>
+              <Credentials fields={fields}/>
+              <div style={formRow}>
+                <FieldWithError label='Database (optional)' {...fields.config.database}>
+                  <TextField {...fields.config.database}/>
+                </FieldWithError>
+              </div>
+            </div>
+            <div style={{...section, marginTop: 10}}>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
-                <JDBCOptions fields={fields}/>
-                <MetadataRefresh fields={fields}/>
+                <div style={formRow}>
+                  <Checkbox {...fields.config.showOnlyConnectionDatabase} label={la('Show only the initial database used for connecting')}
+                    disabled={!fields.config.database.value}/>
+                </div>
+                <div style={formRow}>
+                  <JDBCOptions fields={fields}/>
+                </div>
+                <div style={formRow}>
+                  <MetadataRefresh fields={fields}/>
+                </div>
               </AdvancedOptionsExpandable>
             </div>
           </General>
@@ -72,6 +90,7 @@ function mapStateToProps(state, props) {
     config: {
       port: DEFAULT_PORT,
       authenticationType: 'MASTER',
+      showOnlyConnectionDatabase: false,
       ...props.initialValues.config
     }
   };
@@ -81,5 +100,6 @@ function mapStateToProps(state, props) {
 }
 
 export default connectComplexForm({
-  form: 'source'
+  form: 'source',
+  fields: ['config.database', 'config.showOnlyConnectionDatabase']
 }, SECTIONS, mapStateToProps, null)(SQLServerForm);

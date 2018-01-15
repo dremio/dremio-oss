@@ -161,6 +161,7 @@ message JobAttempt {
   optional AttemptReason reason = 5;
   optional string attemptId = 6;
   optional exec.NodeEndpoint endpoint = 7;
+  optional bytes acceleration_details = 8;
 }
 
 message DatasetPathUI {

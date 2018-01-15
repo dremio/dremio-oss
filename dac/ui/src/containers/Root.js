@@ -13,15 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import { Provider } from 'react-redux';
 
 import { Router, browserHistory } from 'react-router';
 import { syncHistoryWithStore } from 'react-router-redux';
+import routes from 'routes';
+
 import intercomUtils from 'utils/intercomUtils';
 
-import routes from '../routes';
+import { addLocaleData, IntlProvider } from 'react-intl';
+import enData from 'react-intl/locale-data/en';
+import { getLocale } from '../utils/locale';
+
+addLocaleData([...enData]);
 
 export default class Root extends Component {
 
@@ -36,12 +44,12 @@ export default class Root extends Component {
       intercomUtils.update();
     });
 
-    return (
+    return <IntlProvider locale={getLocale().language} messages={getLocale().localeStrings}>
       <Provider store={store}>
         <div style={{height: '100%'}}>
           <Router history={history}>{routes}</Router>
         </div>
       </Provider>
-    );
+    </IntlProvider>;
   }
 }

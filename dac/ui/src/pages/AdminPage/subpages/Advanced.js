@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PureComponent } from 'react';
+
+import PropTypes from 'prop-types';
 
 import { connect } from 'react-redux';
 import settingActions from 'actions/resources/setting';
@@ -22,7 +24,7 @@ import { addNotification } from 'actions/notification';
 import { getViewState } from 'selectors/resources';
 import Immutable from 'immutable';
 
-import { body, h4, formContext } from 'uiTheme/radium/typography';
+import { formContext } from 'uiTheme/radium/typography';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import SimpleButton from 'components/Buttons/SimpleButton';
@@ -151,7 +153,7 @@ export class Advanced extends PureComponent {
   renderSections() {
     return Array.from(SECTIONS).map(([name, items]) => {
       return <div key={name} style={{padding: '10px 0 20px', borderBottom: '1px solid hsla(0, 0%, 0%, 0.1)'}}>
-        <h4 style={h4}>{name}</h4>
+        <h4>{name}</h4>
         { Array.from(items).map(([settingId]) => this.renderMicroForm(settingId)) }
       </div>;
     });
@@ -163,14 +165,14 @@ export class Advanced extends PureComponent {
       <SimpleButton buttonStyle='secondary' style={{verticalAlign: 'bottom', width: 'auto'}}>{la('Show')}</SimpleButton>
     </form>;
 
-    return <div style={{...body, display: 'flex', flexDirection: 'column', height: '100%'}}>
+    return <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
       <Header>{la('Advanced Settings')}</Header>
 
       <ViewStateWrapper viewState={this.props.viewState} style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}>
         {this.renderSections()}
         <div style={{padding: '10px 0'}}>
           <div style={{display: 'flex', alignItems: 'center'}}>
-            <h4 style={{...h4, flex: '1 1 auto'}}>{la('Dremio Support')}</h4>
+            <h4 style={{flex: '1 1 auto'}}>{la('Dremio Support')}</h4>
             {advancedForm}
           </div>
           <div style={{...formContext}}>

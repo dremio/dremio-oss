@@ -110,31 +110,55 @@ describe('LeftTree', () => {
     it('no sources, user can add: show text and both buttons', () => {
       commonProps.sources = Immutable.fromJS([]);
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
+      const sourcesContent = shallow(instance.getInitialSourcesContent());
+      const formattedMessages = sourcesContent.find('FormattedMessage');
       expect(
-        shallow(instance.getInitialSourcesContent()).text()
-      ).to.be.equal(
-        'You do not have any sources.<SimpleButton /><LinkButton />'
-      );
+        formattedMessages
+      ).to.have.length(3);
+      const expectedIds = ['Source.NoSources', 'Source.AddSampleSource', 'Source.AddSource'];
+      expectedIds.forEach((id, i) => {
+        expect(
+          formattedMessages.get(i).props.id
+        ).to.be.equal(id);
+      });
+      expect(
+        sourcesContent.find('SimpleButton')
+      ).to.have.length(1);
+      expect(
+        sourcesContent.find('LinkButton')
+      ).to.have.length(1);
     });
     it("no sources, user can't add: show text", () => {
       commonProps.sources = Immutable.fromJS([]);
       context.loggedInUser.admin = false;
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
+      const sourcesContent = shallow(instance.getInitialSourcesContent());
+      const formatMessage = sourcesContent.find('FormattedMessage');
       expect(
-        shallow(instance.getInitialSourcesContent()).text()
+        formatMessage
+      ).to.have.length(1);
+      expect(
+        formatMessage.prop('id')
       ).to.be.equal(
-        'You do not have any sources.'
+        'Source.NoSources'
       );
     });
     it('only sample source(s), user can add: show text and add button', () => {
       sinon.stub(sourcesActions, 'isSampleSource').returns(true);
 
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
+      const sourcesContent = shallow(instance.getInitialSourcesContent());
+      const formattedMessages = sourcesContent.find('FormattedMessage');
       expect(
-        shallow(instance.getInitialSourcesContent()).text()
-      ).to.be.equal(
-        'Add your own source:<LinkButton />'
-      );
+        formattedMessages
+      ).to.have.length(2);
+
+      const expectedIds = ['Source.AddOwnSource', 'Source.AddSource'];
+      expectedIds.forEach((id, i) => {
+        expect(
+          formattedMessages.get(i).props.id
+        ).to.be.equal(id);
+      });
 
       sourcesActions.isSampleSource.restore();
     });

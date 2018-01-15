@@ -45,12 +45,10 @@ export const section = {
 };
 
 export const sectionTitle = {
-  ...typography.h2,
   marginBottom: 6
 };
 
 export const subSectionTitle = {
-  ...typography.h3,
   fontSize: 14,
   marginBottom: 6
 };

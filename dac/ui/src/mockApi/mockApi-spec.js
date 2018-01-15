@@ -22,6 +22,7 @@ describe('mockApiMiddleware', () => {
   let store;
   let next;
   let action;
+  let clock;
 
   beforeEach(() => {
     store = {dispatch: sinon.spy(), getState: sinon.spy()};
@@ -38,6 +39,11 @@ describe('mockApiMiddleware', () => {
         }
       }
     };
+    clock = sinon.useFakeTimers();
+  });
+
+  afterEach(() => {
+    clock.restore();
   });
 
   it('ignores non mock api actions', () => {
@@ -49,11 +55,13 @@ describe('mockApiMiddleware', () => {
   it('dispatches request, and success actions when ok is undefined', () => {
     const promise = mockApiMiddleware(store)(next)(action);
     expect(store.dispatch.args[0][0]).to.eql({type: 'REQUEST'});
-    return expect(promise).to.eventually.eql({
+    const ret = expect(promise).to.eventually.eql({
       type: 'SUCCESS',
       meta: undefined,
       payload: action[CALL_MOCK_API].mockResponse.responseJSON
     });
+    clock.tick(1000);
+    return ret;
   });
 
   it('dispatches request, and success actions when ok is true', () => {
@@ -62,11 +70,14 @@ describe('mockApiMiddleware', () => {
 
     expect(store.dispatch.args[0][0]).to.eql({type: 'REQUEST'});
 
-    return expect(promise).to.eventually.eql({
+    const ret = expect(promise).to.eventually.eql({
       type: 'SUCCESS',
       meta: undefined,
       payload: action[CALL_MOCK_API].mockResponse.responseJSON
     });
+
+    clock.tick(1000);
+    return ret;
   });
 
   it('dispatches request, and failure actions when ok is false', () => {
@@ -80,12 +91,14 @@ describe('mockApiMiddleware', () => {
 
     expect(store.dispatch.args[0][0]).to.eql({type: 'REQUEST'});
 
-    return expect(promise).to.eventually.eql({
+    const ret = expect(promise).to.eventually.eql({
       type: 'FAILURE',
       meta: undefined,
       payload: new ApiError(500, 'Internal Server Error', {response: 'foo'}),
       error: true
     });
+    clock.tick(1000);
+    return ret;
   });
 
   it('resolves mockResponse if it is a function', () => {
@@ -100,11 +113,13 @@ describe('mockApiMiddleware', () => {
 
   it('returns a resolved promise, like redux-api-middleware', () => {
     const p = mockApiMiddleware(store)(next)(action);
-    return expect(p).to.eventually.eql({
+    const ret = expect(p).to.eventually.eql({
       type: 'SUCCESS',
       meta: undefined,
       payload: action[CALL_MOCK_API].mockResponse.responseJSON
     });
+    clock.tick(1000);
+    return ret;
   });
 
   it('resolves payload function', () => {
@@ -113,11 +128,13 @@ describe('mockApiMiddleware', () => {
     }};
 
     const p = mockApiMiddleware(store)(next)(action);
-    return expect(p).to.eventually.eql({
+    const ret = expect(p).to.eventually.eql({
       type: 'SUCCESS',
       meta: undefined,
       payload: 'completed'
     });
+    clock.tick(1000);
+    return ret;
   });
 
 });

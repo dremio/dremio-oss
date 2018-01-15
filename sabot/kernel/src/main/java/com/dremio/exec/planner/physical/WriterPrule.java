@@ -78,7 +78,7 @@ public class WriterPrule extends Prule {
       writer.getTraitSet()
         .plus(writer.getCreateTableEntry().getOptions().isSingleWriter() ? DistributionTrait.SINGLETON : childDist)
         .plus(Prel.PHYSICAL),
-      rel, writer.getCreateTableEntry());
+      rel, writer.getCreateTableEntry(), writer.getExpectedInboundRowType());
 
     if (!(child.getCreateTableEntry() instanceof FileSystemCreateTableEntry)) {
       // we can only rename using file system
@@ -102,7 +102,8 @@ public class WriterPrule extends Prule {
     final WriterPrel childWithTempPath = new WriterPrel(child.getCluster(),
       child.getTraitSet(),
       rel,
-      ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath)
+      ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath),
+      writer.getExpectedInboundRowType()
     );
 
     final RelNode newChild = convert(childWithTempPath, traits);

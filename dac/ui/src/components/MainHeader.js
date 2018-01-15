@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { FormattedMessage, injectIntl } from 'react-intl';
 
 import FontIcon from 'components/Icon/FontIcon';
 
@@ -33,11 +35,13 @@ import HelpMenu from './HelpMenu';
 
 import './MainHeader.less';
 
+@injectIntl
 @Radium
 export class MainHeader extends Component {
 
   static propTypes = {
-    user: PropTypes.instanceOf(Immutable.Map)
+    user: PropTypes.instanceOf(Immutable.Map),
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -59,10 +63,10 @@ export class MainHeader extends Component {
         <div className='header-wrap'>
           <div className='left-part'>
             <MainHeaderItem>
-              <HeaderLink to='/'>{la('Datasets')}</HeaderLink>
+              <HeaderLink to='/'><FormattedMessage id='Dataset.Datasets'/></HeaderLink>
             </MainHeaderItem>
             <MainHeaderItem>
-              <HeaderLink to='/jobs'>{la('Jobs')}</HeaderLink>
+              <HeaderLink to='/jobs'><FormattedMessage id='Job.Jobs'/></HeaderLink>
             </MainHeaderItem>
             <MainHeaderItem>
               <SearchItem/>
@@ -75,13 +79,13 @@ export class MainHeader extends Component {
             {ChatItem && <ChatItem />}
             <MainHeaderItem>
               <HeaderDropdown
-                name={la('Help')}
+                name={this.props.intl.formatMessage({id: 'App.Help'})}
                 menu={<HelpMenu />}/>
             </MainHeaderItem>
             {
               user.get('admin') &&
                 <MainHeaderItem>
-                  <HeaderLink to='/admin'>{la('Admin')}</HeaderLink>
+                  <HeaderLink to='/admin'><FormattedMessage id='App.Admin'/></HeaderLink>
                 </MainHeaderItem>
             }
             <MainHeaderItem>

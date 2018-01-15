@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable  from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
-import { body } from 'uiTheme/radium/typography';
 import StatefulTableViewer from 'components/StatefulTableViewer';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 import { getViewState } from 'selectors/resources';
@@ -87,7 +87,7 @@ class NodeActivityView extends Component {
     const columns = this.getTableColumns();
 
     return (
-      <div id='admin-nodeActivity' style={[body, page]}>
+      <div id='admin-nodeActivity' style={page}>
         <Header title={la('Node Activity')}/>
         <div style={pageContent}>
           <StatefulTableViewer

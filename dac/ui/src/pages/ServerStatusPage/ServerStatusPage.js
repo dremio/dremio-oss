@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import { connect }   from 'react-redux';
 import { replace } from 'react-router-redux';
@@ -23,6 +23,8 @@ import moment from 'moment';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
+import PropTypes from 'prop-types';
+
 import LoginTitle from 'pages/AuthenticationPage/components/LoginTitle';
 import SimpleButton from 'components/Buttons/SimpleButton';
 
@@ -31,7 +33,6 @@ import { getViewState } from 'selectors/resources';
 import { SERVER_STATUS_OK } from 'constants/serverStatus';
 
 import {LIGHT_GREY} from 'uiTheme/radium/colors';
-import {body} from 'uiTheme/radium/typography';
 
 import {
   scheduleCheckServerStatus,
@@ -169,7 +170,6 @@ const styles = {
     }
   },
   checking: {
-    ...body,
     color: LIGHT_GREY,
     marginTop: 10
   }

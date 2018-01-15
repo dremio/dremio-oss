@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes, PureComponent } from 'react';
+import { PureComponent } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 
-import { h4 } from 'uiTheme/radium/typography';
 import FontIcon from 'components/Icon/FontIcon';
 import './HelpSection.less';
 
@@ -111,7 +111,7 @@ export class HelpSection extends PureComponent {
     }
 
     return <div className='help-section'>
-      <h4 className='title' style={h4}>{la('Help')}</h4>
+      <h4>{la('Help')}</h4>
       <div className='quote-wrapper'>
         <FontIcon type='NarwhalLogo' theme={styles.NarwhalLogo}/>
         <div className='quote-block'>

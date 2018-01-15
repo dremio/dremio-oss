@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
+import { injectIntl } from 'react-intl';
 
 import HomePage from 'pages/HomePage/HomePage';
 import { loadSpaceListData, setSpacePin } from 'actions/resources/spaces';
@@ -26,12 +28,14 @@ import { getSpaces } from 'selectors/resources';
 import AllSpacesView from './AllSpacesView.js';
 
 @pureRender
+@injectIntl
 export class AllSpaces extends Component {
   static propTypes = {
     location: PropTypes.object.isRequired,
     setSpacePin: PropTypes.func,
     loadSpaceListData: PropTypes.func,
-    spaces: PropTypes.instanceOf(Immutable.List)
+    spaces: PropTypes.instanceOf(Immutable.List),
+    intl: PropTypes.object.isRequired
   };
 
   componentWillMount() {
@@ -49,10 +53,10 @@ export class AllSpaces extends Component {
   }
 
   render() {
-    const {location, spaces} = this.props;
+    const { location, spaces, intl } = this.props;
     return (
       <HomePage location={location}>
-        <DocumentTitle title={la('All Spaces')} />
+        <DocumentTitle title={intl.formatMessage({ id: 'Space.AllSpaces' })} />
         <AllSpacesView
           filters={this.filters}
           spaces={spaces}

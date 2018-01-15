@@ -20,7 +20,8 @@ const oldestSupportedBrowserVersions = {
   'Chrome': '54',
   'Firefox': '50',
   'IE': '11',
-  'Microsoft Edge': '14'
+  'Microsoft Edge': '14',
+  'Safari': '11'
 };
 
 const browserUtils = {

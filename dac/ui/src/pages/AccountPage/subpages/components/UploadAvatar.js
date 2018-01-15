@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 import './UploadAvatar.less';
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 @pureRender
 export default class UploadAvatar extends Component {

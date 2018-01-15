@@ -20,7 +20,6 @@ import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.Vectors;
 
 import com.dremio.common.expression.Describer;
 
@@ -64,7 +63,7 @@ public class Reallocators {
 
     @Override
     public void setCount(int count) {
-      Vectors.setLastSet(mutator, count);
+      mutator.setLastSet(count);
     }
 
   }
@@ -99,7 +98,7 @@ public class Reallocators {
 
     @Override
     public void setCount(int count) {
-      Vectors.setLastSet(mutator, count);
+      mutator.setLastSet(count);
     }
   }
 

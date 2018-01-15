@@ -19,6 +19,7 @@ package com.dremio.exec.planner.physical;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.dremio.exec.server.ClusterResourceInformation;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.plan.Context;
@@ -44,7 +45,6 @@ import com.dremio.exec.server.options.TypeValidators.StringValidator;
 @Options
 public class PlannerSettings implements Context{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlannerSettings.class);
-
   private int numEndPoints = 0;
   private boolean useDefaultCosting = false; // True: use default Calcite costing, False: use Dremio costing
   private boolean forceSingleMode;
@@ -125,13 +125,15 @@ public class PlannerSettings implements Context{
   public OptionManager options = null;
   public FunctionImplementationRegistry functionImplementationRegistry = null;
   private CalciteCatalogReader catalog;
+  private final ClusterResourceInformation clusterInfo;
 
   // This flag is used by AbstractRelOptPlanner to set it's "cancelFlag".
   private final CancelFlag cancelFlag = new CancelFlag(new AtomicBoolean());
 
-  public PlannerSettings(OptionManager options, FunctionImplementationRegistry functionImplementationRegistry){
+  public PlannerSettings(OptionManager options, FunctionImplementationRegistry functionImplementationRegistry, ClusterResourceInformation clusterInfo){
     this.options = new CachingOptionManager(options);
     this.functionImplementationRegistry = functionImplementationRegistry;
+    this.clusterInfo = clusterInfo;
   }
 
   public OptionManager getOptions() {
@@ -200,6 +202,14 @@ public class PlannerSettings implements Context{
 
   public void setCatalog(final CalciteCatalogReader catalog) {
     this.catalog = catalog;
+  }
+
+  public long getNumCoresPerExecutor() {
+    if (clusterInfo != null) {
+      return clusterInfo.getAverageExecutorCores(options);
+    } else {
+      throw new UnsupportedOperationException("Cluster Resource Information is needed to get average number of cores in executor");
+    }
   }
 
   public CalciteCatalogReader getCatalog() {

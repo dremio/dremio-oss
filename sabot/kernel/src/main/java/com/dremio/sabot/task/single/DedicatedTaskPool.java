@@ -18,6 +18,7 @@ package com.dremio.sabot.task.single;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.TaskPool;
@@ -33,7 +34,7 @@ public class DedicatedTaskPool implements TaskPool {
    */
   public static final class Factory implements TaskPoolFactory {
     @Override
-    public TaskPool newInstance(OptionManager options) {
+    public TaskPool newInstance(OptionManager options, DremioConfig config) {
       return new DedicatedTaskPool();
     }
   }

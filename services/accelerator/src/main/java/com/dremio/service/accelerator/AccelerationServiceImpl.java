@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +101,7 @@ import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -128,6 +130,14 @@ public class AccelerationServiceImpl implements AccelerationService {
     @Override
     public int compare(final Materialization first, final Materialization second) {
       return Long.compare(first.getJob().getJobEnd(), second.getJob().getJobEnd());
+    }
+  });
+
+  public static final Ordering<Materialization> STARTTIME_ORDERING = Ordering.from(new Comparator<Materialization>() {
+    @Override
+    public int compare(final Materialization first, final Materialization second) {
+      // For materializations in DONE or RUNNING state, there will be a valid start date
+      return Long.compare((first.getJob().getJobStart()), second.getJob().getJobStart());
     }
   });
 
@@ -249,7 +259,13 @@ public class AccelerationServiceImpl implements AccelerationService {
         return getMaterializations(includeIncompleteDatasets);
       }
 
+      @Override
+      public void remove(String materializationId) {
+      }
+
     };
+
+    fixMaterializationStates();
 
     materializationProvider = new CachedMaterializationProvider(provider, contextProvider, this);
     materializationProvider.getStartedFuture().addListener(
@@ -265,6 +281,32 @@ public class AccelerationServiceImpl implements AccelerationService {
     cleanupTaskRef.set(scheduleCleanupTask());
     syncDatasetPathsTask = schedulerService.get().schedule(EVERY_MINUTE, new SyncDatasetPathsTask());
     logger.info("Acceleration service is up");
+  }
+
+  /**
+   * Fix all materialization states so that materiaizations in {NEW, RUNNING} states are set to FAILED state.
+   * Invoked once during startup
+   */
+  @VisibleForTesting
+  public void fixMaterializationStates() {
+    for (Layout layout: getActiveLayouts()) {
+      Optional<MaterializedLayout> mlOptional = materializationStore.get(layout.getId());
+      if (!mlOptional.isPresent()) {
+        continue;
+      }
+      boolean bUpdated = false;
+      MaterializedLayout MaterializedLayout = mlOptional.get();
+      for (Materialization materialization: MaterializedLayout.getMaterializationList()) {
+        if (materialization.getState() == MaterializationState.NEW ||
+            materialization.getState() == MaterializationState.RUNNING) {
+          bUpdated = true;
+          materialization.setState(MaterializationState.FAILED);
+        }
+      }
+      if (bUpdated) {
+        materializationStore.save(MaterializedLayout);
+      }
+    }
   }
 
   @Override
@@ -287,6 +329,11 @@ public class AccelerationServiceImpl implements AccelerationService {
   @Override
   public Iterable<Acceleration> getAccelerations(final IndexedStore.FindByCondition condition) {
     return accelerationStore.find(condition);
+  }
+
+  @Override
+  public Iterable<Acceleration> getAllAccelerations() {
+    return accelerationStore.find();
   }
 
   @Override
@@ -645,6 +692,11 @@ public class AccelerationServiceImpl implements AccelerationService {
   }
 
   @Override
+  public void startBuildDependencyGraph() {
+    executor.submit(RebuildRefreshGraph.of(this));
+  }
+
+  @Override
   public DependencyGraph buildRefreshDependencyGraph() {
     return buildDependencyGraph(getActiveLayouts());
   }
@@ -750,7 +802,11 @@ public class AccelerationServiceImpl implements AccelerationService {
     }
   }
 
-  private Iterable<Layout> getActiveLayouts() {
+  /**
+   * get a list of all active layouts.
+   */
+  @VisibleForTesting
+  public Iterable<Layout> getActiveLayouts() {
     final Iterable<Acceleration> allActive = Iterables.concat(
         accelerationStore.getAllByIndex(AccelerationIndexKeys.ACCELERATION_STATE, AccelerationState.ENABLED.toString()),
         accelerationStore.getAllByIndex(AccelerationIndexKeys.ACCELERATION_STATE, AccelerationState.ENABLED_SYSTEM.toString())
@@ -837,6 +893,57 @@ public class AccelerationServiceImpl implements AccelerationService {
       }
     }));
   }
+  /**
+   * get the latest materialization for a layout and the materialization state should be either DONE or RUNNING.
+   * @param layout
+   * @param states
+   * @return
+   */
+  Optional<Materialization> getLatestMaterialization(final Layout layout) {
+    MaterializationWrapper materializationInfo = Iterables.getFirst(getDoneAndRunningMaterializationsSortedByJobStartTime(layout), null);
+    if (materializationInfo != null) {
+      return Optional.of(materializationInfo.getMaterialization());
+    } else {
+      return Optional.absent();
+    }
+  }
+
+  private Iterable<MaterializationWrapper> getDoneAndRunningMaterializationsSortedByJobStartTime(final Layout layout) {
+    if (layout.getLogicalPlan() == null) {
+      return ImmutableList.of();
+    }
+
+    final Set<MaterializationState> doneAndRunningStates =
+        EnumSet.of(MaterializationState.DONE, MaterializationState.RUNNING);
+
+    final List<Materialization> materializations = AccelerationUtils.getAllMaterializations(materializationStore.get(layout.getId()));
+
+    List<Materialization> result = STARTTIME_ORDERING
+        .greatestOf(FluentIterable
+            .from(materializations)
+            .filter(new Predicate<Materialization>() {
+              @Override
+              public boolean apply(@Nullable final Materialization materialization) {
+                if (!doneAndRunningStates.contains(materialization.getState())) {
+                  return false;
+                }
+                if (materialization.getLayoutVersion() != layout.getVersion()) {
+                  return false;
+                }
+                return true;
+              }
+            }), 1);
+
+    return FluentIterable
+        .from(result)
+        .transform(new Function<Materialization, MaterializationWrapper>() {
+          @Nullable
+          @Override
+          public MaterializationWrapper apply(@Nullable final Materialization materialization) {
+            return new MaterializationWrapper(materialization, false);
+          }
+        });
+  }
 
   private Iterable<MaterializationWrapper> getEffectiveMaterialization(final Layout layout, final Set<DataPartition> activeHosts, final boolean includeIncompleteDatasets) {
     if (layout.getLogicalPlan() == null) {
@@ -892,7 +999,7 @@ public class AccelerationServiceImpl implements AccelerationService {
                 return true;
               }
             }), 1);
-    if (!expiredMaterializations.isEmpty() && result.isEmpty()) {
+    if (logger.isDebugEnabled() && !expiredMaterializations.isEmpty() && result.isEmpty()) {
       DateFormat formatter = new SimpleDateFormat();
       StringBuilder expiredString = new StringBuilder();
       for (Materialization expiredMaterialization : expiredMaterializations) {
@@ -903,7 +1010,7 @@ public class AccelerationServiceImpl implements AccelerationService {
         .append(formatter.format(new Date(expiredMaterialization.getExpiration())))
         .append("}");
       }
-      logger.warn(
+      logger.debug(
           "Excluding materializations that have expired:{}",
           expiredString.toString()
       );
@@ -934,7 +1041,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     task.run();
   }
 
-  private DependencyGraph buildDependencyGraph(Iterable<Layout> layouts) {
+  private synchronized DependencyGraph buildDependencyGraph(Iterable<Layout> layouts) {
     logger.info("Started building the dependency graph.");
     Stopwatch stopWatch = Stopwatch.createStarted();
 

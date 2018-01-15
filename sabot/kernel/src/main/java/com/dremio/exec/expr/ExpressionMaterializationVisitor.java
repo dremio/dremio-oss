@@ -342,7 +342,7 @@ class ExpressionMaterializationVisitor
       return arg;
     }
     if (type == MinorType.LIST || type == MinorType.MAP) {
-      return getExceptionFunction("Unable to cast union to " + type);
+      return getExceptionFunction(String.format("Unable to convert given types. Operation unsupported for %s types", type));
     }
     String castFuncName = String.format("assert_%s", type.toString());
     Collections.singletonList(arg);

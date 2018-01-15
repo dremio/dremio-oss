@@ -57,7 +57,7 @@ public class TestJobMetadataCollection extends BaseTestServer {
   }
 
   @Test
-  public void getCatalogs() throws RpcException {
+  public void getCatalogs() throws Exception {
     GetCatalogsResp resp = rpc.getCatalogs(LikeFilter.getDefaultInstance()).checkedGet();
     JobDetailsUI job = getDetails(resp.getQueryId());
 
@@ -65,7 +65,7 @@ public class TestJobMetadataCollection extends BaseTestServer {
   }
 
   @Test
-  public void prepare() throws RpcException, InterruptedException {
+  public void prepare() throws Exception {
     CreatePreparedStatementResp resp = rpc.createPreparedStatement("select * from sys.options").checkedGet();
     JobDetailsUI job = getDetails(resp.getQueryId());
     assertTrue(job.getTimeSpentInPlanning() > 0);
@@ -109,7 +109,7 @@ public class TestJobMetadataCollection extends BaseTestServer {
 
 
 
-  private JobDetailsUI getDetails(QueryId id){
+  private JobDetailsUI getDetails(QueryId id) throws JobNotFoundException {
     return new JobDetailsUI(jobs.getJob(toId(id)));
   }
 

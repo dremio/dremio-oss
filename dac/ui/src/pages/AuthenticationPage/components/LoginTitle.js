@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
-import FontIcon from 'components/Icon/FontIcon';
+import PropTypes from 'prop-types';
 
-import { h1 } from 'uiTheme/radium/typography';
+import FontIcon from 'components/Icon/FontIcon';
 
 @Radium
 @pureRender
@@ -35,9 +35,9 @@ class LoginTitle extends Component {
         <div style={[styles.mainTitle]}>
           <FontIcon type='NarwhalLogoWithNameLight' theme={styles.theme}/>
         </div>
-        <p style={[h1, styles.subtitle]}>
+        <h1 style={styles.subtitle}>
           {this.props.subTitle}
-        </p>
+        </h1>
       </div>
     );
   }

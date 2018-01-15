@@ -19,6 +19,8 @@ import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeCo
 
 import { constructFullPathAndEncode } from 'utils/pathUtils';
 
+import sqlFunctions from 'customData/sqlFunctions.json';
+
 export const CREATE_DATASET_START = 'CREATE_DATASET_START';
 export const CREATE_DATASET_SUCCESS = 'CREATE_DATASET_SUCCESS';
 export const CREATE_DATASET_FAILURE = 'CREATE_DATASET_FAILURE';
@@ -100,15 +102,12 @@ export function moveDataSet(cPathFrom, cPathTo) {
 export const SQL_HELP_FUNC_SUCCESS = 'SQL_HELP_FUNC_SUCCESS';
 
 export function loadHelpGridData(pattern) {
-  const yamlData = require('json!yaml-parser!./../../customData/sqlfunctions.yml');
-  const funcs = yamlData[0];
-
   const sqlFuncs = pattern
-    ? funcs.filter(func => {
+    ? sqlFunctions.filter(func => {
       return func.name.toLowerCase().indexOf(pattern.toLowerCase()) !== -1 ||
              func.tags && func.tags.find(tag => tag.toLowerCase().indexOf(pattern.toLowerCase()) !== -1);
     })
-    : funcs;
+    : sqlFunctions;
 
   return {
     type: SQL_HELP_FUNC_SUCCESS,

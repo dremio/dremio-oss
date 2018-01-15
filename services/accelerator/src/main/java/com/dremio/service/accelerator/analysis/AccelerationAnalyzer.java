@@ -38,6 +38,7 @@ import com.dremio.service.accelerator.proto.LayoutField;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
@@ -124,13 +125,17 @@ public class AccelerationAnalyzer {
 
     final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
 
-    final Job job = jobsService.submitJob(query, QueryType.UI_INTERNAL_PREVIEW, NONE_PATH, DatasetVersion.NONE,
-        new NoOpJobStatusListener() {
-          @Override
-          public void jobFailed(final Exception e) {
-            logger.warn("query analysis failed for {}", query, e);
-          }
-        });
+    final Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
+        .setDatasetPath(NONE_PATH)
+        .setDatasetVersion(DatasetVersion.NONE)
+        .build(), new NoOpJobStatusListener() {
+      @Override
+      public void jobFailed(final Exception e) {
+        logger.warn("query analysis failed for {}", query, e);
+      }
+    });
 
     // trunc blocks until job completion
     final JobDataFragment data = job.getData().truncate(1);
@@ -157,18 +162,22 @@ public class AccelerationAnalyzer {
 
     final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
     final RelNode[] planHolder = new RelNode[1];
-    final Job job = jobsService.submitJob(query, QueryType.UI_INTERNAL_RUN, NONE_PATH, DatasetVersion.NONE,
-        new NoOpJobStatusListener() {
-          @Override
-          public void metadataCollected(final QueryMetadata metadata) {
-            planHolder[0] = metadata.getSerializableLogicalPlan().get();
-          }
+    final Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(NONE_PATH)
+        .setDatasetVersion(DatasetVersion.NONE)
+        .build(), new NoOpJobStatusListener() {
+      @Override
+      public void metadataCollected(final QueryMetadata metadata) {
+        planHolder[0] = metadata.getSerializableLogicalPlan().get();
+      }
 
-          @Override
-          public void jobFailed(final Exception e) {
-            logger.warn("query analysis failed for {}", sql, e);
-          }
-        });
+      @Override
+      public void jobFailed(final Exception e) {
+        logger.warn("query analysis failed for {}", sql, e);
+      }
+    });
 
     // trunc blocks until job completion
     job.getData().truncate(1);

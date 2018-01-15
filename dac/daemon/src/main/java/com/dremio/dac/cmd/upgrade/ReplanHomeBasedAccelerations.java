@@ -48,8 +48,10 @@ public class ReplanHomeBasedAccelerations extends UpgradeTask {
     Iterable<Acceleration> accelerations = accelerationStore.find();
     for (Acceleration acceleration : accelerations) {
       DatasetConfig dataset = namespace.findDatasetByUUID(acceleration.getId().getId());
-      //check if we need to replan layouts based on dataset
-      checkAndReplanIfNeeded(context, accelerationStore, namespace, acceleration, dataset);
+      if (dataset != null) {
+        //check if we need to replan layouts based on dataset
+        checkAndReplanIfNeeded(context, accelerationStore, namespace, acceleration, dataset);
+      }
     }
   }
   /**

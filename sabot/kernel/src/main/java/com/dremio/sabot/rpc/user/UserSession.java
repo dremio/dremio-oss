@@ -64,7 +64,7 @@ public class UserSession {
   private boolean supportFullyQualifiedProjections;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_0_9;
   private boolean exposeInternalSources = false;
-  private SubstitutionSettings materializationSettings = SubstitutionSettings.of();
+  private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
 
   public static class Builder {
     UserSession userSession;
@@ -113,8 +113,8 @@ public class UserSession {
       return this;
     }
 
-    public Builder withMaterializationSettings(final SubstitutionSettings materializationSettings) {
-      userSession.materializationSettings = materializationSettings;
+    public Builder withSubstitutionSettings(final SubstitutionSettings substitutionSettings) {
+      userSession.substitutionSettings = substitutionSettings;
       return this;
     }
 
@@ -182,8 +182,8 @@ public class UserSession {
     return exposeInternalSources;
   }
 
-  public SubstitutionSettings getMaterializationSettings() {
-    return materializationSettings;
+  public SubstitutionSettings getSubstitutionSettings() {
+    return substitutionSettings;
   }
 
   public String getCatalogName() {

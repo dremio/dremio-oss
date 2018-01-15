@@ -19,10 +19,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.ImmutableList;
@@ -43,34 +43,25 @@ public class TestAccelerationListManager extends BaseTestServer {
 
   @Test
   public void testAccelerationsTable() {
-    jobsService.submitJob(
-      getQueryFromSQL("SELECT * FROM sys.accelerations"),
-      QueryType.UNKNOWN,
-      NONE_PATH,
-      DatasetVersion.NONE,
-      JobStatusListener.NONE
-    ).getData().loadIfNecessary();
+    jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.accelerations"))
+        .setDatasetPath(NONE_PATH)
+        .setDatasetVersion(DatasetVersion.NONE).build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
   }
 
   @Test
   public void testLayoutsTable() {
-    jobsService.submitJob(
-      getQueryFromSQL("SELECT * FROM sys.layouts"),
-      QueryType.UNKNOWN,
-      NONE_PATH,
-      DatasetVersion.NONE,
-      JobStatusListener.NONE
-    ).getData().loadIfNecessary();
+    jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.layouts"))
+        .setDatasetPath(NONE_PATH)
+        .setDatasetVersion(DatasetVersion.NONE).build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
   }
 
   @Test
   public void testMaterializationsTable() {
-    jobsService.submitJob(
-      getQueryFromSQL("SELECT * FROM sys.materializations"),
-      QueryType.UNKNOWN,
-      NONE_PATH,
-      DatasetVersion.NONE,
-      JobStatusListener.NONE
-    ).getData().loadIfNecessary();
+    jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.materializations"))
+        .setDatasetPath(NONE_PATH)
+        .setDatasetVersion(DatasetVersion.NONE).build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
   }
 }

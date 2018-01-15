@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import { Radio, PrevalidatedTextField, DateInput } from 'components/Fields';
 import { isDateType } from 'constants/DataTypes';
-import { body, formContext } from 'uiTheme/radium/typography';
+import { formContext } from 'uiTheme/radium/typography';
 import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
 @Radium
@@ -126,7 +128,6 @@ const styles = {
     marginLeft: 0
   },
   radio: {
-    ...body,
     ...LINE_START_CENTER
   },
   radioBottom: {

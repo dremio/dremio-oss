@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import moment from 'moment';
 import { Link } from 'react-router';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
 
 import { removeSpace } from 'actions/resources/spaces';
 import { showConfirmationDialog } from 'actions/confirmation';
@@ -39,12 +41,14 @@ import { tableStyles } from '../../tableStyles';
 
 @Radium
 @pureRender
+@injectIntl
 export class AllSpacesView extends Component {
   static propTypes = {
     spaces: PropTypes.object,
     removeSpace: PropTypes.func,
     toggleActivePin: PropTypes.func.isRequired,
-    showConfirmationDialog: PropTypes.func
+    showConfirmationDialog: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -58,7 +62,7 @@ export class AllSpacesView extends Component {
       return {
         rowClassName: item.get('name'),
         data: {
-          [name.title]: {
+          [name.key]: {
             node: () => (
               <div style={allSpacesAndAllSources.listItem}>
                 {icon}
@@ -79,15 +83,15 @@ export class AllSpacesView extends Component {
               return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
             }
           },
-          [datasets.title]: {
+          [datasets.key]: {
             node: () => item.get('datasetCount'),
             value: item.get('datasetCount')
           },
-          [created.title]: {
+          [created.key]: {
             node: () => moment(item.get('ctime')).format('MM/DD/YYYY'),
             value: new Date(item.get('ctime'))
           },
-          [action.title]: {
+          [action.key]: {
             node: () => (
               <span className='action-wrap'>
                 <SettingsBtn
@@ -104,12 +108,14 @@ export class AllSpacesView extends Component {
   }
 
   getTableColumns() {
+    const { intl } = this.props;
     return [
-      { title: la('name'), flexGrow: 1},
-      { title: la('datasets'), style: tableStyles.datasetsColumn },
-      { title: la('created') },
+      { key: 'name', title: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1},
+      { key: 'datasets', title: intl.formatMessage({ id: 'Dataset.Datasets' }), style: tableStyles.datasetsColumn },
+      { key: 'created', title: intl.formatMessage({ id: 'Common.Created' }) },
       {
-        title: la('action'),
+        key: 'action',
+        title: intl.formatMessage({ id: 'Common.Action' }),
         style: tableStyles.actionColumn,
         disableSort: true,
         width: 60
@@ -118,10 +124,11 @@ export class AllSpacesView extends Component {
   }
 
   removeSpace = (spaceToRemove) => {
+    const { intl } = this.props;
     this.props.showConfirmationDialog({
-      text: la('Are you sure you want to remove the space?'),
-      title: la('Remove Space'),
-      confirmText: la('Remove'),
+      text: intl.formatMessage({id: 'Space.WantToRemoveSpace'}),
+      title: intl.formatMessage({id: 'Space.RemoveSpace'}),
+      confirmText: intl.formatMessage({id: 'Common.Remove'}),
       confirm: () => this.props.removeSpace(spaceToRemove)
     });
   }
@@ -132,17 +139,17 @@ export class AllSpacesView extends Component {
         buttonStyle='primary'
         to={{ ...this.context.location, state: { modal: 'SpaceModal' }}}
         style={allSpacesAndAllSources.addButton}>
-        {la('Add Space')}
+        {this.props.intl.formatMessage({ id: 'Space.AddSpace' })}
       </LinkButton>
     );
   }
 
   render() {
-    const { spaces } = this.props;
+    const { spaces, intl } = this.props;
     const numberOfSpaces = spaces ? spaces.size : 0;
     return (
       <BrowseTable
-        title={`${la('All Spaces')} (${numberOfSpaces})`}
+        title={`${intl.formatMessage({ id: 'Space.AllSpaces' })} (${numberOfSpaces})`}
         buttons={this.renderAddButton()}
         tableData={this.getTableData()}
         columns={this.getTableColumns()}

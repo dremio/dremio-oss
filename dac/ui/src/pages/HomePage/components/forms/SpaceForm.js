@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import General from 'components/Forms/General';
@@ -31,14 +34,13 @@ export class SpaceForm extends Component {
     fields: PropTypes.object,
     dirty: PropTypes.bool,
     updateFormDirtyState: PropTypes.func,
-    values: PropTypes.object
+    values: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   render() {
-    const {fields, handleSubmit, onFormSubmit, editing} = this.props;
-    const description = la('Spaces are how you organize datasets in Dremio.' +
-      ' They can contain physical datasets, virtual datasets, files, and folders.' +
-      ' Datasets and files can belong to more than one Space.');
+    const {fields, handleSubmit, onFormSubmit, editing, intl} = this.props;
+    const description = intl.formatMessage({ id: 'Space.AddSpaceModalDescription' });
     return (
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody>
@@ -46,14 +48,14 @@ export class SpaceForm extends Component {
             showAccelerationSection={false}
             fields={fields}
             editing={editing}
-            sectionDescription={la(description)}/>
+            sectionDescription={description}/>
         </FormBody>
       </ModalForm>
     );
   }
 }
 
-export default connectComplexForm({
+export default injectIntl(connectComplexForm({
   form: 'space',
   fields: ['version']
-}, SECTIONS, null, {})(SpaceForm);
+}, SECTIONS, null, {})(SpaceForm));

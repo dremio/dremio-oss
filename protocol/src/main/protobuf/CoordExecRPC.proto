@@ -35,6 +35,7 @@ enum RpcType {
   // exec > coordinator
   REQ_FRAGMENT_STATUS = 4;
   REQ_QUERY_DATA = 5;
+  REQ_NODE_QUERY_STATUS = 6;
   
 }
 
@@ -103,4 +104,15 @@ message QueryContextInformation {
   optional string default_schema_name = 3;  // default schema in current session when the query is submitted
   optional FragmentPriority priority = 4;
   optional int64 query_max_allocation = 5;
+}
+
+message NodeQueryStatus {
+  optional exec.shared.QueryId id = 1;
+  optional NodeEndpoint endpoint = 2;
+  repeated NodePhaseStatus phase_status = 3;
+}
+
+message NodePhaseStatus {
+  optional int32 major_fragment_id = 1;
+  optional int64 max_memory_used = 2;
 }

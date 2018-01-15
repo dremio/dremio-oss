@@ -19,6 +19,8 @@ import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static javax.ws.rs.core.MediaType.TEXT_HTML;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import javax.inject.Inject;
 import javax.ws.rs.FormParam;
@@ -122,6 +124,23 @@ public class TestResource {
   @Produces(TEXT_HTML)
   public Viewable renderExternalProfile(@FormParam("profileJsonText") String profileJsonText) throws IOException {
     QueryProfile profile = ProfileResource.SERIALIZER.deserialize(profileJsonText.getBytes());
+    return ProfileResource.renderProfile(profile, true);
+  }
+
+  @GET
+  @Path("/render_external_profile_file")
+  @Produces(TEXT_HTML)
+  public Viewable submitExternalProfileFile() {
+    return new Viewable("/rest/profile/submitExternalProfileFile.ftl");
+  }
+
+  @POST
+  @Path("/render_external_profile_file")
+  @Produces(TEXT_HTML)
+  public Viewable renderExternalProfileFile(@FormParam("profileJsonFile") String profileJsonFileText) throws IOException {
+    java.nio.file.Path profilePath = Paths.get(profileJsonFileText);
+    byte[] data = Files.readAllBytes(profilePath);
+    QueryProfile profile = ProfileResource.SERIALIZER.deserialize(data);
     return ProfileResource.renderProfile(profile, true);
   }
 }

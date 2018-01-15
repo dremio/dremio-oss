@@ -21,7 +21,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.TimeZone;
 
+import org.joda.time.DateTimeZone;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -84,6 +86,97 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testCharLiteral() throws Exception {
     testQuery("select 'test literal' from INFORMATION_SCHEMA.`TABLES` LIMIT 1");
+  }
+
+  @Test
+  public void testDateLiteral() throws Exception {
+    // Test result without changing time zone.
+    JdbcAssert.withNoDefaultSchema()
+      .sql("SELECT TO_DATE('2009-07-06', 'YYYY-MM-DD', 1), TO_DATE('12.16.17', 'MM.DD.YY', 1)," +
+        " TO_DATE('21/01/00', 'DD/MM/YY', 1), TO_DATE('DEC 25, 1999', 'MON DD, YYYY', 1), DATE '2012-12-23' FROM (VALUES(1))")
+      .returns("EXPR$0=2009-07-06; EXPR$1=2017-12-16; EXPR$2=2000-01-21; EXPR$3=1999-12-25; EXPR$4=2012-12-23");
+  }
+
+  @Test
+  public void testDateWithTimezoneChange() throws Exception {
+    // Test result with changing time zones.
+    TimeZone currentTZ = TimeZone.getDefault();
+
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+      JdbcAssert.withNoDefaultSchema()
+        .sql("SELECT TO_DATE('2009-07-06', 'YYYY-MM-DD', 1), TO_DATE('12.16.17', 'MM.DD.YY', 1)," +
+          " TO_DATE('21/01/00', 'DD/MM/YY', 1), TO_DATE('DEC 25, 1999', 'MON DD, YYYY', 1) FROM (VALUES(1))")
+        .returns("EXPR$0=2009-07-06; EXPR$1=2017-12-16; EXPR$2=2000-01-21; EXPR$3=1999-12-25");
+
+      TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
+      JdbcAssert.withNoDefaultSchema()
+        .sql("SELECT TO_DATE('2009-07-06', 'YYYY-MM-DD', 1), TO_DATE('12.16.17', 'MM.DD.YY', 1)," +
+          " TO_DATE('21/01/00', 'DD/MM/YY', 1), TO_DATE('DEC 25, 1999', 'MON DD, YYYY', 1) FROM (VALUES(1))")
+        .returns("EXPR$0=2009-07-06; EXPR$1=2017-12-16; EXPR$2=2000-01-21; EXPR$3=1999-12-25");
+    } finally {
+      TimeZone.setDefault(currentTZ);
+    }
+  }
+
+  @Test
+  public void testTimeLiteral() throws Exception {
+    // Test result without changing time zone.
+    JdbcAssert.withNoDefaultSchema()
+      .sql("SELECT TO_TIME('09:15', 'HH:MI', 1)," +
+        " TO_TIME('16:20', 'HH24:MI', 1), TO_TIME('16:30:59', 'HH24:MI:SS', 1), TIME '23:00:59'  FROM (VALUES(1))")
+      .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59; EXPR$3=23:00:59");
+  }
+
+  @Test
+  public void testTimeWithTimezoneChange() throws Exception {
+    // Test result with changing time zones.
+    TimeZone currentTZ = TimeZone.getDefault();
+
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+      JdbcAssert.withNoDefaultSchema()
+        .sql("SELECT TO_TIME('09:15', 'HH:MI', 1)," +
+          " TO_TIME('16:20', 'HH24:MI', 1), TO_TIME('16:30:59', 'HH24:MI:SS', 1)  FROM (VALUES(1))")
+        .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59");
+
+      TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
+      JdbcAssert.withNoDefaultSchema()
+        .sql("SELECT TO_TIME('09:15', 'HH:MI', 1)," +
+          " TO_TIME('16:20', 'HH24:MI', 1), TO_TIME('16:30:59', 'HH24:MI:SS', 1)  FROM (VALUES(1))")
+        .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59");
+    } finally {
+      TimeZone.setDefault(currentTZ);
+    }
+  }
+
+  @Test
+  public void testTimestampLiteral() throws Exception {
+    // Test result without changing time zone.
+    JdbcAssert.withNoDefaultSchema()
+      .sql("SELECT TO_TIMESTAMP('2014-05-10 01:59:10', 'YYYY-MM-DD HH24:MI:SS', 1)," +
+        " TIMESTAMP '1990-12-26 12:33:01' FROM (VALUES(1))")
+      .returns("EXPR$0=2014-05-10 01:59:10.0; EXPR$1=1990-12-26 12:33:01.0");
+  }
+
+  @Test
+  public void testTimestampWithTimezoneChange() throws Exception {
+    // Test result with changing time zones.
+    TimeZone currentTZ = TimeZone.getDefault();
+
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+      JdbcAssert.withNoDefaultSchema()
+        .sql("SELECT TO_TIMESTAMP('2014-05-10 01:59:10', 'YYYY-MM-DD HH24:MI:SS', 1) FROM (VALUES(1))")
+        .returns("EXPR$0=2014-05-10 01:59:10.0");
+
+      TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
+      JdbcAssert.withNoDefaultSchema()
+        .sql("SELECT TO_TIMESTAMP('2014-05-10 01:59:10', 'YYYY-MM-DD HH24:MI:SS', 1) FROM (VALUES(1))")
+        .returns("EXPR$0=2014-05-10 01:59:10.0");
+    } finally {
+      TimeZone.setDefault(currentTZ);
+    }
   }
 
   @Test

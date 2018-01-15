@@ -112,11 +112,11 @@ public class TestMasterDown extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(folder1.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(51515)
-          .masterPort(51515)
-          .httpPort(51516)
-          .with(DremioConfig.CLIENT_PORT_INT, 51517)
-          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, 51518),
+          .localPort(21515)
+          .masterPort(21515)
+          .httpPort(21516)
+          .with(DremioConfig.CLIENT_PORT_INT, 21517)
+          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, 21518),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
       // remote node
@@ -129,12 +129,12 @@ public class TestMasterDown extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(folder2.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(51530)
-          .masterPort(51515)
+          .localPort(21530)
+          .masterPort(21515)
           .masterNode(InetAddress.getLocalHost().getCanonicalHostName())
-          .httpPort(51531)
-          .with(DremioConfig.CLIENT_PORT_INT, 51532)
-          .zk("localhost:51518")
+          .httpPort(21531)
+          .with(DremioConfig.CLIENT_PORT_INT, 21532)
+          .zk("localhost:21518")
           .isRemote(true),
         DremioTest.CLASSPATH_SCAN_RESULT);
     }

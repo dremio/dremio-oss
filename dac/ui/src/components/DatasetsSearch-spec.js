@@ -68,7 +68,7 @@ describe('DatasetsSearch-spec', () => {
     expect(wrapper.find('.datasets-search')).have.length(1);
     expect(wrapper.find('.dataset-wrapper')).have.length(1);
     expect(wrapper.find('.dataset-wrapper').find('Connect(ViewStateWrapper)')).to.have.length(1);
-    expect(wrapper.find('header')).have.length(1);
+    expect(wrapper.find('h3')).have.length(1);
   });
 
   it('renders bad data without exploding', () => {
@@ -81,7 +81,7 @@ describe('DatasetsSearch-spec', () => {
     const dataset = wrapper.find('.dataset-wrapper').find('.dataset');
     const mainSettingsBtn = dataset.at(0).find('.main-settings-btn');
 
-    expect(wrapper.find('header').text()).to.contain('Search Results for "foo"');
+    expect(wrapper.find('h3').text()).to.contain('Search Results for "foo"');
     expect(dataset).have.length(2);
     expect(dataset.at(0).prop('to'))
       .equal(commonProps.searchData.get(1).getIn(['links', 'self']));

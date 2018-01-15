@@ -21,18 +21,22 @@ import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.common.logical.data.Writer;
 import com.dremio.exec.planner.common.WriterRelBase;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 
 public class WriterRel extends WriterRelBase implements Rel {
 
-  public WriterRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, CreateTableEntry createTableEntry) {
+  private final RelDataType expectedInboundRowType;
+
+  public WriterRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, CreateTableEntry createTableEntry, RelDataType expectedInboundRowType) {
     super(LOGICAL, cluster, traitSet, input, createTableEntry);
+    this.expectedInboundRowType = expectedInboundRowType;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterRel(getCluster(), traitSet, sole(inputs), getCreateTableEntry());
+    return new WriterRel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
   }
 
   @Override
@@ -44,4 +48,10 @@ public class WriterRel extends WriterRelBase implements Rel {
         .setCreateTableEntry(getCreateTableEntry())
         .build();
   }
+
+  public RelDataType getExpectedInboundRowType() {
+    return expectedInboundRowType;
+  }
+
+
 }

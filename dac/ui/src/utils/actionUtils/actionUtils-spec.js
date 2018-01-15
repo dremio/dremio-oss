@@ -56,7 +56,7 @@ describe('actionUtils', () => {
     });
 
     it('should set notification with default when there is no errorMessage and payload is empty ', () => {
-      const defaultMessage = 'Something went wrong';
+      const defaultMessage = 'Something went wrong.';
       const payload = {};
       const result = {
         message: Immutable.Map({ message: defaultMessage }),
@@ -67,7 +67,7 @@ describe('actionUtils', () => {
 
     it('should set notification with message and moreInfo to "data has changed" when status = 409', () => {
       const errorMessage = 'error';
-      const defaultMessage409 = 'The data has been changed since you last accessed it. Please refresh the page';
+      const defaultMessage409 = 'The data has been changed since you last accessed it. Please reload the page.';
       const payload = { status: 409 };
       const result = {
         message: Immutable.Map({ message: errorMessage, moreInfo: defaultMessage409 }),

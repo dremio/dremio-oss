@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
+    <title>Source/Mesos</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <circle id="path-1" cx="24" cy="24" r="24"></circle>
+        <mask id="mask-2" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="48" height="48" fill="white">
+            <use xlink:href="#path-1"></use>
+        </mask>
+    </defs>
+    <g id="Elements" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Source/Mesos">
+            <g>
+                <use id="Oval" stroke="#E5E5E5" mask="url(#mask-2)" stroke-width="2" fill="#FFFFFF" xlink:href="#path-1"></use>
+                <g id="Mesos-logo" transform="translate(8.000000, 5.000000)">
+                    <polygon id="Triangle-2" fill="#004965" points="23 3.5 16 7 16 0"></polygon>
+                    <polygon id="Triangle-2-Copy-3" fill="#25AAE1" points="15 8.5 8 12 8 5"></polygon>
+                    <polygon id="Triangle-2-Copy-2" fill="#25AAE1" transform="translate(19.500000, 8.500000) scale(-1, 1) translate(-19.500000, -8.500000) " points="23 8.5 16 12 16 5"></polygon>
+                    <polygon id="Triangle-2-Copy-5" fill="#25AAE1" points="23 13.5 16 17 16 10"></polygon>
+                    <polygon id="Triangle-2-Copy-4" fill="#004965" transform="translate(19.500000, 18.500000) scale(-1, 1) translate(-19.500000, -18.500000) " points="23 18.5 16 22 16 15"></polygon>
+                    <polygon id="Triangle-2-Copy-7" fill="#004965" points="23 23.5 16 27 16 20"></polygon>
+                    <polygon id="Triangle-2-Copy-8" fill="#004965" points="23 33.5 16 37 16 30"></polygon>
+                    <polygon id="Triangle-2-Copy-6" fill="#004965" transform="translate(19.500000, 28.500000) scale(-1, 1) translate(-19.500000, -28.500000) " points="23 28.5 16 32 16 25"></polygon>
+                    <polygon id="Triangle-2-Copy-18" fill="#25AAE1" points="31 8.5 24 12 24 5"></polygon>
+                    <polygon id="Triangle-2-Copy-17" fill="#25AAE1" transform="translate(27.500000, 13.500000) scale(-1, 1) translate(-27.500000, -13.500000) " points="31 13.5 24 17 24 10"></polygon>
+                    <polygon id="Triangle-2-Copy-16" fill="#25AAE1" points="31 18.5 24 22 24 15"></polygon>
+                    <polygon id="Triangle-2-Copy-15" fill="#25AAE1" points="31 28.5 24 32 24 25"></polygon>
+                    <polygon id="Triangle-2-Copy-14" fill="#25AAE1" transform="translate(27.500000, 23.500000) scale(-1, 1) translate(-27.500000, -23.500000) " points="31 23.5 24 27 24 20"></polygon>
+                    <polygon id="Triangle-2-Copy" fill="#004965" transform="translate(11.500000, 3.500000) scale(-1, 1) translate(-11.500000, -3.500000) " points="15 3.5 8 7 8 0"></polygon>
+                    <polygon id="Triangle-2-Copy-10" fill="#004965" points="15 18.5 8 22 8 15"></polygon>
+                    <polygon id="Triangle-2-Copy-9" fill="#25AAE1" transform="translate(11.500000, 13.500000) scale(-1, 1) translate(-11.500000, -13.500000) " points="15 13.5 8 17 8 10"></polygon>
+                    <polygon id="Triangle-2-Copy-12" fill="#004965" points="15 28.5 8 32 8 25"></polygon>
+                    <polygon id="Triangle-2-Copy-11" fill="#004965" transform="translate(11.500000, 23.500000) scale(-1, 1) translate(-11.500000, -23.500000) " points="15 23.5 8 27 8 20"></polygon>
+                    <polygon id="Triangle-2-Copy-13" fill="#004965" transform="translate(11.500000, 33.500000) scale(-1, 1) translate(-11.500000, -33.500000) " points="15 33.5 8 37 8 30"></polygon>
+                    <polygon id="Triangle-2-Copy-23" fill="#25AAE1" points="7 13.5 0 17 0 10"></polygon>
+                    <polygon id="Triangle-2-Copy-22" fill="#25AAE1" transform="translate(3.500000, 8.500000) scale(-1, 1) translate(-3.500000, -8.500000) " points="7 8.5 0 12 0 5"></polygon>
+                    <polygon id="Triangle-2-Copy-21" fill="#25AAE1" points="7 23.5 0 27 0 20"></polygon>
+                    <polygon id="Triangle-2-Copy-20" fill="#25AAE1" transform="translate(3.500000, 18.500000) scale(-1, 1) translate(-3.500000, -18.500000) " points="7 18.5 0 22 0 15"></polygon>
+                    <polygon id="Triangle-2-Copy-19" fill="#25AAE1" transform="translate(3.500000, 28.500000) scale(-1, 1) translate(-3.500000, -28.500000) " points="7 28.5 0 32 0 25"></polygon>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

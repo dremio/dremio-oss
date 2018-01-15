@@ -30,14 +30,15 @@ class TimeUtils {
     return sValue;
   }
 
-  durationWithZero(duration) {
+  durationWithZero(duration) { // todo: loc
     const seconds = this.zeroesPadding(duration.seconds(), 2);
     const minutes = this.zeroesPadding(duration.minutes(), 2);
     const hours = this.zeroesPadding(Math.floor(duration.asHours()), 2);
     if (Math.floor(duration.asHours()) <= 0 && duration.minutes() <= 0 && duration.seconds() < 1) {
       return '<1s';
     }
-    return `${hours}:${minutes}:${seconds}`;
+    // todo: loc
+    return `${hours}h:${minutes}m:${seconds}s`.replace(/^(00[a-z]:)+/, '').replace(/^0+/, '');
   }
 
   getTimeRange(step, max, pad) {

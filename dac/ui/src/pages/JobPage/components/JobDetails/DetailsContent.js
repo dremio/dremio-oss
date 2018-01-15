@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import jobsUtils from 'utils/jobsUtils';
@@ -24,7 +25,6 @@ import FontIcon from 'components/Icon/FontIcon';
 import CodeMirror from 'components/CodeMirror';
 
 import { BORDER_TABLE } from 'uiTheme/radium/colors';
-import { infoTitle } from 'uiTheme/radium/jobs';
 
 import VisibilityToggler from './VisibilityToggler';
 import ListItem from './ListItem';
@@ -124,7 +124,7 @@ class DetailsContent extends Component {
           key={index}
           title={title}
         >
-          <div style={{ borderTop: `1px solid ${BORDER_TABLE}` }} className='detail-row details-wrap'>
+          <div style={{ borderTop: `1px solid ${BORDER_TABLE}`, padding: '8px 10px' }}>
             <ul>
               <ListItem label={la('Parallelism')}>
                 <span>{datasetProfile.get('parallelism')}</span>
@@ -171,29 +171,29 @@ class DetailsContent extends Component {
     const { jobDetails } = this.props;
     const datasetsList = jobDetails.get('tableDatasetProfiles');
     return (
-      <div className='overview' style={styles.main}>
-        <div className='detail-row details-wrap'>
-          <div className='title' style={infoTitle}>{la('Plan')}</div>
+      <div>
+        <div className='detail-row'>
+          <h4>{la('Plan')}</h4>
           <ul>
             <ListItem label={la('Time Spent')}>
               <span>{jobsUtils.msToHHMMSS(jobDetails && jobDetails.get('timeSpentInPlanning'))}</span>
             </ListItem>
           </ul>
         </div>
-        <div className='detail-row details-wrap'>
-          <div className='title' style={infoTitle}>{la('Read')}</div>
+        <div className='detail-row'>
+          <h4>{la('Read')}</h4>
           {this.getJointDatasetList(datasetsList)}
         </div>
         <div className='detail-row'>
-          <div className='title' style={infoTitle}>{la('Process')}</div>
+          <h4>{la('Process')}</h4>
           <ul>
             <ListItem label={la('Top Operations')}>
               {this.getTopOperations(jobDetails.get('topOperations'))}
             </ListItem>
           </ul>
         </div>
-        <div className='detail-row details-wrap'>
-          <div className='title' style={infoTitle}>{la('Return')}</div>
+        <div className='detail-row'>
+          <h4>{la('Return')}</h4>
           <ul>
             <ListItem label={la('Wait on Client')}>
               <span>{jobsUtils.msToHHMMSS(jobDetails.get('waitInClient'))}</span>

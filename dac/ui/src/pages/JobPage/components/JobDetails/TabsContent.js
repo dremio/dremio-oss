@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import Tabs from 'components/Tabs';
 import OverviewContent from './OverviewContent';
 import DetailsContent from './DetailsContent';
+import AccelerationContent from './AccelerationContent';
 import ProfilesContent from './ProfilesContent';
 import HelpSection from './HelpSection';
 
@@ -61,6 +63,10 @@ class TabsContent extends Component {
         />
         <DetailsContent
           tabId='details'
+          jobId={jobId}
+          jobDetails={jobDetails} />
+        <AccelerationContent
+          tabId='acceleration'
           jobId={jobId}
           jobDetails={jobDetails} />
         <ProfilesContent

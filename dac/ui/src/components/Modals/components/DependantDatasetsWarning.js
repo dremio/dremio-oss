@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
 import Tooltip from 'components/Tooltip';
-import { body } from 'uiTheme/radium/typography';
 import { NAVY } from 'uiTheme/radium/colors';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 
@@ -110,7 +111,7 @@ export default class DependantDatasetsWarning extends Component {
     return (
       <div className='dataset-warning'>
         <FontIcon type='Warning' style={styles.warningIcon}/>
-        <div style={body}>
+        <div>
           {text}
         </div>
         <div style={styles.datasetContainer}>

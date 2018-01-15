@@ -16,7 +16,6 @@
 package com.dremio.dac.cmd.upgrade;
 
 import com.dremio.common.Version;
-import com.google.common.base.Function;
 
 /**
  * Base implementation for all upgrade tasks
@@ -29,12 +28,7 @@ public abstract class UpgradeTask {
   protected static final Version VERSION_110 = new Version("1.1.0", 1, 1, 0, 0, "");
   protected static final Version VERSION_111 = new Version("1.1.1", 1, 1, 1, 0, "");
   protected static final Version VERSION_120 = new Version("1.2.0", 1, 2, 0, 0, "");
-  static final Function<UpgradeTask, Version> TASK_MIN_VERSION = new Function<UpgradeTask, Version>() {
-    @Override
-    public Version apply(UpgradeTask task) {
-      return task.getMinVersion();
-    }
-  };
+  protected static final Version VERSION_130 = new Version("1.3.0", 1, 3, 0, 0, "");
 
   private final String name;
   private final Version minVersion; // task cannot be run if KVStore version is below min

@@ -101,7 +101,7 @@ public class Job {
   }
 
   public boolean hasResults() {
-    return (resultsStore == null)? false:resultsStore.jobOutputDirectoryExists(jobId);
+    return resultsStore != null && resultsStore.jobOutputDirectoryExists(jobId);
   }
 
   @Override

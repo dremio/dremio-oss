@@ -77,8 +77,9 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUser;
@@ -131,7 +132,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with bad version");
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 3");
+    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 1");
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getVersion())).buildDelete());
@@ -522,10 +523,30 @@ public class TestServer extends BaseTestServer {
     DatasetUI ds3 = createDatasetFromParentAndSave(datasetPath3, "cp.\"tpch/supplier.parquet\"");
 
     doc("run jobs");
-    l(JobsService.class).submitJob(getQueryFromConfig(ds1), QueryType.UI_RUN, datasetPath1.toNamespaceKey(), ds1.getDatasetVersion(), JobStatusListener.NONE).getData().loadIfNecessary();
-    l(JobsService.class).submitJob(getQueryFromConfig(ds2), QueryType.UI_RUN, datasetPath2.toNamespaceKey(), ds2.getDatasetVersion(), JobStatusListener.NONE).getData().loadIfNecessary();
-    l(JobsService.class).submitJob(getQueryFromConfig(ds3), QueryType.UI_RUN, datasetPath3.toNamespaceKey(), ds3.getDatasetVersion(), JobStatusListener.NONE).getData().loadIfNecessary();
-    l(JobsService.class).submitJob(getQueryFromConfig(ds2), QueryType.UI_RUN, datasetPath2.toNamespaceKey(), ds2.getDatasetVersion(), JobStatusListener.NONE).getData().loadIfNecessary();
+    l(JobsService.class).submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds1))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath1.toNamespaceKey())
+        .setDatasetVersion(ds1.getDatasetVersion())
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+    l(JobsService.class).submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds2))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath2.toNamespaceKey())
+        .setDatasetVersion(ds2.getDatasetVersion())
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+    l(JobsService.class).submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds3))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath3.toNamespaceKey())
+        .setDatasetVersion(ds3.getDatasetVersion())
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+    l(JobsService.class).submitJob(JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds2))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath2.toNamespaceKey())
+        .setDatasetVersion(ds2.getDatasetVersion())
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
 
     doc("get home");
     Home home = expectSuccess(getBuilder(getAPIv2().path("home/@"+DEFAULT_USERNAME)).buildGet(), Home.class);

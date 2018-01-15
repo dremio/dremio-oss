@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
+import { FormattedMessage } from 'react-intl';
 
 import { NEXT_ACTIONS } from 'actions/explore/nextAction';
 import AnalyzeMenuItems from 'components/Menus/AnalyzeMenuItems';
@@ -38,7 +40,7 @@ export default class BiToolsMenu extends Component {
   render() {
     return (
       <Menu>
-        <MenuLabel>{la('Analyze With:')}</MenuLabel>
+        <MenuLabel><FormattedMessage id='Dataset.AnalyzeWith'/></MenuLabel>
         <AnalyzeMenuItems
           openTableau={this.handleTableauClick}
           openQlikSense={this.handleQlikClick}

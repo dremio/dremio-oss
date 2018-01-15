@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import HostList from 'components/Forms/HostList';
@@ -80,13 +82,13 @@ export class ElasticForm extends Component {
             <HostList defaultPort={DEFAULT_PORT} fields={fields}/>
             <Credentials fields={fields}/>
             <div style={{...section, marginTop: 10}}>
-              <h3 style={sectionTitle}>{la('Pushdown Options')}</h3>
+              <h2 style={sectionTitle}>{la('Pushdown Options')}</h2>
               <div style={formRow}>
                 <Checkbox {...fields.config.scriptsEnabled} label={la('Scripts enabled in Elasticsearch cluster')}/>
               </div>
             </div>
             <div style={{...section, marginTop: 10}}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <div style={formRow}>
                   <Checkbox {...fields.config.showHiddenIndices}
@@ -131,7 +133,7 @@ export class ElasticForm extends Component {
               </AdvancedOptionsExpandable>
             </div>
             <div style={{...section, marginTop: 10}}>
-              <h3 style={sectionTitle}>{la('Connection Options')}</h3>
+              <h2 style={sectionTitle}>{la('Connection Options')}</h2>
               <div style={formRow}>
                 <Checkbox {...fields.config.sslEnabled} label={la('SSL enabled connecting to Elasticsearch cluster')}/>
               </div>

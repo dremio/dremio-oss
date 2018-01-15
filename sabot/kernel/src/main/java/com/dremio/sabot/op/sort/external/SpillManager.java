@@ -17,7 +17,6 @@ package com.dremio.sabot.op.sort.external;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -28,6 +27,8 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -43,10 +44,12 @@ import com.google.common.collect.Lists;
  * Monitoring is disabled for spill directories on non local filesystems.
  */
 public class SpillManager implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DiskRunManager.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpillManager.class);
 
-  static String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
-  static String DREMIO_LOCAL_SCHEME = "dremio-local";
+  static final String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
+  private static final String DREMIO_LOCAL_SCHEME = "dremio-local";
+  private static final String LOCAL_SCHEMA = "file";
+  private static final FsPermission PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 
   private final String id;
   private final List<SpillDirectory> allSpillDirectories;
@@ -55,20 +58,18 @@ public class SpillManager implements AutoCloseable {
   private final double minDiskSpacePercentage;
   private final long healthCheckInterval;
   private final long healthCheckSpills;
-  private final Configuration hadoopConf;
   private final String caller;
-  private final SabotConfig sabotConfig;
+  private final Configuration hadoopConf;
 
   public SpillManager(SabotConfig sabotConfig, OptionManager optionManager, String id, Configuration hadoopConf,
-                      final String caller)  {
+      String caller)  {
     final List<String> directories = new ArrayList<>(sabotConfig.getStringList(ExecConstants.SPILL_DIRS));
     if (directories.isEmpty()) {
       throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
     }
 
-    this.sabotConfig = sabotConfig;
-    this.caller = caller;
     this.id  = id;
+    this.caller = caller;
     this.hadoopConf = hadoopConf;
     // load options
     if (optionManager != null) {
@@ -94,8 +95,11 @@ public class SpillManager implements AutoCloseable {
         healthySpillDirectories.add(spillDirectory);
         allSpillDirectories.add(spillDirectory); // for cleanup
       } catch (IOException ioe) {
-        throw UserException.dataWriteError(ioe).message("Failed to create spill directory for " + caller + " for spill-path: " + spillDirPath)
-          .build(logger);
+        throw withContextParameters(
+            UserException.dataWriteError(ioe)
+                .message("Failed to create spill directory for " + caller)
+                .addContext("Spill directory path", spillDirPath.toString())
+        ).build(logger);
       }
     }
   }
@@ -114,9 +118,12 @@ public class SpillManager implements AutoCloseable {
       }
     }
 
-    throw UserException.dataWriteError().
-      message(String.format("Failed to allocate disk space for spill for %s for queryID %s. All spill directories %s are full",
-        caller, id, allSpillDirectories)).build(logger);
+    throw withContextParameters(
+        UserException.dataWriteError()
+            .message("Failed to allocate disk space for %s spill files", caller)
+            .addContext("spill id", id)
+            .addContext("all spill locations", allSpillDirectories.toString())
+    ).build(logger);
   }
 
   @Override
@@ -142,12 +149,7 @@ public class SpillManager implements AutoCloseable {
     }
 
     private void delete() throws IOException {
-      if (caller.equals("sort spilling") || sabotConfig.getBoolean(ExecConstants.SPOOLING_BUFFER_DELETE)) {
-        /* if we are spilling during sort, we always delete. if we are spilling during spooling
-         * sorted exchange, then it depends on configuration.
-         */
-        fs.delete(path, true);
-      }
+      fs.delete(path, true);
     }
 
     @Override
@@ -164,6 +166,18 @@ public class SpillManager implements AutoCloseable {
     }
   }
 
+  private static boolean enabledHealthCheck(String scheme) {
+    return DREMIO_LOCAL_SCHEME.equals(scheme) || LOCAL_SCHEMA.equals(scheme);
+  }
+
+  private UserException.Builder withContextParameters(UserException.Builder uexBuilder) {
+    uexBuilder.addContext("minDiskSpace", minDiskSpace);
+    uexBuilder.addContext("minDiskSpacePercentage", minDiskSpacePercentage);
+    uexBuilder.addContext("healthCheckInterval", healthCheckInterval);
+
+    return uexBuilder;
+  }
+
   private final class SpillDirectory implements AutoCloseable {
     private long threshold;
     private long lastChecked;
@@ -174,17 +188,18 @@ public class SpillManager implements AutoCloseable {
     private final boolean enableHealthCheck;
 
     private SpillDirectory(Path spillDir) throws IOException {
-      try {
-        final URI spillDirUri = spillDir.toUri();
-        this.fileSystem = FileSystemWrapper.get(spillDirUri, hadoopConf);
-        fileSystem.mkdirs(spillDir);
-        enableHealthCheck = DREMIO_LOCAL_SCHEME.equals(spillDirUri.getScheme());
-      } catch (IOException e) {
-        throw UserException.dataWriteError(e).message("Failed to create spill directory " + spillDir).build(logger);
+      this.fileSystem = FileSystemWrapper.get(spillDir, hadoopConf);
+      if (!fileSystem.mkdirs(spillDir, PERMISSIONS)) {
+        throw withContextParameters(
+            UserException.dataWriteError()
+                .message("Failed to create directory for " + caller)
+                .addContext("Spill directory", spillDir.toString())
+        ).build(logger);
       }
+      enableHealthCheck = enabledHealthCheck(fileSystem.getUri().getScheme());
       this.spillDirPath = spillDir;
       if (enableHealthCheck) {
-        this.disk = new File(spillDir.toString());
+        this.disk = new File(Path.getPathWithoutSchemeAndAuthority(spillDir).toString());
         final double totalSpace = (double) disk.getTotalSpace();
         this.threshold = Math.max((long) ((totalSpace / 100.0) * minDiskSpacePercentage), minDiskSpace);
         this.lastChecked = System.currentTimeMillis();
@@ -220,12 +235,12 @@ public class SpillManager implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-      if (caller.equals("sort spilling") || sabotConfig.getBoolean(ExecConstants.SPOOLING_BUFFER_DELETE)) {
-        /* if we are spilling during sort, we always delete. if we are spilling during spooling
-         * sorted exchange, then it depends on configuration.
-         */
-        fileSystem.delete(spillDirPath, true);
-      }
+      fileSystem.delete(spillDirPath, true);
+    }
+
+    @Override
+    public String toString() {
+      return spillDirPath.toString();
     }
   }
 }

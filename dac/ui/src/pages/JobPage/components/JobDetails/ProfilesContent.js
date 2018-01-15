@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-
-import { h4, body } from 'uiTheme/radium/typography';
 
 @PureRender
 export default class ProfilesContent extends Component {
@@ -33,7 +32,7 @@ export default class ProfilesContent extends Component {
       return jobDetails.get('attemptDetails').reverse().map((profile, i) => {
         const reason = profile.get('reason') ? `(${profile.get('reason')})` : '';
         return (
-          <div style={{...body, display: 'flex', marginBottom: 5}} key={i}>
+          <div style={{display: 'flex', marginBottom: 5}} key={i}>
             <div style={{width: 200}}>{la('Attempt')} {length - i} {reason}</div>
             <a onClick={() => this.props.showJobProfile(profile.get('profileUrl'))}>
               {la('Profile')} »</a>
@@ -46,7 +45,7 @@ export default class ProfilesContent extends Component {
   render() {
     return (
       <div style={styles.base} className='profiles'>
-        <span style={styles.title}>{la('Attempts')}</span>
+        <h4>{la('Attempts')}</h4>
         {this.renderProfiles()}
       </div>
     );
@@ -59,10 +58,5 @@ const styles = {
     flexDirection: 'column',
     flexWrap: 'nowrap',
     padding: 10
-  },
-
-  title: {
-    ...h4,
-    marginBottom: 15
   }
 };

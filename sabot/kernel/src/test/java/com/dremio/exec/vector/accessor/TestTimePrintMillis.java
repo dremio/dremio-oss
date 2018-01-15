@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import org.joda.time.LocalDateTime;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -25,15 +26,18 @@ public class TestTimePrintMillis {
   @Test
   public void testPrintingMillis() {
     // testing the regular case where the precision of the millisecond is 3
-    TimePrintMillis time = new TimePrintMillis(999);
-    Assert.assertTrue(time.toString().endsWith("999"));
+    org.joda.time.LocalDateTime dateTime = new LocalDateTime(2017, 11, 7, 5, 5, 5, 999);
+    TimePrintMillis time = new TimePrintMillis(dateTime);
+    Assert.assertTrue(time.toString().endsWith(".999"));
 
     // test case where one leading zero needs to be added
-    time = new TimePrintMillis(99);
-    Assert.assertTrue(time.toString().endsWith("099"));
+    dateTime = new LocalDateTime(2017, 11, 7, 5, 5, 5, 99);
+    time = new TimePrintMillis(dateTime);
+    Assert.assertTrue(time.toString().endsWith(".099"));
 
     // test case where two leading zeroes needs to be added
-    time = new TimePrintMillis(1);
-    Assert.assertTrue(time.toString().endsWith("001"));
+    dateTime = new LocalDateTime(2017, 11, 7, 5, 5, 5, 1);
+    time = new TimePrintMillis(dateTime);
+    Assert.assertTrue(time.toString().endsWith(".001"));
   }
 }

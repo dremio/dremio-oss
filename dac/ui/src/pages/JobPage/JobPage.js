@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Immutable  from 'immutable';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
+import { injectIntl } from 'react-intl';
 
 import {
   updateQueryState, filterJobsData, loadItemsForFilter, loadNextJobs
@@ -35,6 +37,7 @@ import JobsContent from './components/JobsContent';
 
 const VIEW_ID = 'JOB_PAGE_VIEW_ID';
 
+@injectIntl
 @PureRender
 export class JobPage extends Component {
   static propTypes = {
@@ -52,7 +55,8 @@ export class JobPage extends Component {
     filterJobsData: PropTypes.func.isRequired,
     loadItemsForFilter: PropTypes.func,
     loadNextJobs: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   componentDidMount() {
@@ -73,12 +77,12 @@ export class JobPage extends Component {
   }
 
   render() {
-    const { jobId, jobs, queryState, viewState, style, location } = this.props;
+    const { jobId, jobs, queryState, viewState, style, location, intl } = this.props;
     const runningJobsCount = jobsUtils.getNumberOfRunningJobs(jobs);
 
     return (
       <div style={style}>
-        <DocumentTitle title={la('Jobs')} />
+        <DocumentTitle title={intl.formatMessage({ id: 'Job.Jobs' })} />
         <MainHeader />
         <RunningJobsHeader jobCount={runningJobsCount}/>
         <JobsContent

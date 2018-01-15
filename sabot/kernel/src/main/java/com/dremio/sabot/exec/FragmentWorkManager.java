@@ -28,6 +28,7 @@ import org.apache.curator.utils.CloseableExecutorService;
 import com.codahale.metrics.Gauge;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -68,6 +69,7 @@ public class FragmentWorkManager implements Service {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
 
   private final BootStrapContext context;
+  private final DremioConfig config;
   private final Provider<NodeEndpoint> identity;
   private final Provider<SabotContext> dbContext;
   private final BindingCreator bindingCreator;
@@ -90,6 +92,7 @@ public class FragmentWorkManager implements Service {
 
   public FragmentWorkManager(
       final BootStrapContext context,
+      final DremioConfig config,
       Provider<NodeEndpoint> identity,
       final Provider<SabotContext> dbContext,
       final Provider<FabricService> fabricServiceProvider,
@@ -97,6 +100,7 @@ public class FragmentWorkManager implements Service {
       final BindingCreator bindingCreator
       ) {
     this.context = context;
+    this.config = config;
     this.identity = identity;
     this.storagePluginRegistry = storagePluginRegistry;
     this.fabricServiceProvider = fabricServiceProvider;
@@ -132,8 +136,8 @@ public class FragmentWorkManager implements Service {
      */
     @Override
     public float getClusterLoad() {
-      final float maxWidthPerNode = bitContext.getOptionManager().getOption(ExecConstants.MAX_WIDTH_PER_NODE);
-      return fragmentExecutors.size() / maxWidthPerNode;
+      final long maxWidthPerNode = bitContext.getClusterResourceInformation().getAverageExecutorCores(bitContext.getOptionManager());
+      return fragmentExecutors.size() / (maxWidthPerNode * 1.0f);
     }
 
     @Override
@@ -230,7 +234,7 @@ public class FragmentWorkManager implements Service {
     final OptionManager options = bitContext.getOptionManager();
 
     final TaskPoolFactory factory = TaskPools.newFactory(context.getConfig());
-    this.pool = factory.newInstance(options);
+    this.pool = factory.newInstance(options, config);
 
     this.executor = Executors.newCachedThreadPool();
     this.closeableExecutor = new CloseableExecutorService(executor);
@@ -241,9 +245,9 @@ public class FragmentWorkManager implements Service {
         context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.reservation"),
         context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.maximum"));
 
-    this.clerk = new QueriesClerk(context.getAllocator(), context.getConfig());
-
     final ExecToCoordTunnelCreator creator = new ExecToCoordTunnelCreator(fabricServiceProvider.get().getProtocol(Protocols.COORD_TO_EXEC));
+
+    this.clerk = new QueriesClerk(context.getAllocator(), context.getConfig(), creator);
 
     final ExitCallback callback = new ExitCallback() {
       @Override
@@ -274,7 +278,7 @@ public class FragmentWorkManager implements Service {
     bindingCreator.replace(CoordToExecHandler.class, new CoordToExecHandlerImpl(identity.get(), fragmentExecutors, builder));
     bindingCreator.bind(WorkStats.class, new WorkStatsImpl());
 
-    statusThread = new FragmentStatusThread(fragmentExecutors, creator);
+    statusThread = new FragmentStatusThread(fragmentExecutors, clerk, creator);
     statusThread.start();
     statsCollectorThread = new ThreadsStatsCollector();
     statsCollectorThread.start();

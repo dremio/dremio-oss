@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component, PropTypes} from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
 import EllipsedText from 'components/EllipsedText';
@@ -23,7 +25,7 @@ import Meter from 'components/Meter';
 
 import { LINE_NOWRAP_ROW_START_CENTER,
          FLEX_COL_START } from 'uiTheme/radium/flexStyle';
-import { body, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
 
@@ -97,7 +99,6 @@ const styles = {
     height: 24
   },
   value: {
-    ...body,
     maxWidth: 200,
     paddingLeft: 10
   },

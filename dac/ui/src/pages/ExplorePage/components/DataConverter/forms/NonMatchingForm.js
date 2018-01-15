@@ -21,7 +21,6 @@ import NewFieldSection from 'components/Forms/NewFieldSection';
 import { FieldWithError, TextField } from 'components/Fields';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
-import { body } from 'uiTheme/radium/typography';
 import { FLEX_COL_START, LINE_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
 
 import { isRequired, applyValidators } from 'utils/validation';
@@ -114,8 +113,7 @@ export default connectComplexForm({
 const styles = {
   radioOption: {
     margin: '10px 0 10px 10px',
-    ...FLEX_COL_START,
-    ...body
+    ...FLEX_COL_START
   },
   radio: {
     margin: '5px 0 5px 0',

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import { Overlay } from 'react-overlays';
@@ -25,12 +27,14 @@ import HoverTrigger from 'components/HoverTrigger';
 import { bodyWhite } from 'uiTheme/radium/typography';
 import { NAVY } from 'uiTheme/radium/colors';
 
+@injectIntl
 @Radium
 export default class ExploreSettingsButton extends Component {
   static propTypes = {
     disabled: PropTypes.bool,
     dataset: PropTypes.instanceOf(Immutable.Map),
-    side: PropTypes.oneOf(['left', 'right', 'bottom', 'top'])
+    side: PropTypes.oneOf(['left', 'right', 'bottom', 'top']),
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -74,7 +78,7 @@ export default class ExploreSettingsButton extends Component {
   };
 
   render() {
-    const { disabled, side } = this.props;
+    const { disabled, side, intl } = this.props;
     return (
       <HoverTrigger
         onEnter={this.handleMouseEnter}
@@ -97,7 +101,7 @@ export default class ExploreSettingsButton extends Component {
             type='status'
             placement={side}
             tooltipInnerStyle={styles.overlay}
-            content={la('In order to change settings, you need to save your current dataset.')}
+            content={intl.formatMessage({ id: 'Dataset.ChangeSettingsTooltip' })}
           />
         </Overlay>
       </HoverTrigger>

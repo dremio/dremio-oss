@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
 import { MAP, TEXT, LIST } from 'constants/DataTypes';
@@ -122,23 +123,27 @@ export class TransformHeader extends Component {
 
       if (!isEnabled) {
         return (
-          <span className='transform-tab' style={[linkStyle, { cursor: 'default' }]} key={tab.id}>
-            {tab.name}
-          </span>
+          <h5>
+            <span className='transform-tab' style={[linkStyle, { cursor: 'default' }]} key={tab.id}>
+              {tab.name}
+            </span>
+          </h5>
         );
       }
 
       return (
-        <Link className={'transform-tab' + (isActive ? ' active-transform-tab' : '')}
-          style={linkStyle}
-          key={tab.id}
-          to={{
-            ...location,
-            state: transform.set('transformType', tab.id).toJS()
-          }}>
-          {tab.name}
-          {lineThatShowThatActive}
-        </Link>
+        <h5>
+          <Link className={'transform-tab' + (isActive ? ' active-transform-tab' : '')}
+            style={linkStyle}
+            key={tab.id}
+            to={{
+              ...location,
+              state: transform.set('transformType', tab.id).toJS()
+            }}>
+            {tab.name}
+            {lineThatShowThatActive}
+          </Link>
+        </h5>
       );
     });
   }
@@ -184,7 +189,6 @@ const styles = {
     justifyContent: 'center',
     padding: '0 10px',
     color: '#000000',
-    ...h5,
     cursor: 'pointer'
   },
   activeTab: {

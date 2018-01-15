@@ -29,6 +29,7 @@ public interface AccelerationManager {
   void dropLayout(List<String> path, String layoutId);
   void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable);
   void replanlayout(String layoutId);
+  AccelerationDetailsPopulator newPopulator();
 
   AccelerationManager NO_OP = new AccelerationManager() {
     @Override
@@ -59,6 +60,11 @@ public interface AccelerationManager {
     @Override
     public void replanlayout(String layoutId) {
       throw new UnsupportedOperationException("AcceleratorManager.replanlayout() called on a non coordinator node");
+    }
+
+    @Override
+    public AccelerationDetailsPopulator newPopulator() {
+      return AccelerationDetailsPopulator.NO_OP;
     }
   };
 }

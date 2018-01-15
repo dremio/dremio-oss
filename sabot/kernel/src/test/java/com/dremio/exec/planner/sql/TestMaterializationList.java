@@ -69,7 +69,7 @@ public class TestMaterializationList {
 
     SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of("rid-1"), false);
 
-    when(session.getMaterializationSettings()).thenReturn(materializationSettings);
+    when(session.getSubstitutionSettings()).thenReturn(materializationSettings);
     when(provider.get(false)).thenReturn(ImmutableList.of(excluded, included));
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);

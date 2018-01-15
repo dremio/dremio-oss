@@ -53,7 +53,6 @@ import com.google.common.collect.ImmutableList;
  */
 public class DependencyGraph implements Iterable<DependencyNode>, AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DependencyGraph.class);
-
   private final SchedulerService schedulerService;
   private final AccelerationServiceImpl accelerationService;
   private final MaterializationContext materializationContext;
@@ -72,7 +71,6 @@ public class DependencyGraph implements Iterable<DependencyNode>, AutoCloseable 
     }
   };
   private final DefaultDirectedGraph<DependencyNode,DefaultEdge> graph = new DefaultDirectedGraph<>(factory);
-
 
   public DependencyGraph(AccelerationServiceImpl accelerationService,
                          JobsService jobsService,
@@ -135,8 +133,19 @@ public class DependencyGraph implements Iterable<DependencyNode>, AutoCloseable 
       reachable(subGraph, entry.getKey());
 
       final Layout head = entry.getKey().getLayout();
-      final Optional<Materialization> materialization = accelerationService.getEffectiveMaterialization(head);
+
+      Optional<Materialization> materialization = Optional.absent();
+
+      // consider both {Done, Running} materialization jobs
+      materialization =  accelerationService.getLatestMaterialization(head);
+
       final long startTimeOfLastChain = materialization.isPresent() ? materialization.get().getJob().getJobStart() : 0;
+      if (logger.isDebugEnabled() && materialization.isPresent()) {
+        logger.debug("Materialization used to set the the start time of chain - {},  "
+            + "{}, Materialization state = {}, JobStartTime  = {}",
+            materialization.get().getLayoutId(), materialization.get().getId(),
+            materialization.get().getState(), startTimeOfLastChain);
+      }
       builder.add(createChainExecutor(graph, subGraph, startTimeOfLastChain, entry.getValue().getLeft(), entry.getValue().getRight()));
     }
     return builder.build();
@@ -192,7 +201,8 @@ public class DependencyGraph implements Iterable<DependencyNode>, AutoCloseable 
 
   @Override
   public Iterator<DependencyNode> iterator() {
-    return TopologicalOrderIterator.of(graph).iterator();
+    Iterable<DependencyNode> test = TopologicalOrderIterator.of(graph);
+    return test.iterator();
   }
 
   /**

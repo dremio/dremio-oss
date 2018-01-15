@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.proto.model.acceleration;
 
+import "../../../../../services/accelerator/src/main/protobuf/acceleration.proto";
 import "../../../../../services/accelerator/src/main/protobuf/acceleration-common.proto";
 import "../../../../../services/jobs/src/main/protobuf/job.proto";
 import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
@@ -192,7 +193,7 @@ message LayoutApiDescriptor {
   // layout details
   required LayoutDetailsApiDescriptor details = 1;
   // unique layout id
-  optional LayoutId id = 2;
+  optional string id = 2;
   // name
   optional string name = 3;
   // current reflection size (byte size of most recent non-error non-expired materialization)
@@ -207,6 +208,8 @@ message LayoutApiDescriptor {
   optional ApiErrorDetails error = 8;
   //Layout state
   optional MaterializedLayoutState state = 9 [default=ACTIVE];
+  // layout type
+  optional LayoutType type = 10;
 }
 
 message LayoutDetailsApiDescriptor {

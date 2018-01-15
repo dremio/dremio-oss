@@ -17,16 +17,19 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
 import SelectContextForm from 'pages/ExplorePage/components/forms/SelectContextForm';
-import { constructFullPath } from 'utils/pathUtils';
-import codeMirrorUtils from 'utils/CodeMirrorUtils';
+import DragTarget from 'components/DragComponents/DragTarget';
 
 import SqlAutoComplete from './SqlAutoComplete';
+
+const fakeRange1 = {startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1};
+const fakeRange2 = {startLineNumber: 2, startColumn: 2, endLineNumber: 3, endColumn: 3};
 
 describe('SqlAutoComplete', () => {
   let commonProps;
   let context;
   let wrapper;
   let instance;
+  let editor;
   beforeEach(() => {
     commonProps = {
       onChange: sinon.spy(),
@@ -49,12 +52,22 @@ describe('SqlAutoComplete', () => {
 
     wrapper = shallow(<SqlAutoComplete {...commonProps}/>, {context});
     instance = wrapper.instance();
+
+    editor = {
+      getSelections: sinon.stub().returns([fakeRange1, fakeRange2]),
+      executeEdits: sinon.stub(),
+      pushUndoStop: sinon.stub(),
+      focus: sinon.stub(),
+      getTargetAtClientPoint(x, y) {
+        return {range: {startLineNumber: 1, startColumn: x, endLineNumber: 1, endColumn: y}};
+      }
+    };
+    instance.getMonacoEditorInstance = () => editor;
   });
 
-  it('renders <div>', () => {
-    expect(wrapper.type()).to.eql('div');
-    expect(wrapper.prop('className')).to.eql('sql-autocomplete');
-    expect(wrapper.find('CodeMirror')).to.have.length(1);
+  it('renders DragTarget wrapper, .sql-autocomplete, CodeMirror component', () => {
+    expect(wrapper.type()).to.eql(DragTarget);
+    expect(wrapper.find('SQLEditor')).to.have.length(1);
     expect(wrapper.find('Modal')).to.have.length(0);
   });
 
@@ -67,12 +80,12 @@ describe('SqlAutoComplete', () => {
     });
 
     it('should set showSelectContextModal when edit is clicked', () => {
-      wrapper.instance().handleClickEditContext();
+      instance.handleClickEditContext();
       expect(wrapper.state('showSelectContextModal')).to.be.true;
     });
 
     it('should unset showSelectContextModal on hide', () => {
-      wrapper.instance().hideSelectContextModal();
+      instance.hideSelectContextModal();
       expect(wrapper.state('showSelectContextModal')).to.be.false;
     });
 
@@ -88,56 +101,69 @@ describe('SqlAutoComplete', () => {
     });
   });
 
-  describe('#insertFullPathAtPosition()', () => {
-    beforeEach(() => {
-      sinon.stub(codeMirrorUtils, 'insertTextAtPos');
-      instance.editor = {
-        getCursor: sinon.stub().returns(123),
-        doc: {
-          getValue: sinon.stub().returns('theValue'),
-          setValue: sinon.spy()
-        }
-      };
-    });
-    afterEach(() => {
-      codeMirrorUtils.insertTextAtPos.restore();
-    });
-    it('should escape param if it is a string, or constructFullPath if it is a list', () => {
-      instance.insertFullPathAtPosition('needs-escaping', 0);
-      expect(codeMirrorUtils.insertTextAtPos).to.be.calledWith(instance.editor, '"needs-escaping"', 0);
-
-      const fullPath = ['a', 'b', 'c'];
-      instance.insertFullPathAtPosition(fullPath, 0);
-      expect(codeMirrorUtils.insertTextAtPos).to.be.calledWith(instance.editor, constructFullPath(fullPath), 0);
+  describe('#insertAtRanges()', () => {
+    it('default ranges should be selections', () => {
+      instance.insertAtRanges('foo');
+      expect(editor.executeEdits).to.have.been.calledWith('dremio', [{ identifier: 'dremio-inject', range: fakeRange1, text: 'foo' }, { identifier: 'dremio-inject', range: fakeRange2, text: 'foo' }]);
+      expect(editor.pushUndoStop).to.have.been.called;
+      expect(editor.focus).to.have.been.called;
     });
 
-    it('should set state.code to editor.doc.getValue', () => {
-      instance.insertFullPathAtPosition('needs-escaping', 0);
-      expect(instance.state.code).to.eql('theValue');
-    });
-
-    it('should call onChange with editor.doc.getValue', () => {
-      instance.insertFullPathAtPosition('needs-escaping', 0);
-      expect(commonProps.onChange).to.be.calledWith('theValue');
-    });
-
-    describe('#insertFullPathAtDrop()', () => {
-      it('should call insertFullPathAtPosition with this.posForDrop', () => {
-        sinon.spy(instance, 'insertFullPathAtPosition');
-        instance.posForDrop = 987;
-        instance.insertFullPathAtDrop('name');
-        expect(instance.insertFullPathAtPosition).to.be.calledWith('name', 987);
-      });
-    });
-
-    describe('#insertFullPathAtCursor()', () => {
-      it('should call insertFullPathAtPosition with editor.getCursor()', () => {
-        sinon.spy(instance, 'insertFullPathAtPosition');
-        instance.insertFullPathAtCursor('name');
-        expect(instance.insertFullPathAtPosition).to.be.calledWith('name', instance.editor.getCursor());
-      });
+    it('passing ranges', () => {
+      instance.insertAtRanges('foo', [fakeRange2, fakeRange1]);
+      expect(editor.executeEdits).to.have.been.calledWith('dremio', [{ identifier: 'dremio-inject', range: fakeRange2, text: 'foo' }, { identifier: 'dremio-inject', range: fakeRange1, text: 'foo' }]);
+      expect(editor.pushUndoStop).to.have.been.called;
+      expect(editor.focus).to.have.been.called;
     });
   });
 
+  describe('#insert${TYPE}()', () => {
+    const ranges = [fakeRange2, fakeRange1];
+    beforeEach(() => {
+      sinon.stub(instance, 'insertAtRanges');
+    });
 
+    it('#insertFullPath()', () => {
+      instance.insertFullPath(Immutable.fromJS(['@a', 'b']), ranges);
+      expect(instance.insertAtRanges).to.be.calledWith('"@a".b', ranges);
+    });
+
+    it('#insertFieldName()', () => {
+      instance.insertFieldName('1a', ranges);
+      expect(instance.insertAtRanges).to.be.calledWith('"1a"', ranges);
+    });
+
+    it('#insertFunction()', () => {
+      instance.insertFunction('PI', null, ranges);
+      expect(instance.insertAtRanges).to.be.calledWith('PI', ranges);
+
+      instance.insertFunction('PI', '', ranges);
+      expect(instance.insertAtRanges).to.be.calledWith('PI', ranges);
+
+      // testing advanced cases requires access to monaco classes, which we don't have a way of loading in unit tests for now
+    });
+  });
+
+  describe('#handleDrop()', () => {
+    beforeEach(() => {
+      sinon.stub(instance, 'insertFunction');
+      sinon.stub(instance, 'insertFieldName');
+      sinon.stub(instance, 'insertFullPath');
+    });
+    it('with function', () => {
+      const data = { id: 'TO_CHAR', args: '({expression}, [literal string] {format})' };
+      instance.handleDrop(data);
+      expect(instance.insertFunction).to.have.been.calledWith(data.id, data.args);
+    });
+    it('with field name', () => {
+      const data = { id: 'theName' };
+      instance.handleDrop(data);
+      expect(instance.insertFieldName).to.have.been.calledWith(data.id);
+    });
+    it('with full path', () => {
+      const data = { id: Immutable.fromJS(['@a', 'b'])};
+      instance.handleDrop(data);
+      expect(instance.insertFullPath).to.have.been.calledWith(data.id);
+    });
+  });
 });

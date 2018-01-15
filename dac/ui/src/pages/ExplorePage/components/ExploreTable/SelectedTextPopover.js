@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Popover from 'material-ui/Popover/Popover';
 import Immutable from 'immutable';
 import { MAP, TEXT, LIST, MIXED, BINARY } from 'constants/DataTypes';
@@ -22,6 +23,8 @@ import Menu from 'components/Menus/Menu';
 import MenuItemLink from 'components/Menus/MenuItemLink';
 import MenuItem from 'components/Menus/MenuItem';
 import Divider from 'material-ui/Divider';
+
+// todo: loc
 
 @Radium
 export default class SelectedTextPopover extends Component {
@@ -41,23 +44,23 @@ export default class SelectedTextPopover extends Component {
     this.items = Immutable.fromJS([
       {
         transform: 'extract',
-        name: 'Extract'
+        name: 'Extract…'
       },
       {
         transform: 'replace',
-        name: 'Replace'
+        name: 'Replace…'
       },
       {
         transform: 'split',
-        name: 'Split'
+        name: 'Split…'
       },
       {
         transform: 'keeponly',
-        name: 'Keep Only'
+        name: 'Keep Only…'
       },
       {
         transform: 'exclude',
-        name: 'Exclude'
+        name: 'Exclude…'
       }
     ]).filter((item) => {
       if (!props.visibleItems || !props.visibleItems.length) {
@@ -89,7 +92,7 @@ export default class SelectedTextPopover extends Component {
     }
 
     return type !== TEXT && type !== LIST && type !== MAP
-      ? this.items.filter(item => item.get('name') !== 'Extract' && item.get('name') !== 'Split')
+      ? this.items.filter(item => item.get('transform') !== 'extract' && item.get('transform') !== 'split')
       : this.items;
   }
 
@@ -99,7 +102,7 @@ export default class SelectedTextPopover extends Component {
   }
 
   renderForItemsOfList(newState) {
-    const extract = this.items.filter(item => item.get('name') === 'Extract');
+    const extract = this.items.filter(item => item.get('transform') === 'extract');
     return this.renderItem(extract.get(0), newState);
   }
 

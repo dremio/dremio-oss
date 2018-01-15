@@ -26,7 +26,7 @@ import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -105,7 +105,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem,
                              ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates, boolean readInt96AsTimeStamp,
-                             UInt4Vector deltas, boolean useSingleStream) {
+                             SimpleIntVector deltas, boolean useSingleStream) {
     super(context, columns, deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
@@ -268,10 +268,6 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       boolean schemaOnly = operatorContext == null;
 
       if (!schemaOnly) {
-        boolean useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
-        if (getColumns().size() >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
-          useSingleStream = true;
-        }
         pageReadStore = new ColumnChunkIncReadStore(recordCount,
                 CodecFactory.createDirectCodecFactory(fileSystem.getConf(),
                         new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0), operatorContext.getAllocator(),
@@ -353,7 +349,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
 
     long maxRecordCount = numRowsPerBatch;
     if (deltas != null) {
-      maxRecordCount = deltas.getAccessor().getValueCount();
+      maxRecordCount = deltas.getValueCount();
       vectorizedBasedFilter.reset();
     }
     while (count < maxRecordCount && totalRead < recordCount) {
@@ -392,27 +388,27 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   private static class VectorizedBasedFilter implements RecordFilter {
 
     private final Iterable<ColumnReader> readers;
-    private final UInt4Vector.Accessor deltasAccessor;
     private int index = -1;
     private int runningDelta = Integer.MAX_VALUE;
     private int maxIndex;
+    private SimpleIntVector deltas;
 
-    public VectorizedBasedFilter(Iterable<ColumnReader> readers, UInt4Vector deltas) {
+    public VectorizedBasedFilter(Iterable<ColumnReader> readers, SimpleIntVector deltas) {
       this.readers = readers;
-      this.deltasAccessor = deltas.getAccessor();
+      this.deltas = deltas;
     }
 
     public void reset() {
       index = 0;
-      runningDelta = deltasAccessor.get(0);
-      maxIndex = deltasAccessor.getValueCount();
+      runningDelta = deltas.get(0);
+      maxIndex = deltas.getValueCount();
     }
 
     @Override
     public boolean isMatch() {
       if (runningDelta == 0 && index++ < maxIndex) {
         if (index < maxIndex) {
-          runningDelta = deltasAccessor.get(index);
+          runningDelta = deltas.get(index);
         }
         return true;
       }

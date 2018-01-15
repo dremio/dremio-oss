@@ -132,7 +132,7 @@ public interface AttemptObserver {
   /**
    * Report normalization completion
    */
-  void planNormalized(long millisTaken);
+  void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans);
 
   /**
    * Report substitution
@@ -143,7 +143,7 @@ public interface AttemptObserver {
    */
   void planSubstituted(DremioRelOptMaterialization materialization,
                        List<RelNode> substitutions,
-                       RelNode query, RelNode target, long millisTaken);
+                       RelNode target, long millisTaken);
 
   /**
    * Report materializations used to accelerate incoming query only if query is accelerated.

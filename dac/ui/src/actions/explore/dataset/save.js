@@ -109,7 +109,7 @@ export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
 
 // response must be successful save
 export function afterSaveDataset(response, nextAction) {
-  invariant(!response.error, 'response can not be an error');
+  invariant(!response.error, 'response cannot be an error');
   return (dispatch) => {
     const nextDataset = apiUtils.getEntityFromResponse('datasetUI', response);
     const historyItems = response.payload.getIn(['entities', 'historyItem']).toList();

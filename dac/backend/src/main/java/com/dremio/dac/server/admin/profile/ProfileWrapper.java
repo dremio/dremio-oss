@@ -32,13 +32,15 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.service.accelerator.AccelerationDetailsUtils;
+import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.google.common.base.Strings;
 
 /**
  * Wrapper class for a {@link #profile query profile}, so it to be presented through web UI.
  */
 public class ProfileWrapper {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProfileWrapper.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProfileWrapper.class);
 
   private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance(Locale.US);
 
@@ -46,6 +48,7 @@ public class ProfileWrapper {
   private String id;
   private final List<FragmentWrapper> fragmentProfiles;
   private final List<OperatorWrapper> operatorProfiles;
+  private final AccelerationWrapper accelerationDetails;
 
   public ProfileWrapper(final QueryProfile profile, boolean debug) {
     this.profile = profile;
@@ -94,6 +97,18 @@ public class ProfileWrapper {
       ows.add(new OperatorWrapper(ip.getLeft(), opmap.get(ip)));
     }
     this.operatorProfiles = ows;
+
+    AccelerationWrapper wrapper = null;
+    try {
+      AccelerationDetails details = AccelerationDetailsUtils.deserialize(profile.getAccelerationProfile().getAccelerationDetails());
+      if (details != null) {
+        wrapper = new AccelerationWrapper(details);
+      }
+    } catch (Exception e) {
+      // do not fail if we are unable to deserialize the acceleration details
+      logger.warn("Failed to deserialize acceleration details", e);
+    }
+    accelerationDetails = wrapper;
   }
 
   /**
@@ -130,6 +145,10 @@ public class ProfileWrapper {
 
   public QueryProfile getProfile() {
     return profile;
+  }
+
+  public AccelerationWrapper getAccelerationDetails() {
+    return accelerationDetails;
   }
 
   public String getQueryId() {

@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import {Popover, PopoverAnimationVertical} from 'material-ui/Popover';
 import FontIcon from 'components/Icon/FontIcon';
@@ -124,6 +126,7 @@ export default class Select extends Component {
         <div style={baseStyle} data-qa={dataQa}>
           <button
             onClick={this.handleTouchTap}
+            type='button'
             style={[styles.button, buttonStyle]}>
             <span style={[styles.label, customLabelStyle, formDefault]}>{buttonLabel}</span>
             {this.renderIcon()}

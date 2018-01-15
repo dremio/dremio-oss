@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
-
-import { h3 } from 'uiTheme/radium/typography';
 
 // todo: discuss: could just be CSS - no need for per-tab `import`?
 
@@ -34,7 +33,7 @@ class Header extends Component {
   render() {
     return (
       <header style={styles.adminHeader}>
-        <h3 style={h3}>{this.props.title || this.props.children}</h3>
+        <h3>{this.props.title || this.props.children}</h3>
         <div>
           {this.props.endChildren}
         </div>

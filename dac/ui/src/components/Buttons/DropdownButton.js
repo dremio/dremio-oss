@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import deepEqual from 'deep-equal';
 
 import { SECONDARY, SECONDARY_BORDER, BLUE } from 'uiTheme/radium/colors';
-import { body } from 'uiTheme/radium/typography';
 import FontIcon from 'components/Icon/FontIcon';
 
 // todo: use 'uiTheme/radium/buttons' instead
@@ -114,8 +114,8 @@ export default class DropdownButton extends Component {
     const { className, type, disabled, iconType, hideDropdown } = this.props;
     //const background = { backgroundColor: '#68C6D3' };
     const base = {...styles.base, ...(type === 'primary' ? PRIMARY_BASE : {})};
-    const bodyFont = {...body, ...(type === 'primary' ? {color: '#fff'} : {})};
-    const divider = {...body, ...(type === 'primary' ? {borderLeft: '1px solid rgba(255,255,255,0.25)'} : {})};
+    const bodyFont = {...(type === 'primary' ? {color: '#fff'} : {})};
+    const divider = {...(type === 'primary' ? {borderLeft: '1px solid rgba(255,255,255,0.25)'} : {})};
     const hoverStyle = {backgroundColor: type === 'primary' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.2)'};
 
     const toggleIcontype = type === 'primary'

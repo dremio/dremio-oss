@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component, PropTypes} from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
 import { LINE_NOROW_START_STRETCH } from 'uiTheme/radium/flexStyle';
 
 import { loadDatasetForDatasetType } from 'actions/resources';
@@ -38,7 +40,7 @@ import DatasetOverviewForm from './DatasetOverviewForm';
 
 const DATASET_SETTINGS_VIEW_ID = 'DATASET_SETTINGS_VIEW_ID';
 
-
+@injectIntl
 @pureRender
 @Radium
 @DatasetSettingsMixin
@@ -55,6 +57,7 @@ export class DatasetSettings extends Component {
     datasetUrl: PropTypes.string,
     location: PropTypes.object,
     viewState: PropTypes.instanceOf(Immutable.Map),
+    intl: PropTypes.object.isRequired,
     hide: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,

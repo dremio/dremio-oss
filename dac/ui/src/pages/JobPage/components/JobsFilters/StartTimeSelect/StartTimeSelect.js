@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import moment from 'moment';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import * as IntervalTypes from './IntervalTypes';
 import LeftPanel from './LeftPanel';
 import RightPanel from './RightPanel';

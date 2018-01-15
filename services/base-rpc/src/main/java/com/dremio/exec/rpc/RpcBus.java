@@ -22,11 +22,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.codahale.metrics.Histogram;
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
+import com.dremio.metrics.Metrics;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
@@ -43,6 +45,8 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 /**
  * The Rpc Bus deals with incoming and outgoing communication and is used on both the server and the client side of a
@@ -56,6 +60,9 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
   private static final OutboundRpcMessage PONG = new OutboundRpcMessage(RpcMode.PONG, 0, 0, Acks.OK);
   private static final boolean ENABLE_SEPARATE_THREADS = "true".equals(System.getProperty("dremio.enable_rpc_offload", "false"));
 
+  public static final long RPC_DELAY_WARNING_THRESHOLD =
+      Integer.parseInt(System.getProperty("dremio.exec.rpcDelayWarning", "500"));
+
   protected abstract MessageLite getResponseDefaultInstance(int rpcType) throws RpcException;
 
   protected void handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender) throws RpcException{
@@ -66,9 +73,12 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
   protected final RpcConfig rpcConfig;
 
+  private final Histogram sendDurations;
 
   public RpcBus(RpcConfig rpcConfig) {
     this.rpcConfig = rpcConfig;
+    this.sendDurations = Metrics.getInstance()
+        .histogram(rpcConfig.getName() + "-send-durations-ms");
   }
 
   <SEND extends MessageLite, RECEIVE extends MessageLite> RpcFuture<RECEIVE> send(C connection, T rpcType,
@@ -103,10 +113,17 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
       assert rpcConfig.checkSend(rpcType, protobufBody.getClass(), clazz);
 
       Preconditions.checkNotNull(protobufBody);
+      final Stopwatch stopwatch = Stopwatch.createStarted();
       ChannelListenerWithCoordinationId futureListener = connection.createNewRpcListener(listener, clazz);
       OutboundRpcMessage m = new OutboundRpcMessage(RpcMode.REQUEST, rpcType, futureListener.getCoordinationId(), protobufBody, dataBodies);
       ChannelFuture channelFuture = connection.getChannel().writeAndFlush(m);
       channelFuture.addListener(futureListener);
+      channelFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
+        @Override
+        public void operationComplete(Future<? super Void> future) throws Exception {
+          sendDurations.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        }
+      });
       completed = true;
     } catch (Exception | AssertionError e) {
       listener.failed(new RpcException("Failure sending message.", e));
@@ -320,11 +337,10 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
         }
       } finally {
         long time = watch.elapsed(TimeUnit.MILLISECONDS);
-        long delayThreshold = Integer.parseInt(System.getProperty("dremio.exec.rpcDelayWarning", "500"));
-        if (time > delayThreshold) {
+        if (time > RPC_DELAY_WARNING_THRESHOLD) {
           logger.warn(String.format(
               "Message of mode %s of rpc type %d took longer than %dms.  Actual duration was %dms.",
-              msg.mode, msg.rpcType, delayThreshold, time));
+              msg.mode, msg.rpcType, RPC_DELAY_WARNING_THRESHOLD, time));
         }
         msg.release();
       }

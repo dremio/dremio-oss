@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import FieldWithError from 'components/Fields/FieldWithError';
 import TextField from 'components/Fields/TextField';
@@ -52,7 +54,7 @@ export default class Credentials extends Component {
     const inlineBlock = {display: 'inline-block'};
     return (
       <div className='credentials' style={section}>
-        <h3 style={sectionTitle}>{la('Authentication')}</h3>
+        <h2 style={sectionTitle}>{la('Authentication')}</h2>
         <div style={formRow}>
           <Radio
             radioValue='ANONYMOUS'

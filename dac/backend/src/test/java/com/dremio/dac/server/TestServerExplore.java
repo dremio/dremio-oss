@@ -187,11 +187,11 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -1376,7 +1376,9 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
       "select row_number() over (order by a) as rnk, a from cp.\"json/numbers.json\"", asList("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select t1.rnk, t1.a from %s t1 join %s t2 on t1.rnk = t2.rnk+1", pathName, pathName));
-    final Job ctasJob = jobsService.submitJob(query, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
   }
 
@@ -1389,7 +1391,9 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI dateTimeVD = createDatasetFromSQLAndSave(datetimePath,
       "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"", asList("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName, pathName));
-    final Job ctasJob = jobsService.submitJob(query, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
   }
 
@@ -1402,11 +1406,15 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
       "select CASE WHEN a > 2 THEN 'less than 2' ELSE 'greater than 2' END as twoInfo, a from cp.\"json/numbers.json\"", asList("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
-    final Job ctasJob = jobsService.submitJob(query, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
 
     final SqlQuery query2 = getQueryFromSQL(String.format("select count(*) from %s where a > 2", pathName));
-    final Job ctasJob2 = jobsService.submitJob(query, QueryType.UNKNOWN, null, null, JobStatusListener.NONE);
+    final Job ctasJob2 = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob2.getData().loadIfNecessary();
   }
 

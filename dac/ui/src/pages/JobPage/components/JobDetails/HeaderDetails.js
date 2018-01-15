@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
@@ -29,8 +30,6 @@ import StateLabels from 'constants/jobPage/StateLabels.json';
 import datasetPathUtils from 'utils/resourcePathUtils/dataset';
 import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
 import { getViewState } from 'selectors/resources';
-
-import { h4 } from 'uiTheme/radium/typography';
 
 @PureRender
 @Radium
@@ -142,7 +141,7 @@ class HeaderDetails extends Component {
         <div style={styles.stateHolder}>
           <FontIcon theme={styles.stateIcon} type={StateIconTypes[jobState]}/>
           <div className='state'>
-            {label} <span style={[styles.state, h4]}>{jobState.toLowerCase()}</span>
+            {label} <span className='h4' style={[styles.state]}>{jobState.toLowerCase()}</span>
           </div>
           {jobDetails.get('accelerated') && <FontIcon type='Flame' style={{ marginLeft: 5 }} />}
         </div>
@@ -162,7 +161,8 @@ const styles = {
     'height': 28
   },
   state: {
-    textTransform: 'capitalize'
+    textTransform: 'capitalize',
+    marginBottom: '0'
   },
   openResults: {
     display: 'flex',

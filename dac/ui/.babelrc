@@ -1,12 +1,12 @@
 {
-  "presets": ["es2015", "react", "stage-0"],
+  "presets": ["env", "react", "stage-0"],
   "plugins": [
+    "transform-decorators-legacy",
     ["transform-runtime", {
       "helpers": true,
       "polyfill": false,
       "regenerator": true
     }],
-    "transform-decorators-legacy",
     "transform-es2015-modules-commonjs",
     "react-require"
   ],
@@ -18,7 +18,6 @@
       ]
     },
     "development": {
-      "presets": ["react-hmre"]
     }
   }
 }

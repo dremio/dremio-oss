@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.parser.SqlAddLayout;
+import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.LayoutDefinition;
 import com.dremio.exec.store.sys.accel.LayoutDefinition.Type;
@@ -203,5 +204,10 @@ public class AccelerationManagerImpl implements AccelerationManager {
   @Override
   public void replanlayout(String layoutId) {
     accelService.replan(new LayoutId(layoutId));
+  }
+
+  @Override
+  public AccelerationDetailsPopulator newPopulator() {
+    return new AccelerationDetailsPopulatorImpl(accelService);
   }
 }

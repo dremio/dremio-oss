@@ -55,7 +55,7 @@ import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.SubstitutionSettings;
-import com.dremio.exec.work.user.LocalQueryExecutor.LocalExecutionConfig;
+import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.google.common.base.Function;
@@ -287,8 +287,18 @@ public class TestStoreQueryResults extends BaseTestQuery {
         .build();
 
     String queryResultsStorePath = format("%s.`%s`", TEMP_SCHEMA, storeTblName);
-    LocalExecutionConfig config = new LocalExecutionConfig(false, 0L, false, getProcessUserName(),
-        Collections.<String>emptyList(), true, false, queryResultsStorePath, true, false, SubstitutionSettings.of());
+    LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
+        .setEnableLeafLimits(false)
+        .setMaxQueryWidth(0L)
+        .setFailIfNonEmptySent(false)
+        .setUsername(getProcessUserName())
+        .setSqlContext(Collections.<String>emptyList())
+        .setInternalSingleThreaded(false)
+        .setQueryResultsStorePath(queryResultsStorePath)
+        .setAllowPartitionPruning(true)
+        .setExposeInternalSources(false)
+        .setSubstitutionSettings(SubstitutionSettings.of())
+        .build();
 
     TestQueryObserver queryObserver = new TestQueryObserver(checkWriterDistributionTrait);
     localQueryExecutor.submitLocalQuery(ExternalIdHelper.generateExternalId(), queryObserver, queryCmd, false, config);

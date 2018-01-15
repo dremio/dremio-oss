@@ -225,6 +225,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     private final String name;
     private Type type;
     private final Indexing indexing;
+    private final boolean normalized;
     private final List<String> formats;
     private final ImmutableList<ElasticField> children;
     private final boolean docValues;
@@ -233,12 +234,14 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         String name,
         Type type,
         Indexing indexing,
+        boolean normalized,
         List<String> formats,
         boolean docValues,
         List<ElasticField> children) {
       this.name = name;
       this.type = type;
       this.indexing = indexing;
+      this.normalized = normalized;
       this.formats = formats;
       this.docValues = docValues;
       this.children = ImmutableList.copyOf(children);
@@ -248,6 +251,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         @JacksonInject(CurentNameInjectable.CURRENT_NAME) String name,
         @JsonProperty("type") Type type,
         @JsonProperty("index") Indexing indexing,
+        @JsonProperty("normalizer") String normalizer,
         @JsonProperty("format") String format,
         @JsonProperty("doc_values") Boolean docValues,
         @JsonProperty("properties") Map<String,ElasticField> children){
@@ -277,6 +281,8 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       }else {
         this.indexing = indexing;
       }
+
+      this.normalized = normalizer != null;
 
       this.type = type == null ? Type.OBJECT : type;
 
@@ -335,8 +341,11 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         return null;
       }
 
+      // if either one is normalized, treat the merger as normalized
+      boolean normalized = this.normalized || field.normalized;
+
       // we just have different fields. Let's merge them.
-      return new ElasticField(name, type, indexing, formats, docValues, mergeFields(children, field.children, curr_mapping, other_mapping, curr_index, other_index));
+      return new ElasticField(name, type, indexing, normalized, formats, docValues, mergeFields(children, field.children, curr_mapping, other_mapping, curr_index, other_index));
     }
 
     public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
@@ -415,6 +424,10 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     public Indexing getIndexing() {
       return indexing;
+    }
+
+    public boolean isNormalized() {
+      return normalized;
     }
 
     public List<String> getFormats() {

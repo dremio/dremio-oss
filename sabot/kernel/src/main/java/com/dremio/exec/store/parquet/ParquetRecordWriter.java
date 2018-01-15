@@ -688,4 +688,26 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     },
     codecAllocator, columnEncoderAllocator);
   }
+
+  @Override
+  public FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new NullParquetConverter(fieldId, fieldName, reader);
+  }
+
+  public class NullParquetConverter extends ParquetFieldConverter {
+
+    public NullParquetConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+    }
+
+    @Override
+    public void writeValue() throws IOException {
+      /* NO-OP */
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      writeValue();
+    }
+  }
 }

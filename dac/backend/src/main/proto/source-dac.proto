@@ -133,6 +133,11 @@ message MSSQLConfig {
   optional string password = 5;
   optional AuthenticationType authenticationType = 6;
   optional uint32 fetchSize = 7;
+  // The database used in the connection handshake. Useful for restricting access, or if a DBMS user does not
+  // have permissions to their default database.
+  optional string database = 8;
+  // Indicates that only tables in the database used in the connection handshake are visible.
+  optional bool showOnlyConnectionDatabase = 9 [default = false];
 }
 
 message DB2Config {

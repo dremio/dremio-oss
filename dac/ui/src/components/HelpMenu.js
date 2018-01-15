@@ -13,30 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import { injectIntl } from 'react-intl';
 
 import { getLocation } from 'selectors/routing';
 
 import Menu from 'components/Menus/Menu';
 import MenuItemLink from 'components/Menus/MenuItemLink';
 
+@injectIntl
 export class HelpMenu extends Component {
   static propTypes = {
     closeMenu: PropTypes.func.isRequired,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   render() {
-    const { closeMenu, location } = this.props;
+    const { closeMenu, location, intl } = this.props;
 
     return <Menu>
       <MenuItemLink href='https://docs.dremio.com' external newWindow closeMenu={closeMenu}
-        text={la('Documentation')} />
+        text={intl.formatMessage({ id: 'HeaderMenu.Documentation' })} />
       <MenuItemLink href='https://community.dremio.com' external newWindow closeMenu={closeMenu}
-        text={la('Community Site')} />
-      <MenuItemLink href={{...location, state: {modal: 'AboutModal'}}} text={la('About Dremio')}
-        closeMenu={closeMenu}/>
+        text={intl.formatMessage({ id: 'HeaderMenu.CommunitySite' })} />
+      <MenuItemLink href={{...location, state: {modal: 'AboutModal'}}} closeMenu={closeMenu}
+        text={intl.formatMessage({ id: 'App.AboutHeading' })} />
     </Menu>;
   }
 }

@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import HOCON from 'hoconfig-js/lib/parser';
 
@@ -30,6 +31,8 @@ import { FieldWithError, TextField, Select, Checkbox } from 'components/Fields';
 import { formRow, sectionTitle, label, textInput } from 'uiTheme/radium/forms';
 import { formLabel, formDefault } from 'uiTheme/radium/typography';
 import TextFieldList from 'components/Forms/TextFieldList';
+import { formatMessage } from 'utils/locale';
+import config from 'utils/config';
 
 const FIELDS = [
   'id', 'clusterType', 'resourceManagerHost', 'namenodeHost', 'queue',
@@ -39,9 +42,25 @@ const FIELDS = [
   'spillDirectories[]'
 ];
 
+const DEFAULT_MEMORY = 16;
+const DEFAULT_CORES = 4;
+
+function getMinErrors(values) {
+  const errors = {};
+  if (config.lowerProvisioningSettingsEnabled) return errors;
+
+  if (values.memoryMB < DEFAULT_MEMORY) {
+    errors.memoryMB = formatMessage('Yarn.MinMemoryError', { default: DEFAULT_MEMORY });
+  }
+  if (values.virtualCoreCount < DEFAULT_CORES) {
+    errors.virtualCoreCount = formatMessage('Yarn.MinCoresError', { default: DEFAULT_CORES });
+  }
+  return errors;
+}
 
 function validate(values) {
   return {
+    ...getMinErrors(values),
     ...applyValidators(values, [
       isRequired('resourceManagerHost', la('Resource Manager')),
       isRequired('namenodeHost', YarnForm.hostNameLabel(values)),
@@ -241,7 +260,7 @@ export class YarnForm extends Component {
         onSubmit={handleSubmit(this.submitForm)}
         confirmText={confirmText}>
         <FormBody style={style}>
-          <h3 style={sectionTitle}>{la('General')}</h3>
+          <h2 style={sectionTitle}>{la('General')}</h2>
           <div style={styles.formRow}>
             <div style={{display: 'inline-flex', marginRight: textInput.marginRight}}>
               <div style={styles.inlineBlock}>
@@ -301,7 +320,7 @@ export class YarnForm extends Component {
               labelStyle={formLabel}
               style={styles.inlineBlock}
               label={la('Workers')}
-              errorPlacement='top'
+              errorPlacement='bottom'
               {...fields.dynamicConfig.containerCount}>
               <TextField {...fields.dynamicConfig.containerCount} style={{width: 75}}/>
             </FieldWithError>
@@ -317,7 +336,7 @@ export class YarnForm extends Component {
               labelStyle={formLabel}
               style={styles.inlineBlock}
               label={la('Memory per Worker')}
-              errorPlacement='top'
+              errorPlacement='bottom'
               {...fields.memoryMB}>
               <span>
                 <TextField {...fields.memoryMB} style={{width: 75}}/>
@@ -368,7 +387,9 @@ export default connectComplexForm({
     spillDirectories: [YarnForm.distributionDirectory(PROVISION_DISTRIBUTIONS.APACHE)],
     namenodeHost: YarnForm.hostNamePrefix(PROVISION_DISTRIBUTIONS.APACHE),
     distroType: PROVISION_DISTRIBUTIONS.APACHE,
-    isSecure: false
+    isSecure: false,
+    memoryMB: DEFAULT_MEMORY,
+    virtualCoreCount: DEFAULT_CORES
   }
 }, [], mapToFormState, null)(YarnForm);
 

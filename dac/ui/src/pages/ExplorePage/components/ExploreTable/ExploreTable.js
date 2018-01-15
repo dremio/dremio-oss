@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
 import shallowEqual from 'shallowequal';
 import $ from 'jquery';
 import Immutable from 'immutable';
 import { Column, Table } from 'fixed-data-table-2';
-import { debounce } from 'lodash/function';
+import { AutoSizer } from 'react-virtualized';
+import { injectIntl } from 'react-intl';
 
 import { DEFAULT_ROW_HEIGHT, MIN_COLUMN_WIDTH } from 'uiTheme/radium/sizes';
 
@@ -32,10 +34,9 @@ import ColumnHeader from './ColumnHeader';
 import './ExploreTable.less';
 
 const TIME_BEFORE_SPINNER = 1500;
-export const PAGE_SIZE = 100;
-export const HEADER_HEIGHT = 45;
 export const RIGHT_TREE_OFFSET = 251;
 
+@injectIntl
 @Radium
 export default class ExploreTable extends PureComponent {
   static propTypes = {
@@ -64,7 +65,8 @@ export default class ExploreTable extends PureComponent {
     getTableHeight: PropTypes.func,
     location: PropTypes.object,
     height: PropTypes.number,
-    isGrayed: PropTypes.bool
+    isGrayed: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static getCellStyle(column) {
@@ -121,12 +123,10 @@ export default class ExploreTable extends PureComponent {
       size: Immutable.Map({ width: 0, height: 0, defaultColumnWidth: 0 }),
       columns: columns || Immutable.List([])
     };
-    this.debouncedUpdateSize = debounce(this.updateSize, 50);
   }
 
   componentDidMount() {
     this.updateSize();
-    $(window).on('resize', this.handleWindowResize);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -151,8 +151,6 @@ export default class ExploreTable extends PureComponent {
   }
 
   componentWillUnmount() {
-    this.debouncedUpdateSize && this.debouncedUpdateSize.cancel();
-    $(window).off('resize', this.handleWindowResize);
     $('.fixedDataTableCellLayout_columnResizerContainer').off('mousedown', this.removeResizerHiddenElem);
   }
 
@@ -186,8 +184,8 @@ export default class ExploreTable extends PureComponent {
 
   getColumnsToCompare(columns) {
     return columns.map(c => {
-      const { hidden, index, name, type } = c.toJS();
-      return Immutable.Map({ hidden, index, name, type });
+      const { hidden, index, name, type, status } = c.toJS();
+      return Immutable.Map({ hidden, index, name, type, status });
     });
   }
 
@@ -210,16 +208,6 @@ export default class ExploreTable extends PureComponent {
       return true;
     }
     return !this.getColumnsToCompare(newColumns).equals(this.getColumnsToCompare(this.state.columns));
-  }
-
-
-  hasHorizontalScroll() {
-    const columns = this.state.columns.toJS();
-    const filteredColumns = columns.filter((column) => !column.hidden);
-    const fullWidth = filteredColumns.reduce((prev, column) =>
-      prev + (column.width || this.state.size.get('defaultColumnWidth'))
-      , 0);
-    return fullWidth > this.state.size.get('width');
   }
 
   updateColumns(props) {
@@ -261,12 +249,6 @@ export default class ExploreTable extends PureComponent {
     });
     this.updateSize();
   }
-
-  handleWindowResize = () => {
-    this.updateSize();
-    this.debouncedUpdateSize();
-    //this need to fix DX-8244 due to re-render of table because of horizontal scroll clipping
-  };
 
   removeResizerHiddenElem = () => {
     $('.fixedDataTableColumnResizerLineLayout_main').removeClass('fixedDataTableColumnResizerLineLayout_hiddenElem');
@@ -333,37 +315,40 @@ export default class ExploreTable extends PureComponent {
 
   renderTable() {
     const { dataset, tableData } = this.props;
-    const heightTable = { height: this.state.size.get('height') };
     const scrollToColumn = this.getScrollToColumn();
     if ((!dataset.get('isNewQuery')) && tableData.get('columns').size) {
-      return <Table
-        rowHeight={DEFAULT_ROW_HEIGHT}
-        ref='table'
-        rowsCount={tableData.get('rows').size}
-        width={this.state.size.get('width')}
-        {...heightTable}
-        overflowX='auto'
-        overflowY='auto'
-        scrollToColumn={scrollToColumn}
-        onColumnResizeEndCallback={this.handleColumnResizeEnd}
-        isColumnResizing={false}
-        headerHeight={DEFAULT_ROW_HEIGHT}>
-        {this.renderColumns()}
-      </Table>;
+      return (
+        <AutoSizer>
+          { ({height, width}) => (
+            <Table
+              rowHeight={DEFAULT_ROW_HEIGHT}
+              ref='table'
+              rowsCount={tableData.get('rows').size}
+              width={width}
+              height={height}
+              overflowX='auto'
+              overflowY='auto'
+              scrollToColumn={scrollToColumn}
+              onColumnResizeEndCallback={this.handleColumnResizeEnd}
+              isColumnResizing={false}
+              headerHeight={DEFAULT_ROW_HEIGHT}>
+              {this.renderColumns()}
+            </Table>) }
+        </AutoSizer>
+      );
     }
   }
 
   render() {
     const columns = this.state.columns;
-    const width = this.state.size.get('width');
     const height = this.state.size.get('height');
-    const { exploreViewState, cardsViewState, pageType } = this.props;
+    const { exploreViewState, cardsViewState, pageType, intl } = this.props;
     const showMessage = pageType === 'default';
     const viewState = pageType === 'default' || !(cardsViewState && cardsViewState.size)
       || exploreViewState.get('isInProgress') ? exploreViewState : cardsViewState;
 
     return (
-      <div className='fixed-data-table' style={{ height, width }}>
+      <div className='fixed-data-table' style={{ width: '100%' }}>
         <ViewStateWrapper
           spinnerDelay={columns.size ? TIME_BEFORE_SPINNER : 0}
           viewState={viewState}
@@ -373,7 +358,7 @@ export default class ExploreTable extends PureComponent {
           {this.props.isGrayed && <div data-qa='table-grayed-out' style={styles.grayed}/>}
           {this.renderTable()}
           <ViewCheckContent
-            message={la('No Data')}
+            message={intl.formatMessage({ id: 'Dataset.NoData' })}
             viewState={viewState}
             dataIsNotAvailable={this.shouldShowNoData(viewState)}
             customStyle={{

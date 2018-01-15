@@ -27,8 +27,10 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import com.dremio.common.config.SabotConfig;
@@ -99,8 +101,9 @@ public class TestCachedMaterializationProvider {
   public void setup() {
     MockitoAnnotations.initMocks(this);
   }
+
   @Test
-  public void testAddMaterialization() {
+  public void testAddMaterialization() throws Exception {
     when(contextProvider.get()).thenReturn(context);
     when(context.getStorage()).thenReturn(storageRegistry);
     when(context.getFunctionImplementationRegistry()).thenReturn(registry);
@@ -132,17 +135,8 @@ public class TestCachedMaterializationProvider {
 
     materializationProvider.setDefaultConverter(converter);
 
-    List<String> materailizationIds = FluentIterable.from(
-        materializationProvider.get()).transform(new Function<MaterializationDescriptor, String>() {
-          @Nullable
-          @Override
-          public String apply(@Nullable final MaterializationDescriptor input) {
-            return input.getMaterializationId();
-          }
-        })
-        .toList();
     assertEquals(ImmutableList.of("mid-1"),
-        materailizationIds);
+        getMaterializationIds(materializationProvider));
 
     when(materialization2.getMaterializationFor(converter)).thenReturn(relOptMat2);
     when(materialization2.getAccelerationId()).thenReturn("rid-2");
@@ -160,17 +154,8 @@ public class TestCachedMaterializationProvider {
     when(provider.get(true)).thenReturn(ImmutableList.of(materialization1, materialization2));
     materializationProvider.update(materialization2);
 
-    materailizationIds = FluentIterable.from(
-        materializationProvider.get()).transform(new Function<MaterializationDescriptor, String>() {
-          @Nullable
-          @Override
-          public String apply(@Nullable final MaterializationDescriptor input) {
-            return input.getMaterializationId();
-          }
-        })
-        .toList();
     assertEquals(ImmutableList.of("mid-1", "mid-2"),
-        materailizationIds);
+        getMaterializationIds(materializationProvider));
 
     when(materialization3.getMaterializationFor(converter)).thenReturn(relOptMat3);
     when(materialization3.getAccelerationId()).thenReturn("rid-2");
@@ -186,17 +171,8 @@ public class TestCachedMaterializationProvider {
     when(provider.get(true)).thenReturn(ImmutableList.of(materialization1, materialization3));
     materializationProvider.update(materialization3);
 
-    materailizationIds = FluentIterable.from(
-        materializationProvider.get()).transform(new Function<MaterializationDescriptor, String>() {
-          @Nullable
-          @Override
-          public String apply(@Nullable final MaterializationDescriptor input) {
-            return input.getMaterializationId();
-          }
-        })
-        .toList();
     assertEquals(ImmutableList.of("mid-1", "mid-3"),
-        materailizationIds);
+        getMaterializationIds(materializationProvider));
 
     when(materialization2.isComplete()).thenReturn(false);
 
@@ -205,7 +181,94 @@ public class TestCachedMaterializationProvider {
     when(provider.get(true)).thenReturn(ImmutableList.of(materialization1, materialization2, materialization3));
     materializationProvider.update(materialization3);
 
-    materailizationIds = FluentIterable.from(
+    assertEquals(ImmutableList.of("mid-1", "mid-3"),
+        getMaterializationIds(materializationProvider));
+
+    assertEquals(ImmutableList.of("mid-1", "mid-3"),
+        getMaterializationIds(materializationProvider, false));
+
+    assertEquals(ImmutableList.of("mid-1", "mid-2", "mid-3"),
+        getMaterializationIds(materializationProvider, true));
+
+      materializationProvider.close();
+  }
+
+  @Ignore("DX-9565")
+  @Test
+  public void testRemoveMaterialization() throws Exception {
+    when(contextProvider.get()).thenReturn(context);
+    when(context.getStorage()).thenReturn(storageRegistry);
+    when(context.getFunctionImplementationRegistry()).thenReturn(registry);
+    when(context.getOptionManager()).thenReturn(options);
+    when(options.getOption(PlannerSettings.PLANNER_MEMORY_LIMIT.getOptionName())).thenReturn(OptionValue.createLong(OptionType.SYSTEM, "name", 128L));
+    when(context.getAllocator()).thenReturn(allocator);
+    when(context.getConfig()).thenReturn(config);
+    when(options.getOption(MATERIALIZATION_CACHE_REFRESH_DURATION.getOptionName())).thenReturn(OptionValue.createLong(OptionType.SYSTEM, "name", 30L));
+    when(options.getOption(MATERIALIZATION_CACHE_ENABLED.getOptionName())).thenReturn(OptionValue.createBoolean(OptionType.SYSTEM, "name", true));
+
+    when(materialization1.getMaterializationFor(converter)).thenReturn(relOptMat1);
+    when(materialization1.getAccelerationId()).thenReturn("rid-1");
+    when(materialization1.getMaterializationId()).thenReturn("mid-1");
+    when(materialization1.getLayoutInfo()).thenReturn(layout1);
+    when(materialization1.getPlan()).thenReturn(new byte[0]);
+    when(materialization1.getPath()).thenReturn(ImmutableList.of("test1"));
+    when(materialization1.getIncrementalUpdateSettings()).thenReturn(settings);
+    when(materialization1.isComplete()).thenReturn(true);
+    when(layout1.getLayoutId()).thenReturn("layout1");
+
+    when(materialization2.getMaterializationFor(converter)).thenReturn(relOptMat2);
+    when(materialization2.getAccelerationId()).thenReturn("rid-2");
+    when(materialization2.getExpirationTimestamp()).thenReturn(3L);
+    when(materialization2.getMaterializationId()).thenReturn("mid-2");
+    when(materialization2.getLayoutInfo()).thenReturn(layout2);
+    when(materialization2.getPlan()).thenReturn(new byte[0]);
+    when(materialization2.getPath()).thenReturn(ImmutableList.of("test2"));
+    when(materialization2.getIncrementalUpdateSettings()).thenReturn(settings);
+    when(materialization2.isComplete()).thenReturn(true);
+    when(layout2.getLayoutId()).thenReturn("layout2");
+
+    when(provider.get(Mockito.anyBoolean())).thenReturn(ImmutableList.of(materialization1, materialization2));
+
+    CachedMaterializationProvider materializationProvider =
+        new CachedMaterializationProvider(provider, contextProvider, accel);
+    materializationProvider.setDebug(true);
+
+    materializationProvider.setDefaultConverter(converter);
+
+    assertEquals(ImmutableList.of("mid-1", "mid-2"),
+        getMaterializationIds(materializationProvider));
+
+    materializationProvider.setDebug(false);
+
+    materializationProvider.remove("mid-1");
+
+    assertEquals(ImmutableList.of("mid-2"),
+        getMaterializationIds(materializationProvider));
+
+    materializationProvider.remove("mid-2");
+
+    assertEquals(ImmutableList.of(),
+        getMaterializationIds(materializationProvider));
+
+      materializationProvider.close();
+
+  }
+
+  private List<String> getMaterializationIds(CachedMaterializationProvider materializationProvider, boolean includeInComplete) {
+    List<String> materailizationIds = FluentIterable.from(
+        materializationProvider.get(includeInComplete)).transform(new Function<MaterializationDescriptor, String>() {
+          @Nullable
+          @Override
+          public String apply(@Nullable final MaterializationDescriptor input) {
+            return input.getMaterializationId();
+          }
+        })
+        .toList();
+    return materailizationIds;
+  }
+
+  private List<String> getMaterializationIds(CachedMaterializationProvider materializationProvider) {
+    List<String> materailizationIds = FluentIterable.from(
         materializationProvider.get()).transform(new Function<MaterializationDescriptor, String>() {
           @Nullable
           @Override
@@ -214,38 +277,5 @@ public class TestCachedMaterializationProvider {
           }
         })
         .toList();
-    assertEquals(ImmutableList.of("mid-1", "mid-3"),
-        materailizationIds);
-
-    materailizationIds = FluentIterable.from(
-        materializationProvider.get(false)).transform(new Function<MaterializationDescriptor, String>() {
-          @Nullable
-          @Override
-          public String apply(@Nullable final MaterializationDescriptor input) {
-            return input.getMaterializationId();
-          }
-        })
-        .toList();
-    assertEquals(ImmutableList.of("mid-1", "mid-3"),
-        materailizationIds);
-
-
-    materailizationIds = FluentIterable.from(
-        materializationProvider.get(true)).transform(new Function<MaterializationDescriptor, String>() {
-          @Nullable
-          @Override
-          public String apply(@Nullable final MaterializationDescriptor input) {
-            return input.getMaterializationId();
-          }
-        })
-        .toList();
-    assertEquals(ImmutableList.of("mid-1", "mid-2", "mid-3"),
-        materailizationIds);
-
-
-    try {
-      materializationProvider.close();
-    } catch (Exception e) {
-    }
-  }
+    return materailizationIds;  }
 }

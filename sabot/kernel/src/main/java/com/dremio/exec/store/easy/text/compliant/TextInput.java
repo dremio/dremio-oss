@@ -31,6 +31,7 @@ package com.dremio.exec.store.easy.text.compliant;
  * limitations under the License.
  ******************************************************************************/
 
+import com.dremio.common.exceptions.UserException;
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
@@ -38,8 +39,10 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import org.apache.arrow.memory.BoundsChecking;
+import org.apache.commons.io.ByteOrderMark;
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Seekable;
@@ -53,6 +56,7 @@ import com.univocity.parsers.common.Format;
  * Also manages only reading lines to and from each split.
  */
 final class TextInput {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextInput.class);
 
 //  private static final int READ_CHARS_LIMIT = 1024*64;
   private final byte[] lineSeparator;
@@ -149,11 +153,14 @@ final class TextInput {
    */
   final void start() throws IOException {
     lineCount = 0;
-    if(startPos > 0){
+    if(startPos > 0) {
       seekable.seek(startPos);
     }
 
     updateBuffer();
+    if (startPos == 0) {
+      skipOptionalBOM();
+    }
     if (length > 0) {
       if(startPos > 0 || settings.isSkipFirstLine()){
 
@@ -370,6 +377,39 @@ final class TextInput {
       }
     } catch (EOFException ex) {
       throw new IllegalArgumentException("Unable to skip " + lines + " lines from line " + (expectedLineCount - lines) + ". End of input reached");
+    }
+  }
+
+  // Check if the input stream has a specific byte-order-mark (BOM)
+  private final boolean checkBom(ByteOrderMark bom) {
+    int bomLength = bom.length();
+    if (bufferPtr + bomLength >= length) {
+      // Not enough bytes from the current position to the end of the buffer
+      return false;
+    }
+    if (BoundsChecking.BOUNDS_CHECKING_ENABLED) {
+      buffer.checkBytes(bufferPtr - 1, bufferPtr + bomLength);
+    }
+
+    byte[] bomBytes = bom.getBytes();
+    for (int i = 0; i < bomLength; i++) {
+      byte nextChar = PlatformDependent.getByte(bStartMinus1 + bufferPtr + i);
+      if (nextChar != bomBytes[i]) {
+        // No BOM. Position is unchanged
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Check if the input stream has a byte-order-mark (BOM). Skip it if it's there
+  private final void skipOptionalBOM() throws IOException {
+    if (checkBom(ByteOrderMark.UTF_8)) {
+      bufferPtr += ByteOrderMark.UTF_8.length();
+    } else if (checkBom(ByteOrderMark.UTF_16LE) || checkBom(ByteOrderMark.UTF_16BE)) {
+      throw UserException.dataReadError()
+        .message("UTF-16 files not supported")
+        .build(logger);
     }
   }
 

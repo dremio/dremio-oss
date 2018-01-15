@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import classNames from 'classnames';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
+
+import PropTypes from 'prop-types';
 
 import { loadParents } from 'actions/resources/spaceDetails';
 import { getParentList, getViewState } from 'selectors/resources';
@@ -34,6 +37,7 @@ export const SEARCH_TAB = 'SEARCH_TAB';
 
 const PARENT_LIST_VIEW_ID = 'PARENT_LIST_VIEW_ID';
 
+@injectIntl
 @Radium
 export class DatasetsPanel extends Component {
   static propTypes = {
@@ -48,7 +52,8 @@ export class DatasetsPanel extends Component {
     parentList: PropTypes.array,
     loadParents: PropTypes.func,
     viewState: PropTypes.instanceOf(Immutable.Map),
-    parentListViewState: PropTypes.instanceOf(Immutable.Map)
+    parentListViewState: PropTypes.instanceOf(Immutable.Map),
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -66,9 +71,9 @@ export class DatasetsPanel extends Component {
      * @type {Array}
      */
     this.tabs = [
-      { name: la('Parents'), id: PARENTS_TAB},
-      { name: la('Browse'), id: BROWSE_TAB},
-      { name: la('Search'), id: SEARCH_TAB}
+      { name: props.intl.formatMessage({id: 'Dataset.Parents'}), id: PARENTS_TAB},
+      { name: props.intl.formatMessage({id: 'Dataset.Browse'}), id: BROWSE_TAB},
+      { name: props.intl.formatMessage({id: 'Dataset.Search'}), id: SEARCH_TAB}
     ];
 
     this.state = {

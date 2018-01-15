@@ -41,8 +41,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
-import com.dremio.dac.service.errors.NotFoundException;
-import com.dremio.dac.service.errors.ResourceExistsException;
 import com.dremio.service.users.UserNotFoundException;
 
 /**
@@ -85,7 +83,7 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
       if (wae instanceof ParamException) {
         errorMessage = getParamExceptionErrorMessage((ParamException) wae);
       } else {
-        errorMessage = wae.toString();
+        errorMessage = wae.getMessage();
       }
       logger.debug("Status {} for {} {} : {}", wae.getResponse().getStatus(), request.getMethod(), uriInfo.getRequestUri(), errorMessage, wae);
       return Response.fromResponse(wae.getResponse())
@@ -101,15 +99,6 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
         .entity(new ApiErrorModel("NEW_DATASET_QUERY_EXCEPTION", exception.getMessage(), stackTrace, exception.getDetails()))
         .type(APPLICATION_JSON_TYPE)
         .build();
-    }
-
-    if (throwable instanceof NotFoundException) {
-      logger.debug("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      NotFoundException exception = (NotFoundException) throwable;
-      return Response.status(NOT_FOUND)
-          .entity(new GenericErrorMessage(exception.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
     }
 
     if (throwable instanceof UserNotFoundException) {
@@ -160,15 +149,6 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
 
       return Response.status(UNAUTHORIZED)
           .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
-    }
-
-    if (throwable instanceof ResourceExistsException) {
-      logger.debug("Conflict for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      final ResourceExistsException exception = (ResourceExistsException) throwable;
-      return Response.status(CONFLICT)
-          .entity(new GenericErrorMessage(exception.getMessage(), stackTrace))
           .type(APPLICATION_JSON_TYPE)
           .build();
     }

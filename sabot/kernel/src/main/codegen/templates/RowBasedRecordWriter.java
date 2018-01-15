@@ -67,6 +67,7 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
   public abstract FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader);
   public abstract FieldConverter getNewListConverter(int fieldId, String fieldName, FieldReader reader);
   public abstract FieldConverter getNewUnionConverter(int fieldId, String fieldName, FieldReader reader);
+  public abstract FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader);
 
 <#list vv.types as type>
   <#list type.minor as minor>

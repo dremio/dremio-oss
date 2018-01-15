@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import DataGraph from 'dyn-load/pages/ExplorePage/subpages/datagraph/DataGraph';
 import DetailsWizard from 'components/Wizards/DetailsWizard';
-import { HISTORY_PANEL_SIZE, MARGIN_PANEL } from 'uiTheme/radium/sizes';
+import { HISTORY_PANEL_SIZE } from 'uiTheme/radium/sizes';
 
 import { RECOMMENDED_JOIN } from 'constants/explorePage/joinTabs';
 
@@ -165,10 +166,14 @@ export default ExplorePageContentWrapper;
 
 const styles = {
   base: {
-    overflow: 'hidden'
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
   },
   tableControlWrap: {
-    height: `calc(100% - ${MARGIN_PANEL}px)`
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1
   },
   tableViewerStyleShort: {
     width: '100%'

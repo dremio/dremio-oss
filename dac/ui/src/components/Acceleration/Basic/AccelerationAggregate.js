@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
@@ -74,10 +75,10 @@ export default class AccelerationAggregate extends Component {
 
     const columns = this.mapSchemaToColumns(acceleration);
     const toggleLabel = (
-      <div style={commonStyles.toggleLabel}>
+      <h3 style={commonStyles.toggleLabel}>
         <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
         {la('Aggregation Reflections (Automatic)')}
-      </div>
+      </h3>
     );
     return (
       <div style={[style, styles.wrap]}>

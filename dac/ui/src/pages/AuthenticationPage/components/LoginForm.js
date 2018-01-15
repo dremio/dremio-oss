@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import { replace } from 'react-router-redux';
 import Immutable from 'immutable';
@@ -32,7 +33,7 @@ import TextField from 'components/Fields/TextField.js';
 import { getViewState } from 'selectors/resources';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 
-import { formLabel, body, lightLink } from 'uiTheme/radium/typography';
+import { formLabel, lightLink } from 'uiTheme/radium/typography';
 
 import LoginTitle from './LoginTitle';
 
@@ -93,7 +94,7 @@ export class LoginForm extends Component {
                 <TextField
                   {...userName}
                   initialFocus
-                  style={{...styles.input, ...body}}/>
+                  style={styles.input}/>
               </FieldWithError>
               <FieldWithError
                 {...password}
@@ -104,7 +105,7 @@ export class LoginForm extends Component {
                 <TextField
                   {...password}
                   type='password'
-                  style={{...styles.input, ...body}}/>
+                  style={styles.input}/>
               </FieldWithError>
             </div>
             <div style={styles.submitWrapper}>
@@ -122,7 +123,7 @@ export class LoginForm extends Component {
             </div>
           </InnerComplexForm>
         </ViewStateWrapper>
-        <div style={{textAlign: 'right'}}>
+        <div className='largerFontSize' style={{textAlign: 'right'}}>
           <Link to={{ ...location, state: { modal: 'AboutModal' }}}>
             {la('About Dremio')}
           </Link>

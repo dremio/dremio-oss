@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import spring from 'react-motion/lib/spring';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
 
@@ -129,7 +131,7 @@ export default class FieldList extends Component {
     return (
       <div style={this.props.style} className={this.props.className}>
         {(!this.props.items || this.props.items.length === 0) &&
-          <div style={styles.empty}>
+          <div className='largerFontSize' style={styles.empty}>
             {emptyLabel}
           </div>
         }
@@ -143,7 +145,10 @@ const styles = {
   addButton: {
     paddingTop: 10,
     display: 'block',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontWeight: 400,
+    fontSize: 16,
+    color: '#46B4D5'
   },
   addIcon: {
     marginRight: '1em',

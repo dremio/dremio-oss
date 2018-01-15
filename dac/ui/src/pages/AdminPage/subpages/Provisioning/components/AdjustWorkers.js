@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Button from 'components/Buttons/Button';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
-import { h4 } from 'uiTheme/radium/typography';
 import { triangleTop } from 'uiTheme/radium/overlay';
 import AdjustWorkersForm  from './forms/AdjustWorkersForm';
 
@@ -64,7 +64,7 @@ export default class AdjustWorkers extends Component {
             targetOrigin={{horizontal: 'left', vertical: 'top'}}
             animation={PopoverAnimationVertical}>
             <div style={styles.triangle}/>
-            <p style={styles.formTitle}>{la('Workers')}</p>
+            <h4 style={styles.formTitle}>{la('Workers')}</h4>
             <AdjustWorkersForm
               onCancel={this.onClick}
               ref='dropDown'
@@ -79,7 +79,6 @@ export default class AdjustWorkers extends Component {
 
 const styles = {
   formTitle: {
-    ...h4,
     paddingTop: 10,
     paddingLeft: 10
   },

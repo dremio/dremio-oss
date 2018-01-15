@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { Overlay } from 'react-overlays';
 import Immutable from 'immutable';
 import $ from 'jquery';
 
 import { FLEX_COL_START, LINE_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
 import { CELL_EXPANSION_HEADER, WHITE, BLUE } from 'uiTheme/radium/colors';
-import { body, fixedWidthSmall } from 'uiTheme/radium/typography';
+import { fixedWidthSmall } from 'uiTheme/radium/typography';
 import EllipsedText from 'components/EllipsedText';
 import { MAP, TEXT, LIST } from 'constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
@@ -321,7 +322,6 @@ const styles = {
   header: { // todo: fix styling/element type for consistent UX
     width: '100%',
     ...LINE_NOWRAP_ROW_BETWEEN_CENTER,
-    ...body,
     backgroundColor: CELL_EXPANSION_HEADER,
     color: BLUE,
     paddingLeft: 5,

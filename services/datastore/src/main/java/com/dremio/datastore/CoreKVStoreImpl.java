@@ -172,4 +172,10 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
       return Objects.equal(getKey(), otherKey) && Objects.equal(getValue(), otherValue);
     }
   }
+
+  @Override
+  public KVAdmin getAdmin() {
+    return rawStore.getAdmin();
+  }
+
 }

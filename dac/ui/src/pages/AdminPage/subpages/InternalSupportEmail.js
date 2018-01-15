@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes } from 'react';
-import { h3 } from 'uiTheme/radium/typography';
+import PropTypes from 'prop-types';
 
 export const RESERVED = [
   'support.email.addr',
@@ -24,7 +23,7 @@ export const RESERVED = [
 const InternalSupportEmail = (props) => {
   return (
     <div>
-      <h3 style={{...h3, margin:'15px 0 0'}}>{la('Internal Support Email')}</h3>
+      <h3 style={{margin:'15px 0 0'}}>{la('Internal Support Email')}</h3>
       <div style={props.descriptionStyle}>
         {la('Note: Users will see changes when they next reload.')}
       </div>

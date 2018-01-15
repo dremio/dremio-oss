@@ -31,8 +31,8 @@ class ActionUtils {
 
   humanizeNotificationMessage = (errorMessage) => (payload) => {
     const defaultMessage = payload && payload.status === 409
-      ? la('The data has been changed since you last accessed it. Please refresh the page')
-      : la('Something went wrong');
+      ? la('The data has been changed since you last accessed it. Please reload the page.')
+      : la('Something went wrong.');
     const _errorMessage = errorMessage ||
       payload && payload.errorMessage ||
       payload && payload.response && payload.response.errorMessage ||

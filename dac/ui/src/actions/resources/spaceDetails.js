@@ -220,7 +220,7 @@ function fetchRemoveFileFormat(file) {
   const meta = {
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
   };
-  const errorMessage = la('There was an error removing format of the file.');
+  const errorMessage = la('There was an error removing the format for the file.');
   const entityRemovePaths = [['fileFormat', file.getIn(['fileFormat', 'id'])]];
   return {
     [CALL_API]: {

@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 @PureRender
 export default class RealTimeTimer extends Component {

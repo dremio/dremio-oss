@@ -68,7 +68,6 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.SchemaEntity.SchemaEntityType;
 import com.dremio.exec.store.StoragePluginOptimizerRule;
-import com.dremio.exec.store.parquet.ParquetFooterCache;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -109,7 +108,6 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
     return context;
   }
 
-  private volatile ParquetFooterCache footerCache;
   private Configuration fsConf;
   private FormatCreator formatCreator;
 
@@ -172,22 +170,6 @@ public class FileSystemPlugin extends AbstractStoragePlugin<ConversionContext.Na
   @Override
   public SchemaMutability getMutability() {
     return config.getSchemaMutability();
-  }
-
-  public ParquetFooterCache getFooterCache(){
-    int cacheSize = context.isCoordinator() ?
-      (int) context.getOptionManager().getOption(ExecConstants.PARQUET_FOOTER_CACHESIZE_COORD) :
-      (int) context.getOptionManager().getOption(ExecConstants.PARQUET_FOOTER_CACHESIZE_EXEC);
-
-    if(footerCache == null){
-      synchronized(this){
-        if(footerCache == null){
-          footerCache = new ParquetFooterCache(getFS(ImpersonationUtil.getProcessUserName()), cacheSize, true);
-        }
-      }
-      return footerCache;
-    }
-    return footerCache;
   }
 
   @Override

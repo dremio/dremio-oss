@@ -27,7 +27,7 @@ describe('AccelerationGrid', () => {
     minimalProps = {
       columns: Immutable.List(),
       shouldShowDistribution: true,
-      layoutFields: [{id:{id:{value:'b'}}, name: {value: 'foo'}, details: {partitionDistributionStrategy: {value: 'CONSOLIDATED'}}}],
+      layoutFields: [{id:{value:'b'}, name: {value: 'foo'}, details: {partitionDistributionStrategy: {value: 'CONSOLIDATED'}}}],
       location: {
         state: {}
       },
@@ -36,15 +36,15 @@ describe('AccelerationGrid', () => {
         aggregationLayouts: {
           // WARNING: this might not be exactly accurate - but it's enough for the test
           layoutList: [
-            {id:{id:'a'}, name:'foo', details: {partitionDistributionStrategy: 'CONSOLIDATED'}}, // already deleted at this point (see layoutFields)
-            {id:{id:'b'}, name:'foo', details: {partitionDistributionStrategy: 'STRIPED'}}
+            {id:'a', name:'foo', details: {partitionDistributionStrategy: 'CONSOLIDATED'}}, // already deleted at this point (see layoutFields)
+            {id:'b', name:'foo', details: {partitionDistributionStrategy: 'STRIPED'}}
           ],
           enabled: true
         },
         rawLayouts: {
           // WARNING: this might not be exactly accurate - but it's enough for the test
           layoutList: [
-            {id:{id:'c'}, name:'foo', details: {partitionDistributionStrategy: 'CONSOLIDATED'}}
+            {id:'c', name:'foo', details: {partitionDistributionStrategy: 'CONSOLIDATED'}}
           ],
           enabled: true
         }
@@ -119,10 +119,41 @@ describe('AccelerationGrid', () => {
       wrapper.setProps({
         activeTab: 'raw',
         layoutFields: [
-          {id: {id: {value: 'c'}}}
+          {id: {value: 'c'}}
         ]
       });
       expect(instance.findLayoutData(0)).to.equal(minimalProps.acceleration.get('rawLayouts').get('layoutList').get(0));
+    });
+  });
+
+  describe('#componentWillReceiveProps()', () => {
+    it('resets focusedColumn if activeTab changes', () => {
+      instance.focusedColumn = 1;
+      instance.componentWillReceiveProps({
+        activeTab: 'raw',
+        layoutFields: [
+            {id: {value: 'c'}}
+        ]
+      });
+      expect(instance.focusedColumn).to.equal(undefined);
+    });
+    it('sets focusedColumn for newly added columns', () => {
+      instance.componentWillReceiveProps({
+        activeTab: 'aggregation',
+        layoutFields: [
+            {id: {value: 'b'}},
+            {id: {value: 'c'}}
+        ]
+      });
+      expect(instance.focusedColumn).to.equal(1);
+    });
+    it('does nothing with focusedColumn for newly removed columns (so no jump)', () => {
+      instance.focusedColumn = 1;
+      instance.componentWillReceiveProps({
+        activeTab: 'aggregation',
+        layoutFields: []
+      });
+      expect(instance.focusedColumn).to.equal(1);
     });
   });
 });

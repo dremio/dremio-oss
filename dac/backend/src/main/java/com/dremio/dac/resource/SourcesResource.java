@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import static com.dremio.exec.store.StoragePluginRegistryImpl.isInternal;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import javax.annotation.security.RolesAllowed;
@@ -32,7 +31,6 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.Sources;
-import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -62,27 +60,14 @@ public class SourcesResource {
   @GET
   public Sources getSources() throws Exception {
     final Sources sources = new Sources();
-    for (SourceConfig sourceConfig : namespaceService.getSources()) {
-      if (isInternal(sourceConfig)) {
-        continue;
-      }
-
+    for (SourceConfig sourceConfig : sourceService.getSources()) {
       SourceUI source = newSource(sourceConfig);
 
       source.setNumberOfDatasets(namespaceService.getAllDatasetsCount(new NamespaceKey(source.getName())));
-      SourceState state;
-      try {
-        state = sourceService.getSourceState(sourceConfig.getName());
-        source.setState(state);
-      } catch (SourceNotFoundException e) {
-        // if state is null, that means the source is registered in namespace, but the plugin is not yet available
-        // we should ignore the source in this case
-        logger.debug(String.format("%s not found. Possibly still loading schema info", sourceConfig.getName()));
-        source.setState(SourceState.badState(e));
-      } catch (RuntimeException e) {
-        logger.debug("Failed to get the state of source {}", sourceConfig.getName(), e);
-        source.setState(SourceState.badState(e));
-      }
+
+      SourceState state = sourceService.getStateForSource(sourceConfig);
+      source.setState(state);
+
       sources.add(source);
     }
     return sources;

@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { DateRange } from 'react-date-range';
 import Radium from 'radium';
 import moment from 'moment';
 import PureRender from 'pure-render-decorator';
 
+import PropTypes from 'prop-types';
+
 import { PALE_GREY, PALE_NAVY } from 'uiTheme/radium/colors';
-import { body } from 'uiTheme/radium/typography';
 
 import DateTimeInput from './DateTimeInput';
 import './RightPanelView.less';
@@ -49,7 +50,7 @@ class RightPanelView extends Component {
 
   render() {
     return (
-      <div className='start-time-right-panel' style={[style.base, style.main, body]}>
+      <div className='start-time-right-panel' style={[style.base, style.main]}>
         <div style={[style.header]}>
           <DateTimeInput
             date={this.props.startMoment || moment()}

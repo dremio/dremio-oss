@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { startCase } from 'lodash/string';
 
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
@@ -22,7 +23,6 @@ import NewFieldSection from 'components/Forms/NewFieldSection';
 import {TextField, Select, Radio, Checkbox} from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
 
-import { body } from 'uiTheme/radium/typography';
 import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
 import { FLEX_COL_START, INLINE_NOWRAP_ROW_FLEX_START } from 'uiTheme/radium/flexStyle';
 import TransformForm, {formWrapperProps} from './../../forms/TransformForm';
@@ -125,7 +125,7 @@ export class SingleTypeForm extends Component {
                 <Checkbox
                   {...fields.castWhenPossible}
                   label={la('Cast when possible')}
-                  style={{marginLeft: 5, ...body}}/>
+                  style={{marginLeft: 5}}/>
               </div>
             </div>
             {this.renderNonMatchingActions()}
@@ -179,7 +179,6 @@ const styles = {
   },
   actionsWrap: {
     ...FLEX_COL_START,
-    ...body,
     marginLeft: 10,
     marginBottom: 10
   },

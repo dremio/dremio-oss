@@ -1,0 +1,765 @@
+[
+    {
+      "name": "AVG",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the average value of {{x}}."
+    },
+    {
+      "name": "COUNT",
+      "args": "(*)",
+      "returnType": "number",
+      "description": "Gives the total number of records."
+    },
+    {
+      "name": "COUNT",
+      "args": "(DISTINCT [field name] {givenfield})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Gives the number of distinct values in the field named {{givenfield}}."
+    },
+    {
+      "name": "MAX",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the maximum value of {{x}}."
+    },
+    {
+      "name": "MAX",
+      "args": "([timetype] {giventime})",
+      "returnType": "timetype",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the latest value of {{giventime}}."
+    },
+    {
+      "name": "MIN",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the minimum value of {{x}}."
+    },
+    {
+      "name": "MIN",
+      "args": "([timetype] {giventime})",
+      "returnType": "timetype",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the earliest value of {{giventime}}."
+    },
+    {
+      "name": "SUM",
+      "args": "([timeinterval] {giveninterval})",
+      "returnType": "timeinterval",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the sum of values of {{giveninterval}}."
+    },
+    {
+      "name": "SUM",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Returns the sum of values of {{x}}."
+    },
+    {
+      "name": "STDDEV",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate",
+        "STDDEV_SAMP"
+      ],
+      "description": "Aggregate function. Takes the sample standard deviation of values of {{x}}."
+    },
+    {
+      "name": "STDDEV_POP",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Takes the population standard deviation of values of {{x}}."
+    },
+    {
+      "name": "VARIANCE",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate",
+        "VAR_SAMP"
+      ],
+      "description": "Aggregate function. Takes the sample variance of values of {{x}}."
+    },
+    {
+      "name": "VAR_POP",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "tags": [
+        "aggregate"
+      ],
+      "description": "Aggregate function. Takes the population variance of values of {{x}}."
+    },
+    {
+      "name": "\"CORR\"",
+      "args": "([number] {x}, [number] {y})",
+      "returnType": "boolean",
+      "tags": [
+        "aggregate",
+        "CORRELATION"
+      ],
+      "description": "Aggregate function. Calculates the covariance of the values in {{x}} and {{y}}. Function name must be enclosed in double quotes."
+    },
+    {
+      "name": "CAST",
+      "args": "([any] {value} AS {<type>})",
+      "returnType": "<type>",
+      "description": "Converts {{value}} to a type specified by {{<type>}}.",
+      "example": "CAST(3.14159 AS INTEGER) -> 3\nCAST('0.3456' AS FLOAT) + 1 -> 1.3456"
+    },
+    {
+      "name": "CONVERT_TO",
+      "args": "({expression}, [literal string] {conv_type})",
+      "returnType": "bytes",
+      "description": "Converts {{expression}} to bytes, depending on the type specified in {{conv_type}}. {{expression}} can be a literal value (string, number, etc.) or a field name. Please consult Conversion Types in the Reference section of the Dremio documentation for more details."
+    },
+    {
+      "name": "CONVERT_FROM",
+      "args": "({expression}, [literal string] {conv_type})",
+      "returnType": "Depends on the conversion type specified.",
+      "description": "Converts the byte data in {{expression}} to the type specified in {{conv_type}}. {{expression}} can be a literal string or a field name. Please consult Conversion Types in the Reference section of the Dremio documentation for more details."
+    },
+    {
+      "name": "STRING_BINARY",
+      "args": "([binary] {data})",
+      "returnType": "string",
+      "description": "Returns the bytes in {{data}} as a string. Unprintable bytes are given in hexadecimal with a preceding '\\x'."
+    },
+    {
+      "name": "BINARY_STRING",
+      "args": "([string] {giventext})",
+      "returnType": "binary",
+      "description": "Converts {{giventext}} to binary."
+    },
+    {
+      "name": "TO_CHAR",
+      "args": "({expression}, [literal string] {format})",
+      "returnType": "string",
+      "description": "Converts {{expression}} to a string using the format specified in {{format}}. {{expression}} can be a literal value (string, number, etc.) or a field name.",
+      "example": "TO_CHAR(381928933.2398474,'#,###.##') -> '381,928,933.24'"
+    },
+    {
+      "name": "TO_DATE",
+      "args": "([string] {giventext}, [literal string] {format})",
+      "returnType": "timetype",
+      "description": "Converts {{giventext}} to a date using the format given in {{format}}."
+    },
+    {
+      "name": "TO_DATE",
+      "args": "([number] {epochms})",
+      "returnType": "timetype",
+      "description": "Converts {{epochms}}, the Unix time given in milliseconds, to a date."
+    },
+    {
+      "name": "TO_TIME",
+      "args": "([string] {giventext}, [literal string] {format})",
+      "returnType": "timetype",
+      "description": "Converts {{giventext}} to a time using the format given in {{format}}."
+    },
+    {
+      "name": "TO_TIME",
+      "args": "([number] {ms})",
+      "returnType": "timetype",
+      "description": "Converts {{ms}}, the number of milliseconds since midnight, to a time."
+    },
+    {
+      "name": "TO_TIMESTAMP",
+      "args": "([string] {giventext}, [literal string] {format})",
+      "returnType": "timetype",
+      "description": "Converts {{giventext}} to a timestamp (date & time) using the format given in {{format}}."
+    },
+    {
+      "name": "TO_TIMESTAMP",
+      "args": "([number] {epochsec})",
+      "returnType": "timetype",
+      "description": "Converts the Unix time {{epochsec}} to a timestamp (date & time)."
+    },
+    {
+      "name": "TIMESTAMPADD",
+      "args": "({<time unit>}, [number] {count}, [timetype] {giventime})",
+      "returnType": "timetype",
+      "description": "{{<time unit>}} has possible values YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MICROSECOND. Adds {{count}} units of {{<time unit>}} to the {{giventime}}."
+    },
+    {
+      "name": "TIMESTAMPDIFF",
+      "args": "({<time unit>}, [timetype] {giventime1}, [timetype] {giventime2})",
+      "returnType": "number",
+      "description": "{{<time unit>}} has possible values YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MICROSECOND. Returns the {{count}} units of time between {{giventime1}} and {{giventime2}}, by subtracting {{giventime1}} from {{giventime2}} (rounded down)."
+    },
+    {
+      "name": "TO_NUMBER",
+      "args": "([string] {giventext}, [literal string] {format})",
+      "returnType": "number",
+      "description": "Parses the string {{giventext}} into a number according to the format indicated in {{format}}.",
+      "example": "TO_NUMBER('12,374.0023','##,###.####') + 300 -> 12674.0023"
+    },
+    {
+      "name": "EXTRACT",
+      "args": "({<time unit>} FROM [timetype] {giventime})",
+      "returnType": "number",
+      "description": "{{<time unit>}} has possible values SECOND, MINUTE, HOUR, DAY, MONTH, YEAR. Returns the number in {{giventime}} corresponding to the specified unit."
+    },
+    {
+      "name": "CURRENT_DATE",
+      "args": null,
+      "returnType": "timetype",
+      "description": "Today's date."
+    },
+    {
+      "name": "CURRENT_TIME",
+      "args": null,
+      "returnType": "timetype",
+      "description": "The current time."
+    },
+    {
+      "name": "CURRENT_TIMESTAMP",
+      "args": null,
+      "returnType": "timetype",
+      "description": "The current date and time."
+    },
+    {
+      "name": "NOW",
+      "args": "()",
+      "returnType": "timetype",
+      "description": "Returns the current date and time."
+    },
+    {
+      "name": "LOCALTIME",
+      "args": null,
+      "returnType": "timetype",
+      "description": "The current time."
+    },
+    {
+      "name": "LOCALTIMESTAMP",
+      "args": null,
+      "returnType": "timetype",
+      "description": "The current date and time."
+    },
+    {
+      "name": "TIMEOFDAY",
+      "args": "()",
+      "returnType": "string",
+      "description": "Returns a string of the date and time as well as the name of the time zone.",
+      "example": "TIMEOFDAY() -> '18:17:43.056 America/Los_Angeles'"
+    },
+    {
+      "name": "DATE_ADD",
+      "args": "(DATE [literal string] {giventime}, [number] {x})",
+      "returnType": "timetype",
+      "description": "Adds {{x}} days to {{giventime}}.",
+      "example": "DATE_ADD(DATE '2016-06-20', 5) -> 2016-06-25"
+    },
+    {
+      "name": "DATE_ADD",
+      "args": "(DATE or TIME or TIMESTAMP [literal string] {giventime}, [timeinterval] {giveninterval})",
+      "returnType": "timetype",
+      "description": "Adds {{giveninterval}} to {{giventime}}.",
+      "example": "DATE_ADD(TIMESTAMP '2016-06-20 03:34:23', AGE('2016-06-01','2017-06-01')) -> 2015-06-15 03:34:23.0\nDATE_ADD(TIMESTAMP '2016-06-20 03:34:23', CAST(3 AS INTERVAL DAY)) -> 2016-06-23 03:34:23.0"
+    },
+    {
+      "name": "DATE_ADD",
+      "args": "(DATE [field name] {datefield}, [number] {x})",
+      "returnType": "timetype",
+      "description": "Adds {{x}} days to the values in the field named {{datefield}}.",
+      "example": "DATE_ADD(deliveryDate, 5) -> 2016-06-25"
+    },
+    {
+      "name": "DATE_ADD",
+      "args": "(DATE or TIME or TIMESTAMP [field name] {timetypefield}, [timeinterval] {giveninterval})",
+      "returnType": "timetype",
+      "description": "Adds {{giveninterval}} to the values in the field named {{timetypefield}}.",
+      "example": "DATE_ADD(deliveryDate, AGE('2016-06-01','2017-06-01')) -> 2015-06-15 03:34:23.0\nDATE_ADD(TIMESTAMP deliveryDate, CAST(3 AS INTERVAL DAY)) -> 2016-06-23 03:34:23.0"
+    },
+    {
+      "name": "DATE_SUB",
+      "args": "(DATE [literal string] {giventime}, [number] {x})",
+      "returnType": "timetype",
+      "description": "Subtracts {{x}} days from {{giventime}}.",
+      "example": "DATE_SUB(DATE '2016-06-20', 5) -> 2016-06-25"
+    },
+    {
+      "name": "DATE_SUB",
+      "args": "(DATE or TIME or TIMESTAMP [literal string] {giventime}, [timeinterval] {giveninterval})",
+      "returnType": "timetype",
+      "description": "Subtracts {{giveninterval}} from {{giventime}}.",
+      "example": "DATE_SUB(TIMESTAMP '2016-06-20 03:34:23', AGE('2016-06-01','2017-06-01')) -> 2015-06-15 03:34:23.0\nDATE_SUB(TIMESTAMP '2016-06-20 03:34:23', CAST(3 AS INTERVAL DAY)) -> 2016-06-23 03:34:23.0"
+    },
+    {
+      "name": "DATE_SUB",
+      "args": "(DATE [field name] {datefield}, [number] {x})",
+      "returnType": "timetype",
+      "description": "Subtracts {{x}} days from the values in the field named {{datefield}}.",
+      "example": "DATE_SUB(deliveryDate, 5) -> 2016-06-25"
+    },
+    {
+      "name": "DATE_SUB",
+      "args": "(DATE or TIME or TIMESTAMP [field name] {timetypefield}, [timeinterval] {giveninterval})",
+      "returnType": "timetype",
+      "description": "Subtracts {{giveninterval}} from the values in the field named {{timetypefield}}.",
+      "example": "DATE_SUB(deliveryDate, AGE('2016-06-01','2017-06-01')) -> 2015-06-15 03:34:23.0\nDATE_SUB(TIMESTAMP deliveryDate, CAST(3 AS INTERVAL DAY)) -> 2016-06-23 03:34:23.0"
+    },
+    {
+      "name": "DATE_PART",
+      "args": "([literal string] {timeunit}, [timetype] {giventime})",
+      "returnType": "number",
+      "description": "Returns the number in {{giventime}} corresponding to the unit specified by {{timeunit}}. {{timeunit}} has possible values 'second', 'minute', 'hour', 'day', 'month', 'year'."
+    },
+    {
+      "name": "UNIX_TIMESTAMP",
+      "args": "()",
+      "returnType": "number",
+      "description": "Gives the current Unix time in seconds."
+    },
+    {
+      "name": "UNIX_TIMESTAMP",
+      "args": "([string] {timestring})",
+      "returnType": "number",
+      "description": "Gives the Unix time for the date in {{timestring}} assuming a format of 'YYYY-MM-DD HH24:MI:SS'."
+    },
+    {
+      "name": "UNIX_TIMESTAMP",
+      "args": "([string] {timestring}, [string] {format})",
+      "returnType": "number",
+      "description": "Gives the Unix time for the date in {{timestring}} using the format specified in {{format}}.",
+      "example": "UNIX_TIMESTAMP('3/14/2015 09:00:00','MM/DD/YYYY HH:MI:SS') -> 1426348800"
+    },
+    {
+      "name": "ISDATE",
+      "args": "([string] {giventext})",
+      "returnType": "boolean",
+      "description": "Returns true if {{giventext}} is castable to a date of format 'YYYY-MM-DD'."
+    },
+    {
+      "name": "DATE_TRUNC",
+      "args": "([literal string] {timeunit}, [timetype] {giventime})",
+      "returnType": "timetype",
+      "description": "Truncates the precision of {{giventime}} to the unit given in {{timeunit}}. The more precise time units assume their lowest possible value. {{timeunit}} has possible values 'second', 'minute', 'hour', 'day', 'month', 'year'.",
+      "example": "DATE_TRUNC('month',CAST('2011-12-23 12:28:23' AS TIMESTAMP)) -> 2011-12-01 00:00:00.0"
+    },
+    {
+      "name": "SIN",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the sine of {{x}}, where {{x}} is given in radians."
+    },
+    {
+      "name": "COS",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the cosine of {{x}}, where {{x}} is given in radians."
+    },
+    {
+      "name": "TAN",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the tangent of {{x}}, where {{x}} is given in radians."
+    },
+    {
+      "name": "ASIN",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the arcsine of {{x}} in radians."
+    },
+    {
+      "name": "ACOS",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the arccosine of {{x}} in radians."
+    },
+    {
+      "name": "ATAN",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the arctangent of {{x}} in radians."
+    },
+    {
+      "name": "DEGREES",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Converts the value in radians given by {{x}} to degrees."
+    },
+    {
+      "name": "RADIANS",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Converts the value in degrees given by {{x}} to radians."
+    },
+    {
+      "name": "PI",
+      "args": null,
+      "returnType": "number",
+      "description": "Returns the value of the mathematical constant pi."
+    },
+    {
+      "name": "FLOOR",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Returns the nearest whole number less than {{x}}."
+    },
+    {
+      "name": "CEILING",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Returns the nearest whole number greater than {{x}}.",
+      "tags": [
+        "CEIL"
+      ]
+    },
+    {
+      "name": "ROUND",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Returns the whole number nearest the value {{x}}."
+    },
+    {
+      "name": "SQRT",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the square root of {{x}}."
+    },
+    {
+      "name": "CBRT",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the cube root of {{x}}."
+    },
+    {
+      "name": "LOG",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the natural logarithm of {{x}}."
+    },
+    {
+      "name": "LOG10",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the log base 10 of {{x}}."
+    },
+    {
+      "name": "LOG",
+      "args": "([number] {x}, [number] {y})",
+      "returnType": "number",
+      "description": "Calculates the log base {{x}} of {{y}}."
+    },
+    {
+      "name": "POW",
+      "args": "([number] {x}, [number] {y})",
+      "returnType": "number",
+      "description": "Calculates the {{x}} to the power of {{y}}."
+    },
+    {
+      "name": "EXP",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the value of the constant e raised to the power of {{x}}."
+    },
+    {
+      "name": "E",
+      "args": "()",
+      "returnType": "number",
+      "description": "Returns the mathematical constant e."
+    },
+    {
+      "name": "SINH",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the hyperbolic sine of {{x}}."
+    },
+    {
+      "name": "COSH",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the hyperbolic cosine of {{x}}."
+    },
+    {
+      "name": "TANH",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the hyperbolic tangent of {{x}}."
+    },
+    {
+      "name": "MOD",
+      "args": "([number] {x}, [number] {y})",
+      "returnType": "number",
+      "description": "Calculates the modulus of {{x}} and {{y}} (e.g. {{x % y}})."
+    },
+    {
+      "name": "LSHIFT",
+      "args": "([number] {x}, [number] {y})",
+      "returnType": "number",
+      "description": "Returns the binary representation of {{x}} shifted to the left by {{y}} digits."
+    },
+    {
+      "name": "RSHIFT",
+      "args": "([number] {x}, [number] {y})",
+      "returnType": "number",
+      "description": "Returns the binary representation of {{x}} shifted to the right by {{y}} digits."
+    },
+    {
+      "name": "SIGN",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Returns the sign of {{x}} (e.g. either -1 or +1)."
+    },
+    {
+      "name": "ABS",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Returns the absolute value of {{x}}."
+    },
+    {
+      "name": "TRUNC",
+      "args": "([number] {x}, [optional number] {y})",
+      "returnType": "number",
+      "description": "Keeps the first {{y}} digits to right of {{x}}'s decimal point. If the second argument is omitted then {{y = 1}}."
+    },
+    {
+      "name": "COT",
+      "args": "([number] {x})",
+      "returnType": "number",
+      "description": "Calculates the cotangent of {{x}}, where {{x}} is given in radians."
+    },
+    {
+      "name": "RAND",
+      "args": "()",
+      "returnType": "number",
+      "description": "Generates a random number greater than or equal to 0 and less than 1. This random number will be the same for each entry."
+    },
+    {
+      "name": "RANDOM",
+      "args": "()",
+      "returnType": "number",
+      "description": "Generates a random number greater than or equal to 0 and less than 1. A new random number will made for each entry."
+    },
+    {
+      "name": "FLATTEN",
+      "args": "([JSON array] {givenarray})",
+      "returnType": null,
+      "description": "Creates a new entry in the dataset for each element in {{givenarray}}. Same as 'Unnest' on arrays."
+    },
+    {
+      "name": "BIT_LENGTH",
+      "args": "([string] {giventext})",
+      "returnType": "number",
+      "description": "Returns the length in bits of the string {{giventext}}."
+    },
+    {
+      "name": "TYPEOF",
+      "args": "([field name] {givenfield})",
+      "returnType": "string",
+      "description": "Returns the type(s) of values in {{givenfield}}."
+    },
+    {
+      "name": "ISNULL",
+      "args": "({<expression>})",
+      "returnType": "boolean",
+      "description": "Returns true if {{<expression>}} is NULL, and false otherwise."
+    },
+    {
+      "name": "ISNOTNULL",
+      "args": "({<expression>})",
+      "returnType": "boolean",
+      "description": "Returns false if {{<expression>}} is NULL, and true otherwise."
+    },
+    {
+      "name": "TRIM",
+      "args": "(LEADING or TRAILING or BOTH [string] {trimtext} FROM [string] {basetext})",
+      "returnType": "string",
+      "description": "Trims {{trimtext}} from the left side, the right side, or both sides of {{basetext}}.",
+      "example": "TRIM(TRAILING 'derful stuff' FROM 'We have wonderful stuff') -> 'We have won'"
+    },
+    {
+      "name": "LTRIM",
+      "args": "([string] {basetext}, [optional string] {trimtext})",
+      "returnType": "string",
+      "description": "Trims {{trimtext}} from the left of {{basetext}}. If {{trimtext}} is omitted then spaces are trimmed.",
+      "example": "LTRIM('pancake','pan') -> 'cake'"
+    },
+    {
+      "name": "RTRIM",
+      "args": "([string] {basetext}, [optional string] {trimtext})",
+      "returnType": "string",
+      "description": "Trims {{trimtext}} from the right of {{basetext}}. If {{trimtext}} is omitted then spaces are trimmed.",
+      "example": "RTRIM('ice cream',' cream') -> 'ice'"
+    },
+    {
+      "name": "BTRIM",
+      "args": "([string] {basetext}, [optional string] {trimtext})",
+      "returnType": "string",
+      "description": "Trims {{trimtext}} from both sides of {{basetext}}. If {{trimtext}} is omitted then spaces are trimmed.",
+      "example": "BTRIM('~~CoolScreenName~~','~') -> 'CoolScreenName'"
+    },
+    {
+      "name": "LPAD",
+      "args": "([string] {basetext}, [number] {x}, [optional string] {padtext})",
+      "returnType": "string",
+      "description": "Prepends {{padtext}} to {{basetext}} in a way that allows as many characters as possible from {{padtext}} given an output string length of {{x}}. When {{x}} is less than or equal to the length of {{basetext}}, only characters from {{basetext}} are printed in the output. If {{padtext}} is omitted then spaces are prepended.",
+      "example": "LPAD(' hugs and kisses',20,'XO') -> 'XOXO hugs and kisses'"
+    },
+    {
+      "name": "RPAD",
+      "args": "([string] {basetext}, [number] {x}, [optional string] {padtext})",
+      "returnType": "string",
+      "description": "Appends {{padtext}} to {{basetext}} in a way that allows as many characters as possible from {{padtext}} given an output string length of {{x}}. When {{x}} is less than or equal to the length of {{basetext}}, only characters from {{basetext}} are printed in the output. If {{padtext}} is omitted then spaces are appended.",
+      "example": "RPAD('hugs and kisses ',21,'XO') -> 'hugs and kisses XOXOX'"
+    },
+    {
+      "name": "LOWER",
+      "args": "([string] {giventext})",
+      "returnType": "string",
+      "description": "Converts the string {{giventext}} to all lowercase letters."
+    },
+    {
+      "name": "UPPER",
+      "args": "([string] {giventext})",
+      "returnType": "string",
+      "description": "Converts the string {{giventext}} to all uppercase letters."
+    },
+    {
+      "name": "INITCAP",
+      "args": "([string] {giventext})",
+      "returnType": "string",
+      "description": "Capitalizes the first letter in each word of {{giventext}}.",
+      "example": "INITCAP('a guide to big data') -> 'A Guide To Big Data'"
+    },
+    {
+      "name": "POSITION",
+      "args": "([string] {sometext} IN [string] {giventext})",
+      "returnType": "number",
+      "description": "Gives the location of the string {{sometext}} in {{giventext}}.",
+      "example": "POSITION('and' IN 'beans and rice') -> 7"
+    },
+    {
+      "name": "STRPOS",
+      "args": "([string] {giventext}, [string] {sometext})",
+      "returnType": "number",
+      "description": "Gives the location of the string {{sometext}} in {{giventext}}.",
+      "example": "STRPOS('beans and rice','and') -> 7"
+    },
+    {
+      "name": "BYTE_SUBSTR",
+      "args": "([string] {giventext}, [number] {x}, [number] {y})",
+      "returnType": "binary",
+      "description": "Produces the binary representation of a string {{y}} characters long derived by starting at position {{x}} in the string {{giventext}}. {{y}} may also be given by the expression {{LENGTH(giventext)}}, which indicates that you wish to convert every remaining character in {{giventext}}."
+    },
+    {
+      "name": "SUBSTR",
+      "args": "([string] {giventext}, [number] {x}, [optional number] {y})",
+      "returnType": "string",
+      "description": "Returns a {{y}} character string derived from {{giventext}} that begins at position {{x}}. If the number {{y}} is omitted then rest of the characters in {{giventext}} past position {{x}} are returned.",
+      "tags": [
+        "SUBSTRING"
+      ],
+      "example": "SUBSTR('gastronomy',2,5) -> 'astro'"
+    },
+    {
+      "name": "CHAR_LENGTH",
+      "args": "([string] {giventext})",
+      "returnType": "number",
+      "description": "Calculates the length of the string {{giventext}}.",
+      "tags": [
+        "CHARACTER_LENGTH",
+        "LENGTH"
+      ]
+    },
+    {
+      "name": "LENGTH",
+      "args": "([string] {giventext}, [optional literal string] {character_encoding}",
+      "returnType": "number",
+      "description": "Gives the length of string {{giventext}} in the encoding scheme designated by the string {{character_encoding}}. If {{character_encoding}} is not specified then 'UTF8' is assumed."
+    },
+    {
+      "name": "ILIKE",
+      "args": "([string] {text1}, [string] {text2})",
+      "returnType": "boolean",
+      "description": "Returns true if {{text1}} and {{text2}} are the same, and false otherwise."
+    },
+    {
+      "name": "REGEXP_REPLACE",
+      "args": "([string] {basetext}. [string] {matching}, [string] {{newtext}})",
+      "returnType": "string",
+      "description": "Replaces the patterns in {{basetext}} described by the regular expression {{matching}} with the string {{newtext}}.",
+      "example": "SELECT REGEXP_REPLACE('The cat was catatonic.','cat\\b','dog') -> 'The dog was catatonic.'"
+    },
+    {
+      "name": "CONCAT",
+      "args": "([string] {text1}, [optional string] {text2}, [optional string] {text3}, ...)",
+      "returnType": "string",
+      "description": "Combines strings.",
+      "example": "CONCAT('un','sports','man','like') -> 'unsportsmanlike'"
+    },
+    {
+      "name": "SPLIT_PART",
+      "args": "([string] {basetext}, [string] {splitter}, [number] {index})",
+      "returnType": "string",
+      "description": "Splits {{basetext}} wherever {{splitter}} occurs, and returns the Nth element in this list, where N is given by {{index}}. The first element is retrieved by setting {{index = 1}}.",
+      "example": "SPLIT_PART('two words',' ',2) -> 'words'"
+    },
+    {
+      "name": "REGEXP_LIKE",
+      "args": "([string] {giventext}, [string literal] {matching})",
+      "returnType": "boolean",
+      "description": "Returns true if the regular expression in {{matching}} matches the string in {{giventext}}.",
+      "example": "REGEXP_LIKE('catatonic','cat\\S+') -> true"
+    },
+    {
+      "name": "REGEXP_MATCHES",
+      "args": "([string] {giventext}, [string literal] {matching})",
+      "returnType": "boolean",
+      "description": "Returns true if the regular expression in {{matching}} matches the string in {{giventext}}.",
+      "example": "REGEXP_MATCHES('catatonic','cat\\S+') -> true"
+    },
+    {
+      "name": "REVERSE",
+      "args": "([string] {giventext})",
+      "returnType": "string",
+      "description": "Reverses {{giventext}}.",
+      "example": "REVERSE('palindrome') -> 'emordnilap'"
+    },
+    {
+      "name": "\"LEFT\"",
+      "args": "([string] {giventext}, [number] {x})",
+      "returnType": "string",
+      "description": "Returns the {{x}} leftmost characters of {{giventext}}. Function name must be enclosed in double quotes.",
+      "example": "\"LEFT\"('stuff',3) -> 'stu'"
+    },
+    {
+      "name": "\"RIGHT\"",
+      "args": "([string] {giventext}, [number] {x})",
+      "returnType": "string",
+      "description": "Returns the {{x}} rightmost characters of {{giventext}}. Function name must be enclosed in double quotes.",
+      "example": "\"RIGHT\"('stuff',2) -> 'ff'"
+    },
+    {
+      "name": "REPLACE",
+      "args": "([string] {basetext}, [string] {text1}, [string] {text2})",
+      "returnType": "string",
+      "description": "Replaces {{text1}} with {{text2}} in {{basetext}}.",
+      "example": "REPLACE('the catatonic cat','cat','dog') -> 'the dogatonic dog'"
+    }
+  ]

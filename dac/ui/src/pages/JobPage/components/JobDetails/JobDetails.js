@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 
-import { body } from 'uiTheme/radium/typography';
 import { loadJobDetails, cancelJobAndShowNotification, showJobProfile } from 'actions/jobs/jobs';
 import { downloadFile } from 'sagas/downloadFile';
 import socket from 'utils/socket';
@@ -57,6 +57,8 @@ export class JobDetails extends Component {
     viewState: PropTypes.instanceOf(Immutable.Map)
   };
 
+  refreshInterval = 0;
+
   defaultProps = {
     jobDetails: Immutable.Map()
   }
@@ -76,6 +78,7 @@ export class JobDetails extends Component {
 
   componentWillUnmount() {
     this.stopListenToJobChange(this.props.jobId);
+    clearInterval(this.refreshInterval);
   }
 
   receiveProps(nextProps, oldProps) {
@@ -84,25 +87,31 @@ export class JobDetails extends Component {
 
     if (jobId && jobId !== oldJobId) {
       this.stopListenToJobChange(oldJobId);
-      this.props.loadJobDetails(jobId, VIEW_ID).then((response) => {
-        if (!response) return;
-
-        if (response.meta.jobId !== jobId) return;
-
-        if (!response.error) {
-          socket.startListenToJobChange(jobId);
-        } else if (response.payload.status === 404) {
-          this.props.updateViewState(VIEW_ID, {
-            isFailed: false,
-            isWarning: true,
-            error: {
-              message: la('Could not find the specified job\'s details, they may have been cleaned up.'),
-              id: uuid.v4()
-            }
-          });
-        }
-      });
+      this.load(jobId);
+      clearInterval(this.refreshInterval);
+      this.refreshInterval = setInterval(this.load, 3000);
     }
+  }
+
+  load = (jobId = this.props.jobId) => {
+    return this.props.loadJobDetails(jobId, VIEW_ID).then((response) => {
+      if (!response || (response.error && !response.payload)) return; // no-payload error check for DX-9340
+
+      if (response.meta.jobId !== jobId) return;
+
+      if (!response.error) {
+        socket.startListenToJobChange(jobId);
+      } else if (response.payload.status === 404) {
+        this.props.updateViewState(VIEW_ID, {
+          isFailed: false,
+          isWarning: true,
+          error: {
+            message: la('Could not find the specified job\'s details, they may have been cleaned up.'),
+            id: uuid.v4()
+          }
+        });
+      }
+    });
   }
 
   stopListenToJobChange(jobId) {
@@ -119,11 +128,12 @@ export class JobDetails extends Component {
 
   render() {
     const { jobId, jobDetails, viewState } = this.props;
+    const haveDetails = !!(jobId && jobDetails && !jobDetails.isEmpty());
 
     return (
       <section className='job-details' style={styles.base}>
-        <ViewStateWrapper viewState={viewState}>
-          { jobId && jobDetails && !jobDetails.isEmpty() &&
+        <ViewStateWrapper viewState={viewState} hideChildrenWhenInProgress={false} hideChildrenWhenFailed={false} hideSpinner={haveDetails}>
+          { haveDetails &&
             <div style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
               <HeaderDetails
                 jobState={jobDetails.get('state')}
@@ -159,7 +169,6 @@ export class JobDetails extends Component {
 
 const styles = {
   base: {
-    ...body,
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',

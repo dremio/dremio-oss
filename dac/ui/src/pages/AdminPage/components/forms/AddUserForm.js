@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { ModalForm, modalFormProps } from 'components/Forms';

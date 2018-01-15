@@ -65,9 +65,10 @@ public class BasicMaterializationTask extends MaterializationTask {
   }
 
   @Override
-  public void updateMetadataAndSave() {
+  public void updateMetadataAndSave(long refreshChainStartTime) {
     final Materialization materialization = getMaterialization();
     materialization.setUpdateId(-1L);
+    materialization.setRefreshChainStartTime(refreshChainStartTime);
     save(materialization); //TODO move this to ChainExecutor
     createMetadata(materialization); //TODO move this to ChainExecutor ?
   }

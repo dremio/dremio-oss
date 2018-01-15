@@ -36,7 +36,6 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.FilterCondition;
-import com.dremio.exec.store.parquet.ParquetFooterCache;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
@@ -58,7 +57,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final List<SchemaPath> groupScanColumns;
   private final List<FilterCondition> conditions;
   private final FileSplit fileSplit;
-  private final ParquetFooterCache footerCache;
+  private final ParquetMetadata footer;
   private final JobConf jobConf;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
@@ -75,7 +74,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final List<SchemaPath> groupScanColumns,
       final List<FilterCondition> conditions,
       final FileSplit fileSplit,
-      final ParquetFooterCache footerCache,
+      final ParquetMetadata footer,
       final JobConf jobConf,
       final boolean vectorize,
       final boolean enableDetailedTracing
@@ -85,7 +84,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.groupScanColumns = groupScanColumns;
     this.conditions = conditions;
     this.fileSplit = fileSplit;
-    this.footerCache = footerCache;
+    this.footer = footer;
     this.jobConf = jobConf;
     this.readerFactory = readerFactory;
     this.vectorize = vectorize;
@@ -104,9 +103,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         throw new ExecutionSetupException(String.format("Failed to create FileSystem: %s", e.getMessage()), e);
       }
 
-      ParquetMetadata parquetMetadata = footerCache.getFooter(finalPath);
-
-      final List<Integer> rowGroupNums = getRowGroupNumbersFromFileSplit(fileSplit, parquetMetadata);
+      final List<Integer> rowGroupNums = getRowGroupNumbersFromFileSplit(fileSplit, footer);
       oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
 
       innerReaders = Lists.newArrayList();
@@ -124,9 +121,9 @@ public class FileSplitParquetRecordReader implements RecordReader {
             groupScanColumns,
             null,
             conditions,
-            footerCache,
             split,
             fs,
+            footer,
             null,
             CodecFactory.createDirectCodecFactory(jobConf, new ParquetDirectByteBufferAllocator(oContext.getAllocator()), 0),
             /* autoCorrectDates = */ true,

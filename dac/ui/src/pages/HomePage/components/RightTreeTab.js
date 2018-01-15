@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
-
-import { body } from 'uiTheme/radium/typography';
 
 @Radium
 export default class RightTreeTab extends Component {
@@ -30,7 +29,7 @@ export default class RightTreeTab extends Component {
     return (
       <div
         className='tab-content'
-        style={[body, styles.tabContent]}>{this.props.children}</div>
+        style={styles.tabContent}>{this.props.children}</div>
     );
   }
 }

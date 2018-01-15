@@ -31,7 +31,6 @@ import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.accelerator.ChainExecutor;
 import com.dremio.service.accelerator.DropTask;
 import com.dremio.service.accelerator.MaterializationTask.MaterializationContext;
-import com.dremio.service.accelerator.RebuildRefreshGraph;
 import com.dremio.service.accelerator.pipeline.PipelineUtils;
 import com.dremio.service.accelerator.pipeline.PipelineUtils.VersionedLayoutId;
 import com.dremio.service.accelerator.pipeline.Stage;
@@ -123,16 +122,16 @@ public class ActivationStage implements Stage {
     final LayoutContainer aggContainer = original.getAggregationLayouts();
 
     // issue drop table exactly once populating all in a set
-    final Iterable<Layout> droppedLayouts = ImmutableSet.<Layout>builder()
+    final Iterable<Layout> disabledLayouts = ImmutableSet.<Layout>builder()
         .addAll(deleted)
-        // delete all original raw layouts if raw is disabled
-        .addAll(rawEnabled ? ImmutableList.<Layout>of() : AccelerationUtils.selfOrEmpty(rawContainer.getLayoutList()))
-        // delete all original aggregation layouts if aggregation is disabled
-        .addAll(aggregationEnabled ? ImmutableList.<Layout>of() : AccelerationUtils.selfOrEmpty(aggContainer.getLayoutList()))
+        // disable all original raw layouts if raw is going to be disabled and was not disabled before
+        .addAll(rawContainer.getEnabled() && !rawEnabled ? AccelerationUtils.selfOrEmpty(rawContainer.getLayoutList()) : ImmutableList.<Layout>of())
+        // disable all original aggregation layouts if aggregation is going to disabled and was not disabled before
+        .addAll(aggContainer.getEnabled() && !aggregationEnabled ?  AccelerationUtils.selfOrEmpty(aggContainer.getLayoutList()) : ImmutableList.<Layout>of())
         .build();
 
     final Iterable<Materialization> droppedMaterializations = FluentIterable
-        .from(droppedLayouts)
+        .from(disabledLayouts)
         .transformAndConcat(new Function<Layout, Iterable<? extends Materialization>>() {
           @Nullable
           @Override
@@ -149,14 +148,17 @@ public class ActivationStage implements Stage {
 
     DatasetConfig dataset = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
     for (final Materialization materialization : droppedMaterializations) {
+      //remove materialization from cache
+      context.getAccelerationService().getMaterlizationProvider().remove(materialization.getId().getId());
+      //start a drop task
       executor.execute(new DropTask(acceleration, materialization, jobsService, dataset));
     }
-    boolean materializationsDropped = droppedLayouts.iterator().hasNext();
+    boolean layoutsDisabled = disabledLayouts.iterator().hasNext();
 
-    for (final Layout layout : droppedLayouts) {
+    for (final Layout layout : disabledLayouts) {
       materializationStore.remove(layout.getId());
     }
-    return materializationsDropped;
+    return layoutsDisabled;
  }
 
 
@@ -177,7 +179,7 @@ public class ActivationStage implements Stage {
 
     if (newLayouts.isEmpty()) {
       if (rebuildRequired) {
-        executor.submit(RebuildRefreshGraph.of(accelerationService));
+        accelerationService.startBuildDependencyGraph();
       }
       return;
     }

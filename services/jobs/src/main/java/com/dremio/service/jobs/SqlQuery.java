@@ -29,17 +29,17 @@ public class SqlQuery {
   private final String username;
 
   public SqlQuery(String sql, List<String> context, String username) {
-    super();
     this.sql = sql;
     this.context = context;
     this.username = username;
   }
 
   public SqlQuery(String sql, List<String> context, SecurityContext securityContext) {
-    super();
-    this.sql = sql;
-    this.context = context;
-    this.username = securityContext.getUserPrincipal().getName();
+    this(sql, context, securityContext.getUserPrincipal().getName());
+  }
+
+  public SqlQuery(String sql, String username) {
+    this(sql, Collections.<String>emptyList(), username);
   }
 
   public String getSql() {
@@ -54,23 +54,13 @@ public class SqlQuery {
     return username;
   }
 
-  public SqlQuery(String sql, String username) {
-    super();
-    this.sql = sql;
-    this.context = Collections.emptyList();
-    this.username = username;
-  }
-
-  public SqlQuery cloneWithNewSql(String sql){
+  public SqlQuery cloneWithNewSql(String sql) {
     return new SqlQuery(sql, context, username);
   }
 
   @Override
   public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("SqlQuery [sql=").append(sql).append(", context=").append(context).append(", username=").append(username).append("]");
-    return builder.toString();
+    return String.format("SqlQuery [sql=%s, context=%s, username=%s]", sql, context, username);
   }
-
 
 }

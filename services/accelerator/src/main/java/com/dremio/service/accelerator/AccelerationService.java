@@ -45,6 +45,12 @@ public interface AccelerationService extends Service {
   Iterable<Acceleration> getAccelerations(IndexedStore.FindByCondition condition);
 
   /**
+   * Returns all accelerations
+   *
+   */
+  Iterable<Acceleration> getAllAccelerations();
+
+  /**
    * Returns an optional of acceleration associated with the given id
    * @param id look-up id
    */
@@ -173,5 +179,11 @@ public interface AccelerationService extends Service {
    * @return
    */
   Optional<MaterializedLayout> getMaterializedLayout(LayoutId layoutId);
+
+  /**
+   * Asynchronously start the rebuilding of dependency graph
+   * @return
+   */
+  void startBuildDependencyGraph();
 
 }

@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-
+import { injectIntl } from 'react-intl';
 import { SpaceForm } from './SpaceForm';
+
+const SpaceFormIntl = injectIntl(SpaceForm);
 
 describe('SpaceForm', () => {
 
@@ -36,7 +38,7 @@ describe('SpaceForm', () => {
   });
 
   it('should render ModalForm, FormBody and General', () => {
-    const wrapper = shallow(<SpaceForm {...commonProps}/>, {context});
+    const wrapper = shallow(<SpaceFormIntl {...commonProps}/>, {context});
     expect(wrapper.find('ModalForm')).to.have.length(1);
     expect(wrapper.find('FormBody')).to.have.length(1);
     expect(wrapper.find('General')).to.have.length(1);

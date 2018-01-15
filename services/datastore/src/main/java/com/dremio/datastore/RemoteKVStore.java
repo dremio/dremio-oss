@@ -96,6 +96,12 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     return storeId;
   }
 
+
+  @Override
+  public KVAdmin getAdmin() {
+    throw new UnsupportedOperationException("KV administration can only be done on master node.");
+  }
+
   public StoreBuilderConfig getConfig() {
     return config;
   }

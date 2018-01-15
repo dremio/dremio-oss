@@ -27,7 +27,7 @@ describe('LayoutInfo', () => {
     commonProps = {
       ...minimalProps,
       layout: Immutable.fromJS({
-        id:{id:'a'},
+        id:'a',
         // should be able to render without: currentByteSize
         totalByteSize: 1536,
         hasValidMaterialization: true,

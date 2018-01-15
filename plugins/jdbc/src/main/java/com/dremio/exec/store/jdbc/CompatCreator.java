@@ -48,6 +48,8 @@ public final class CompatCreator {
   // Needed for test framework which uses HSQLDB and Derby
   public static final String HSQLDB_DRIVER = "org.hsqldb.jdbcDriver";
   public static final String DERBY_DRIVER = "org.apache.derby.jdbc.ClientDriver";
+  public static final String EMBEDDED_DERBY_DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
+
 
   // Needed for handling upgrades of Oracle data sources before 1.2. These versions don't save the username and
   // password independently of the connection URL. We need to extract the username and password.

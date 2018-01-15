@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import SelectConnectionButton from 'components/SelectConnectionButton';
@@ -41,7 +42,7 @@ export default class SelectClusterType extends Component {
       <SelectConnectionButton
         key={cluster.get('clusterType')}
         label={cluster.get('label')}
-        iconType={cluster.get('iconType')}
+        iconType={`provisionManagers/${cluster.get('iconType')}`}
         disabled={!cluster.get('connected')}
         pillText={cluster.get('connected') ? '' : la('coming soon')}
         onClick={this.handleSelectClusterType.bind(this, cluster)}

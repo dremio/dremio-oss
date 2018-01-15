@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import shallowEqual from 'shallowequal';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
+import { injectIntl } from 'react-intl';
 
 import HomePage from 'pages/HomePage/HomePage';
 import { loadSourceListData, setSourcePin } from 'actions/resources/sources';
@@ -27,13 +29,15 @@ import { getSources } from 'selectors/resources';
 import AllSourcesView from './AllSourcesView.js';
 
 @pureRender
+@injectIntl
 export class AllSources extends Component {
 
   static propTypes = {
     location: PropTypes.object.isRequired,
     sources: PropTypes.instanceOf(Immutable.List),
     loadSourceListData: PropTypes.func,
-    setSourcePin: PropTypes.func
+    setSourcePin: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   componentWillReceiveProps(nextProps) {
@@ -47,10 +51,10 @@ export class AllSources extends Component {
   }
 
   render() {
-    const {location, sources} = this.props;
+    const { location, sources, intl } = this.props;
     return (
       <HomePage location={location}>
-        <DocumentTitle title={la('All Sources')} />
+        <DocumentTitle title={intl.formatMessage({ id: 'Source.AllSources' })} />
         <AllSourcesView
           filters={this.filters}
           sources={sources}

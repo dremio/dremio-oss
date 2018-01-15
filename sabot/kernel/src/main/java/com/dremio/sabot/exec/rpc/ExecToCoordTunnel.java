@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec.rpc;
 
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -51,7 +52,7 @@ public class ExecToCoordTunnel {
     manager.runCommand(b);
   }
 
-  public RpcFuture<Ack> sendFragmentStatusFuture(FragmentStatus status){
+  public RpcFuture<Ack> sendFragmentStatus(FragmentStatus status){
     SendFragmentStatusFuture b = new SendFragmentStatusFuture(status);
     manager.runCommand(b);
     return b.getFuture();
@@ -84,6 +85,25 @@ public class ExecToCoordTunnel {
       connection.sendUnsafe(outcomeListener, RpcType.REQ_FRAGMENT_STATUS, status, Ack.class);
     }
 
+  }
+
+  public RpcFuture<Ack> sendNodeQueryStatus(NodeQueryStatus status){
+    SendNodeQueryStatusFuture b = new SendNodeQueryStatusFuture(status);
+    manager.runCommand(b);
+    return b.getFuture();
+  }
+
+  private static class SendNodeQueryStatusFuture extends FutureBitCommand<Ack, ProxyConnection> {
+    final NodeQueryStatus status;
+
+    public SendNodeQueryStatusFuture(NodeQueryStatus status) {
+      this.status = status;
+    }
+
+    @Override
+    public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+      connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_STATUS, status, Ack.class);
+    }
   }
 
   private class SendBatch extends ListeningCommand<Ack, ProxyConnection> {

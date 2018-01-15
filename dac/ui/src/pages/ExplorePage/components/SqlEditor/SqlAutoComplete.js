@@ -13,59 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 
-import ReactDOM from 'react-dom';
-import $ from 'jquery';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import deepEqual from 'deep-equal';
-import { debounce } from 'lodash/function';
-
-import 'codemirror/mode/sql/sql';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/addon/hint/show-hint.css';
-import 'codemirror/theme/mdn-like.css';
 
 import exploreUtils from 'utils/explore/exploreUtils';
-import codeMirrorUtils from 'utils/CodeMirrorUtils';
 import { splitFullPath, constructFullPath } from 'utils/pathUtils';
 
 import FontIcon from 'components/Icon/FontIcon';
 import Modal from 'components/Modals/Modal';
-import CodeMirror from 'components/CodeMirror';
+import SQLEditor from 'components/SQLEditor';
 
-import { body } from 'uiTheme/radium/typography';
 import { MARGIN_SQL_EDITOR } from 'uiTheme/radium/sizes.js';
+
+import DragTarget from 'components/DragComponents/DragTarget';
 
 import SelectContextForm from '../forms/SelectContextForm';
 
 import './SqlAutoComplete.less';
 
-const DEFAULT_HEIGHT = 150;
-const UPDATE_HEIGHT_DELAY = 100;
-const DEBOUNCE_UPDATE_CODE = 250;
 const DEFAULT_CONTEXT = '<none>';
 
-const CODE_MIRROR_OPTIONS = {
-  lineWrapping: true
-};
-
 @Radium
-export default class SqlAutoComplete extends Component {
+export default class SqlAutoComplete extends Component { // todo: pull SQLEditor into this class (and rename)
   static propTypes = {
     onChange: PropTypes.func,
     pageType: PropTypes.oneOf(['details', 'recent']),
     defaultValue: PropTypes.string,
     isGrayed: PropTypes.bool,
-    onFocus: PropTypes.func,
     context: PropTypes.instanceOf(Immutable.List),
     name: PropTypes.string,
     sqlSize: PropTypes.number,
     datasetsPanel: PropTypes.bool,
     funcHelpPanel: PropTypes.bool,
     changeQueryContext: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
+    dragType: PropTypes.string
+  };
+
+  static defaultProps = {
+    sqlSize: 100
   };
 
   static contextTypes = {
@@ -73,35 +63,20 @@ export default class SqlAutoComplete extends Component {
     router: PropTypes.object.isRequired
   };
 
+  monacoEditorComponent = null;
+  sqlEditor = null;
+
   constructor(props) {
     super(props);
 
-    this.getWord = this.getWord.bind(this);
     this.handleClickEditContext = this.handleClickEditContext.bind(this);
     this.renderSelectContextModal = this.renderSelectContextModal.bind(this);
     this.hideSelectContextModal = this.hideSelectContextModal.bind(this);
     this.updateContext = this.updateContext.bind(this);
-    this.updateCode = debounce(this.updateCode, DEBOUNCE_UPDATE_CODE);
 
     this.state = {
       showSelectContextModal: false
     };
-  }
-
-  componentDidMount() {
-    this.setHeightOfEditor(this.props.sqlSize - MARGIN_SQL_EDITOR);
-    this.editor = this.refs.editor.editor;
-    this.posForDrop = this.editor.coordsChar({left: 0, top: 0});
-  }
-
-  componentWillReceiveProps(nextProps, nextContext) {
-    if (nextProps.sqlSize !== this.props.sqlSize && this.refs.editor &&
-       nextProps.pageType === undefined) {
-      clearTimeout(this.timerForheight);
-      this.timerForheight = setTimeout(() => {
-        this.setHeightOfEditor(nextProps.sqlSize - MARGIN_SQL_EDITOR);
-      }, UPDATE_HEIGHT_DELAY);
-    }
   }
 
   shouldComponentUpdate(nextProps, nextState, nextContext) {
@@ -112,57 +87,50 @@ export default class SqlAutoComplete extends Component {
       nextProps.funcHelpPanel !== this.props.funcHelpPanel ||
       nextProps.datasetsPanel !== this.props.datasetsPanel ||
       nextProps.isGrayed !== this.props.isGrayed ||
-      !deepEqual(nextState, this.state));
+      nextProps.sqlSize !== this.props.sqlSize ||
+      !deepEqual(nextState, this.state)
+    );
   }
 
-  componentWillUpdate() {
-    const height = this.props.sqlSize === null ? DEFAULT_HEIGHT : this.props.sqlSize - MARGIN_SQL_EDITOR;
-    this.cursor = this.editor && this.editor.getCursor();
-    this.setHeightOfEditor(height);
-  }
+  handleDrop = ({ id, args }, monitor) => {
+    // because we move the cursor as we drag around, we can simply insert at the current position in the editor (default)
 
-  componentWillUnmount() {
-    if (this.updateCode.cancel) {
-      this.updateCode.cancel();
+    // duck-type check pending drag-n-drop revamp
+    if (args !== undefined) {
+      this.insertFunction(id, args);
+    } else if (typeof id === 'string') {
+      this.insertFieldName(id);
+    } else {
+      this.insertFullPath(id);
     }
   }
 
-  getWord(offset) {
-    let word = this.editor.getRange(offset.anchor, offset.head);
-    word = word.trim();
-    return word;
+  getMonacoEditorInstance() {
+    return this.sqlEditor.monacoEditorComponent.editor;
   }
 
-  setHeightOfEditor(height) {
-    $(ReactDOM.findDOMNode(this.refs.editor)).find('.cm-s-default').height(height);
-    $(ReactDOM.findDOMNode(this.refs.editor)).find('.CodeMirror').height(height);
+  getMonaco() {
+    return this.sqlEditor.monaco;
+  }
+
+  handleDragOver = (evt) => {
+    const target = this.getMonacoEditorInstance().getTargetAtClientPoint(evt.clientX, evt.clientY);
+    if (!target || !target.position) return; // no position if you drag over the rightmost part of the context UI
+    this.getMonacoEditorInstance().setPosition(target.position);
+    this.focus();
   }
 
   focus() {
-    this.editor.focus();
+    if (!this.getMonacoEditorInstance()) return;
+    this.getMonacoEditorInstance().focus();
   }
 
   resetValue() {
-    this.refs.editor.resetValue();
+    this.sqlEditor.resetValue();
   }
 
   handleChange = () => {
     this.updateCode();
-  }
-
-  handleFocus = () => {
-    if (this.props.onFocus) {
-      this.props.onFocus(this.editor.doc.getValue());
-    }
-  }
-
-  handleBlur = () => {
-    this.updateCode.flush();
-  }
-
-  handleDragover = (editor, e) => {
-    const pos = editor.coordsChar({left: e.x, top: e.pageY});
-    this.posForDrop = pos;
   }
 
   handleClickEditContext() {
@@ -178,69 +146,109 @@ export default class SqlAutoComplete extends Component {
     this.hideSelectContextModal();
   }
 
-  insertFullPathAtDrop(nameOrPathList) {
-    this.insertFullPathAtPosition(nameOrPathList, this.posForDrop);
+  insertFullPath(pathList, ranges) {
+    const text = constructFullPath(pathList);
+    this.insertAtRanges(text, ranges);
   }
 
-  insertFullPathAtCursor(nameOrPathList) {
-    this.insertFullPathAtPosition(nameOrPathList, this.editor.getCursor());
+  insertFieldName(name, ranges) {
+    const text = exploreUtils.escapeFieldNameForSQL(name);
+    this.insertAtRanges(text, ranges);
   }
 
-  insertFullPathAtPosition(nameOrPathList, position) {
-    // fullPath should be escaped with constructedFullPath
-    const finalText = typeof nameOrPathList === 'string' ?
-      exploreUtils.escapeFieldNameForSQL(nameOrPathList) : constructFullPath(nameOrPathList);
+  insertFunction(name, args, ranges = this.getMonacoEditorInstance().getSelections()) {
+    const hasArgs = args && args.length;
+    let text = name;
 
-    this.editor.doc.setValue(
-      codeMirrorUtils.insertTextAtPos(this.editor, finalText, position)
-    );
-    this.setState({
-      code: this.editor.doc.getValue()
-    });
-    this.props.onChange(this.editor.doc.getValue());
-  }
-
-  insertFunction(code, insertToEnd, args) {
-    if (insertToEnd) {
-      this.editor.replaceRange(` ${code}()`, {line: Infinity});
-    } else {
-      const selectedRange = { from: this.editor.getCursor(true), to: this.editor.getCursor(false) };
-      if (selectedRange.to.ch - selectedRange.from.ch) {
-        const newcode = exploreUtils.describeSqlFuncs(code, args);
-        this.editor.replaceRange(newcode, selectedRange.from, selectedRange.to);
-      } else {
-        const word = this.editor.findWordAt(this.posForDrop);
-        const newcode = `${exploreUtils.describeSqlFuncs(code, args)}${this.getWord(word)} `;
-        this.editor.replaceRange(newcode, word.anchor, word.head);
-      }
+    if (!hasArgs) {
+      // simple insert/replace
+      this.insertAtRanges(text, ranges);
+      return;
     }
-    this.setState({
-      code: this.editor.doc.getValue()
+
+    this.getMonacoEditorInstance().getModel().pushStackElement();
+
+    const Selection = this.getMonaco().Selection;
+    const nonEmptySelections = [];
+    let emptySelections = [];
+    ranges.forEach(range => {
+      const selection = new Selection(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn);
+      if (!selection.isEmpty()) {
+        nonEmptySelections.push(selection);
+      } else {
+        emptySelections.push(selection);
+      }
     });
-    this.props.onChange(this.editor.doc.getValue());
+
+    if (nonEmptySelections.length) {
+      const edits = [
+        ...nonEmptySelections.map(sel => ({ identifier: 'dremio-inject', range: sel.collapseToStart(), text: text + '(' })),
+        ...nonEmptySelections.map(sel => ({ identifier: 'dremio-inject', range: Selection.fromPositions(sel.getEndPosition()), text: ')' }))
+      ];
+      this.getMonacoEditorInstance().executeEdits('dremio', edits);
+
+      // need to update emptySelections for the new insertions
+      // assumes that function names are single line, and ranges don't overlap
+      const nudge = text.length + 2;
+      nonEmptySelections.forEach(nonEmptySel => {
+        emptySelections = emptySelections.map(otherSelection => {
+          let {startLineNumber, startColumn, endLineNumber, endColumn} = otherSelection;
+          if (startLineNumber === nonEmptySel.endLineNumber) {
+            if (startColumn >= nonEmptySel.endColumn) {
+              startColumn += nudge;
+              if (endLineNumber === startLineNumber) {
+                endColumn += nudge;
+              }
+            }
+          }
+          return new Selection(startLineNumber, startColumn, endLineNumber, endColumn);
+        });
+      });
+    }
+
+    // do snippet-style insertion last so that the selection ends up with token selection
+    if (emptySelections.length) {
+      let i = 1; // starts with 1: https://code.visualstudio.com/docs/editor/userdefinedsnippets
+      text += args.replace(/\[.*?\] /g, '').replace(/\{(.*?)\}/g, (m, p1) => `\${${i++}:${p1}}`);
+
+      // insertSnippet only works with the current selection, so move the selection to the input range
+      this.getMonacoEditorInstance().setSelections(emptySelections);
+      this.sqlEditor.insertSnippet(text, undefined, undefined, false, false);
+    }
+
+    this.getMonacoEditorInstance().getModel().pushStackElement();
+    this.focus();
+  }
+
+  insertAtRanges(text, ranges = this.getMonacoEditorInstance().getSelections()) { // getSelections() falls back to cursor location automatically
+    const edits = ranges.map(range => ({ identifier: 'dremio-inject', range, text }));
+    this.getMonacoEditorInstance().executeEdits('dremio', edits);
+    this.getMonacoEditorInstance().pushUndoStop();
+    this.focus();
   }
 
   updateCode() {
     if (this.props.onChange) {
-      this.props.onChange(this.editor.doc.getValue());
+      const value = this.getMonacoEditorInstance().getValue();
+      this.props.onChange(value);
     }
   }
 
   renderSelectContextModal() {
-    if (this.state.showSelectContextModal) {
-      const contextValue = constructFullPath(this.props.context);
-      return <Modal
-        isOpen
-        hide={this.hideSelectContextModal}
-        size='small'
-        title={'Select Context'}>
-        <SelectContextForm
-          onFormSubmit={this.updateContext}
-          onCancel={this.hideSelectContextModal}
-          initialValues={{context: contextValue}}
-        />
-      </Modal>;
-    }
+    if (!this.state.showSelectContextModal) return null;
+
+    const contextValue = constructFullPath(this.props.context);
+    return <Modal
+      isOpen
+      hide={this.hideSelectContextModal}
+      size='small'
+      title={la('Select Context')}>
+      <SelectContextForm
+        onFormSubmit={this.updateContext}
+        onCancel={this.hideSelectContextModal}
+        initialValues={{context: contextValue}}
+      />
+    </Modal>;
   }
 
   renderContext() {
@@ -248,32 +256,38 @@ export default class SqlAutoComplete extends Component {
     const showContext = this.props.pageType === 'details';
     return (
       <div style={[styles.context, showContext && {display: 'none'}]} onClick={this.handleClickEditContext}>
-        <span className='context' style={[body, styles.contextInner]}>Context: {contextValue}</span>
+        <span className='context' style={styles.contextInner}>Context: {contextValue}</span>
         <FontIcon type='Edit' theme={styles.editIcon} hoverType='EditActive'/>
       </div>
     );
   }
 
   render() {
+    const height = this.props.sqlSize - MARGIN_SQL_EDITOR;
     const { datasetsPanel, funcHelpPanel, isGrayed } = this.props;
     const { query } = this.context.location;
     const widthSqlEditor = funcHelpPanel || datasetsPanel ? styles.smallerSqlEditor : {};
     return (
-      <div className='sql-autocomplete'
-        name={this.props.name}
-        style={[body, styles.base, widthSqlEditor,
-          isGrayed && {opacity: 0.4, pointerEvents: 'none'}, this.props.style]}>
-        {this.renderSelectContextModal()}
-        <CodeMirror
-          ref='editor'
-          onChange={this.handleChange}
-          onFocus={this.handleFocus}
-          onBlur={this.handleBlur}
-          onDragover={this.handleDragover}
-          defaultValue={this.props.defaultValue}
-          options={CODE_MIRROR_OPTIONS}/>
-        { query.type !== 'transform' &&  this.renderContext() }
-      </div>
+      <DragTarget
+        dragType={this.props.dragType}
+        onDrop={this.handleDrop}
+        onDragOver={this.handleDragOver}
+      >
+        <div
+          className='sql-autocomplete'
+          name={this.props.name}
+          style={[styles.base, widthSqlEditor, isGrayed && {opacity: 0.4, pointerEvents: 'none'}, this.props.style]}
+        >
+          {this.renderSelectContextModal()}
+          <SQLEditor
+            height={height}
+            ref={(ref) => this.sqlEditor = ref}
+            defaultValue={this.props.defaultValue}
+            onChange={this.handleChange}
+            />
+          { query.type !== 'transform' && this.renderContext() }
+        </div>
+      </DragTarget>
     );
   }
 }
@@ -283,8 +297,7 @@ const styles = {
     position: 'relative',
     width: '100%',
     transition: 'all .3s',
-    backgroundColor: '#fff',
-    cursor: 'text'
+    backgroundColor: '#fff'
   },
   smallerSqlEditor: {
     width: 'calc(50% - 7px)', // 7px - indents from the edge of the screen

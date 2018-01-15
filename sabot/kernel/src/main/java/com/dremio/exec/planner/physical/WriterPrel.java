@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.WriterRelBase;
@@ -36,13 +37,16 @@ public class WriterPrel extends WriterRelBase implements Prel {
   public static final String BUCKET_NUMBER_FIELD = "P_A_R_T_I_T_I_O_N_N_U_M_B_E_R";
   public static final String PARTITION_COMPARATOR_FUNC = "newPartitionValue";
 
-  public WriterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, CreateTableEntry createTableEntry) {
+  private final RelDataType expectedInboundRowType;
+
+  public WriterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, CreateTableEntry createTableEntry, RelDataType expectedInboundRowType) {
     super(Prel.PHYSICAL, cluster, traits, child, createTableEntry);
+    this.expectedInboundRowType = expectedInboundRowType;
   }
 
   @Override
   public WriterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterPrel(getCluster(), traitSet, sole(inputs), getCreateTableEntry());
+    return new WriterPrel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
   }
 
   @Override
@@ -76,6 +80,10 @@ public class WriterPrel extends WriterRelBase implements Prel {
   @Override
   public boolean needsFinalColumnReordering() {
     return true;
+  }
+
+  public RelDataType getExpectedInboundRowType() {
+    return expectedInboundRowType;
   }
 
 }

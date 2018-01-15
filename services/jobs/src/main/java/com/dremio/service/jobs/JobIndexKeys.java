@@ -51,12 +51,12 @@ public final class JobIndexKeys {
   public static final String INTERNAL = "INTERNAL";
   public static final String DOWNLOAD = "DOWNLOAD";
 
-  private static final SearchQuery UI_JOBS_FILTER = SearchQueryUtils.or(
+  public static final SearchQuery UI_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_PREVIEW.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_EXPORT.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_RUN.toString()));
 
-  private static final SearchQuery EXTERNAL_JOBS_FILTER = SearchQueryUtils.or(
+  public static final SearchQuery EXTERNAL_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ODBC.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", JDBC.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", REST.toString()));
@@ -65,19 +65,19 @@ public final class JobIndexKeys {
           UI_JOBS_FILTER,
           EXTERNAL_JOBS_FILTER);
 
-  private static final SearchQuery ACCELERATION_JOBS_FILTER = SearchQueryUtils.or(
+  public static final SearchQuery ACCELERATION_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_CREATE.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_EXPLAIN.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_DROP.toString()));
 
-  private static final SearchQuery INTERNAL_JOBS_FILTER = SearchQueryUtils.or(
+  public static final SearchQuery INTERNAL_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_INTERNAL_PREVIEW.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_INTERNAL_RUN.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_INITIAL_PREVIEW.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", PREPARE_INTERNAL.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UNKNOWN.toString()));
 
-  private static final SearchQuery DOWNLOAD_JOBS_FILTER = SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_EXPORT.toString());
+  public static final SearchQuery DOWNLOAD_JOBS_FILTER = SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_EXPORT.toString());
 
   private static final Map<String, SearchQuery> QUERY_TYPE_FILTERS = ImmutableMap.of(
       UI, UI_JOBS_FILTER,

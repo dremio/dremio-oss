@@ -17,7 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
-import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -43,7 +43,7 @@ public interface ParquetReaderFactory {
       boolean enableDetailedTracing,
       ParquetMetadata footer,
       int rowGroupIndex,
-      UInt4Vector deltas,
+      SimpleIntVector deltas,
       boolean useSingleStream);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
@@ -57,7 +57,7 @@ public interface ParquetReaderFactory {
     public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, FileSystem fs, String path,
         CodecFactory codecFactory, List<FilterCondition> conditions, DateCorruptionStatus corruptionStatus,
         boolean readInt96AsTimeStamp, boolean enableDetailedTracing, ParquetMetadata footer, int rowGroupIndex,
-        UInt4Vector deltas, boolean useSingleStream) {
+        SimpleIntVector deltas, boolean useSingleStream) {
       throw new UnsupportedOperationException();
     }};
 

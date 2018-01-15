@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
 import FontIcon from 'components/Icon/FontIcon';
@@ -31,7 +32,7 @@ export default class UnsupportedBrowserForm extends Component {
       <span style={{ display: 'flex', alignItems: 'center' }}>
         <FontIcon type='Warning-Solid' theme={styles.theme} />
         <span>
-          {la('Dremio works best in the latest versions of Chrome, Firefox, Edge, and Internet Explorer.')}
+          {la('Dremio works best in the latest versions of Chrome, Safari, Firefox, Edge, and Internet\u00A0Explorer.')}
         </span>
       </span>
     );

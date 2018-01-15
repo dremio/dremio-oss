@@ -36,17 +36,21 @@ public class OracleSourceConfigurator extends SingleSourceToStoragePluginConfig<
 
   @Override
   public StoragePluginConfig configureSingle(OracleConfig oracle) {
-    String username = checkNotNull(oracle.getUsername(), "missing username");
-    String password = checkNotNull(oracle.getPassword(), "missing password");
-    String hostname = checkNotNull(oracle.getHostname(), "missing hostname");
-    String port = checkNotNull(oracle.getPort(), "missing port");
-    String instance = checkNotNull(oracle.getInstance(), "missing instance");
-    Integer fetchSize = oracle.getFetchSize();
+    final String username = checkNotNull(oracle.getUsername(), "missing username");
+    final String password = checkNotNull(oracle.getPassword(), "missing password");
+    final String hostname = checkNotNull(oracle.getHostname(), "missing hostname");
+    final String port = checkNotNull(oracle.getPort(), "missing port");
+    final String instance = checkNotNull(oracle.getInstance(), "missing instance");
+    final Integer fetchSize = oracle.getFetchSize();
 
-    JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.ORACLE_DRIVER,
+    final JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.ORACLE_DRIVER,
         "jdbc:oracle:thin:" + username + "/" + password + "@" + hostname + ":"
             + port + "/" + instance,
-            username, password, fetchSize != null ? fetchSize : 0 // Using 0 as default to match UI
+        username,
+        password,
+        fetchSize != null ? fetchSize : 0, // Using 0 as default to match UI
+        null,
+        false
         );
 
     return config;

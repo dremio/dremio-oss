@@ -19,7 +19,8 @@ import java.util.List;
 
 import javax.inject.Named;
 
-import org.apache.arrow.vector.BaseDataValueVector;
+import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.exec.exception.SchemaChangeException;
@@ -131,8 +132,10 @@ public abstract class FrameSupportTemplate implements WindowFramer {
   private void reset() {
     resetValues();
     for (VectorWrapper<?> vw : internal) {
-      if ((vw.getValueVector() instanceof BaseDataValueVector)) {
-        ((BaseDataValueVector) vw.getValueVector()).reset();
+      ValueVector vv = vw.getValueVector();
+      if ((vv instanceof BaseValueVector)) {
+        ArrowBuf validityBuffer = vv.getValidityBuffer();
+        validityBuffer.setZero(0, validityBuffer.capacity());
       }
     }
   }

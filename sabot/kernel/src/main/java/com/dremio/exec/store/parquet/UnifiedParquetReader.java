@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileSystem;
@@ -66,7 +66,7 @@ public class UnifiedParquetReader implements RecordReader {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnifiedParquetReader.class);
 
   private final OperatorContext context;
-  private final ParquetFooterCache footerCache;
+  private final ParquetMetadata footer;
   private final ParquetDatasetSplitXAttr readEntry;
   private final boolean autoCorrectCorruptDates;
   private final boolean readInt96AsTimeStamp;
@@ -96,9 +96,9 @@ public class UnifiedParquetReader implements RecordReader {
       List<SchemaPath> columnsInGroupScan,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<FilterCondition> filterConditions,
-      ParquetFooterCache footerCache,
       ParquetDatasetSplitXAttr readEntry,
       FileSystem fs,
+      ParquetMetadata footer,
       GlobalDictionaries dictionaries,
       CodecFactory codecFactory,
       boolean autoCorrectCorruptDates,
@@ -112,7 +112,7 @@ public class UnifiedParquetReader implements RecordReader {
     this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.filterConditions = filterConditions;
     this.fs = fs;
-    this.footerCache = footerCache;
+    this.footer = footer;
     this.readEntry = readEntry;
     this.autoCorrectCorruptDates = autoCorrectCorruptDates;
     this.readInt96AsTimeStamp = readInt96AsTimeStamp;
@@ -126,8 +126,6 @@ public class UnifiedParquetReader implements RecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    final ParquetMetadata footer = footerCache.getFooter(readEntry.getPath());
-
     computeLocality(footer);
 
     splitColumns(footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
@@ -280,11 +278,18 @@ public class UnifiedParquetReader implements RecordReader {
         if (type.getName().equals(name)) {
           vectorizableReaderColumns.add(path);
           continue paths;
+        } else if (type.getName().equalsIgnoreCase(name)) {
+          // get path from metadata
+          vectorizableReaderColumns.add(SchemaPath.getSimplePath(type.getName()));
+          continue paths;
         }
       }
       for (Type type : nonVectorizableTypes) {
         if (type.getName().equals(name)) {
           nonVectorizableReaderColumns.add(path);
+          break;
+        } else if (type.getName().equalsIgnoreCase(name)) {
+          nonVectorizableReaderColumns.add(SchemaPath.getSimplePath(type.getName()));
           break;
         }
       }
@@ -293,6 +298,7 @@ public class UnifiedParquetReader implements RecordReader {
 
   private Collection<SchemaPath> getResolvedColumns(List<ColumnChunkMetaData> metadata){
     if(!ColumnUtils.isStarQuery(realFields)){
+      // before we return check case sensitivity
       return realFields;
     }
 
@@ -331,6 +337,10 @@ public class UnifiedParquetReader implements RecordReader {
     return true;
   }
 
+  public ParquetMetadata getFooter() {
+    return footer;
+  }
+
   /**
    * Simple enum to handle different code paths
    * with RowWise, DeprecatedVectorized and HybridVectorized filters
@@ -339,7 +349,7 @@ public class UnifiedParquetReader implements RecordReader {
     DEPRECATED_VECTORIZED {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
-        final ParquetMetadata footer = unifiedReader.footerCache.getFooter(unifiedReader.readEntry.getPath());
+        final ParquetMetadata footer = unifiedReader.getFooter();
         final DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer,
           unifiedReader.columnsInGroupScan, unifiedReader.autoCorrectCorruptDates);
         List<RecordReader> returnList = new ArrayList<>();
@@ -364,7 +374,7 @@ public class UnifiedParquetReader implements RecordReader {
     ROWWISE {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
-        final ParquetMetadata footer = unifiedReader.footerCache.getFooter(unifiedReader.readEntry.getPath());
+        final ParquetMetadata footer = unifiedReader.getFooter();
         final DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer,
           unifiedReader.columnsInGroupScan, unifiedReader.autoCorrectCorruptDates);
         List<RecordReader> returnList = new ArrayList<>();
@@ -387,15 +397,15 @@ public class UnifiedParquetReader implements RecordReader {
     VECTORIZED {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
-        final ParquetMetadata footer = unifiedReader.footerCache.getFooter(unifiedReader.readEntry.getPath());
+        final ParquetMetadata footer = unifiedReader.getFooter();
         final DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer,
           unifiedReader.columnsInGroupScan, unifiedReader.autoCorrectCorruptDates);
 
         boolean isVectorizableFilterOn = unifiedReader.isConditionSet(unifiedReader.vectorizableReaderColumns,
           unifiedReader.nonVectorizableReaderColumns);
-        final UInt4Vector deltas;
+        final SimpleIntVector deltas;
         if (isVectorizableFilterOn) {
-          deltas = new UInt4Vector("deltas", unifiedReader.context.getAllocator());
+          deltas = new SimpleIntVector("deltas", unifiedReader.context.getAllocator());
         } else {
           deltas = null;
         }
@@ -443,7 +453,7 @@ public class UnifiedParquetReader implements RecordReader {
     SKIPALL {
       @Override
       public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
-        final ParquetMetadata footer = unifiedReader.footerCache.getFooter(unifiedReader.readEntry.getPath());
+        final ParquetMetadata footer = unifiedReader.getFooter();
         long counter = 0;
         for(final BlockMetaData rowGroup : footer.getBlocks()) {
           counter += rowGroup.getRowCount();

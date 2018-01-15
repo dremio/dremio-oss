@@ -62,7 +62,20 @@ describe('JobDetails', () => {
     });
   });
 
-  describe('receiveProps', () => {
+  it('should poll job details', () => {
+    const clock = sinon.useFakeTimers();
+    const wrapper = shallow(<JobDetails {...commonProps}/>);
+    const instance = wrapper.instance();
+    expect(commonProps.loadJobDetails.callCount).to.eql(1);
+    clock.tick(3000);
+    expect(commonProps.loadJobDetails.callCount).to.eql(2);
+    instance.componentWillUnmount();
+    clock.tick(3000);
+    expect(commonProps.loadJobDetails.callCount).to.eql(2);
+    clock.restore();
+  });
+
+  describe('load', () => {
     it('should handle 404 responses and call updateViewState', (done) => {
       const props = {
         ...commonProps,
@@ -81,8 +94,7 @@ describe('JobDetails', () => {
         }
       };
 
-      const wrapper = shallow(<JobDetails {...props}/>);
-      wrapper.setProps({jobId: commonProps.jobId});
+      shallow(<JobDetails {...props}/>);
     });
   });
 });

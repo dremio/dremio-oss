@@ -37,8 +37,8 @@ public class JobStatusLogger implements JobStatusListener {
   }
 
   @Override
-  public void planRelTansform(PlannerPhase paramPlannerPhase, RelNode paramRelNode1, RelNode paramRelNode2,
-      long paramLong) {
+  public void planRelTransform(PlannerPhase paramPlannerPhase, RelNode paramRelNode1, RelNode paramRelNode2,
+                               long paramLong) {
   }
 
   @Override

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { PALE_NAVY, NAVY } from 'uiTheme/radium/colors';
-import { body } from './typography';
 
 const arrowWidth = '5px';
 
@@ -30,7 +29,6 @@ export default function getTooltipStyles(type) {
   const bgColor = typeToColor[type];
   return {
     base: {
-      ...body,
       position: 'absolute',
       padding: '0 5px',
       paddingRight: 4,

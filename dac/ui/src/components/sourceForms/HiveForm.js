@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import SingleHost from 'components/Forms/SingleHost';
@@ -57,7 +59,7 @@ export class HiveForm extends Component {
           <General fields={fields} editing={editing}>
             <SingleHost fields={fields} title={la('Hive Metastore')}/>
             <div style={{...section, marginTop: 10}}>
-              <h3 style={sectionTitle}>{la('Security')}</h3>
+              <h2 style={sectionTitle}>{la('Security')}</h2>
               <div style={formRow}>
                 <div>
                   <Checkbox {...fields.config.enableSasl} label={la('Enable SASL')}/>
@@ -70,7 +72,7 @@ export class HiveForm extends Component {
             </div>
             <SourceProperties fields={fields} title={la('Connection String Options')} description={description}/>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <MetadataRefresh fields={fields} showAuthorization/>
               </AdvancedOptionsExpandable>

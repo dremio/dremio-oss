@@ -81,10 +81,19 @@ public class S3FileSystem extends FileSystem {
               logger.debug("Opening S3 client connection for {}", clientKey);
               ClientConfiguration clientConf = new ClientConfiguration();
               clientConf.setProtocol(clientKey.isSecure ? Protocol.HTTPS : Protocol.HTTP);
+              // Proxy settings (if configured)
+              clientConf.setProxyHost(clientKey.s3Config.get(Constants.PROXY_HOST));
+              if (clientKey.s3Config.get(Constants.PROXY_PORT) != null) {
+                clientConf.setProxyPort(Integer.valueOf(clientKey.s3Config.get(Constants.PROXY_PORT)));
+              }
+              clientConf.setProxyDomain(clientKey.s3Config.get(Constants.PROXY_DOMAIN));
+              clientConf.setProxyUsername(clientKey.s3Config.get(Constants.PROXY_USERNAME));
+              clientConf.setProxyPassword(clientKey.s3Config.get(Constants.PROXY_PASSWORD));
+              clientConf.setProxyWorkstation(clientKey.s3Config.get(Constants.PROXY_WORKSTATION));
 
-              if(clientKey.accessKey == null){
+              if (clientKey.accessKey == null){
                 return new AmazonS3Client(new AnonymousAWSCredentialsProvider(), clientConf);
-              }else{
+              } else {
                 return new AmazonS3Client(new BasicAWSCredentials(clientKey.accessKey, clientKey.secretKey), clientConf);
               }
             }
@@ -214,18 +223,21 @@ public class S3FileSystem extends FileSystem {
     private final String accessKey;
     private final String secretKey;
     private final boolean isSecure;
+    private final Configuration s3Config;
 
     public static S3ClientKey create(final Configuration fsConf) {
       return new S3ClientKey(
               fsConf.get(Constants.ACCESS_KEY),
               fsConf.get(Constants.SECRET_KEY),
-              Boolean.valueOf(fsConf.get(Constants.SECURE_CONNECTIONS, "true" /*default is true*/)));
+              Boolean.valueOf(fsConf.get(Constants.SECURE_CONNECTIONS, "true" /*default is true*/)),
+              fsConf);
     }
 
-    private S3ClientKey(final String accessKey, final String secretKey, final boolean isSecure) {
+    private S3ClientKey(final String accessKey, final String secretKey, final boolean isSecure, Configuration s3Config) {
       this.accessKey = accessKey;
       this.secretKey = secretKey;
       this.isSecure = isSecure;
+      this.s3Config = s3Config;
     }
 
     @Override
@@ -240,7 +252,13 @@ public class S3FileSystem extends FileSystem {
       S3ClientKey that = (S3ClientKey) o;
       return Objects.equals(accessKey, that.accessKey) &&
               Objects.equals(secretKey, that.secretKey) &&
-              isSecure == that.isSecure;
+              isSecure == that.isSecure &&
+              s3Config.get(Constants.PROXY_HOST) == that.s3Config.get(Constants.PROXY_HOST) &&
+              s3Config.get(Constants.PROXY_PORT) == that.s3Config.get(Constants.PROXY_PORT) &&
+              s3Config.get(Constants.PROXY_DOMAIN) == that.s3Config.get(Constants.PROXY_DOMAIN) &&
+              s3Config.get(Constants.PROXY_USERNAME) == that.s3Config.get(Constants.PROXY_USERNAME) &&
+              s3Config.get(Constants.PROXY_PASSWORD) == that.s3Config.get(Constants.PROXY_PASSWORD) &&
+              s3Config.get(Constants.PROXY_WORKSTATION) == that.s3Config.get(Constants.PROXY_WORKSTATION);
     }
 
     @Override

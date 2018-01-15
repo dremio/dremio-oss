@@ -76,6 +76,7 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
+      in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
       java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
       String istr = bd.toString();
       out.start = 0;
@@ -101,6 +102,7 @@ public class DecimalFunctions {
 
     @Override
     public void eval() {
+      in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
       java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
       out.value = bd.doubleValue();
     }

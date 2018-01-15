@@ -55,10 +55,11 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.BaseTestMiniDFS;
 import com.dremio.service.Binder;
-import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
@@ -178,7 +179,9 @@ public class TestHdfs extends BaseTestMiniDFS {
   @Test
   public void testQueryOnFile() throws Exception {
     final JobsService jobService = l(JobsService.class);
-    Job job = jobService.submitExternalJob(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME), QueryType.UNKNOWN);
+    Job job = jobService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), NoOpJobStatusListener.INSTANCE);
     JobDataFragment jobData = job.getData().truncate(500);
     assertEquals(3, jobData.getReturnedRowCount());
     assertEquals(2, jobData.getSchema().getFieldCount());

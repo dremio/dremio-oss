@@ -129,11 +129,11 @@ public final class Version implements Comparable<Version> {
         return 0;
       }
 
-      if ("snapshot".equals(q1)) {
+      if ("snapshot".equalsIgnoreCase(q1)) {
         return -1;
       }
 
-      if ("snapshot".equals(q2)) {
+      if ("snapshot".equalsIgnoreCase(q2)) {
         return 1;
       }
 

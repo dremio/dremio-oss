@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import { triangleTop } from 'uiTheme/radium/overlay';
 

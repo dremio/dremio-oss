@@ -142,12 +142,7 @@ class GridMap {
     result.funcs = json && json.map((item) => {
       return {
         id: uuid.v4(),
-        args: item.args && item.args.replace(/{|}|\[|\]/g, this._regExpArgs) || '',
-        returnType: item.return_type,
-        name: item.name.toLowerCase(),
-        description: item.description && item.description.replace(/{{|}}/g, this._regExpDes) || '',
-        example: item.example || '',
-        tags: item.tags || []
+        ...item
       };
     });
     result.helpSimilar = json && json.helpSimilar && json.helpSimilar.map((item) => {
@@ -179,26 +174,6 @@ class GridMap {
       }
       return 0;
     });
-  }
-
-  _regExpArgs(symbol) {
-    if (symbol === '[') {
-      return '';
-    } else if (symbol === ']') {
-      return '';
-    } else if (symbol === '{') {
-      return '<i>';
-    } else if (symbol === '}') {
-      return '</i>';
-    }
-  }
-
-  _regExpDes(match) {
-    if (match === '{{') {
-      return '<i>';
-    } else if (match === '}}') {
-      return '</i>';
-    }
   }
 
   mapConfig(json) {

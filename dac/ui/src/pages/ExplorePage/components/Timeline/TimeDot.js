@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { Overlay } from 'react-overlays';
 import { Link } from 'react-router';
@@ -77,7 +78,7 @@ export default class TimeDot extends Component {
     return {
       pathname: datasetPathname,
       query: {
-        ...query.mode ? {mode: query.mode} : {},
+        ...((query.mode ? {mode: query.mode} : {})),
         tipVersion,
         version: historyItem.get('datasetVersion')
       }

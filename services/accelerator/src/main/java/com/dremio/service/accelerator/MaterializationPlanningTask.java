@@ -24,12 +24,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.service.accelerator.proto.Layout;
 import com.dremio.service.accelerator.proto.LayoutId;
@@ -40,6 +38,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -99,7 +98,7 @@ class MaterializationPlanningTask implements Runnable {
     }
     substitutions = AccelerationUtils.selfOrEmpty(substitutions);
 
-    return FluentIterable.from(getScans(logicalPlan, acceleratorStorageName))
+    return FluentIterable.from(AccelerationUtils.getScans(logicalPlan, acceleratorStorageName))
       .transform(new Function<List<String>, DependencyNode>() {
         @Override
         public DependencyNode apply(List<String> datasetPath) {
@@ -154,21 +153,6 @@ class MaterializationPlanningTask implements Runnable {
     return constructDependencies(jobRef.get().getJobAttempt(), logicalPlan.get(), ns, accelerationService, acceleratorStorageName);
   }
 
-  private static List<List<String>> getScans(RelNode logicalPlan, final String acceleratorStorageName) {
-    final ImmutableList.Builder<List<String>> builder = ImmutableList.builder();
-    logicalPlan.accept(new StatelessRelShuttleImpl() {
-      @Override
-      public RelNode visit(final TableScan scan) {
-        List<String> qualifiedName = scan.getTable().getQualifiedName();
-        if (!qualifiedName.get(0).equals(acceleratorStorageName)) {
-          builder.add(qualifiedName);
-        }
-        return super.visit(scan);
-      }
-    });
-    return builder.build();
-  }
-
   public MaterializationPlanningTask(final String acceleratorStorageName,
       final JobsService jobsService,
       final Layout layout,
@@ -198,42 +182,47 @@ class MaterializationPlanningTask implements Runnable {
         .setLayoutVersion(layout.getVersion())
         .setLayoutId(layout.getId().getId());
 
-    jobRef.set(jobsService.submitJobWithExclusions(query, QueryType.ACCELERATOR_EXPLAIN, datasetPathList, datasetVersion, new JobStatusListener() {
+    jobRef.set(jobsService.submitJob(
+        JobRequest.newMaterializationJobBuilder(materializationSummary,
+            new SubstitutionSettings(exclusions, true))
+            .setSqlQuery(query)
+            .setQueryType(QueryType.ACCELERATOR_EXPLAIN)
+            .setDatasetPath(datasetPathList)
+            .setDatasetVersion(datasetVersion)
+            .build(),
+        new JobStatusListener() {
+          @Override
+          public void jobSubmitted(JobId jobId) {
+          }
 
-      @Override
-      public void jobSubmitted(JobId jobId) {
+          @Override
+          public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+            if (phase == PlannerPhase.LOGICAL) {
+              logicalPlan.set(after);
+            }
+          }
 
-      }
+          @Override
+          public void metadataCollected(QueryMetadata metadata) {
+          }
 
-      @Override
-      public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
-        if (phase == PlannerPhase.LOGICAL) {
-          logicalPlan.set(after);
-        }
-      }
+          @Override
+          public void jobFailed(Exception e) {
+            logger.warn("Failed to plan materialization", e);
+            exception.set(e);
+            latch.countDown();
+          }
 
-      @Override
-      public void metadataCollected(QueryMetadata metadata) {
+          @Override
+          public void jobCompleted() {
+            latch.countDown();
+          }
 
-      }
-
-      @Override
-      public void jobFailed(Exception e) {
-        logger.warn("Failed to plan materialization", e);
-        exception.set(e);
-        latch.countDown();
-      }
-
-      @Override
-      public void jobCompleted() {
-        latch.countDown();
-      }
-
-      @Override
-      public void jobCancelled() {
-        latch.countDown();
-      }
-    }, materializationSummary, new SubstitutionSettings(exclusions, true)));
+          @Override
+          public void jobCancelled() {
+            latch.countDown();
+          }
+        }));
   }
 
   String getExplainSql() {

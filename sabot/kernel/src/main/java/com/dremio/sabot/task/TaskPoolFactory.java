@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.task;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.server.options.OptionManager;
 
 /**
@@ -25,7 +26,8 @@ public interface TaskPoolFactory {
    * Creates a new {@code TaskPool} instance
    *
    * @param options the system options
+   * @param config the start-up configuration (dremio.conf)
    * @return a new instance
    */
-  TaskPool newInstance(OptionManager options);
+  TaskPool newInstance(OptionManager options, DremioConfig config);
 }

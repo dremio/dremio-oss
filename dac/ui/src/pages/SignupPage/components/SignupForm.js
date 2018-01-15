@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
@@ -83,9 +85,11 @@ export class SignupForm extends Component {
               type={ButtonTypes.NEXT}
               text={la('Next')}
             />
-            {<Link to={{ ...location, state: { modal: 'AboutModal' }}}>
-              {la('About Dremio')}
-            </Link>}
+            <div className='largerFontSize'>
+              {<Link to={{ ...location, state: { modal: 'AboutModal' }}}>
+                {la('About Dremio')}
+              </Link>}
+            </div>
           </div>
         </InnerComplexForm>
       </div>

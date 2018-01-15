@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 
@@ -50,7 +52,7 @@ export default class SortGroup extends Component {
         key='MULTIPLE'
         actionType='MULTIPLE'
         columnType={columnType}
-        title={la('Sort Multiple...')}
+        title={la('Sort Multiple…')}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
       />

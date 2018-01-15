@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import {Link} from 'react-router';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 
+@injectIntl
 @Radium
 @HeaderButtonsMixin
 export class HeaderButtons extends Component {
@@ -34,7 +37,8 @@ export class HeaderButtons extends Component {
     toggleVisibility: PropTypes.func.isRequired,
     rootEntityType: PropTypes.string,
     user: PropTypes.string,
-    rightTreeVisible: PropTypes.bool
+    rightTreeVisible: PropTypes.bool,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -71,21 +75,47 @@ export class HeaderButtons extends Component {
     return buttons;
   }
 
-  renderButton(item, index) {
+  getFormatMessageIdByIconType(iconType) {
+    switch (iconType) {
+    case 'File':
+      return 'File.File';
+    case 'VirtualDataset':
+      return 'Dataset.VirtualDataset';
+    case 'Folder':
+      return 'Folder.Folder';
+    case 'FolderConvert':
+      return 'Folder.FolderConvert';
+    case 'Query':
+      return 'Job.Query';
+    case 'Settings':
+      return 'Common.Settings';
+    default:
+      return '';
+    }
+  }
+
+  renderButton = (item, index) => {
+    const iconAlt = this.getFormatMessageIdByIconType(item.iconType)
+      ? this.props.intl.formatMessage({ id: this.getFormatMessageIdByIconType(item.iconType) })
+      : '';
+
     return <Link
       className='button-white'
       data-qa={`${item.qa}-button`}
       to={item.to ? item.to : '.'}
       key={`${item.iconType}-${index}`}
       style={{...styles.button, ...item.style}}>
-      {item.isAdd && <FontIcon type='AddSimple' theme={styles.addIcon} />}
-      <FontIcon type={item.iconType} />
+      {item.isAdd && <Art
+        src='SimpleAdd.svg'
+        alt={this.props.intl.formatMessage({ id: 'Common.Add' })}
+        style={styles.addIcon}/>}
+      <Art src={`${item.iconType}.svg`} alt={iconAlt} style={styles.typeIcon} />
     </Link>;
   }
 
   render() {
     const { location } = this.context;
-    const { rootEntityType } = this.props;
+    const { rootEntityType, intl } = this.props;
 
     const headerButtonsHash = {
       space: [
@@ -132,7 +162,7 @@ export class HeaderButtons extends Component {
         className={buttonsClass}
         onClick={this.props.toggleVisibility}
         style={[{display: rightTreeVisible ? 'none' : 'block'}, styles.activityBth]}>
-        <FontIcon type='Expand' />
+        <Art src='Expand.svg' alt={intl.formatMessage({ id: 'Common.Expand' })}/>
       </button>
     );
     return (
@@ -146,11 +176,11 @@ export class HeaderButtons extends Component {
 
 const styles = {
   addIcon: {
-    'Icon': {
-      width: 12,
-      margin: 0,
-      backgroundPosition: '-7px 50%'
-    }
+    width: 8,
+    marginLeft: 3
+  },
+  typeIcon: {
+    height: 24
   },
   mainSettingsHolder: {
     display: 'flex'
