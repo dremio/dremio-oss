@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import HTML5Backend from 'react-dnd-html5-backend';
 import { DragDropContext } from 'react-dnd';
@@ -39,9 +40,10 @@ import NotificationContainer from 'containers/Notification';
 import ConfirmationContainer from 'containers/Confirmation';
 import ProdErrorContainer from 'containers/ProdError';
 import DevErrorContainer from 'containers/DevError';
+import { formatMessage } from '../utils/locale';
 
 DocumentTitle.join = (tokens) => {
-  return [...tokens, la('Dremio')].filter(Boolean).join(' - ');
+  return [...tokens, formatMessage('App.Dremio')].filter(Boolean).join(' - ');
 };
 
 function getError(e) {
@@ -117,7 +119,8 @@ export class App extends Component {
   handleGlobalError = (prevOnerror, msg, url, lineNo, columnNo, error) => {
     prevOnerror && prevOnerror.call(window, msg, url, lineNo, columnNo, error);
 
-    if (url && urlParse(url).origin !== this._getWindowOrigin()) return;
+    // there is no URL for external scripts (at least in Chrome)
+    if (!url || urlParse(url).origin !== this._getWindowOrigin()) return;
 
     console.error('Uncaught Error', error || msg);
     this.displayError(error || msg);

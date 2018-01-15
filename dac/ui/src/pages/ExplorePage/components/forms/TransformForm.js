@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import deepEqual from 'deep-equal';
@@ -108,7 +109,8 @@ export class TransformForm extends Component {
 
     const isCardsChanged = nextProps.loadTransformCardPreview && nextProps.valid
       && this.props.values.activeCard === nextActiveCard
-      && !deepEqual(this.props.values.cards[this.props.values.activeCard], nextCardValues);
+      // if we use deepEqual without strict mode, value = '' and value = 0 will be equal
+      && !deepEqual(this.props.values.cards[this.props.values.activeCard], nextCardValues, { strict: true });
     if (isCardsChanged) {
       this.updateCard(nextProps);
     }

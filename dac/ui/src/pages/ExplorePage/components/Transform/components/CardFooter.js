@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 
 import FontIcon from 'components/Icon/FontIcon';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Meter from 'components/Meter';
 import { TEAL, BLACK } from 'uiTheme/radium/colors';

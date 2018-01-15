@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable  from 'immutable';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 
 import Menu from 'components/Menus/Menu';
 import MenuItem from 'components/Menus/MenuItem';
 import FontIcon from 'components/Icon/FontIcon';
-
-import { body } from 'uiTheme/radium/typography';
 
 @Radium
 @PureRender
@@ -83,7 +82,7 @@ export default class SortBySelect extends Component {
     });
 
     return (
-      <div style={[styles.main, customStyles, body]} className={id}
+      <div style={[styles.main, customStyles]} className={id}
         onClick={this.handleTouchTap}>
         {`${defaultLabel}: ${this.state.label}`}
         <Popover

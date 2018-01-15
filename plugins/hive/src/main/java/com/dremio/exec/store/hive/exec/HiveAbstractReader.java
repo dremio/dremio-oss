@@ -18,6 +18,8 @@ package com.dremio.exec.store.hive.exec;
 import static com.dremio.common.util.MajorTypeHelper.getFieldForNameAndMajorType;
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -71,7 +73,12 @@ import com.dremio.hive.proto.HiveReaderProto.SerializedInputSplit;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionValue;
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -128,9 +135,10 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
   public abstract void internalInit(Properties tableProperties, RecordReader<Object, Object> reader);
 
-  public static Properties addProperties(Properties output, List<Prop> props){
+  public static Properties addProperties(JobConf jobConf, Properties output, List<Prop> props){
     for(Prop p : props){
       output.setProperty(p.getKey(), p.getValue());
+      jobConf.set(p.getKey(), p.getValue());
     }
     return output;
   }
@@ -142,7 +150,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     try {
       splitAttr = HiveSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
     } catch (InvalidProtocolBufferException e) {
-      throw new ExecutionSetupException("Failure deserializing Hive extended attributes.");
+      throw createException("Failure deserializing Hive extended attributes.", e);
     }
 
     final JobConf job = new JobConf(hiveConf);
@@ -150,7 +158,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     // Get the configured default val
     defaultPartitionValue = hiveConf.get(ConfVars.DEFAULTPARTITIONNAME.varname);
 
-    final Properties tableProperties = addProperties(new Properties(), tableAttr.getTablePropertyList());
+    final Properties tableProperties = addProperties(job, new Properties(), tableAttr.getTablePropertyList());
 
     List<String> selectedColumnNames;
     List<TypeInfo> selectedColumnTypes = new ArrayList<>();
@@ -161,8 +169,12 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
       boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
       if(isPartitioned){
-        final Properties partitionProperties = addProperties(addProperties(new Properties(),
-          tableAttr.getPartitionProperties(splitAttr.getPartitionId()).getPartitionPropertyList()), tableAttr.getTablePropertyList());
+        final Properties partitionProperties = new Properties();
+        // First add table properties and then add partition properties. Partition properties override table properties.
+        addProperties(job, partitionProperties, tableAttr.getTablePropertyList());
+        addProperties(job, partitionProperties,
+            tableAttr.getPartitionProperties(splitAttr.getPartitionId()).getPartitionPropertyList());
+
         partitionSerDe = createSerDe(job,
           tableAttr.getPartitionProperties(splitAttr.getPartitionId()).getSerializationLib(), partitionProperties);
         partitionOI = getStructOI(partitionSerDe);
@@ -243,7 +255,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
       this.selectedColumnFieldConverters = selectedColumnFieldConverters.toArray(new HiveFieldConverter[selectedColumnFieldConverters.size()]);
 
     } catch (Exception e) {
-      throw new ExecutionSetupException("Failure while initializing Hive Reader " + this.getClass().getName(), e);
+      throw createException("Failure while initializing Hive Reader", e);
     }
 
     try {
@@ -253,7 +265,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
         logger.trace("hive reader created: {} for inputSplit {}", reader.getClass().getName(), inputSplit.toString());
       }
     } catch (Exception e) {
-      throw new ExecutionSetupException("Failed to get o.a.hadoop.mapred.RecordReader from Hive InputFormat", e);
+      throw createException("Failed to get o.a.hadoop.mapred.RecordReader from Hive InputFormat", e);
     }
 
     internalInit(tableProperties, reader);
@@ -283,8 +295,8 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
       }
 
       return records;
-    } catch (IOException | SerDeException ex){
-      throw UserException.dataReadError(ex).message("Unexpected failure while reading hive table.").build(logger);
+    } catch (Throwable ex){
+      throw createException("Unexpected failure while reading hive table.", ex);
     }
   }
 
@@ -443,5 +455,51 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     return null;
   }
 
+  /**
+   * Helper method which create {@link UserException} with useful context for debugging purposes.
+   */
+  private UserException createException(String msg, Throwable ex) {
+    UserException.Builder builder = UserException.dataReadError(ex)
+        .message(msg)
+        .addContext("Dataset split key: %s", split.getSplitKey());
+
+    final List<PartitionValue> partitionValues = split.getPartitionValuesList();
+    if (partitionValues != null && !partitionValues.isEmpty()) {
+      final String partition = Joiner.on(",").join(
+          Iterables.transform(partitionValues, new Function<PartitionValue, String>() {
+                @Nullable
+                @Override
+                public String apply(@Nullable PartitionValue input) {
+                  // ugly way to printout the partition value. There can be at most one non-null value
+                  return input.getColumn() + "=" +
+                      MoreObjects.firstNonNull(input.getBinaryValue(), "").toString() +
+                      MoreObjects.firstNonNull(input.getBitValue(), "").toString() +
+                      MoreObjects.firstNonNull(input.getIntValue(), "").toString() +
+                      MoreObjects.firstNonNull(input.getDoubleValue(), "").toString() +
+                      MoreObjects.firstNonNull(input.getFloatValue(), "").toString() +
+                      MoreObjects.firstNonNull(input.getLongValue(), "").toString() +
+                      MoreObjects.firstNonNull(input.getStringValue(), "").toString();
+                }
+              }
+          )
+      );
+      builder = builder.addContext("Partition values", partition);
+    }
+
+    final String tableProperties = Joiner.on("\n").join(
+        Iterables.transform(tableAttr.getTablePropertyList(),
+            new Function<Prop, String>() {
+              @Nullable
+              @Override
+              public String apply(@Nullable Prop input) {
+                return input.getKey() + " -> " + input.getValue();
+              }
+            }
+        )
+    );
+    builder = builder.addContext("Table properties", tableProperties);
+
+    return builder.build(logger);
+  }
 }
 

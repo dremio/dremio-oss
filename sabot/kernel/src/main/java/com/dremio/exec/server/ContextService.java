@@ -179,11 +179,11 @@ public class ContextService implements Service, Provider<SabotContext> {
 
     final NodeEndpoint.Builder identityBuilder = NodeEndpoint.newBuilder()
         .setAddress(rpcBindAddress)
-        //.setAddress("localhost")
         .setUserPort(userport)
         .setFabricPort(fabric.getPort())
         .setStartTime(System.currentTimeMillis())
         .setMaxDirectMemory(SabotConfig.getMaxDirectMemory())
+        .setAvailableCores(Runtime.getRuntime().availableProcessors())
         .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
 
     String containerId = System.getenv("CONTAINER_ID");

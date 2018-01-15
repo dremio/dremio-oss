@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable, { Map }  from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import { AutoSizer, List } from 'react-virtualized';
-import exploreUtils from 'utils/explore/exploreUtils';
+import { getIconByEntityType } from 'utils/iconUtils';
 import jobsUtils from 'utils/jobsUtils';
 import 'react-virtualized/styles.css';
 
@@ -202,7 +203,7 @@ export default class JobTable extends Component {
         showFullPath
         placement='right'
         shouldShowOverlay={showOverlay}
-        typeIcon={exploreUtils.getIconByEntityType(datasetType)}/>
+        typeIcon={getIconByEntityType(datasetType)}/>
       );
 
     return (

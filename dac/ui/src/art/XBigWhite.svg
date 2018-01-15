@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/X-Big</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/X-Big" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-14" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Fill-774-+-Fill-775-Copy" transform="translate(1.313708, 0.313708)" fill="#fff" sketch:type="MSShapeGroup">
+                    <path d="M11.7340697,3.79289322 L10.8517167,3.79289322 L10.8517167,10.8517167 L3.79289322,10.8517167 L3.79289322,11.7340697 L10.8517167,11.7340697 L10.8517167,18.7928932 L11.7340697,18.7928932 L11.7340697,11.7340697 L18.7928932,11.7340697 L18.7928932,10.8517167 L11.7340697,10.8517167 L11.7340697,3.79289322 Z" id="Fill-775" transform="translate(11.292893, 11.292893) rotate(-315.000000) translate(-11.292893, -11.292893) "></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

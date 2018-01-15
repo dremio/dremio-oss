@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import Credentials from 'components/Forms/Credentials';
@@ -57,18 +59,18 @@ export class RedshiftForm extends Component {
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
-            <div style={style}>{la('Connection URL')}</div>
+            <h2 style={style}>{la('Connection URL')}</h2>
             <div style={description}>
-              Enter the JDBC connection URL for your RedShift server.  The connection URL can be found in AWS console.
+              {la('Enter the JDBC connection URL for your RedShift server.  The connection URL can be found in AWS console.')}
             </div>
             <div style={section}>
-              <FieldWithError label='JDBC Connection String' {...fields.config.connectionString}>
+              <FieldWithError label={la('JDBC Connection String')} {...fields.config.connectionString}>
                 <TextField {...fields.config.connectionString}/>
               </FieldWithError>
             </div>
             <Credentials fields={fields}/>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <JDBCOptions fields={fields}/>
                 <MetadataRefresh fields={fields}/>

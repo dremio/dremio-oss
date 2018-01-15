@@ -80,7 +80,7 @@ public class TestSimpleLimitExchangeRemover {
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))
         .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
 
-    plannerSettings = new PlannerSettings(optionManager, null);
+    plannerSettings = new PlannerSettings(optionManager, null, null);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 

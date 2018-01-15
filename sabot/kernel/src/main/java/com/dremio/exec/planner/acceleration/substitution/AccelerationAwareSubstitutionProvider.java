@@ -17,7 +17,6 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.List;
 
-import org.apache.calcite.plan.SubstitutionProvider;
 import org.apache.calcite.rel.RelNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,12 +56,21 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   }
 
   @Override
-  public List<RelNode> findSubstitutions(final RelNode query) {
+  public List<Substitution> findSubstitutions(final RelNode query) {
     if (isEnabled()) {
       return delegate.findSubstitutions(query);
+    } else {
+      logger.debug("Acceleration is disabled. No substitutions...");
+      return ImmutableList.of();
     }
-    logger.debug("Acceleration is disabled. No substitutions...");
-    return ImmutableList.of();
+  }
+
+  @Override
+  public RelNode processPostPlanning(final RelNode rel) {
+    if (isEnabled()) {
+      return delegate.processPostPlanning(rel);
+    }
+    return rel;
   }
 
   public static AccelerationAwareSubstitutionProvider of(final SubstitutionProvider delegate) {

@@ -25,13 +25,14 @@ import com.dremio.service.jobs.metadata.QueryMetadata;
  */
 public class NoOpJobStatusListener implements JobStatusListener {
 
+  public static final JobStatusListener INSTANCE = new NoOpJobStatusListener();
+
   @Override
   public void jobSubmitted(JobId jobId) {
   }
 
   @Override
-  public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
-
+  public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
   }
 
   @Override

@@ -145,14 +145,19 @@ public class TestWriter extends BaseTestServer {
     final AtomicReference<RelNode> physical = new AtomicReference<>(null);
 
     final SqlQuery query = new SqlQuery(queryString, DEFAULT_USERNAME);
-    final Job job = getJobsService().submitJob(query, QueryType.ACCELERATOR_CREATE, DatasetPath.NONE.toNamespaceKey(), DatasetVersion.NONE, new NoOpJobStatusListener() {
+    final Job job = getJobsService().submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.ACCELERATOR_CREATE)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .setDatasetVersion(DatasetVersion.NONE)
+        .build(), new NoOpJobStatusListener() {
       @Override
-      public void planRelTansform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+      public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
         if (phase == PlannerPhase.PHYSICAL) {
           physical.set(after);
         }
 
-        super.planRelTansform(phase, before, after, millisTaken);
+        super.planRelTransform(phase, before, after, millisTaken);
       }
     });
 

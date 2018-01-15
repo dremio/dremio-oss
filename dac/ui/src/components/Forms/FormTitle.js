@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
-import { h2 } from 'uiTheme/radium/typography';
 
 // todo: FileFormat and AccessControl do not use this. really want a `.modal > h2` stylesheet
 
@@ -35,7 +35,6 @@ export default class FormTitle extends Component {
 
 const styles = {
   title: {
-    ...h2,
     borderBottom: '1px solid rgba(0,0,0,0.10)',
     margin: '10px 0',
     paddingBottom: 10

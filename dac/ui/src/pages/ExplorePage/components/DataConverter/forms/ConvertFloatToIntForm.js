@@ -21,7 +21,7 @@ import Radio from 'components/Fields/Radio';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
-import { formLabel, formDescription, body } from 'uiTheme/radium/typography';
+import { formLabel, formDescription } from 'uiTheme/radium/typography';
 import { FLEX_NOWRAP_COL_START } from 'uiTheme/radium/flexStyle';
 
 import TransformForm, {formWrapperProps} from '../../forms/TransformForm';
@@ -88,7 +88,6 @@ const styles = {
     margin: '10px 0 10px 10px'
   },
   radio: {
-    ...body,
     display: 'inline-flex',
     alignItems: 'center',
     marginTop: 5

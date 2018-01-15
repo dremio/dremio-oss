@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
-import { body } from 'uiTheme/radium/typography';
 import { Radio, TextField, DateInput } from 'components/Fields';
 import { isDateType } from 'constants/DataTypes';
 
@@ -116,7 +116,6 @@ const styles = {
   },
   check: {
     float: 'left',
-    marginTop: 5,
-    ...body
+    marginTop: 5
   }
 };

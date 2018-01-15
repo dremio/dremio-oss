@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable  from 'immutable';
 
-import { body } from 'uiTheme/radium/typography';
 import FontIcon from 'components/Icon/FontIcon';
 
 import './DropDownWithFilter.less';
+
+// todo: loc
 
 @Radium
 @PureRender
@@ -57,7 +59,7 @@ export default class DropDownWithFilter extends Component {
             className='drop-down-checkbox'
             value={item}
             checked/>
-          <span style={body}>{item}</span>
+          <span>{item}</span>
         </div>);
     });
     const filteredOptions = filterPattern
@@ -74,7 +76,7 @@ export default class DropDownWithFilter extends Component {
             onChange={onChange}
             value={item}
             checked={false}/>
-          <span style={body}>{item}</span>
+          <span>{item}</span>
         </div>);
     });
     const allLabel = selectOptions.size !== 0
@@ -83,7 +85,7 @@ export default class DropDownWithFilter extends Component {
     const filter = availableOptions.size !== 0
       ? <div className='custom-filter' style={styles.customFilter}>
         <input
-          placeholder='Filter...'
+          placeholder='Filter…'
           className='custom-filter-input'
           ref='customFilterInput'
           onChange={this.onCustomFilterChange}/>
@@ -92,7 +94,7 @@ export default class DropDownWithFilter extends Component {
       : null;
     return (
       <div className='drop-down-with-filter' style={[styles.base]}>
-        <span style={body}>{allLabel}</span>
+        <span>{allLabel}</span>
         <div className='scroll-box'>
           {selectOptions}
         </div>

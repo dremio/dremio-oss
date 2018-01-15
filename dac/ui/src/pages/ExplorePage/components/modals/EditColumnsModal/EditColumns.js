@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import uuid from 'uuid';
 import Radium from 'radium';
+import { FormattedMessage, injectIntl } from 'react-intl';
 
 import ColumnsContainer from 'pages/ExplorePage/components/DnDColumns/ColumnsContainer';
 import ConfirmCancelFooter from 'components/Modals/ConfirmCancelFooter';
@@ -34,6 +36,7 @@ import './EditColumnsModal.less';
 
 // TODO: Implement visibility for subcolumns
 // TODO: Implement sorting of subcolumns within parent column
+@injectIntl
 @Radium
 @pureRender
 export class EditColumns extends Component {
@@ -41,7 +44,8 @@ export class EditColumns extends Component {
     hide: PropTypes.func,
     columns: PropTypes.object.isRequired,
     updateTableColumns: PropTypes.func.isRequired,
-    resetGridColumnWidth: PropTypes.func.isRequired
+    resetGridColumnWidth: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -121,15 +125,14 @@ export class EditColumns extends Component {
   }
 
   render() {
-    const {hide} = this.props;
-    const textTitle = la(`Click the icon to toggle the visibility of the fields.
-                       Changing these settings will not change your data.`);
+    const { hide, intl } = this.props;
+
     return (
       <div onClick={this.preventClick} style={[form, style.base]}>
         <div style={[formBody, {flexGrow: 1}]}>
-          <div style={[formDescription, style.element]}>{textTitle}</div>
-          <div style={[formLabel, style.visibilityText]}>{la('Visibility')}</div>
-          <div style={[formLabel]}>{la('Field')}</div>
+          <div style={[formDescription, style.element]}><FormattedMessage id='Dataset.FieldsVisibility'/></div>
+          <div style={[formLabel, style.visibilityText]}><FormattedMessage id='Dataset.Visibility'/></div>
+          <div style={[formLabel]}><FormattedMessage id='Dataset.Field'/></div>
           <ColumnsContainer
             columns={this.state.columns}
             moveColumn={this.moveColumn}
@@ -141,8 +144,8 @@ export class EditColumns extends Component {
 
         <ConfirmCancelFooter
           confirm={this.onApply}
-          confirmText={la('OK')}
-          cancelText={la('Cancel')}
+          confirmText={intl.formatMessage({ id: 'Common.OK' })}
+          cancelText={intl.formatMessage({ id: 'Common.Cancel' })}
           cancel={hide}
         />
       </div>

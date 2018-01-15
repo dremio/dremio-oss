@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import Radio from 'components/Fields/Radio';
 
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 
 @Radium
 export default class ConvertCaseOptions extends Component {
@@ -49,17 +51,17 @@ export default class ConvertCaseOptions extends Component {
           <Radio
             radioValue='UPPERCASE'
             label='UPPERCASE'
-            style={{...body, ...styles.radio}}
+            style={styles.radio}
             {...action}/>
           <Radio
             radioValue='lowercase'
             label='lowercase'
-            style={{...body, ...styles.radio}}
+            style={styles.radio}
             {...action}/>
           <Radio
             radioValue='TITLECASE'
             label='Title Case'
-            style={{...body, ...styles.radio}}
+            style={styles.radio}
             {...action}/>
         </div>
       </div>

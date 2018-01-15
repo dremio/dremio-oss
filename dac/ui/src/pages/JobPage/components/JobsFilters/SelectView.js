@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
 
-import FontIcon from 'components/Icon/FontIcon';
+import PropTypes from 'prop-types';
 
-import { body } from 'uiTheme/radium/typography';
+import FontIcon from 'components/Icon/FontIcon';
 
 @PureRender
 @Radium
@@ -56,7 +56,7 @@ export default class SelectView extends Component {
     const { getDropDown, label, id } = this.props;
     return (
       <div style={style.base} className={id}>
-        <div onTouchTap={this.handleTouchTap.bind(this)} style={[style.label, body]} >
+        <div onTouchTap={this.handleTouchTap.bind(this)} style={style.label} >
           {label}
           <FontIcon type='ArrowDownSmall' theme={style.arrow}/>
         </div>

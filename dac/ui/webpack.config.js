@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2017 Dremio Corporation
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version 2.0 (the 'License');
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -13,76 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*eslint no-sync: 0*/
 
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const childProcess = require('child_process');
 const webpack = require('webpack');
-const autoprefixer = require('autoprefixer');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-// todo: when webpack will be updated to v2 this plugin should be removed
-const failPlugin = require('webpack-fail-plugin');
 const userConfig = require('./webpackUtils/userConfig');
-const dynLoader = require('./dynLoader');
 
+const dynLoader = require('./dynLoader');
 dynLoader.applyNodeModulesResolver();
 
 const isProductionBuild = process.env.NODE_ENV === 'production';
 const minify = process.env.DREMIO_MINIFY === 'true';
-
 const isBeta = process.env.DREMIO_BETA === 'true';
+const isRelease = process.env.DREMIO_RELEASE === 'true';
 
-console.info(process.argv);
+let devtool = isProductionBuild ? 'source-map' : userConfig.sourceMaps;  // chris says: '#cheap-eval-source-map' is really great for debugging
+if (isRelease) {
+  // for release, hide the source map
+  devtool = 'hidden-source-map';
+}
+
 console.info({
   minify,
   isProductionBuild,
   isBeta,
-  dynLoaderPath: dynLoader.path
+  isRelease,
+  dynLoaderPath: dynLoader.path,
+  devtool
 });
-console.info(userConfig);
 
-
-const loaders = [
-  { test: /\.gif$/, loader: 'url?limit=10000&mimetype=image/gif' },
-  { test: /\.jpg$/, loader: 'url?limit=10000&mimetype=image/jpg' },
-  { test: /\.png$/, loader: 'url?limit=10000&mimetype=image/png' },
-  { test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/, loader: 'url?limit=10000&mimetype=image/svg+xml' },
-  { test: /\.(woff(2)?|ttf|eot)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, loader: 'url?limit=1' },
-  { test: /\.json$/, exclude: /node_modules|forkedModules|vendor/, loader: 'json-loader'},
-  { test: /\.yml$/, loader: 'yaml-parser', exclude: /node_modules|forkedModules|vendor/, include: __dirname},
-  {
-    test: /\.js$/,
-    loader: 'babel',
-    exclude: /node_modules(?!\/regenerator-runtime|\/redux-saga|\/whatwg-fetch)/,
-    include:  [__dirname, dynLoader.path],
-    query: Object.assign({ // eslint-disable-line no-restricted-properties
-      'cacheDirectory': true
-    }, JSON.parse(fs.readFileSync('.babelrc', 'utf8')))
-  },
-  !userConfig.enableEslintLoader ? [] : {
-    test: /\.js$/,
-    exclude: /node_modules|bower_components|coverage|forkedModules|vendor/,
-    loader: "eslint-loader?{parser: 'babel-eslint'}",
-    include: __dirname
-  },
-  {
-    test: /\.css$/,
-    loader: ExtractTextPlugin.extract('style-loader', 'css-loader!postcss-loader')
-  },
-  {
-    test: /\.less$/,
-    loader: ExtractTextPlugin.extract('style-loader', 'css-loader!postcss-loader!less-loader')
-  }
-];
+const extractStyles = new ExtractTextPlugin({
+  filename: isProductionBuild ? 'style.[contentHash].css' : 'style.css'
+});
 
 class BuildInfo {
   apply(compiler) {
     compiler.plugin('compilation', function(compilation) {
       compilation.plugin('html-webpack-plugin-before-html-generation', function(htmlPluginData, callback) {
+        // eslint-disable-next-line no-sync
         let commit = childProcess.execSync('git rev-parse HEAD').toString().trim();
+        // eslint-disable-next-line no-sync
         let changes = childProcess.execSync('git status --porcelain --untracked-files=no').toString();
         changes = changes.replace(/\n?.*pom.xml$/gm, '').trim(); // ignore pom changes from builder
         if (changes) {
@@ -96,17 +71,18 @@ class BuildInfo {
           serverEnvironment: ${JSON.stringify(isProductionBuild ? '${dremio.environment}' : null)},
           serverStatus: ${JSON.stringify(isProductionBuild ? '${dremio.status}' : 'OK')},
           environment: ${JSON.stringify(isProductionBuild ? 'PRODUCTION' : 'DEVELOPMENT')},
+          isReleaseBuild: ${isRelease},
           commit: ${JSON.stringify(commit)},
           ts: "${new Date()}",
-          language: ${JSON.stringify(process.env.language)},
-          useRunTimeLanguage: ${JSON.stringify(process.env.useRunTimeLanguage)},
           intercomAppId: ${JSON.stringify(isProductionBuild ? '${dremio.config.intercom.appid}' : userConfig.intercomAppId)},
           shouldEnableBugFiling: ${!isProductionBuild || '${dremio.debug.bug.filing.enabled?c}'},
           shouldEnableRSOD: ${!isProductionBuild || '${dremio.debug.rsod.enabled?c}'},
           supportEmailTo: ${JSON.stringify(isProductionBuild ? '${dremio.settings.supportEmailTo}' : 'noreply@dremio.com')},
           supportEmailSubjectForJobs: ${JSON.stringify(isProductionBuild ? '${dremio.settings.supportEmailSubjectForJobs}' : '')},
           outsideCommunicationDisabled: ${isProductionBuild ? '${dremio.settings.outsideCommunicationDisabled?c}' : false},
-          subhourAccelerationPoliciesEnabled: ${isProductionBuild ? '${dremio.settings.subhourAccelerationPoliciesEnabled?c}' : false}, 
+          subhourAccelerationPoliciesEnabled: ${isProductionBuild ? '${dremio.settings.subhourAccelerationPoliciesEnabled?c}' : false},
+          lowerProvisioningSettingsEnabled: ${isProductionBuild ? '${dremio.settings.lowerProvisioningSettingsEnabled?c}' : false},
+          tdsMimeType: ${JSON.stringify('${dremio.settings.tdsMimeType}')},
           clusterId: ${JSON.stringify('${dremio.clusterId}')},
           versionInfo: {
             version: ${JSON.stringify('${dremio.versionInfo.version}')},
@@ -123,150 +99,199 @@ class BuildInfo {
   }
 }
 
+const loaders = [
+  {
+    test: /art\/.*\.svg$/,
+    use: [
+      'babel-loader',
+      {
+        loader: 'react-svg-loader',
+        options: {
+          svgo: {
+            plugins: [{removeDimensions: true}]
+          }
+        }
+      }
+    ]
+  },
+  {
+    test : /\.js$/,
+    exclude: /node_modules(?!\/regenerator-runtime|\/redux-saga|\/whatwg-fetch)/,
+    include:  [__dirname, dynLoader.path],
+    use: [
+      {
+        loader: 'babel-loader',
+        query: {
+          // eslint-disable-next-line no-sync
+          ...JSON.parse(fs.readFileSync(path.resolve(__dirname, '.babelrc'), 'utf8')),
+          cacheDirectory: true
+        }
+      }
+    ]
+  },
+  {
+    test: /\.css$/,
+    use: extractStyles.extract({
+      use: [
+        { loader: 'css-loader', options: { importLoaders: 1 } },
+        { loader: 'postcss-loader', options: { config: { path: __dirname} } }
+      ]
+    })
+  },
+  {
+    test: /\.less$/,
+    use: extractStyles.extract({
+      use: [
+        { loader: 'css-loader', options: { importLoaders: 1 } },
+        { loader: 'postcss-loader', options: { config: { path: __dirname} } },
+        { loader: 'less-loader' }
+      ]
+    })
+  },
+  {
+    test: /\.gif$/,
+    use: {
+      loader: 'url-loader',
+      options: {
+        limit: 10000,
+        mimetype: 'image/gif'
+      }
+    }
+  },
+  {
+    test: /\.jpg$/,
+    use: {
+      loader: 'url-loader',
+      options: {
+        limit: 10000,
+        mimetype: 'image/jpg'
+      }
+    }
+  },
+  {
+    test: /\.png$/,
+    use: {
+      loader: 'url-loader',
+      options: {
+        limit: 10000,
+        mimetype: 'image/png'
+      }
+    }
+  },
+  {
+    // for font-awesome and legacy
+    test: /(font-awesome|components|pages)\/.*\.svg(\?.*)?$/,
+    use: {
+      loader: 'url-loader',
+      options: {
+        limit: 10000,
+        mimetype: 'image/svg+xml'
+      }
+    }
+  },
+  {
+    test: /\.(woff(2)?|ttf|eot)(\?.*)?$/,
+    use: {
+      loader: 'url-loader',
+      options: {
+        limit: 1
+      }
+    }
+  }
+];
+
 const plugins = [
   new webpack.BannerPlugin(require(dynLoader.path + '/webpackBanner')),
-  new webpack.HotModuleReplacementPlugin(),
-  new webpack.NoErrorsPlugin(),
-  new webpack.optimize.DedupePlugin(),
-  new webpack.PrefetchPlugin('fixed-data-table-2'),
-  new webpack.PrefetchPlugin('react-bootstrap'),
-  new webpack.PrefetchPlugin('redux-devtools'),
-  new webpack.PrefetchPlugin('react'),
-  new webpack.PrefetchPlugin('redux-devtools-log-monitor'),
-  new webpack.PrefetchPlugin('react-json-tree'),
-  new webpack.PrefetchPlugin('react-date-range'),
-  new webpack.PrefetchPlugin('moment'),
-  new webpack.PrefetchPlugin('jquery'),
-  new webpack.PrefetchPlugin('jsplumb/dist/js/jsPlumb-2.1.4-min.js'),
-  new webpack.PrefetchPlugin('immutable'),
-  new webpack.optimize.CommonsChunkPlugin('vendor', isProductionBuild ? 'vendor.[hash].js' : 'vendor.js'),
-  new ExtractTextPlugin(isProductionBuild ? 'style.[contentHash].css' : 'style.css', {
-    allChunks: true
+  extractStyles,
+  new webpack.optimize.CommonsChunkPlugin({
+    name: 'vendor',
+    filename: isProductionBuild ? 'vendor.[hash].js' : 'vendor.js'
   }),
   new HtmlWebpackPlugin({
     template: './src/index.html',
-    cache: false // make sure rebuilds kick BuildInfo too
+    cache: false, // make sure rebuilds kick BuildInfo too
+    files: {
+      css: [isProductionBuild ? 'style.[contentHash].css' : 'style.css'],
+      js: [isProductionBuild ? 'bundle.[hash].js' : 'bundle.js', isProductionBuild ? 'vendor.[hash].js' : 'vendor.js']
+    }
   }),
   new BuildInfo(),
   new webpack.DefinePlugin({
     // This is for React: https://facebook.github.io/react/docs/optimizing-performance.html#use-the-production-build
-    // You probably want `window.config` instead.
+    // You probably want `utils/config` instead.
     'process.env': { NODE_ENV: JSON.stringify(isProductionBuild ? 'production' : 'development') }
   }),
   new CopyWebpackPlugin([
-    { from: 'src/favicon/favicons' }
-  ]),
-  failPlugin
+    { from: 'src/favicon/favicons' },
+    {
+      from: `node_modules/monaco-editor/${isProductionBuild ? 'min' : 'dev'}/vs`,
+      to: 'vs'
+    }
+  ])
 ];
 
 if (minify) {
-  plugins.push(
-    new webpack.optimize.UglifyJsPlugin()
-  );
-}
-
-const languageLoader = {
-  test: /\.js$/,
-  loaders: ['language-parser'],
-  exclude: /node_modules|forkedModules|vendor/,
-  include: __dirname
-};
-
-if (process.env.language) {
-  loaders.push(languageLoader);
+  plugins.push(new UglifyJSPlugin({
+    sourceMap: true
+  }));
 }
 
 const polyfill = [
   './src/polyfills',
+  'element-closest',
   'babel-polyfill'
 ];
 
-// for hot reloading we require one chunk
-const vendor = isProductionBuild
-  ? [
-    ...polyfill,
-    'codemirror',
-    'fixed-data-table-2',
-    'immutable',
-    'jquery',
-    'lodash',
-    'moment',
-    'radium',
-    'react',
-    'react-bootstrap',
-    'react-date-range',
-    'react-dnd-html5-backend',
-    'react-json-tree',
-    'react-overlays',
-    'react-redux',
-    'react-router-redux',
-    'react-router'
-  ]
-  : [];
-
-const entry = {
-  app: [
-    'element-closest',
-    ...!isProductionBuild ? polyfill : [],
-    './src/regeneratorRuntimeDefault',
-    './src/index'
-  ],
-  vendor
-};
-
-if (!isProductionBuild) {
-  entry.app.push('webpack-hot-middleware/client');
-  entry.app.push('./src/debug');
-}
-
 const config = {
-  devtool: isProductionBuild ? 'source-map' : userConfig.sourceMaps, // chris says: '#cheap-eval-source-map' is really great for debugging
-  entry,
+  entry: {
+    app: [
+      path.resolve(__dirname, 'src/index.js')
+    ],
+    vendor: [
+      ...polyfill,
+      'codemirror',
+      'fixed-data-table-2',
+      'immutable',
+      'jquery',
+      'lodash',
+      'moment',
+      'radium',
+      'react',
+      'react-bootstrap',
+      'react-date-range',
+      'react-dnd-html5-backend',
+      'react-json-tree',
+      'react-overlays',
+      'react-redux',
+      'react-router-redux',
+      'react-router'
+    ]
+  },
   output: {
+    publicPath: '/',
     path: path.join(__dirname, 'build'),
     filename: isProductionBuild ? 'bundle.[hash].js' : 'bundle.js',
-    sourceMapFilename: isProductionBuild ? 'bundle.[hash].js.map' : 'bundle.js.map',
-    publicPath: '/'
+    sourceMapFilename: 'sourcemaps/[file].map'
   },
-  plugins,
   module: {
-    noParse: '/node_modules|forkedModules|vendor/',
     loaders
   },
-  resolveLoader: {
-    root: path.resolve(__dirname, 'node_modules'), // required to resolve loaders in code outside tree
-    alias: {
-      'language-parser': path.join(__dirname, './webpackUtils/languageParser.js'),
-      'yaml-parser': path.join(__dirname, './webpackUtils/yamlLoader.js')
-    }
-  },
+  devtool,
+  plugins,
   resolve: {
-    root: [
+    modules: [
       path.resolve(__dirname, 'src'),
-      path.resolve(__dirname, 'node_modules')
+      'node_modules',
+      path.resolve(__dirname, 'node_modules') // TODO: this is ugly, needed to resolve module dependencies outside of src/ so they can find our main node_modules
     ],
     alias: {
-      'dyn-load': dynLoader.path, // ref for std code to ref dynamic components
-      react: path.resolve('./node_modules/react'),
-      React: path.resolve('./node_modules/react'),
-      immutable: path.resolve('./node_modules/immutable/dist/immutable.min.js'),
-      jquery: path.resolve('./node_modules/jquery/dist/jquery.min.js'),
-      d3: path.resolve('./node_modules/d3/d3.min.js'),
+      'dyn-load': dynLoader.path, // ref for std code to ref dynamic componentsd
       'Narwhal-Logo-With-Name-Light': path.resolve(
         isBeta
           ? './src/components/Icon/icons/Narwhal-Logo-With-Name-Light-Beta.svg'
           : './src/components/Icon/icons/Narwhal-Logo-With-Name-Light.svg'
-        )
+      )
     }
-  },
-  postcss() {
-    return [ autoprefixer ];
-  },
-  eslint: {
-    configFile: '.eslintrc'
-  },
-  stats: {
-    children: true
   }
 };
 

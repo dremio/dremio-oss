@@ -24,6 +24,7 @@ import com.dremio.common.StackTrace;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.ExecConstants;
@@ -102,6 +103,7 @@ public class SabotNode implements AutoCloseable {
   protected void init(SingletonRegistry registry, SabotConfig config, ClusterCoordinator clusterCoordinator, ScanResult classpathScan) throws Exception{
     final boolean allowPortHunting = true;
     final boolean useIP = false;
+    final DremioConfig dremioConfig = DremioConfig.create(null, config);
 
     // eagerly created.
     final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(config, classpathScan));
@@ -153,6 +155,8 @@ public class SabotNode implements AutoCloseable {
 
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
 
+    registry.bind(AccelerationManager.class, AccelerationManager.NO_OP);
+
     registry.bind(ContextService.class, new ContextService(
         registry.getBindingCreator(),
         bootstrap,
@@ -182,6 +186,7 @@ public class SabotNode implements AutoCloseable {
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
+        registry.provider(KVStoreProvider.class),
         registry.getBindingCreator(),
         true,
         true,
@@ -189,6 +194,7 @@ public class SabotNode implements AutoCloseable {
 
     registry.bindSelf(
         new FragmentWorkManager(bootstrap,
+            dremioConfig,
             registry.provider(NodeEndpoint.class),
             registry.provider(SabotContext.class),
             registry.provider(FabricService.class),

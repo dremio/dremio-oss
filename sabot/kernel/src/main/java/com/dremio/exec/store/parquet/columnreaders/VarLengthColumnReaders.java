@@ -46,7 +46,7 @@ public class VarLengthColumnReaders {
 
     @Override
     public boolean setSafe(int index, ArrowBuf bytebuf, int start, int length) {
-      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start * DecimalUtility.DECIMAL_BYTE_LENGTH, schemaElement.getScale());
+      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start, schemaElement.getScale());
       if (index >= decimalVector.getValueCapacity()) {
         return false;
       }
@@ -74,7 +74,7 @@ public class VarLengthColumnReaders {
 
     @Override
     public boolean setSafe(int index, ArrowBuf bytebuf, int start, int length) {
-      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start * DecimalUtility.DECIMAL_BYTE_LENGTH, schemaElement.getScale());
+      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start, schemaElement.getScale());
       if (index >= decimalVector.getValueCapacity()) {
         return false;
       }

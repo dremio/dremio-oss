@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 17 17" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;">
+    <g id="Icon.2f.Download">
+        <rect id="icon.-box.-24" x="-7" y="-7" width="24" height="24" style="fill:none;"/>
+        <g id="Group">
+            <path id="Stroke.-2594" d="M11.5,7l-3,3l-3,-3" style="fill:none;stroke:#77818f;stroke-width:1px;"/>
+            <path id="Line" d="M4.536,1l-3.038,0c-0.551,0 -0.998,0.449 -0.998,1.007l0,12.986c0,0.556 0.445,1.007 1.001,1.007l13.998,0c0.553,0 1.001,-0.449 1.001,-1.007l0,-12.986c0,-0.556 -0.453,-1.007 -0.997,-1.007l-6.006,0c-0.551,0 -0.997,0.446 -0.997,0.998l0,8.002" style="fill:none;stroke:#77818f;stroke-width:1px;"/>
+        </g>
+    </g>
+</svg>

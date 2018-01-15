@@ -43,7 +43,8 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -51,46 +52,63 @@ import com.google.common.collect.Sets;
 import io.protostuff.ByteString;
 
 /**
- * Namespace search indexing. for now only support virtual and physical dataset indexing.
+ * Namespace search indexing. for now only support pds, vds, source and space indexing.
  */
 public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceContainer> {
   @Override
   public void convert(DocumentWriter writer, byte[] key, NameSpaceContainer container) {
-    if (container.getType() != Type.DATASET) {
-      return;
-    }
+    switch (container.getType()) {
+      case DATASET: {
+        final DatasetConfig datasetConfig = container.getDataset();
+        writer.write(DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
+        writer.write(DATASET_UUID, datasetConfig.getId().getId());
+        if (datasetConfig.getOwner() != null) {
+          writer.write(DATASET_OWNER, datasetConfig.getOwner());
+        }
+        switch (datasetConfig.getType()) {
+          case VIRTUAL_DATASET: {
 
-    final DatasetConfig datasetConfig = container.getDataset();
-    writer.write(DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
-    writer.write(DATASET_UUID, datasetConfig.getId().getId());
-    if (datasetConfig.getOwner() != null) {
-      writer.write(DATASET_OWNER, datasetConfig.getOwner());
-    }
-    switch (datasetConfig.getType()) {
-      case VIRTUAL_DATASET: {
+            final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
 
-        final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
+            writer.write(DATASET_SQL, virtualDataset.getSql());
 
-        writer.write(DATASET_SQL, virtualDataset.getSql());
+            addParents(writer, virtualDataset.getParentsList());
+            addColumns(writer, datasetConfig);
+            addSourcesAndOrigins(writer, virtualDataset.getFieldOriginsList());
+            addAllParents(writer, virtualDataset.getParentsList(), virtualDataset.getGrandParentsList());
+          }
+          break;
 
-        addParents(writer, virtualDataset.getParentsList());
-        addColumns(writer, datasetConfig);
-        addSourcesAndOrigins(writer, virtualDataset.getFieldOriginsList());
-        addAllParents(writer, virtualDataset.getParentsList(), virtualDataset.getGrandParentsList());
+          case PHYSICAL_DATASET:
+          case PHYSICAL_DATASET_SOURCE_FILE:
+          case PHYSICAL_DATASET_SOURCE_FOLDER: {
+            addColumns(writer, datasetConfig);
+            // TODO index physical dataset properties
+          }
+          break;
+
+          default:
+            break;
+        }
+        break;
       }
-      break;
 
-      case PHYSICAL_DATASET:
-      case PHYSICAL_DATASET_SOURCE_FILE:
-      case PHYSICAL_DATASET_SOURCE_FOLDER: {
-        addColumns(writer, datasetConfig);
-        // TODO index physical dataset properties
+      case SOURCE: {
+        final SourceConfig sourceConfig = container.getSource();
+        writer.write(NamespaceIndexKeys.SOURCE_ID, sourceConfig.getId().getId());
+        break;
       }
-      break;
+
+      case SPACE: {
+        final SpaceConfig spaceConfig = container.getSpace();
+        writer.write(NamespaceIndexKeys.SPACE_ID, spaceConfig.getId().getId());
+        break;
+      }
 
       default:
         break;
     }
+
   }
 
   private void addColumns(DocumentWriter writer, DatasetConfig datasetConfig) {

@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { ModalForm, modalFormProps, FormBody, FormTitle, connectComplexForm } from 'components/Forms';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import uuid from 'uuid';
 
 import { showConfirmationDialog, showClearReflectionsDialog } from 'actions/confirmation';
@@ -91,6 +92,7 @@ export class AccelerationForm extends Component {
 
   deleteAcceleration = () => {
     const { acceleration, deleteAcceleration, onCancel } = this.props;
+    this.props.updateFormDirtyState(false);
     return deleteAcceleration(acceleration.getIn(['id', 'id'])).then(() => onCancel());
   }
 
@@ -250,7 +252,7 @@ export class AccelerationForm extends Component {
         'aggregationLayouts', 'layoutList'
       ]).concat(this.props.acceleration.getIn([
         'rawLayouts', 'layoutList'
-      ])).some(layout => layout.getIn(['id', 'id']) === layoutId);
+      ])).some(layout => layout.get('id') === layoutId);
 
       if (!found) {
         messages.push(<Message
@@ -364,6 +366,6 @@ const layoutHasBoth = layout => {
 
 const cleanEmptyIds = layouts => {
   for (const layout of layouts) {
-    if (!layout.id.id) delete layout.id;
+    if (!layout.id) delete layout.id;
   }
 };

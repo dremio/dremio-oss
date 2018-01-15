@@ -60,6 +60,11 @@ public interface MaterializationDescriptorProvider {
   List<MaterializationDescriptor> get(boolean includeInComplete);
 
   /**
+   * remove a materialization
+   */
+  void remove(String materializationId);
+
+  /**
    * Empty materialization provider.
    */
   MaterializationDescriptorProvider EMPTY = new MaterializationDescriptorProvider() {
@@ -84,6 +89,10 @@ public interface MaterializationDescriptorProvider {
     @Override
     public List<MaterializationDescriptor> get(boolean includeInComplete) {
       return get();
+    }
+
+    @Override
+    public void remove(String materializationId) {
     }
   };
 }

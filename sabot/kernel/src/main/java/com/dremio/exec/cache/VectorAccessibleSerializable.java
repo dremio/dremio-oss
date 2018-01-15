@@ -353,9 +353,13 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     int bufferPos = 0;
     while(rawDataLength > 0) {
       /* read the first 4 bytes to get the length of subsequent compressed bytes */
-      final int compressedLengthBytes = inputStream.read(buffer, 0, COMPRESSED_LENGTH_BYTES);
-      if (compressedLengthBytes != COMPRESSED_LENGTH_BYTES) {
-        throw new IOException("ERROR: bad compressed length bytes");
+      int numBytesToRead = COMPRESSED_LENGTH_BYTES;
+      while(numBytesToRead > 0) {
+        final int numBytesRead = inputStream.read(buffer, COMPRESSED_LENGTH_BYTES - numBytesToRead, numBytesToRead);
+        if (numBytesRead == -1 && numBytesToRead > 0) {
+          throw new EOFException("Unexpected end of stream while reading.");
+        }
+        numBytesToRead -= numBytesRead;
       }
 
       /* convert the bytes read above to LE Int to get the actual length of compressed data */

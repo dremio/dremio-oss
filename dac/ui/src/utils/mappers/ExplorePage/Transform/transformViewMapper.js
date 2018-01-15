@@ -16,6 +16,8 @@
 import datasetUtils from 'utils/resourcePathUtils/dataset';
 import { isEmptyValue } from 'utils/validation';
 
+// todo: loc
+
 class TransformViewMapper {
   mapTransformRules(data, type) {
     const hash = {
@@ -74,7 +76,7 @@ class TransformViewMapper {
   getValueForPattern(index, indexType) {
     if (indexType === 'CAPTURE_GROUP') {
       return {
-        label: 'Capture Group...',
+        label: 'Capture Group…',
         value: 'CAPTURE_GROUP',
         index
       };
@@ -93,7 +95,7 @@ class TransformViewMapper {
     }
 
     return {
-      label: 'Index...',
+      label: 'Index…',
       value: 'INDEX',
       index
     };

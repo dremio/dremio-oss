@@ -20,7 +20,7 @@ import pureRender from 'pure-render-decorator';
 import FontIcon from 'components/Icon/FontIcon';
 import { FLEX_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
 
-import { h1, h3, h4White, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 
 const OVERLAY_COLOR = '#3acbac';
 const OVERLAY_POINTER_SIZE = 10;
@@ -31,21 +31,21 @@ export default class SignupTitle extends Component {
   render() {
     return (
       <div id='signup-title' style={[styles.base]}>
-        <p style={[h1, styles.mainTitle]}>
+        <h1 style={[styles.mainTitle]}>
           {la('Welcome to Dremio')}
-        </p>
+        </h1>
         <div style={[styles.subtitleWrap]}>
           <FontIcon type='NarwhalLogo' theme={styles.theme}/>
-          <p style={[styles.subtitle]}>
+          <h3 style={[styles.subtitle]}>
             {la('We are excited to have you on board!')}<br />
             {la('The first thing you need to do is set up an administrator account.')}
-          </p>
+          </h3>
           <div></div>{/*for flex, to center the text*/}
         </div>
-        <div style={[styles.overlay]}>
+        <h4 className='whiteText' style={[styles.overlay]}>
           {la('Create Admin Account')}
           <div style={[styles.overlayPointer]} />
-        </div>
+        </h4>
       </div>
     );
   }
@@ -64,7 +64,6 @@ const styles = {
     marginBottom: 20
   },
   subtitle: {
-    ...h3,
     color: formDescription.color,
     width: 370
   },
@@ -75,7 +74,6 @@ const styles = {
     }
   },
   overlay: {
-    ...h4White,
     position: 'relative',
     width: '100%',
     background: OVERLAY_COLOR,

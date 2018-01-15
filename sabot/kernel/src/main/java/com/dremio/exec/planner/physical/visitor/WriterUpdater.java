@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
@@ -69,10 +70,27 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     return prel.accept(INSTANCE, null);
   }
 
+  private Prel renameAsNecessary(RelDataType expectedRowType, Prel initialInput) {
+    if(RelOptUtil.areRowTypesEqual(initialInput.getRowType(), expectedRowType, false) && !RelOptUtil.areRowTypesEqual(initialInput.getRowType(), expectedRowType, true)) {
+      final List<RexNode> refs = new ArrayList<>();
+      final List<RelDataTypeField> fields = expectedRowType.getFieldList();
+      final RexBuilder rb = initialInput.getCluster().getRexBuilder();
+      for(int i = 0; i < expectedRowType.getFieldCount(); i++) {
+        refs.add(rb.makeInputRef(fields.get(i).getType(), i));
+      }
+      return new ProjectPrel(initialInput.getCluster(), initialInput.getTraitSet(), initialInput, refs, expectedRowType);
+    } else {
+      return initialInput;
+    }
+  }
+
   @Override
-  public Prel visitWriter(WriterPrel prel, Void value) throws RuntimeException {
-    final WriterOptions options = prel.getCreateTableEntry().getOptions();
-    final Prel input = ((Prel) prel.getInput()).accept(this, null);
+  public Prel visitWriter(WriterPrel initialPrel, Void value) throws RuntimeException {
+    final WriterOptions options = initialPrel.getCreateTableEntry().getOptions();
+    final Prel initialInput = ((Prel) initialPrel.getInput()).accept(this, null);
+
+    final Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput);
+    final WriterPrel prel = (WriterPrel) initialPrel.copy(initialPrel.getTraitSet(), ImmutableList.<RelNode>of(input));
 
     if(options.hasDistributions()){
 
@@ -127,7 +145,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
       final Prel changeDetection = addChangeDetectionProject(sort, fieldIndices);
 
-      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetection, prel.getCreateTableEntry());
+      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetection, prel.getCreateTableEntry(), prel.getExpectedInboundRowType());
       return writer;
 
     } else if(options.hasPartitions()) {
@@ -156,7 +174,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
       // we need to sort by the partitions.
       final Prel changeDetectionPrel = addChangeDetectionProject(sort, getFieldIndices(options.getPartitionColumns(), input.getRowType()));
-      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetectionPrel, prel.getCreateTableEntry());
+      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetectionPrel, prel.getCreateTableEntry(), prel.getExpectedInboundRowType());
       return writer;
 
     } else if(options.hasSort()){
@@ -164,11 +182,11 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       // insert a sort on sort fields.
       final RelCollation collation = getCollation(prel.getTraitSet(), getFieldIndices(options.getSortColumns(), input.getRowType()));
       final Prel sort = new SortPrel(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
-      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), sort, prel.getCreateTableEntry());
+      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), sort, prel.getCreateTableEntry(), prel.getExpectedInboundRowType());
       return writer;
 
     } else {
-      return super.visitWriter(prel, value);
+      return prel;
     }
   }
 

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import pureRender from 'pure-render-decorator';
-import { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import { Component } from 'react';
 import './MongoDBCredential.less'; // TODO to Vasyl, need to use Radium
 
 @pureRender

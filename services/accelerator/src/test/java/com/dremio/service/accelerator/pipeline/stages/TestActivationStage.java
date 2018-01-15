@@ -603,6 +603,51 @@ public class TestActivationStage {
     stage.execute(context);
   }
 
+  @Test
+  public void testAggAndRawDisabledOriginally() {
+    testAllActivationStages(new StageTester() {
+      @Override
+      public void test(Setting setting) {
+        mockContext(context);
+
+        ActivationStage stage = ActivationStage.of(setting.isRawEnabled, setting.isAggEnabled, setting.state, setting.mode,
+            ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getDefault().num_val.intValue());
+        Acceleration originalAcceleration = context.getOriginalAcceleration();
+        originalAcceleration.getAggregationLayouts().setEnabled(false);
+        originalAcceleration.getRawLayouts().setEnabled(false);
+        Acceleration currentAcceleration = context.getCurrentAcceleration();
+
+        Optional<MaterializedLayout> aggLayout = addMaterializedAggLayout(originalAcceleration, 0);
+        currentAcceleration.setAggregationLayouts(
+          new LayoutContainer().setLayoutList(ImmutableList.copyOf(originalAcceleration.getAggregationLayouts().getLayoutList())));
+
+        Optional<MaterializedLayout> rawLayout = addMaterializedRawLayout(originalAcceleration, 0);
+        currentAcceleration.setRawLayouts(
+          new LayoutContainer().setLayoutList(ImmutableList.copyOf(originalAcceleration.getRawLayouts().getLayoutList())));
+
+        stage.execute(context);
+
+        verify(context, times(4)).getCurrentAcceleration();
+        verify(context, times(2)).getOriginalAcceleration();
+        verify(context).commit(currentAcceleration);
+
+        if (!setting.isAggEnabled) {
+          checkNotRemoved(currentAcceleration, aggLayout);
+        } else {
+          verify(context.getExecutorService(), never()).execute(any(ChainExecutor.class));
+        }
+
+        if (!setting.isRawEnabled) {
+          checkNotRemoved(currentAcceleration, rawLayout);
+        } else {
+          verify(context.getExecutorService(), never()).submit(any(ChainExecutor.class));
+        }
+
+        checkAcceleration(setting, currentAcceleration);
+      }
+    });
+  }
+
   private Layout addAggLayout(Acceleration acceleration, int layoutNum) {
     List<LayoutDimensionField> dimFields = new ArrayList<>();
     dimFields.add(new LayoutDimensionField().setName("dim" + layoutNum).setTypeFamily(SqlTypeFamily.CHARACTER.toString()));
@@ -720,8 +765,12 @@ public class TestActivationStage {
     // Set up an empty acceleration for the original.
     final Acceleration originalAcceleration = new Acceleration()
       .setContext(new AccelerationContext().setDataset(new DatasetConfig().setFullPathList(ImmutableList.of("a", "b"))))
-      .setRawLayouts(new LayoutContainer().setLayoutList(new ArrayList<Layout>()))
-      .setAggregationLayouts(new LayoutContainer().setLayoutList(new ArrayList<Layout>()));
+      .setRawLayouts(new LayoutContainer()
+          .setLayoutList(new ArrayList<Layout>())
+          .setEnabled(true))
+      .setAggregationLayouts(new LayoutContainer()
+          .setLayoutList(new ArrayList<Layout>())
+          .setEnabled(true));
 
     when(context.getAcceleratorStoragePlugin().getConfig().getPath()).thenReturn("acceleration");
     when(context.getOriginalAcceleration()).thenReturn(originalAcceleration);

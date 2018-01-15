@@ -13,14 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import Modal from 'components/Modals/Modal';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
+import { injectIntl } from 'react-intl';
 
 import DatasetSettings from './DatasetSettings.js';
 import './../Modal.less';
 
+@injectIntl
 export class DatasetSettingsModal extends Component {
 
   static propTypes = {
@@ -32,15 +36,16 @@ export class DatasetSettingsModal extends Component {
     tab: PropTypes.string,
     // connected from FormUnsavedWarningHOC
     updateFormDirtyState: PropTypes.func,
-    location: PropTypes.object
+    location: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   render() {
-    const {isOpen, updateFormDirtyState, ...datasetSettingsProps} = this.props;
+    const {isOpen, updateFormDirtyState, intl, ...datasetSettingsProps} = this.props;
     return (
       <Modal
         size='large'
-        title={la('Dataset Settings')}
+        title={intl.formatMessage({ id: 'Dataset.Settings' })}
         isOpen={isOpen}
         hide={datasetSettingsProps.hide}>
         <DatasetSettings {...datasetSettingsProps} updateFormDirtyState={updateFormDirtyState}/>

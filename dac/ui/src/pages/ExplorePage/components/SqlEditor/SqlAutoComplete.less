@@ -16,76 +16,9 @@
 @import "./../../../../uiTheme/less/typography";
 
 .sql-autocomplete {
-  overflow: hidden;
   min-height: 40px;
   margin-left: 10px;
   margin-right: 16px;
   margin-top: 0;
   border: 1px solid #c2c2c2;
-  z-index: 0; // fight against CodeMirror's internal z-indexes by containing them within a 0 index container
-
-  span {
-    .fontBody()
-  }
-
-  .CodeMirror.cm-s-mdn-like {
-    position: relative;
-  }
-
-  .CodeMirror-sizer {
-    padding-top: 2px;
-  }
-
-  .CodeMirror-scroll {
-    position: absolute;
-    width: 100%;
-  }
-
-  .ReactCodeMirror{
-    min-height: 40px;
-
-    .CodeMirror {
-      .fixedWidthDefault();
-      min-height: 40px;
-    }
-  }
-  .cm-s-mdn-like.CodeMirror {
-    background-image: none;
-  }
-
-  .cm-placeholder-highlighten {
-    display: inline-block;
-    background-color: #FFF0D4;
-    border-radius: 2px;
-  }
-
-  .cm-placeholder {
-    color: gray;
-
-    &:focus {
-      color: blue;
-    }
-  }
-
-  @margin: 20px;
-
-  textarea {
-    width: ~"calc(100% - @{margin} * 2)";
-    margin-left: @margin;
-    margin-right: @margin;
-    position: relative;
-    height: 100px;
-    margin-top: 50px;
-    border: 1px solid #c2c2c2;
-  }
-
-  ul {
-    position: absolute;
-    top: 56px;
-    list-style: none;
-    border: 1px solid #e1e1e1;
-    padding: 5px;
-    border-radius: 5px;
-    left: 50px;
-  }
 }

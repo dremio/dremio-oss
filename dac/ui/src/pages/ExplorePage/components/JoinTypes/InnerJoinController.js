@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
 import { connect } from 'react-redux';
 
+import { ExploreInfoHeader } from '../ExploreInfoHeader';
 import InnerJoin from './InnerJoin';
 
 export class InnerJoinController extends Component {
@@ -168,13 +170,14 @@ export class InnerJoinController extends Component {
   render() {
     const activeDataset = this.props.fields.activeDataset;
     const dpathArray = (activeDataset.value || activeDataset.initialValue || []);
-    const customPath = dpathArray && dpathArray[dpathArray.length - 1];
+    const customNameForDisplay = dpathArray && dpathArray[dpathArray.length - 1];
+    const defaultNameForDisplay = ExploreInfoHeader.getNameForDisplay(this.props.dataset);
 
     return (
       <InnerJoin
         dragColumntableType={this.state.dragColumntableType}
-        defaultPath={this.props.dataset.getIn(['displayFullPath', -1])}
-        customPath={customPath}
+        defaultNameForDisplay={defaultNameForDisplay}
+        customNameForDisplay={customNameForDisplay}
         fields={this.props.fields}
         stopDrag={this.stopDrag}
         onDragStart={this.onDragStart}

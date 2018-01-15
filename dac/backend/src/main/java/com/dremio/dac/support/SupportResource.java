@@ -41,6 +41,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.users.UserNotFoundException;
 
 /**
@@ -71,8 +72,14 @@ public class SupportResource {
   @POST
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response downloadData(@PathParam("jobId") JobId jobId) throws IOException, JobResourceNotFoundException, UserNotFoundException {
-    final DownloadDataResponse response = supportService.downloadSupportRequest(context.getUserPrincipal().getName(), jobId);
+  public Response downloadData(@PathParam("jobId") JobId jobId)
+      throws IOException, UserNotFoundException, JobResourceNotFoundException {
+    final DownloadDataResponse response;
+    try {
+      response = supportService.downloadSupportRequest(context.getUserPrincipal().getName(), jobId);
+    } catch (JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+    }
     final StreamingOutput streamingOutput = new StreamingOutput() {
       @Override
       public void write(OutputStream output) throws IOException, WebApplicationException {

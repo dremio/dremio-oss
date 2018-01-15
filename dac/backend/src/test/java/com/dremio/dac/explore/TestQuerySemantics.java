@@ -18,6 +18,7 @@ package com.dremio.dac.explore;
 import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
 import static com.dremio.dac.proto.model.dataset.OrderDirection.DESC;
 import static java.util.Arrays.asList;
+import static org.junit.Assert.assertNotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,6 +87,52 @@ public class TestQuerySemantics extends BaseTestServer {
               .setReferredTablesList(Arrays.asList("tpch/supplier.parquet"))
               .setColumnsList(cols("s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment")),
             ds);
+  }
+
+  @Test
+  public void testTimestampCloseToZero() throws Exception {
+    // to test that times that < 100 millis are processed by Calcite correctly
+    // otherwise java.lang.StringIndexOutOfBoundsException would be thrown by Calcite
+    // String index out of range: -2 or (-1)
+    VirtualDatasetState ds = extract(
+      getQueryFromSQL(
+        "select TIMESTAMP '1970-01-01 00:00:00.100' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+      "select TIMESTAMP '1970-01-01 00:00:00.099' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+        "select TIMESTAMP '1970-01-01 00:00:00.000' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+        "select TIMESTAMP '1970-01-01 00:00:00.001' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+        "select TIME '00:00:00.100' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+        "select TIME '00:00:00.099' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+        "select TIME '00:00:00.000' from sys.memory"));
+    assertNotNull(ds);
+
+    ds = extract(
+      getQueryFromSQL(
+        "select TIME '00:00:00.001' from sys.memory"));
+    assertNotNull(ds);
   }
 
   @Test

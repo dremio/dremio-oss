@@ -57,7 +57,7 @@ function fetchConvertDataset(entity, viewId) {
   // DX-8102: invalidating home view id so that # of jobs of the folder updates
   const meta = {viewId, folderId: entity.get('id'), invalidateViewIds: ['HomeContents']};
   const successMeta = {...meta, success: true}; // doesn't invalidateViewIds without `success: true`
-  const errorMessage = la('There was an error removing format of the folder.');
+  const errorMessage = la('There was an error removing the format for the folder.');
   return {
     [CALL_API]: {
       types: [

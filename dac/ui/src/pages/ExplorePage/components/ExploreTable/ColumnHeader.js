@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { Cell } from 'fixed-data-table-2';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import $ from 'jquery';
 
 import DragSource from 'components/DragComponents/DragSource';

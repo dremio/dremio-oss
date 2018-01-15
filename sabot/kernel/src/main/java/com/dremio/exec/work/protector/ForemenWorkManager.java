@@ -31,6 +31,7 @@ import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -52,6 +53,7 @@ import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.rpc.CoordProtocol;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.rpc.CoordTunnelCreator;
+import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
@@ -317,6 +319,19 @@ public class ForemenWorkManager implements Service {
       }
     }
 
+    @Override
+    public void nodeQueryStatusUpdate(NodeQueryStatus status) throws RpcException {
+      ExternalId id = ExternalIdHelper.toExternal(status.getId());
+      ManagedForeman managed = externalIdToForeman.get(id);
+      if (managed == null) {
+        // TODO(DX-7242): this is a little chatty since a failed query will often log a bunch of fragments
+        // We need a better mechanism to debug this.
+        logger.info("A node query status message arrived post query termination, dropping. Query [{}] from node {}.",
+          QueryIdHelper.getQueryId(status.getId()), status.getEndpoint());
+      } else {
+        managed.foreman.updateNodeQueryStatus(status);
+      }
+    }
   }
 
   /**
@@ -381,9 +396,9 @@ public class ForemenWorkManager implements Service {
                 .newBuilder()
                 .setUserName(config.getUsername())
                 .build())
-            .exposeInternalSources(config.exposeInternalSources())
+            .exposeInternalSources(config.isExposingInternalSources())
             .withDefaultSchema(config.getSqlContext())
-            .withMaterializationSettings(config.getMaterializationSettings())
+            .withSubstitutionSettings(config.getSubstitutionSettings())
             .withOptionManager(options)
             .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
             .build();

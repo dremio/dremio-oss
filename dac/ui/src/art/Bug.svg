@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/Bug</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Bug" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-14" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                </g>
+                <g id="Group" transform="translate(5.000000, 3.000000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
+                    <path d="M10.6657158,6.37425 C10.4807684,4.49925 8.91055789,2.99925 6.99992632,2.99925 C5.09003158,2.99925 3.51908421,4.49925 3.33487368,6.37425 L10.6657158,6.37425 L10.6657158,6.37425 Z" id="Stroke-5578"></path>
+                    <path d="M4.046,0.37425 C4.046,0.37425 4.04747368,0.7125 4.04968421,1.125 C4.05115789,1.53825 4.31789474,2.23275 4.64210526,2.6685 C4.96631579,3.10425 5.23084211,3.4605 5.23084211,3.4605" id="Stroke-5579"></path>
+                    <path d="M9.95414737,0.37425 C9.95414737,0.37425 9.95267368,0.7125 9.9512,1.125 C9.94898947,1.53825 9.68225263,2.23275 9.35804211,2.6685 C9.03383158,3.10425 8.76930526,3.4605 8.76930526,3.4605" id="Stroke-5580"></path>
+                    <path d="M3.31593684,7.87425 L3.31593684,12.37575 C3.31593684,14.4465 7.00014737,17.62575 7.00014737,17.62575 C7.00014737,17.62575 10.6843579,14.4465 10.6843579,12.37575 L10.6843579,7.87425 L3.31593684,7.87425 L3.31593684,7.87425 Z" id="Stroke-5581"></path>
+                    <path d="M3.31593684,7.87575 L2.39488421,7.87575 C1.88867368,7.87575 1.14225263,8.21325 0.736989474,8.62575 C0.331726316,9.03825 0.000147368421,9.37575 0.000147368421,9.37575" id="Stroke-5582"></path>
+                    <path d="M3.31593684,10.12575 L2.39488421,10.12575 C1.88867368,10.12575 1.14225263,10.46325 0.736989474,10.87575 C0.331726316,11.28825 0.000147368421,11.62575 0.000147368421,11.62575" id="Stroke-5583"></path>
+                    <path d="M3.31593684,12.37575 L2.39488421,12.37575 C1.88867368,12.37575 1.14225263,12.71325 0.736989474,13.12575 C0.331726316,13.53825 0.000147368421,13.87575 0.000147368421,13.87575" id="Stroke-5584"></path>
+                    <path d="M10.6843579,7.87575 L11.6054105,7.87575 C12.1116211,7.87575 12.8580421,8.21325 13.2633053,8.62575 C13.6685684,9.03825 14.0001474,9.37575 14.0001474,9.37575" id="Stroke-5585"></path>
+                    <path d="M10.6843579,10.12575 L11.6054105,10.12575 C12.1116211,10.12575 12.8580421,10.46325 13.2633053,10.87575 C13.6685684,11.28825 14.0001474,11.62575 14.0001474,11.62575" id="Stroke-5586"></path>
+                    <path d="M10.6843579,12.37575 L11.6054105,12.37575 C12.1116211,12.37575 12.8580421,12.71325 13.2633053,13.12575 C13.6685684,13.53825 14.0001474,13.87575 14.0001474,13.87575" id="Stroke-5587"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

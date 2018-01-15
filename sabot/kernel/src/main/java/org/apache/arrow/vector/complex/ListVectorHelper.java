@@ -18,7 +18,6 @@ package org.apache.arrow.vector.complex;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import org.apache.arrow.vector.LastSetter;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -57,7 +56,7 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper {
 
     final int vectorLength = vectorMetadata.getBufferLength();
     TypeHelper.load(listVector.vector, vectorMetadata, buffer.slice(offsetLength + bitLength, vectorLength));
-    LastSetter.set(listVector, metadata.getValueCount());
+    listVector.getMutator().setLastSet(metadata.getValueCount());
   }
 
   public void materialize(Field field) {

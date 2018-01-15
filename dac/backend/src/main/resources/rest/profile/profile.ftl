@@ -24,7 +24,7 @@
 <script>
     var globalconfig = {
         "queryid" : "${model.getQueryId()}",
-        "operators" : ${model.getOperatorsJSON()},
+        "operators" : ${model.getOperatorsJSON()?no_esc},
         "planText": "${model.getPlanText()}",
         "fragmentProfileSize": ${model.getFragmentProfilesSize()}
     };
@@ -87,6 +87,14 @@
         Time To Match:   --
         </p>
       </#if>
+      <h3>Canonicalized User Query Alternatives</h3>
+      <#if model.profile.hasAccelerationProfile()>
+        <#list model.profile.getAccelerationProfile().getNormalizedQueryPlansList() as normalizedPlan>
+          <#if normalizedPlan?has_content >
+          <p><pre>${normalizedPlan}</pre></p>
+          </#if>
+        </#list>
+      </#if>
       <h3>Reflection Details</h3>
         <#if model.profile.hasAccelerationProfile() && model.profile.getAccelerationProfile().getLayoutProfilesCount() != 0>
           <#list model.profile.getAccelerationProfile().getLayoutProfilesList() as layout>
@@ -103,6 +111,9 @@
           <p>
           Reflection Id: ${layout.getLayoutId()}, Materialization Id: ${layout.getMaterializationId()}<br>
           Expiration:   ${layout.materializationExpirationTimestamp?number_to_datetime?iso_utc}<br>
+          <#if model.accelerationDetails?? && model.accelerationDetails.hasRelationship(layout.layoutId) >
+          Dataset: ${model.accelerationDetails.getReflectionDatasetPath(layout.layoutId)}<br>
+          </#if>
           <#if layout.dimensionsList?has_content >
           Dimensions:
             <#list layout.getDimensionsList() as dim>
@@ -152,14 +163,6 @@
           </#if>
           </p>
 
-          <p>Canonicalized User Query Alternative(s):
-            <#list layout.getNormalizedQueryPlansList() as planNorm>
-              <#if planNorm?has_content >
-              <p><pre>${planNorm}</pre></p>
-              </#if>
-            </#list>
-          </p>
-
           <#if layout.plan?has_content >
           <p>Reflection Plan:
             <pre>${layout.getPlan()}</pre>
@@ -180,6 +183,13 @@
               <p><pre>${substitution.getPlan()}</pre></p>
               </#if>
             </#list>
+          </p>
+
+          <p>Best Cost Replacement Plan:
+            <#assign optimizedPlan = layout.getOptimizedPlan()>
+            <#if optimizedPlan?has_content>
+              <p><pre>${optimizedPlan}</pre></p>
+            </#if>
           </p>
           </#list>
           <hr />
@@ -261,6 +271,20 @@
       <div id="${frag.getId()}" class="panel-collapse collapse">
         <div class="panel-body">
           ${frag.getContent()?no_esc}
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h4 class="panel-title">
+                <a data-toggle="collapse" href="#${frag.getId()}-metrics" class="collapsed">
+                  Phase Metrics
+                </a>
+              </h4>
+            </div>
+            <div id="${frag.getId()}-metrics" class="panel-collapse collapse">
+              <div class="panel-body">
+                ${frag.getMetricsTable()?no_esc}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

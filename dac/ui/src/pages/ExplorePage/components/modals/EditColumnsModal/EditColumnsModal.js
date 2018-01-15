@@ -13,19 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component, PropTypes} from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import Modal from 'components/Modals/Modal';
 
 import EditColumns from './EditColumns';
 
+@injectIntl
 @pureRender
 export default class EditColumnsModal extends Component {
   static propTypes = {
     hide: PropTypes.func,
     isOpen: PropTypes.bool.isRequired,
-    pathname: PropTypes.string
+    pathname: PropTypes.string,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -37,12 +41,12 @@ export default class EditColumnsModal extends Component {
   }
 
   render() {
-    const {hide, isOpen} = this.props;
+    const { hide, isOpen, intl } = this.props;
     return (
       <Modal
         hide={hide}
         size='small'
-        title={la('Edit Field Visibility')}
+        title={intl.formatMessage({ id: 'Dataset.EditFieldVisibility' })}
         isOpen={isOpen}>
         <EditColumns
           hide={hide}

@@ -14,36 +14,39 @@
  * limitations under the License.
  */
 import path from 'path';
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { FieldWithError, TextField, FileField } from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
+import { injectIntl } from 'react-intl';
 
 const FIELDS = ['file', 'name', 'extension'];
 
 import { formRow } from 'uiTheme/radium/forms';
-import { h5 } from 'uiTheme/radium/typography';
 
 function validate(values) {
   return applyValidators(values, [isRequired('file'), isRequired('name')]);
 }
 
+@injectIntl
 export class AddFileFormPage1 extends Component {
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
     fields: PropTypes.object,
-    handleSubmit: PropTypes.func.isRequired
+    handleSubmit: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
-  constructor(props) {
-    super(props);
-    this.onFileChange = this.onFileChange.bind(this);
-  }
+  state = {
+    isUploading: false
+  };
 
-  onFileChange(file) {
+  onFileChange = (file, isUploading) => {
     const { fields } = this.props;
 
     const filename = file.name;
@@ -51,16 +54,31 @@ export class AddFileFormPage1 extends Component {
     fields.name.onChange(path.basename(filename, extName));
     fields.extension.onChange(extName.slice(1));
     fields.file.onChange(file);
-  }
+    this.setState({
+      isUploading
+    });
+  };
 
   render() {
-    const {fields, handleSubmit, onFormSubmit} = this.props;
+    const { fields, handleSubmit, onFormSubmit, intl } = this.props;
+    const confirmText = this.state.isUploading
+      ? intl.formatMessage({ id: 'File.Uploading' })
+      : intl.formatMessage({ id: 'Common.Next' });
 
     return (
-      <ModalForm {...modalFormProps(this.props)} confirmText='Next' onSubmit={handleSubmit(onFormSubmit)}>
-        <FormBody>
+      <ModalForm
+        {...modalFormProps(this.props)}
+        canSubmit={!this.state.isUploading}
+        confirmText={confirmText}
+        onSubmit={handleSubmit(onFormSubmit)}
+      >
+        <FormBody style={{height: '100%'}}>
           <FileField accept='multipart/form-data' {...fields.file} onChange={this.onFileChange}/>
-          <FieldWithError label='Name' {...fields.name} style={[formRow, h5]} errorPlacement='top'>
+          <FieldWithError
+            label={intl.formatMessage({ id: 'Common.Name' })}
+            {...fields.name} style={[formRow]}
+            errorPlacement='top'
+          >
             <TextField accept='multipart/form-data' {...fields.name}/>
           </FieldWithError>
         </FormBody>

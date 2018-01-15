@@ -88,11 +88,11 @@ class ByteStoreManager implements AutoCloseable {
 
   private ByteStore newDB(String name) throws RocksDBException {
     if(inMemory){
-      return new MapStore();
+      return new MapStore(name);
     }else{
       final ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(name.getBytes(UTF_8));
       ColumnFamilyHandle handle = db.createColumnFamily(columnFamilyDescriptor);
-      return new RocksDBStore(columnFamilyDescriptor, handle, db, stripeCount);
+      return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
     }
   }
 
@@ -153,7 +153,7 @@ class ByteStoreManager implements AutoCloseable {
         defaultHandle = familyHandles.get(i);
       } else {
         String name = new String(family, UTF_8);
-        RocksDBStore store = new RocksDBStore(new ColumnFamilyDescriptor(family), familyHandles.get(i), db, stripeCount);
+        RocksDBStore store = new RocksDBStore(name, new ColumnFamilyDescriptor(family), familyHandles.get(i), db, stripeCount);
         maps.put(name, store);
       }
     }

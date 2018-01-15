@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import moment from 'moment';
 
 import TimeUtils from 'utils/timeUtils';
 import { PALE_BLUE, PALE_NAVY } from 'uiTheme/radium/colors';
-import { body } from 'uiTheme/radium/typography';
 
 import * as IntervalTypes from './IntervalTypes';
 
@@ -118,7 +118,7 @@ class LeftPanel extends Component {
   renderIntervals = () => LeftPanel.getIntervals().map((item, index) => (
     <div
       style={[LeftPanel.getIntervalsStyles(item.get('type'), this.props.filterType),
-        body, item.get('type') === this.props.activeType && style.activeFilter]}
+        item.get('type') === this.props.activeType && style.activeFilter]}
       key={index}
       onClick={this.props.onChange.bind(this, item.get('type'), item.get('time'))}>
       {item.get('label')}

@@ -18,6 +18,7 @@ package com.dremio.exec.planner.logical;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
@@ -31,7 +32,9 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexVisitorImpl;
 
+import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
+import com.dremio.service.Pointer;
 
 public class FlattenVisitors {
 
@@ -54,10 +57,6 @@ public class FlattenVisitors {
       r.accept(fc);
     }
     return fc.getCount();
-  }
-
-  public static int countFlattens(Project project) {
-    return FlattenCounter.count(project);
   }
 
   public static class FlattenFinder extends RexVisitorImpl<Boolean> {
@@ -129,11 +128,37 @@ public class FlattenVisitors {
   public static class FlattenCounter extends RexVisitorImpl<Void> {
     private final Set<Integer> flattens = new HashSet<>();
 
-    public static int count(Project project){
+    /**
+     * Count the total number of flattens in Project node
+     * @param project
+     * @return the total number of flattens in the project
+     */
+    public static int count(Project project) {
       FlattenCounter c = new FlattenCounter();
       c.add(project);
       return c.getCount();
     }
+
+    /**
+     * Count the total number of flatten operators in a tree
+     * @param relNode the root of the tree
+     * @return the number of flattens
+     */
+    public static int countFlattensInPlan(RelNode relNode) {
+      final Pointer<Integer> totalCount = new Pointer<>(0);
+      relNode.accept(new RoutingShuttle() {
+        @Override
+        public RelNode visit(RelNode relNode) {
+          RelNode rel = super.visit(relNode);
+          if (relNode instanceof Project) {
+            totalCount.value += FlattenCounter.count((Project) relNode);
+          }
+          return rel;
+        }
+      });
+      return totalCount.value;
+    }
+
 
     protected FlattenCounter() {
       super(true);

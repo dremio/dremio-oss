@@ -47,6 +47,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   private List<FieldBufferCopier> copiers = new ArrayList<FieldBufferCopier>();
 
   // random vector to determine if no copy is needed.
+  // could be null if no columns are projected from incoming.
   private ValueVector.Accessor indicator;
 
   public VectorizedCopyOperator(OperatorContext context, SelectionVectorRemover popConfig) throws OutOfMemoryException {
@@ -74,7 +75,6 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
     state = State.CAN_CONSUME;
 
-
     return output;
   }
 
@@ -93,24 +93,22 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     // do nothing.
     state.is(State.CAN_CONSUME);
     state = State.CAN_PRODUCE;
-
   }
 
   @Override
   public int outputData() {
-    if(straightCopy || incoming.getRecordCount() == indicator.getValueCount()){
+    final int count = incoming.getRecordCount();
+    if (indicator == null) {
+      // if nothing is projected, just set the count and return
+    } else if (straightCopy || count == indicator.getValueCount()){
       for(TransferPair tp : transferPairs){
         tp.transfer();
       }
-      output.setRecordCount(incoming.getRecordCount());
-      state = State.CAN_CONSUME;
-      return incoming.getRecordCount();
-    }
-
-    final long addr = sv2.memoryAddress();
-    final int count = incoming.getRecordCount();
-    for(FieldBufferCopier copier : copiers){
-      copier.copy(addr, count);
+    } else {
+      final long addr = sv2.memoryAddress();
+      for (FieldBufferCopier copier : copiers) {
+        copier.copy(addr, count);
+      }
     }
     state = State.CAN_CONSUME;
 
@@ -127,6 +125,4 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
-
-
 }

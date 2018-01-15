@@ -277,7 +277,7 @@ public class ScanOperator implements ProducerOperator {
     public <T extends ValueVector> T addField(Field field,
                                               Class<T> clazz) throws SchemaChangeException {
       // Check if the field exists.
-      final ValueVector v = fieldVectorMap.get(field.getName());
+      final ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
       if (v == null || !clazz.isAssignableFrom(v.getClass())) {
         // Field does not exist--add it to the map and the output container.
         ValueVector newVector = TypeHelper.getNewVector(field, context.getAllocator(), callBack);
@@ -289,7 +289,7 @@ public class ScanOperator implements ProducerOperator {
                   clazz.getSimpleName(), newVector.getClass().getSimpleName()));
         }
 
-        final ValueVector old = fieldVectorMap.put(field.getName(), newVector);
+        final ValueVector old = fieldVectorMap.put(field.getName().toLowerCase(), newVector);
         if (old != null) {
           old.clear();
           outgoing.remove(old);
@@ -304,7 +304,7 @@ public class ScanOperator implements ProducerOperator {
 
     @Override
     public ValueVector getVector(String name) {
-      return fieldVectorMap.get(name);
+      return fieldVectorMap.get((name != null) ? name.toLowerCase() : name);
     }
 
     @Override

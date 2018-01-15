@@ -143,6 +143,13 @@ public interface KVStore<K, V> {
   }
 
   /**
+   * Get an administrative interface for this store.
+   * @return Admin interface.
+   */
+  KVAdmin getAdmin();
+
+
+  /**
    * Configuration for finding values by a key range.
    *
    * @param <K>

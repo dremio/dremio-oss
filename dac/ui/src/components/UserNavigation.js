@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
-
-import { body, h4 } from 'uiTheme/radium/typography';
 
 @Radium
 class UserNavigation extends Component {
@@ -41,7 +40,7 @@ class UserNavigation extends Component {
 
   renderMenuItems() {
     const { location } = this.context;
-    const linkStyles = {...styles.linkItem, ...body};
+    const linkStyles = styles.linkItem;
     return this.props.menuItems.map((item, i) => {
       const className = classNames('left-item', {'selected': location.pathname === item.get('url')});
       return (
@@ -60,7 +59,7 @@ class UserNavigation extends Component {
     return (
       <div className='left-menu' style={styles.leftMenu}>
         <DocumentTitle title={this.getSelectedItem().get('name')} />
-        {title ? <h4 style={[styles.menuTitle, h4]}>{title}</h4> : ''}
+        {title ? <h4 style={[styles.menuTitle]}>{title}</h4> : ''}
         <ul>{this.renderMenuItems()}</ul>
       </div>
     );
@@ -77,6 +76,7 @@ const styles = {
   },
   linkItem: {
     display: 'block',
+    color: '#333333',
     padding: '5px 10px',
     textDecoration: 'none',
     borderRadius: 2

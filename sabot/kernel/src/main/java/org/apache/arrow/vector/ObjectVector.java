@@ -148,6 +148,36 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   }
 
   @Override
+  public long getValidityBufferAddress() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long getDataBufferAddress() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long getOffsetBufferAddress() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public ArrowBuf getValidityBuffer() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public ArrowBuf getDataBuffer() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public ArrowBuf getOffsetBuffer() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public MinorType getMinorType() {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }

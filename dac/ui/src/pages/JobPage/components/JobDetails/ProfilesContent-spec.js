@@ -55,7 +55,7 @@ describe('ProfilesContent', () => {
 
   it('should render title', () => {
     const wrapper = shallow(<ProfilesContent {...commonProps}/>);
-    expect(wrapper.find('span').text()).to.eql('Attempts');
+    expect(wrapper.find('h4').text()).to.eql('Attempts');
   });
 
   it('should render profile items in reverse order', () => {

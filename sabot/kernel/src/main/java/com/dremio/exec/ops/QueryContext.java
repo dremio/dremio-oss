@@ -125,7 +125,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     this.session = session;
     queryOptions = new QueryOptionManager(session.getOptions());
     executionControls = new ExecutionControls(queryOptions, sabotContext.getEndpoint());
-    plannerSettings = new PlannerSettings(queryOptions, getFunctionRegistry());
+    plannerSettings = new PlannerSettings(queryOptions, getFunctionRegistry(), sabotContext.getClusterResourceInformation());
     plannerSettings.setNumEndPoints(sabotContext.getExecutors().size());
     table = new OperatorTable(getFunctionRegistry());
 

@@ -94,7 +94,7 @@ public abstract class JoinPruleBase extends Prule {
       final double leftRowCount = mq.getRowCount(left);
 
       final int numEndPoints = plannerSettings.numEndPoints();
-      final long maxWidthPerNode = plannerSettings.getOptions().getOption(ExecConstants.MAX_WIDTH_PER_NODE);
+      final long maxWidthPerNode = plannerSettings.getNumCoresPerExecutor();
       final long maxWidthPerQuery = plannerSettings.getOptions().getOption(ExecConstants.MAX_WIDTH_GLOBAL);
       final long sliceTarget = plannerSettings.getSliceTarget();
       final double minFactor = Doubles.min(leftRowCount * 1.0 / sliceTarget, numEndPoints * maxWidthPerNode, maxWidthPerQuery);

@@ -18,7 +18,6 @@ package com.dremio.exec.store.parquet.columnreaders;
 import java.io.IOException;
 import java.util.Map;
 
-import org.apache.arrow.vector.BaseDataValueVector;
 import org.apache.arrow.vector.NullableBigIntVector;
 import org.apache.arrow.vector.NullableFloat4Vector;
 import org.apache.arrow.vector.NullableFloat8Vector;
@@ -135,7 +134,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
     readLength = 0;
     readLengthInBits = 0;
     recordsReadInThisIteration = 0;
-    vectorData = castedBaseVector.getBuffer();
+    vectorData = valueVec.getDataBuffer();
 
     int runLength = -1;     // number of non-null records in this pass.
     int nullRunLength = -1; // number of consecutive null records that we read.
@@ -187,8 +186,8 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
       // Write the nulls if any
       //
       if (nullRunLength > 0) {
-        int writerIndex = ((BaseDataValueVector) valueVec).getBuffer().writerIndex();
-        castedBaseVector.getBuffer().setIndex(0, writerIndex + (int) Math.ceil(nullRunLength * dataTypeLengthInBits / 8.0));
+        int writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, writerIndex + (int) Math.ceil(nullRunLength * dataTypeLengthInBits / 8.0));
         writeCount += nullRunLength;
         valuesReadInCurrentPass += nullRunLength;
         recordsReadInThisIteration += nullRunLength;

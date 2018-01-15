@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { startCase } from 'lodash/string';
 
 import Checkbox from 'components/Fields/Checkbox';
 import FontIcon from 'components/Icon/FontIcon';
 import Meter from 'components/Meter';
-import { body, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
 import { applyValidators, notEmptyArray } from 'utils/validation';
 
@@ -170,7 +171,6 @@ const styles = {
     paddingRight: 5
   },
   text: {
-    ...body,
     paddingLeft: 10,
     paddingRight: 10
   },

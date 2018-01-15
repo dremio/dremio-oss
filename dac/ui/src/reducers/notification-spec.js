@@ -35,7 +35,7 @@ describe('notification reducer', () => {
   });
 
   it('should set notification from errorMessage and default moreInfo if error = true and notification = true', () => {
-    const defaultMoreInfo = 'Something went wrong';
+    const defaultMoreInfo = 'Something went wrong.';
     const result = notification(initialState, {
       type: 'bla',
       error: true,
@@ -64,7 +64,7 @@ describe('notification reducer', () => {
   });
 
   it('should set notification with default message when error = true and notification = true', () => {
-    const defaultMessage = 'Something went wrong';
+    const defaultMessage = 'Something went wrong.';
     const result = notification(initialState, {
       type: 'bla',
       error: true,
@@ -74,7 +74,7 @@ describe('notification reducer', () => {
   });
 
   it('should set default message to "data has changed" when status = 409', () => {
-    const defaultMessage409 = 'The data has been changed since you last accessed it. Please refresh the page';
+    const defaultMessage409 = 'The data has been changed since you last accessed it. Please reload the page.';
     const result = notification(initialState, {
       type: 'bla',
       payload: {

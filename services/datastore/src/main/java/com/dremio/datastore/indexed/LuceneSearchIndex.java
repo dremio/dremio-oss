@@ -44,6 +44,7 @@ import com.dremio.datastore.WarningTimer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Local search index based on lucene.
@@ -53,6 +54,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   //delay between end of a commit and next commit
   private static final long COMMIT_FREQUENCY = Integer.getInteger("dremio.lucene.commit_frequency", 60_000);
+
 
   /**
    * Starts a thread that will commit the writer every 60s (by default), if any exception is thrown during commit it will
@@ -117,6 +119,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       }
     }
   }
+
 
   private final CommitterThread committerThread;
 
@@ -264,6 +267,9 @@ public class LuceneSearchIndex implements AutoCloseable {
     checkIfChanged();
     try(Searcher searcher = acquireSearcher()) {
       TopDocs fieldDocs = searcher.searchAfter(doc.doc, query, pageSize, sort);
+      if(fieldDocs == null) {
+        return ImmutableList.of();
+      }
       return toDocs(fieldDocs.scoreDocs, searcher);
     }
   }
@@ -301,6 +307,9 @@ public class LuceneSearchIndex implements AutoCloseable {
       if(skipDocs.scoreDocs.length == skip){
         // we found at least as many results as were skipped, we'll submit another query.
         TopDocs fieldDocs = searcher.searchAfter(skipDocs.scoreDocs[skip-1], query, pageSize, sort);
+        if(fieldDocs == null) {
+          return ImmutableList.of();
+        }
         return toDocs(fieldDocs.scoreDocs, searcher);
       }else{
         // there are no more results once we did the skip.
@@ -325,8 +334,12 @@ public class LuceneSearchIndex implements AutoCloseable {
     reader.close();
   }
 
-  public int totalRecords() {
+  public int getLiveRecords() {
     return reader.numDocs();
+  }
+
+  public int getDeletedRecords() {
+    return reader.numDeletedDocs();
   }
 
   public void deleteDocuments(Term key) {
@@ -390,6 +403,9 @@ public class LuceneSearchIndex implements AutoCloseable {
     public TopDocs searchAfter(final ScoreDoc after, Query query, int numHits, Sort order) {
       try {
         return searcher.searchAfter(after, query, numHits, order);
+      } catch(IllegalArgumentException ex) {
+        // we got to end of index.
+        return null;
       } catch(IOException ex){
         throw Throwables.propagate(ex);
       }

@@ -326,7 +326,7 @@ public Object getObject(int index) {
     }
    </#if>
     org.joda.time.LocalDateTime date = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
-    return new Date(com.dremio.common.util.DateTimes.toMillis(date));
+    return new Date(date.getYear() - 1900, date.getMonthOfYear() - 1, date.getDayOfMonth());
   }
 
   <#elseif minor.class == "TimeStampMilli">
@@ -354,7 +354,13 @@ public Object getObject(int index) {
     }
    </#if>
     org.joda.time.LocalDateTime date = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
-    return new Timestamp(com.dremio.common.util.DateTimes.toMillis(date));
+    return new Timestamp(date.getYear() - 1900,
+                         date.getMonthOfYear() - 1,
+                         date.getDayOfMonth(),
+                         date.getHourOfDay(),
+                         date.getMinuteOfHour(),
+                         date.getSecondOfMinute(),
+                         (int) java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(date.getMillisOfSecond()));
   }
 
   <#elseif minor.class == "TimeMilli">
@@ -377,7 +383,7 @@ public Object getObject(int index) {
     }
    </#if>
     org.joda.time.LocalDateTime time = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
-    return new TimePrintMillis(com.dremio.common.util.DateTimes.toMillis(time));
+    return new TimePrintMillis(time);
   }
 
   <#else>

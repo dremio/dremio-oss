@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import SqlAutoComplete from 'pages/ExplorePage/components/SqlEditor/SqlAutoComplete';
 import FunctionsHelpPanel from 'pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel';
-import DragTarget from 'components/DragComponents/DragTarget';
 
 import './AddFieldEditor.less';
 
@@ -56,16 +56,10 @@ export class AddFieldEditor extends Component {
     this.hideDropDown = this.hideDropDown.bind(this);
     this.addFuncToSqlEditor = this.addFuncToSqlEditor.bind(this);
     this.toggleFunctionsHelpPanel = this.toggleFunctionsHelpPanel.bind(this);
-    this.onDropFunc = this.onDropFunc.bind(this);
     this.state = {
       funcHelpPanel: true,
-      dropFunc: '',
       dropDownVisible:false
     };
-  }
-
-  onDropFunc = (e) => {
-    this.refs.editor.insertFunction(e.id, false, e.args);
   }
 
   getFunctionsPanel() {
@@ -91,11 +85,8 @@ export class AddFieldEditor extends Component {
     );
   }
 
-  addFuncToSqlEditor(sqlData) {
-    this.setState({
-      dropFunc: sqlData
-    });
-    this.refs.editor.insertFunction(sqlData);
+  addFuncToSqlEditor(functionName, args) {
+    this.refs.editor.insertFunction(functionName, args);
   }
 
   hideDropDown = () => this.setState({ dropDownVisible: false })
@@ -115,20 +106,18 @@ export class AddFieldEditor extends Component {
           <div className='sql-part add-field-editor'
             onClick={this.hideDropDown}
             style={[styles.base, this.props.style]}>
-            <DragTarget dragType={this.props.dragType} onDrop={this.onDropFunc}>
-              <SqlAutoComplete
-                pageType={this.props.pageType}
-                onChange={inputProps.onChange}
-                tooltip={this.props.tooltip}
-                defaultValue={this.props.initialValue}
-                ref='editor'
-                hideDropDown={this.hideDropDown}
-                height={this.props.sqlHeight}
-                disableAutocomplete
-                sqlSize={this.props.sqlHeight}
-                style={styles.sqlEditorStyle}
-              />
-            </DragTarget>
+            <SqlAutoComplete
+              pageType={this.props.pageType}
+              onChange={inputProps.onChange}
+              tooltip={this.props.tooltip}
+              defaultValue={this.props.initialValue}
+              ref='editor'
+              hideDropDown={this.hideDropDown}
+              height={this.props.sqlHeight}
+              sqlSize={this.props.sqlHeight}
+              style={styles.sqlEditorStyle}
+              dragType={this.props.dragType}
+            />
             {this.getFunctionsPanel()}
           </div>
         </div>

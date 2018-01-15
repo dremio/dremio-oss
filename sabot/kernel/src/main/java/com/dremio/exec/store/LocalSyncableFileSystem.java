@@ -58,12 +58,12 @@ public class LocalSyncableFileSystem extends FileSystem {
 
   @Override
   public FSDataInputStream open(Path path, int i) throws IOException {
-    return new FSDataInputStream(new LocalInputStream(path));
+    return new FSDataInputStream(new LocalInputStream(localize(path)));
   }
 
   @Override
   public FSDataOutputStream create(Path path, FsPermission fsPermission, boolean b, int i, short i2, long l, Progressable progressable) throws IOException {
-    return new FSDataOutputStream(new LocalSyncableOutputStream(path));
+    return new FSDataOutputStream(new LocalSyncableOutputStream(localize(path)));
   }
 
   @Override
@@ -78,12 +78,13 @@ public class LocalSyncableFileSystem extends FileSystem {
 
   @Override
   public boolean delete(Path path) throws IOException {
-    File file = new File(path.toString());
+    File file = new File(localize(path).toString());
     return file.delete();
   }
 
   @Override
   public boolean delete(Path path, boolean b) throws IOException {
+    path = localize(path);
     File file = new File(path.toString());
     if (b) {
       if (file.isDirectory()) {
@@ -114,16 +115,18 @@ public class LocalSyncableFileSystem extends FileSystem {
 
   @Override
   public boolean mkdirs(Path path, FsPermission fsPermission) throws IOException {
-    return new File(path.toString()).mkdirs();
+    return new File(localize(path).toString()).mkdirs();
   }
 
   @Override
   public FileStatus getFileStatus(Path path) throws IOException {
-    File file = new File(Path.getPathWithoutSchemeAndAuthority(path).toString());
+    String localizedPath = localize(path).toString();
+    File file = new File(localizedPath);
     if (file.exists()) {
       return new FileStatus(file.length(), file.isDirectory(), 1, 0, file.lastModified(), path);
     }
-    return null;
+
+    throw new FileNotFoundException(localizedPath);
   }
 
   public class LocalSyncableOutputStream extends OutputStream implements Syncable {
@@ -138,7 +141,7 @@ public class LocalSyncableFileSystem extends FileSystem {
           throw new FileNotFoundException("failed to create parent directory");
         }
       }
-      fos = new FileOutputStream(new File(path.toString()));
+      fos = new FileOutputStream(path.toString());
       output = new BufferedOutputStream(fos, 64*1024);
     }
 
@@ -266,5 +269,9 @@ public class LocalSyncableFileSystem extends FileSystem {
         super.close();
       }
     }
+  }
+
+  private static Path localize(Path path) {
+    return Path.getPathWithoutSchemeAndAuthority(path);
   }
 }

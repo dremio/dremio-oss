@@ -151,13 +151,13 @@ Copyright (c) 2013 Masayuki Tanaka
 
 Copyright (c) 2013 Meryn Stol
 
-Copyright (c) 2013 Mikola Lysenko
-
 Copyright (c) 2013-2015 Oracle and/or its affiliates. All rights reserved.
 
 Copyright (c) 2013-2015, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2013-2017 James Coglan
+
+Copyright (c) 2013-present, Facebook, Inc.
 
 Copyright (c) 2013-present, Facebook, Inc. All rights reserved.
 
@@ -187,15 +187,15 @@ Copyright (c) 2014-2015 Sebastian McKenzie <sebmck@gmail.com>
 
 Copyright (c) 2014-2015 Zilverline B.V.
 
-Copyright (c) 2014-2015, Facebook, Inc. All rights reserved.
-
-Copyright (c) 2014-2016 Denis Pushkarev
-
 Copyright (c) 2014-2016 GitHub, Inc.
+
+Copyright (c) 2014-2017 Denis Pushkarev
 
 Copyright (c) 2014-2017 Sebastian McKenzie <sebmck@gmail.com>
 
 Copyright (c) 2014-present Stephen J. Collings, Matthew Honnibal, Pieter Vanderwerff
+
+Copyright (c) 2014-present, Facebook, Inc.
 
 Copyright (c) 2015 Alberto Garcia-Raboso
 
@@ -204,8 +204,6 @@ Copyright (c) 2015 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
 Copyright (c) 2015 Alexander Karlsson
 
 Copyright (c) 2015 Alexander Kuznetsov
-
-Copyright (c) 2015 Alexei Boronine
 
 Copyright (c) 2015 Andres Suarez <zertosh@gmail.com>
 
@@ -240,8 +238,6 @@ Copyright (c) 2015 Nick Williams Copyright (c) 2011 Heather Arthur <fayearthur@g
 Copyright (c) 2015 React Motion authors
 
 Copyright (c) 2015 Robin Frischmann
-
-Copyright (c) 2015 Shusaku Uesugi
 
 Copyright (c) 2015 Shusaku Uesugi, (c) 2016-present Alexander Kuznetsov
 
@@ -281,6 +277,8 @@ Copyright (c) 2016 Jed Watson
 
 Copyright (c) 2016 Matthew Russell
 
+Copyright (c) 2016 Microsoft Corporation
+
 Copyright (c) 2016 Nik Butenko
 
 Copyright (c) 2016, Andres Suarez All rights reserved.
@@ -290,6 +288,8 @@ Copyright (c) 2016, James Salter All rights reserved.
 Copyright (c) 2016, React Community Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2016, Schrodinger, Inc. All rights reserved.
+
+Copyright (c) 2016-present Leon Shi
 
 Copyright (c) 2017 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
 
@@ -327,7 +327,13 @@ Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/> Based on Un
 
 Copyright 2013 Thorsten Lorenz.  All rights reserved.
 
+Copyright 2013 Yahoo! Inc. All rights reserved.
+
 Copyright 2014 Google Inc.
+
+Copyright 2014 Yahoo Inc. All rights reserved.
+
+Copyright 2014 Yahoo! Inc. All rights reserved.
 
 Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/> Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
 

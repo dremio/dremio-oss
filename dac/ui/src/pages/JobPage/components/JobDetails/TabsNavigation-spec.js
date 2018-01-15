@@ -37,18 +37,23 @@ describe('TabsNavigation', () => {
     const wrapper = mount(<TabsNavigation {...minimalProps}/>);
     const activeTab = wrapper.find('.tab-link.active');
     expect(activeTab).to.have.length(1);
-    expect(activeTab.text()).to.be.eql('Overview');
+    expect(activeTab.text()).to.be.eql('{"0":{"id":"Common.Overview"}}');
   });
 
-  it('should render 3 tabs: Overview, Details and Profiles by default', () => {
+  it('should render tabs: Overview, Details, Acceleration, and Profiles by default', () => {
     const wrapper = mount(<TabsNavigation {...minimalProps}/>);
     const tabs = wrapper.find('TabsNavigationItem');
-    const expectedLabels = ['Overview', 'Details', 'Profiles'];
-    expect(tabs).to.have.length(3);
+    const expectedLabels = [
+      '{"0":{"id":"Common.Overview"}}',
+      '{"0":{"id":"Job.Details"}}',
+      '{"0":{"id":"Acceleration.Acceleration"}}',
+      '{"0":{"id":"Job.Profiles"}}'
+    ];
+    expect(tabs).to.have.length(expectedLabels.length);
     expect(tabs.map(i => i.text())).to.be.eql(expectedLabels);
   });
 
-  it('should render 3 tabs: Overview, Details and Profile when job has single profile', () => {
+  it('should render tabs: Overview, Details, Acceleration, and Profile when job has single profile', () => {
     const props = {
       ...commonProps,
       attemptDetails: Immutable.fromJS([
@@ -57,8 +62,13 @@ describe('TabsNavigation', () => {
     };
     const wrapper = mount(<TabsNavigation {...props}/>);
     const tabs = wrapper.find('TabsNavigationItem');
-    const expectedLabels = ['Overview', 'Details', 'Profile'];
-    expect(tabs).to.have.length(3);
+    const expectedLabels = [
+      '{"0":{"id":"Common.Overview"}}',
+      '{"0":{"id":"Job.Details"}}',
+      '{"0":{"id":"Acceleration.Acceleration"}}',
+      '{"0":{"id":"Job.Profile"}}'
+    ];
+    expect(tabs).to.have.length(expectedLabels.length);
     expect(tabs.map(i => i.text())).to.be.eql(expectedLabels);
   });
 });

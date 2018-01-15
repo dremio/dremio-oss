@@ -19,6 +19,7 @@ import "../../../../../services/jobs/src/main/protobuf/job.proto";
 
 import "acceleration-common.proto";
 import "acceleration-pipeline.proto";
+import "acceleration-intent.proto";
 import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
 
 option java_package = "com.dremio.service.accelerator.proto";
@@ -191,4 +192,35 @@ message SystemSettings {
   required uint64 orphanCleanupInterval = 4;
   // failure threshold to stop refreshing a reflection
   required int32 layoutRefreshMaxAttempts = 5;
+}
+
+
+enum SubstitutionState {
+  CONSIDERED = 1;
+  MATCHED = 2;
+  CHOSEN = 3;
+}
+
+message DatasetDetails {
+  optional string id = 1;
+  repeated string path = 2;
+  optional DatasetType type = 3;
+}
+
+message MaterializationDetails {
+  optional string id = 1;
+  optional int64 refresh_chain_start_time = 2;
+}
+
+message ReflectionRelationship {
+    optional SubstitutionState state = 1;
+    optional MaterializationDetails materialization = 2;
+    optional DatasetDetails dataset = 3;
+    optional AccelerationSettings acceleration_settings = 4;
+    optional LayoutType reflection_type = 5;
+    optional LayoutDescriptor reflection = 6;
+}
+
+message AccelerationDetails {
+  repeated ReflectionRelationship reflectionRelationships = 1;
 }

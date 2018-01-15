@@ -34,7 +34,7 @@ describe('JobErrorLog', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ...', () => {
+  it('should render …', () => {
     const wrapper = shallow(<JobErrorLog {...commonProps}/>);
     expect(wrapper).to.have.length(1);
   });

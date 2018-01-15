@@ -102,7 +102,7 @@ public class ExecTest extends DremioTest {
     when(context.getSession()).thenReturn(UserSession.Builder.newBuilder().setSupportComplexTypes(true).build());
     when(context.getCurrentEndpoint()).thenReturn(NodeEndpoint.getDefaultInstance());
     when(context.getActiveEndpoints()).thenReturn(ImmutableList.of(NodeEndpoint.getDefaultInstance()));
-    when(context.getPlannerSettings()).thenReturn(new PlannerSettings(queryOptions, FUNCTIONS()));
+    when(context.getPlannerSettings()).thenReturn(new PlannerSettings(queryOptions, FUNCTIONS(), dbContext.getClusterResourceInformation()));
     when(context.getOptions()).thenReturn(queryOptions);
     when(context.getConfig()).thenReturn(DEFAULT_SABOT_CONFIG);
     when(context.getOperatorTable()).thenReturn(table);

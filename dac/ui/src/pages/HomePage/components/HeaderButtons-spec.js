@@ -59,7 +59,7 @@ describe('HeaderButtons-spec', () => {
       const result = shallow(instance.renderButton({
         isAdd: true
       }, 0));
-      expect(result.find('FontIcon').first().props().type).to.eql('AddSimple');
+      expect(result.find('Art').first().props().src).to.eql('SimpleAdd.svg');
     });
   });
 });

@@ -35,6 +35,7 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.FileMateriali
 import com.dremio.service.accelerator.testing.JobStatusLogger;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -51,38 +52,37 @@ public class TestIncrementalUpdater extends BaseTestServer {
     final AtomicReference<RelNode> logicalPlan = new AtomicReference<>();
     final CountDownLatch latch = new CountDownLatch(1);
     final DeferredException ex = new DeferredException();
-    Job job = jobsService.submitJob(
-      new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME),
-      QueryType.JDBC,
-      datsetPath.toNamespaceKey(),
-      new DatasetVersion(System.currentTimeMillis(), 0),
-      new JobStatusLogger() {
-        @Override
-        public void planRelTansform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
-          if (phase == PlannerPhase.LOGICAL) {
-            logicalPlan.set(before);
-          }
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
+        .setQueryType(QueryType.JDBC)
+        .setDatasetPath(datsetPath.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion(System.currentTimeMillis(), 0))
+        .build(), new JobStatusLogger() {
+      @Override
+      public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+        if (phase == PlannerPhase.LOGICAL) {
+          logicalPlan.set(before);
         }
-
-        @Override
-        public void jobFailed(Exception paramException) {
-          ex.addException(paramException);
-          latch.countDown();
-        }
-
-        @Override
-        public void jobCompleted() {
-          latch.countDown();
-        }
-
-        @Override
-        public void jobCancelled() {
-          ex.addException(new RuntimeException("Job cancelled."));
-          latch.countDown();
-        }
-
       }
-    );
+
+      @Override
+      public void jobFailed(Exception paramException) {
+        ex.addException(paramException);
+        latch.countDown();
+      }
+
+      @Override
+      public void jobCompleted() {
+        latch.countDown();
+      }
+
+      @Override
+      public void jobCancelled() {
+        ex.addException(new RuntimeException("Job cancelled."));
+        latch.countDown();
+      }
+
+    });
 
     if(!latch.await(25, TimeUnit.SECONDS)){
       Assert.fail("Acceleration job was not completed within allowed timeout.");

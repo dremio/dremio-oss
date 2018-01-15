@@ -19,7 +19,6 @@ import Immutable from 'immutable';
 
 import SqlToggle from 'pages/ExplorePage/components/SqlEditor/SqlToggle';
 import SqlAutoComplete from 'pages/ExplorePage/components/SqlEditor/SqlAutoComplete';
-import DragTarget from 'components/DragComponents/DragTarget';
 import SimpleButton from 'components/Buttons/SimpleButton';
 
 import { SqlEditorController } from './SqlEditorController';
@@ -68,7 +67,6 @@ describe('SqlEditorController', () => {
 
   describe('SqlEditorController specs', () => {
     it('should render and wrapped in DragTarget', () => {
-      expect(wrapper.find(DragTarget)).to.have.length(1);
       expect(wrapper.find(SqlAutoComplete)).to.have.length(1);
     });
 
@@ -161,35 +159,6 @@ describe('SqlEditorController', () => {
           dataset: newQueryDataset,
           exploreViewState: Immutable.Map({isFailed: true})});
         expect(instance.refs.editor.focus).to.be.called;
-      });
-    });
-
-    describe('onDrop', () => {
-      const e = {id: 1};
-      beforeEach(() => {
-        instance.refs = {
-          editor: {
-            insertFullPathAtDrop: sinon.spy(),
-            insertFunction: sinon.spy()
-          }
-        };
-      });
-      afterEach(() => {
-        instance.refs = null;
-      });
-      it('should call insertFullPathAtDrop with event id', () => {
-        instance.onDrop(e);
-        expect(instance.refs.editor.insertFullPathAtDrop).to.have.been.calledWith(1);
-        expect(instance.refs.editor.insertFunction).to.not.have.been.called;
-      });
-      it('should call insertFunction with event id, false and event args', () => {
-        const argsEvent = {
-          ...e,
-          args: 'args'
-        };
-        instance.onDrop(argsEvent);
-        expect(instance.refs.editor.insertFunction).to.have.been.calledWith(1, false, 'args');
-        expect(instance.refs.editor.insertFullPathAtDrop).to.not.have.been.called;
       });
     });
 

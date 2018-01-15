@@ -104,7 +104,7 @@ class FragmentStatusReporter {
   }
 
   private void sendStatus(final FragmentStatus status) {
-    tunnel.sendFragmentStatusFuture(status);
+    tunnel.sendFragmentStatus(status);
   }
 
   /**

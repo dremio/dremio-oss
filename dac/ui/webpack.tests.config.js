@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 const path = require('path');
-const webpack = require('webpack');
+//const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const config = require('./webpack.config.js');
 
 // reference: http://stackoverflow.com/questions/32385219/mocha-tests-dont-run-with-webpack-and-mocha-loader/32386750#32386750
 
-const resolveRoot = config.resolve.root;
-resolveRoot.push(path.resolve(__dirname, 'test'));
+const resolveModules = config.resolve.modules;
+resolveModules.push(path.resolve(__dirname, 'test'));
 
 module.exports = {
   entry: './test/browserIndex.js',
@@ -41,7 +41,6 @@ module.exports = {
   },
 
   plugins: [
-    new webpack.HotModuleReplacementPlugin(),
     new ExtractTextPlugin('style.css', { allChunks: true }),
     new HtmlWebpackPlugin({ template: path.join(__dirname, '/test/test.html') })
   ],
@@ -58,7 +57,7 @@ module.exports = {
   resolveLoader: config.resolveLoader,
 
   resolve: {
-    root: resolveRoot,
+    modules: resolveModules,
     alias: Object.assign({}, config.resolve.alias, { // eslint-disable-line no-restricted-properties
       sinon: path.resolve('./node_modules/sinon/pkg/sinon.js')
     })

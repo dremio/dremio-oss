@@ -13,42 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
+
+import { FormattedMessage, injectIntl } from 'react-intl';
 
 import { formDescription } from 'uiTheme/radium/typography';
 
 import Modal from 'components/Modals/Modal';
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 
 import { getEdition } from 'dyn-load/utils/versionUtils';
 import config from 'utils/config';
 import timeUtils from 'utils/timeUtils';
 
+@injectIntl
 export default class AboutModal extends Component {
 
   static propTypes = {
     isOpen: PropTypes.bool,
-    hide: PropTypes.func
+    hide: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   renderVersion() {
     const buildTime = timeUtils.formatTime(config.versionInfo.buildTime);
     const commitTime = timeUtils.formatTime(config.versionInfo.commitTime);
 
-    return <dl>
-      <dt style={styles.dtStyle}>{la('Build')}</dt>
+    return <dl className='largerFontSize'>
+      <dt style={styles.dtStyle}><FormattedMessage id='App.Build'/></dt>
       <dd>{config.versionInfo.version}</dd>
 
-      <dt style={styles.dtStyle}>{la('Edition')}</dt>
+      <dt style={styles.dtStyle}><FormattedMessage id='App.Edition'/></dt>
       <dd>{getEdition()}</dd>
 
-      <dt style={styles.dtStyle}>{la('Build Time')}</dt>
+      <dt style={styles.dtStyle}><FormattedMessage id='App.BuildTime'/></dt>
       <dd>{buildTime}</dd>
 
-      <dt style={styles.dtStyle}>{la('Change Hash')}</dt>
+      <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeHash'/></dt>
       <dd>{config.versionInfo.commitHash}</dd>
 
-      <dt style={styles.dtStyle}>{la('Change Time')}</dt>
+      <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeTime'/></dt>
       <dd>{commitTime}</dd>
     </dl>;
   }
@@ -59,22 +65,22 @@ export default class AboutModal extends Component {
     return (
       <Modal
         size='small'
-        title={la('About Dremio')}
+        title={this.props.intl.formatMessage({id: 'App.AboutHeading'})}
         isOpen={isOpen}
         hide={hide}>
         <div style={styles.container}>
           <div style={styles.logoPane}>
-            <FontIcon type='NarwhalLogo' iconStyle={{width: 150, height: 150}}/>
+            <Art src='NarwhalLogo.svg' style={{width: 150}} alt={la('Dremio Narwhal')} />
           </div>
           <div style={styles.pane}>
             <div style={{flex: 1}}>
-              <div style={{fontSize: '2em', marginBottom: 10}}>{la('Dremio')}</div>
+              <div style={{fontSize: '2em', marginBottom: 10}}><FormattedMessage id='App.Dremio' /></div>
               <div>
                 {this.renderVersion()}
               </div>
             </div>
             <div style={formDescription}>
-              {la('Copyright © 2017 Dremio Corporation')}
+              {<FormattedMessage id='App.Copyright' />}
             </div>
           </div>
         </div>
@@ -111,4 +117,3 @@ const styles = {
     fontSize: '14px'
   }
 };
-

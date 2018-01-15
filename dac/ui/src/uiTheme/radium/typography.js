@@ -16,48 +16,6 @@
 const menlo = 'Menlo, monospace';
 const roboto = 'Roboto, sans-serif';
 
-export const h1 = {
-  fontFamily: roboto,
-  fontWeight: 300,
-  fontSize: 20,
-  color: '#333333'
-};
-
-export const h2 = {
-  fontFamily: roboto,
-  fontWeight: 300,
-  fontSize: 18,
-  color: '#333333'
-};
-
-export const h3 = {
-  fontFamily: roboto,
-  fontWeight: 300,
-  fontSize: 16,
-  color: '#333333'
-};
-
-export const h4 = {
-  fontFamily: roboto,
-  fontWeight: 500,
-  fontSize: 13,
-  color: '#333333'
-};
-
-export const h5 = {
-  fontFamily: roboto,
-  fontWeight: 500,
-  fontSize: 12,
-  color: '#333333'
-};
-
-export const body = {
-  fontFamily: roboto,
-  fontWeight: 400,
-  fontSize: 12,
-  color: '#333333'
-};
-
 export const bodySmall = {
   fontFamily: roboto,
   fontWeight: 400,
@@ -225,8 +183,7 @@ export const linkLightWhite = {
 };
 
 export default {
-  h1, h2, h3, h4, h5,
-  body, bodySmall,
+  bodySmall,
   formLabel, formDefault, formDescription, formPlaceholder,
   fixedWidthDefault, fixedWidthSmall, fixedWidthBold,
   unavailable, datasetTitle, pathLink, pathEnd,

@@ -49,7 +49,7 @@ describe('NewQueryButton', () => {
 
   it('should render icon and NewQuery', () => {
     expect(wrapper.find('FontIcon')).to.have.length(1);
-    expect(wrapper.text()).to.contain('New Query');
+    expect(wrapper.find('FormattedMessage').prop('id')).to.be.equal('NewQuery.NewQuery');
     expect(wrapper.find('a').props().onClick).to.equal(instance.handleClick);
   });
 

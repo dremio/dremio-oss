@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from 'pure-render-decorator';
-import { h3, formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import FontIcon from 'components/Icon/FontIcon';
 
 import './AmazonS3Credential.less';  // TODO to Vasyl, need to use Radium
@@ -36,7 +37,7 @@ export default class AmazonS3 extends Component {
     return (
       <div className='credential amazon'>
         <div className='header-container'>
-          <h3 style={h3} className='header'>{credential.name}</h3>
+          <h3 className='header'>{credential.name}</h3>
           <div className='remove' onClick={this.props.onRemoveClick}>
             <FontIcon type='CanceledGray' style={{verticalAlign: 'middle', marginRight: 5}}/>
             {la('Remove')}

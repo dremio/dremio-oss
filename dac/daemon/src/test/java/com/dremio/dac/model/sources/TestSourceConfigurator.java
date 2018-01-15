@@ -284,6 +284,39 @@ public class TestSourceConfigurator {
   }
 
   @Test
+  public void testMSSQLAuthDbAndPort() {
+    final MSSQLConfig mssqlConfig = new MSSQLConfig();
+    mssqlConfig.setHostname("hostname1");
+    mssqlConfig.setPort("1234");
+    mssqlConfig.setDatabase("auth_test");
+
+    final JdbcStorageConfig pluginConfig = (JdbcStorageConfig) new MSSQLSourceConfigurator().configure(mssqlConfig);
+
+    assertEquals("jdbc:sqlserver://hostname1:1234;databaseName=auth_test", pluginConfig.getUrl());
+  }
+
+  @Test
+  public void testMSSQLNoAuthDbNoPort() {
+    final MSSQLConfig mssqlConfig = new MSSQLConfig();
+    mssqlConfig.setHostname("hostname1");
+
+    final JdbcStorageConfig pluginConfig = (JdbcStorageConfig) new MSSQLSourceConfigurator().configure(mssqlConfig);
+
+    assertEquals("jdbc:sqlserver://hostname1", pluginConfig.getUrl());
+  }
+
+  @Test
+  public void testMSSQLAuthDbNoPort() {
+    final MSSQLConfig mssqlConfig = new MSSQLConfig();
+    mssqlConfig.setHostname("hostname1");
+    mssqlConfig.setDatabase("auth_test");
+
+    final JdbcStorageConfig pluginConfig = (JdbcStorageConfig) new MSSQLSourceConfigurator().configure(mssqlConfig);
+
+    assertEquals("jdbc:sqlserver://hostname1;databaseName=auth_test", pluginConfig.getUrl());
+  }
+
+  @Test
   public void testMySQL() {
     MySQLConfig c = new MySQLConfig();
     c.setHostname("hostname1");

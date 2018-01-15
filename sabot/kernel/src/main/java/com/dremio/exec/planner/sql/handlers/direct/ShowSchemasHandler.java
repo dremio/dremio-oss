@@ -46,7 +46,6 @@ public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.S
     final Matcher m = likePattern.matcher("");
     List<SchemaResult> schemas = new ArrayList<>();
     Set<String> schemaNames = rootSchema.getSubSchemaNames();
-    System.out.println("Schemas:" + schemaNames + ", Like = " + likePattern);
     for(String name : schemaNames){
       m.reset(name);
       if(m.matches()){

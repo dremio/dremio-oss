@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
-import { body } from 'uiTheme/radium/typography';
 import EllipsedText from 'components/EllipsedText';
+import { ExploreInfoHeader } from 'pages/ExplorePage/components/ExploreInfoHeader';
+
 
 const CLEAR_ALL_HEIGHT = 20;
 
@@ -55,15 +57,12 @@ class AggregateHeader extends Component {
 
   render() {
     // todo: loc
-    const tableName = this.props.dataset.getIn(['displayFullPath', -1]);
-    const text = tableName && tableName !== '"UNTITLED"'
-      ? `“${tableName}” dataset`
-      : 'Available';
+    const nameForDisplay = ExploreInfoHeader.getNameForDisplay(this.props.dataset);
     return (
       <div
         className='aggregate-header'
         style={[styles.base, this.props.style]}>
-        <div style={styles.left}><EllipsedText text={`${text} fields:`}/></div>
+        <div style={styles.left}><EllipsedText text={`“${nameForDisplay}” dataset fields:`}/></div>
         <div style={styles.center}>
           {la('Dimensions')}
           {this.renderClearAll(this.props.onClearAllDimensions)}
@@ -93,8 +92,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     padding: '0 10px',
-    borderRight: '1px solid rgba(0,0,0,0.10)',
-    ...body
+    borderRight: '1px solid rgba(0,0,0,0.10)'
   },
   center: {
     width: '100%',
@@ -103,8 +101,7 @@ const styles = {
     alignItems: 'center',
     paddingLeft: 11,
     borderRight: '1px solid rgba(0,0,0,0.10)',
-    justifyContent: 'space-between',
-    ...body
+    justifyContent: 'space-between'
   },
   right: {
     height: 30,
@@ -112,8 +109,7 @@ const styles = {
     alignItems: 'center',
     paddingLeft: 10,
     width: '100%',
-    justifyContent: 'space-between',
-    ...body
+    justifyContent: 'space-between'
   },
   clearAll: {
     minWidth: 'auto',

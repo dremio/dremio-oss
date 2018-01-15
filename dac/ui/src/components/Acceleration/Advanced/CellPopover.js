@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
 import Paper from 'material-ui/Paper';
 import Menu from 'material-ui/Menu';
 import MenuItem from 'material-ui/MenuItem';
 import Divider from 'material-ui/Divider';
-import { body, formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { Overlay } from 'react-overlays';
 import DragTarget from 'components/DragComponents/DragTarget';
@@ -146,7 +147,7 @@ export default class CellPopover extends Component {
                       id={columnName}>
                       <div style={styles.column}>
                         <div style={styles.columnIndex}>{indexes[columnName] + 1}</div>
-                        <span style={{ marginLeft: 10, ...body }}>{columnName}</span>
+                        <span style={{ marginLeft: 10 }}>{columnName}</span>
                       </div>
                     </DragSource>
                   </div>
@@ -163,10 +164,9 @@ export default class CellPopover extends Component {
     const { sortFieldList } = this.props;
     return (
       <div style={{ width: WIDTH_MENU }}>
-        <MenuItem onClick={() => this.props.onSelectSortItem()} style={body} primaryText={la('Off')}/>
+        <MenuItem onClick={() => this.props.onSelectSortItem()} primaryText={la('Off')}/>
         <MenuItem
           onClick={() => this.props.onSelectSortItem('sortFieldList')}
-          style={body}
           primaryText={la('Sorted')}
         />
         { sortFieldList.length > 0 &&
@@ -187,12 +187,10 @@ export default class CellPopover extends Component {
       <div style={{ width: WIDTH_MENU }}>
         <MenuItem
           onClick={() => this.props.onSelectPartitionItem()}
-          style={body}
           primaryText={la('Off')}
         />
         <MenuItem
           onClick={() => this.props.onSelectPartitionItem('partitionFieldList')}
-          style={body}
           primaryText={la('Partitioned')}
         />
         { partitionFieldList && partitionFieldList.length > 0 &&

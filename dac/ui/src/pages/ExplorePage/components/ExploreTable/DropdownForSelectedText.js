@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import ReactDOM from 'react-dom';
 import Mousetrap from 'mousetrap';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { TEXT, LIST } from 'constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';

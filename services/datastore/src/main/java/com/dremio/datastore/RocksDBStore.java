@@ -32,10 +32,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.arrow.memory.util.AutoCloseableLock;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.FlushOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 
+import com.dremio.common.DeferredException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -71,6 +73,7 @@ class RocksDBStore implements ByteStore {
   private final ColumnFamilyDescriptor family;
   private final RocksDB db;
   private final int parallel;
+  private final String name;
 
   private final ReferenceQueue<FindByRangeIterator> iteratorQueue = new ReferenceQueue<>();
   private final Set<IteratorReference> iteratorSet = Sets.newConcurrentHashSet();
@@ -79,9 +82,10 @@ class RocksDBStore implements ByteStore {
   private final AtomicLong gcIterators = new AtomicLong(0);
   private final AtomicLong closedIterators = new AtomicLong(0);
 
-  public RocksDBStore(ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes) {
+  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes) {
     super();
     this.family = family;
+    this.name = name;
     this.db = db;
     this.parallel = stripes;
     this.handle = handle;
@@ -93,6 +97,61 @@ class RocksDBStore implements ByteStore {
       sharedLocks[i] = new AutoCloseableLock(core.readLock());
       exclusiveLocks[i] = new AutoCloseableLock(core.writeLock());
     }
+  }
+
+  private void compact() throws RocksDBException {
+    db.compactRange(handle);
+  }
+
+  private String stats() {
+    try {
+      StringBuilder sb = new StringBuilder();
+      append(sb, "rocksdb.estimate-num-keys", "Estimated Number of Keys");
+      append(sb, "rocksdb.estimate-live-data-size", "Estimated Live Data Size");
+      append(sb, "rocksdb.total-sst-files-size", "Total SST files size");
+      append(sb, "rocksdb.estimate-pending-compaction-bytes", "Pending Compaction Bytes");
+      return sb.toString();
+    } catch(RocksDBException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private void append(StringBuilder sb, String propName, String propDisplayName) throws RocksDBException {
+    sb.append("* ");
+    sb.append(propDisplayName);
+    sb.append(": ");
+    sb.append(db.getLongProperty(handle, propName));
+    sb.append("\n");
+  }
+
+  @Override
+  public KVAdmin getAdmin() {
+    return new RocksKVAdmin();
+  }
+
+  private class RocksKVAdmin extends KVAdmin {
+
+    @Override
+    public String getStats() {
+      StringBuilder sb = new StringBuilder();
+      sb.append(name);
+      sb.append('\n');
+      sb.append("\tbasic rocks store stats\n");
+      sb.append(indent(2, stats()));
+      sb.append('\n');
+      return sb.toString();
+    }
+
+    @Override
+    public void compactKeyValues() throws IOException {
+      try {
+        compact();
+      }catch(RocksDBException ex) {
+        Throwables.propagateIfInstanceOf(ex, IOException.class);
+        throw new IOException(ex);
+      }
+    }
+
   }
 
   private AutoCloseableLock sharedLock(byte[] key) {
@@ -114,15 +173,31 @@ class RocksDBStore implements ByteStore {
   @Override
   @VisibleForTesting
   public void deleteAllValues() throws IOException {
-    try{
-      synchronized(this) {
-        deleteAllIterators();
+    final DeferredException deferred = new DeferredException();
+    synchronized(this) {
+      deleteAllIterators(deferred);
+
+      try {
         db.dropColumnFamily(handle);
-        handle.close();
-        this.handle = db.createColumnFamily(family);
+      }catch(RocksDBException ex){
+        deferred.addException(ex);
       }
-    }catch(RocksDBException ex){
-      throw new IOException(ex);
+
+      deferred.suppressingClose(handle);
+
+      try {
+        this.handle = db.createColumnFamily(family);
+      } catch (Exception ex) {
+        deferred.addException(ex);
+      }
+
+      try {
+        deferred.close();
+      }catch(IOException ex) {
+        throw ex;
+      }catch(Exception ex) {
+        throw new IOException(ex);
+      }
     }
   }
 
@@ -164,20 +239,35 @@ class RocksDBStore implements ByteStore {
     }
   }
 
-  private void deleteAllIterators() {
+  private void deleteAllIterators(DeferredException ex) {
     // It is "safe" to iterate while adding/removing entries (also changes might not be visible)
     // It is not safe to have two threads iterating at the same time
     synchronized(iteratorSet) {
       for(IteratorReference ref : iteratorSet){
-        ref.close();
+        ex.suppressingClose(ref);
       }
     }
   }
 
   @Override
-  public void close() {
-    deleteAllIterators();
-    handle.close();
+  public void close() throws IOException {
+    DeferredException deferred = new DeferredException();
+    deleteAllIterators(deferred);
+    try(FlushOptions options = new FlushOptions()){
+      options.setWaitForFlush(true);
+      db.flush(options);
+    } catch (RocksDBException ex) {
+      deferred.addException(ex);
+    }
+    deferred.suppressingClose(handle);
+
+    try {
+      deferred.close();
+    }catch(IOException ex) {
+      throw ex;
+    }catch(Exception ex) {
+      throw new IOException(ex);
+    }
   }
 
   @Override
@@ -365,7 +455,7 @@ class RocksDBStore implements ByteStore {
 
   }
 
-  private class IteratorReference extends PhantomReference<FindByRangeIterator> {
+  private class IteratorReference extends PhantomReference<FindByRangeIterator> implements AutoCloseable {
     private final RocksIterator iter;
 
     public IteratorReference(FindByRangeIterator referent) {

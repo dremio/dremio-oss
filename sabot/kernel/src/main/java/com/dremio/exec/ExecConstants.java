@@ -126,9 +126,6 @@ public interface ExecConstants {
   BooleanValidator PARQUET_RECORD_READER_IMPLEMENTATION_VALIDATOR = new BooleanValidator(PARQUET_NEW_RECORD_READER, false);
 
   BooleanValidator PARQUET_READER_VECTORIZE = new BooleanValidator("store.parquet.vectorize", true);
-//  BooleanValidator PARQUET_FOOTER_NOSEEK = new BooleanValidator("store.parquet.footer.noseek", true);
-  LongValidator PARQUET_FOOTER_CACHESIZE_COORD = new PositiveLongValidator("store.parquet.footer.cache-size.coord", 200000, 10000);
-  LongValidator PARQUET_FOOTER_CACHESIZE_EXEC = new PositiveLongValidator("store.parquet.footer.cache-size.exec", 200000, 100);
   BooleanValidator ENABLED_PARQUET_TRACING = new BooleanValidator("store.parquet.vectorize.tracing.enable", false);
 
   String PARQUET_READER_INT96_AS_TIMESTAMP = "store.parquet.reader.int96_as_timestamp";
@@ -218,10 +215,13 @@ public interface ExecConstants {
   PositiveLongValidator MAX_HASH_TABLE_SIZE = new PositiveLongValidator(MAX_HASH_TABLE_SIZE_KEY, HashTable.MAXIMUM_CAPACITY, HashTable.MAXIMUM_CAPACITY);
 
   /**
-   * Limits the maximum level of parallelization to this factor time the number of Nodes
+   * Limits the maximum level of parallelization to this factor time the number of Nodes.
+   * The default value is internally computed based on number of cores per executor. The default value
+   * mentioned here is meaningless and is only used to ascertain if user has explicitly set the value
+   * or not.
    */
   String MAX_WIDTH_PER_NODE_KEY = "planner.width.max_per_node";
-  PositiveLongValidator MAX_WIDTH_PER_NODE = new PositiveLongValidator(MAX_WIDTH_PER_NODE_KEY, Integer.MAX_VALUE, (long) Math.ceil(Runtime.getRuntime().availableProcessors() * 0.70));
+  PositiveLongValidator MAX_WIDTH_PER_NODE = new PositiveLongValidator(MAX_WIDTH_PER_NODE_KEY, Integer.MAX_VALUE, 0);
 
   /**
    * Load reduction will only be triggered if the cluster load exceeds the cutoff value
@@ -354,8 +354,6 @@ public interface ExecConstants {
 
   PositiveLongValidator FRAGMENT_CACHE_EVICTION_DELAY_S = new PositiveLongValidator("fragments.cache.eviction.delay_seconds", Integer.MAX_VALUE, 600);
 
-  PositiveLongValidator SOURCE_STATE_REFRESH_MIN = new PositiveLongValidator("store.metadata.state.refresh_min", Character.MAX_VALUE, 5);
-  PositiveLongValidator SOURCE_METADATA_REFRESH_MIN = new PositiveLongValidator("store.metadata.base.refresh_min", Character.MAX_VALUE, 5);
   BooleanValidator PARQUET_SINGLE_STREAM = new BooleanValidator("store.parquet.single_stream", false);
   LongValidator PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD = new LongValidator("store.parquet.single_stream_column_threshold", 40);
   LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 30);

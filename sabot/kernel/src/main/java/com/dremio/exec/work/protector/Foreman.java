@@ -17,6 +17,7 @@ package com.dremio.exec.work.protector;
 
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -29,6 +30,7 @@ import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -135,7 +137,8 @@ public class Foreman {
     // we should ideally check if the query wasn't cancelled before starting a new attempt but this will over-complicate
     // things as the observer expects a query profile at completion and this may not be available if the cancellation
     // is too early
-    final AttemptObserver attemptObserver = new Observer(observer.newAttempt(attemptId, reason));
+    final Observer attemptObserver = new Observer(observer.newAttempt(attemptId, reason));
+    final FragmentsStateListener fragmentsStateListener = new FragmentsTerminationListener(attemptObserver);
 
     attemptHandler.newAttempt();
 
@@ -145,14 +148,15 @@ public class Foreman {
     }
 
     attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
-      optionProvider, tunnelCreator, plans);
+      optionProvider, tunnelCreator, plans, fragmentsStateListener);
     executor.execute(attemptManager);
   }
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
       AttemptObserver observer, UserSession session, OptionProvider options, CoordToExecTunnelCreator tunnelCreator,
-      Cache<Long, PreparedPlan> plans) {
-    return new AttemptManager(context, attemptId, queryRequest, observer, session, options, tunnelCreator, plans);
+      Cache<Long, PreparedPlan> plans, FragmentsStateListener fragmentsStateListener) {
+    return new AttemptManager(context, attemptId, queryRequest, observer, session, options, tunnelCreator, plans,
+      fragmentsStateListener);
   }
 
   public void updateStatus(FragmentStatus status) {
@@ -170,6 +174,13 @@ public class Foreman {
     }
 
     manager.dataFromScreenArrived(header, data, sender);
+  }
+
+  public void updateNodeQueryStatus(NodeQueryStatus status) {
+    AttemptManager manager = attemptManager;
+    if(manager != null && manager.getQueryId().equals(status.getId())){
+      manager.updateNodeQueryStatus(status);
+    }
   }
 
   private boolean recoverFromFailure(AttemptReason reason) {
@@ -244,9 +255,28 @@ public class Foreman {
     return false;
   }
 
+  private class FragmentsTerminationListener implements FragmentsStateListener {
+
+    private final Observer observer;
+    public FragmentsTerminationListener(Observer observer) {
+      this.observer = observer;
+    }
+
+    @Override
+    public void allFragmentsRetired() {
+      observer.allFragmentsRetired();
+    }
+  }
+
   private class Observer extends DelegatingAttemptObserver {
 
     private boolean containsHashAgg = false;
+    private volatile UserResult userResult = null;
+    private final AtomicInteger announceArrival = new AtomicInteger(0);
+    boolean isCompleteAfterAllReports = false;
+    private static final int INITIAL = 0;
+    private static final int FRAGMENTS_RETIRED_INVOKED = 1;
+    private static final int ATTEMPT_COMPLETION_INVOKED = 2;
 
     Observer(final AttemptObserver delegate) {
       super(delegate);
@@ -276,46 +306,146 @@ public class Foreman {
       super.planRelTransform(phase, planner, before, after, millisTaken);
     }
 
+    /*
+     * Design Notes from DX-9802:
+     *
+     * WorkFlow:
+     *
+     *   Query didn't fail
+     *      - no change
+     *   Query failed but then we saw it cancelled
+     *      - no change
+     *   Query failed and was not cancelled and attempt handler didn't allow reattempt
+     *      - no change
+     *   Query failed and was not cancelled and reattempt reason was not OOM
+     *      - no change (attemptCompletion does reattempt)
+     *   Query failed and was not cancelled and reattempt reason was OOM
+     *      - this is where design has changed as described below
+     *
+     * Reattempts due to OOM failures are handled when all fragments
+     * are retired. So OOM reattempt is issued in allFragmentsRetired()
+     * callback and attemptCompletion does the job of
+     * determining the reattempt reason to be OOM through attempthandler.
+     * This is the simplest case where attemptCompletion is
+     * called before allFragmentsRetired.
+     *
+     * However, there could be a case (concurrency) where allFragmentsRetired
+     * callback was invoked before (or at the same time) as
+     * attemptCompletion. So the interleaving is not predictable
+     * and these two callbacks should account for that and correctly issue
+     * OOM reattempt at most once.
+     *
+     * As an example, if allFragmentsRetired was called first then
+     * it still can't issue an OOM reattempt because the decision
+     * of whether OOM reattempt is needed or not lies with
+     * attemptCompletion and the latter should issue the
+     * reattempt if it knows allFragmentsRetired has already been called.
+     *
+     * To handle such cases we use atomic integer to implement a lock
+     * and communication mechanism between the two functions in case
+     * there is no clear happens-before relationship between the two.
+     *
+     * The lock can hold values {0, 1, 2} and they are checked to
+     * implement serialization.
+     *
+     * 0 - INITIAL
+     * 1 - FRAGMENTS_RETIRED_INVOKED
+     * 2 - ATTEMPT_COMPLETION_INVOKED
+     *
+     * allFragmentsRetired() will set the value to 1 announcing it's
+     * arrival and grabbing a virtual lock.
+     *
+     * attemptCompletion will set the value to 2 announcing it's
+     * arrival and grabbing a virtual lock.
+     *
+     * Whoever doesn't grab the virtual lock will issue the OOM reattempt.
+     * This works for all cases of interleaving.
+     */
     @Override
     public void attemptCompletion(UserResult result) {
       attemptManager = null; // make sure we don't pass cancellation requests to this attemptManager anymore
+      userResult = result;
 
       final QueryState queryState = result.getState();
       final boolean queryFailed = queryState == QueryState.FAILED;
 
-      // if the query failed we may be able to recover from it
+      /* if the query failed we may be able to recover from it
+       * if it wasn't cancelled and the attemptHandler allows
+       * the reattempt.
+       */
       if (queryFailed) {
-        // if it wasn't canceled
         if (canceled) {
           logger.info("{}: cannot re-attempt the query, user already cancelled it", attemptId);
         } else {
-          // and the attemptHandler allows the reattempt
           final AttemptReason reason = attemptHandler.isRecoverable(
             new ReAttemptContext(attemptId, result.getException(), containsHashAgg));
           if (reason != AttemptReason.NONE) {
-            super.attemptCompletion(result);
-
-            // run another attempt, after making the necessary changes to recover from the failure
-            try {
-              // if the query gets cancelled before we started the new attempt
-              // we report query completed with last attempt's status
-              if (recoverFromFailure(reason)) {
+            super.attemptCompletion(userResult);
+            if (reason != AttemptReason.OUT_OF_MEMORY) {
+              /* attempt reason is not OOM -- no change in the flow */
+              if (issueReattempt(reason)) {
                 return;
               }
-            } catch (Exception e) {
-              // if we fail to start a new attempt we log it and fail the query as if the previous failure was not recoverable
-              logger.error("{}: something went wrong when re-attempting the query", attemptId.getExternalId(), e);
+            } else {
+              isCompleteAfterAllReports = true;
+              final int oldValue = announceArrival.getAndSet(ATTEMPT_COMPLETION_INVOKED);
+              if (oldValue == FRAGMENTS_RETIRED_INVOKED) {
+                /* issue OOM reattempt */
+                if (issueReattempt(reason)) {
+                  return;
+                }
+              }
             }
           }
         }
       }
 
-      // no more attempts are needed/possible
-      observer.execCompletion(result);
-
-      listener.completed();
+      if (!isCompleteAfterAllReports) {
+        /* no more attempts are needed/possible. this is conditional since
+         * if the OOM reattempt is done by allFragmentsRetired() then it will
+         * take care (if needed) of calling completion on query observer and
+         * listener.
+         */
+        observer.execCompletion(userResult);
+        listener.completed();
+      }
     }
 
+    /*
+     * In attemptCompletion we had already checked that query failure
+     * was recoverable and the reason was OOM. If the reason was not OOM
+     * then this function is a NOOP because the reattempt would have already
+     * been issued by attemptCompletion. This callback will be invoked
+     * by QueryManager instance corresponding to the AttemptManager instance
+     * Foreman is working with.
+     */
+    public void allFragmentsRetired() {
+      final int oldValue = announceArrival.getAndSet(FRAGMENTS_RETIRED_INVOKED);
+      if (oldValue != INITIAL) {
+        /* issue OOM reattempt */
+        if (issueReattempt(AttemptReason.OUT_OF_MEMORY)) {
+          return;
+        }
+        observer.execCompletion(userResult);
+        listener.completed();
+      }
+    }
+
+    private boolean issueReattempt(AttemptReason reason) {
+      /* this is required so that if we return false from here,
+       * attempt can be marked completed on query observer and listener
+       * in attemptCompletion
+       */
+      isCompleteAfterAllReports = false;
+      try {
+        if (recoverFromFailure(reason)) {
+          return true;
+        }
+      } catch (Exception e) {
+        logger.error("{}: something went wrong when re-attempting the query", attemptId.getExternalId(), e);
+      }
+      return false;
+    }
   }
 
   private static class LowMemOptionProvider implements OptionProvider {

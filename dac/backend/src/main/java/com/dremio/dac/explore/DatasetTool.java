@@ -66,6 +66,7 @@ import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -165,7 +166,7 @@ public class DatasetTool {
                                               VirtualDatasetUI newDataset,
                                               String jobId,
                                               DatasetVersion tipVersion)
-      throws DatasetVersionNotFoundException, NamespaceException {
+      throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
 
     final JobUI job = new JobUI(jobsService.getJob(new JobId(jobId)));
     QueryType queryType = job.getJobAttempt().getInfo().getQueryType();

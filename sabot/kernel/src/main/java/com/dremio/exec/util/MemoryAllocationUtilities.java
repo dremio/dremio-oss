@@ -50,7 +50,7 @@ public final class MemoryAllocationUtilities {
 
     // if there are any sorts, compute the maximum allocation, and set it on them
     if (sortList.size() > 0) {
-      final long maxWidthPerNode = optionManager.getOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY).num_val;
+      final long maxWidthPerNode = clusterInfo.getAverageExecutorCores(optionManager);
       final long maxAllocPerNode = Math.min(clusterInfo.getAverageExecutorMemory(),
           optionManager.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).num_val);
       final long maxSortAlloc = maxAllocPerNode / (sortList.size() * maxWidthPerNode);

@@ -17,7 +17,6 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.BaseDataValueVector;
 import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -62,7 +61,7 @@ public class FixedWidthRepeatedReader extends VarLengthColumn<RepeatedValueVecto
     bytesReadInCurrentPass = 0;
     valuesReadInCurrentPass = 0;
     pageReader.valuesReadyToRead = 0;
-    dataReader.vectorData = BaseDataValueVector.class.cast(valueVec.getDataVector()).getBuffer();
+    dataReader.vectorData = valueVec.getDataVector().getDataBuffer();
     dataReader.valuesReadInCurrentPass = 0;
     repeatedGroupsReadInCurrentPass = 0;
   }
@@ -207,7 +206,7 @@ public class FixedWidthRepeatedReader extends VarLengthColumn<RepeatedValueVecto
 
   @Override
   public int capacity() {
-    return BaseDataValueVector.class.cast(valueVec.getDataVector()).getBuffer().capacity();
+    return valueVec.getDataVector().getDataBuffer().capacity();
   }
 
   @Override

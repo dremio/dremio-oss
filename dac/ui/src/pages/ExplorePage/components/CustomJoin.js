@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import { CONTAINER_ENTITY_TYPES } from 'constants/Constants';
 import { PHYSICAL_DATASET_TYPES } from 'constants/datasetTypes';

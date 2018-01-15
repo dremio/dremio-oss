@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import ReactDOM from 'react-dom';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import MainHeader from 'components/MainHeader';
 import { hashHeightTopSplitter } from 'constants/explorePage/heightTopSplitter.js';

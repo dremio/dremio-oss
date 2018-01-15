@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
+import { FormattedMessage, injectIntl } from 'react-intl';
 
 import Button from 'components/Buttons/Button';
 import ModalFooter from 'components/Modals/components/ModalFooter';
@@ -28,10 +30,11 @@ import { connectComplexForm } from 'components/Forms/connectComplexForm';
 // TODO: Use Radium
 import './UpdateDataset.less';
 
-function validate(values) {
+function validate(values, props) {
   return applyValidators(values, [isRequired('datasetName', 'Dataset name')]);
 }
 
+@injectIntl
 export class UpdateDatasetView extends Component {
   static propTypes = {
     initialPath: PropTypes.string,
@@ -48,7 +51,9 @@ export class UpdateDatasetView extends Component {
     handleSubmit: PropTypes.func,
     fields: PropTypes.object,
     submit: PropTypes.func,
-    error: PropTypes.object
+    error: PropTypes.object,
+    hide: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -66,14 +71,15 @@ export class UpdateDatasetView extends Component {
   }
 
   renderWarning() {
-    const { dependentDatasets } = this.props;
+    const { dependentDatasets, intl } = this.props;
 
     if (dependentDatasets && dependentDatasets.length > 0) {
       return ( // todo: loc
         <DependantDatasetsWarning
-          text={`Changing the name or the location of this dataset
-              will disconnect ${dependentDatasets.length} dependent
-              datasets. Make a copy to preserve these connections.`}
+          text={intl.formatMessage(
+            { id: 'Dataset.DependantDatasetsWarning' },
+            { dependentDatasets: dependentDatasets.length }
+          )}
           dependantDatasets={dependentDatasets}
         />
       );
@@ -95,11 +101,13 @@ export class UpdateDatasetView extends Component {
   }
 
   render() {
-    const { hidePath, fields, initialPath, handleSubmit, submit } = this.props;
+    const { hidePath, fields, initialPath, handleSubmit, submit, intl } = this.props;
     const locationBlock = hidePath
       ? null
       : <div className='property location'>
-        <label style={formLabel}>{la('Location')}</label>
+        <label style={formLabel}>
+          <FormattedMessage id = 'Common.Location' />
+        </label>
         <ResourceTreeController
           preselectedNodeId={initialPath}
           hideSources
@@ -108,10 +116,11 @@ export class UpdateDatasetView extends Component {
           />
       </div>;
     const buttons = this.props.buttons.map((button, index) => {
+      const onClick = button.key === 'cancel' ? this.props.hide : handleSubmit(submit.bind(this, button.key));
       return <Button
         style={{marginLeft: 5}}
         className={button.className}
-        onClick={handleSubmit(submit.bind(this, button.key))}
+        onClick={onClick}
         text={button.name}
         type={button.type}
         key={`${index}_button`}/>;
@@ -128,7 +137,7 @@ export class UpdateDatasetView extends Component {
                 name='name'
                 touched
                 initialFocus
-                placeholder={la('Dataset name ...')}/>
+                placeholder={intl.formatMessage({ id: 'Dataset.Name' })}/>
             </FieldWithError>
           </div>
           {locationBlock}

@@ -19,7 +19,6 @@ import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { Radio } from 'components/Fields';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 
-import { body } from 'uiTheme/radium/typography';
 import { formRow } from 'uiTheme/radium/forms';
 import TransformForm, { formWrapperProps } from '../../forms/TransformForm';
 import { transformProps } from './../../forms/TransformationPropTypes';
@@ -75,7 +74,6 @@ const styles = {
   },
   radio: {
     ...formRow,
-    ...body,
     display: 'flex'
   }
 };

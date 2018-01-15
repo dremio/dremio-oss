@@ -13,12 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
-
-import FontIcon from 'components/Icon/FontIcon';
-
-import { h3, h5White } from 'uiTheme/radium/typography';
+import PropTypes from 'prop-types';
+import Art from 'components/Art';
 import { DIVIDER } from 'uiTheme/radium/colors';
 
 @Radium
@@ -37,20 +35,20 @@ export default class SelectConnectionButton extends Component {
 
   render() {
     const { label, iconType, pillText, disabled, onClick } = this.props;
+    const src = iconType === 'sources/NETEZZA' ? `${iconType}.png` : `${iconType}.svg`;
 
     return <button
       disabled={disabled}
       style={[styles.base, disabled ? styles.disabled : styles.clickable]}
       onClick={!disabled ? onClick : undefined}
+      data-qa={iconType}
       key={iconType}
     >
-      <FontIcon type={iconType}
-        style={styles.fontIcon}
-        iconStyle={styles.iconStyle}/>
-      <div style={styles.label}>
+      <Art src={src} alt='' style={styles.iconStyle} />
+      <h3 style={styles.label}>
         {label}
-      </div>
-      {pillText && <div style={{...styles.comingBetaLabelWrapper }}>{pillText}</div>}
+      </h3>
+      {pillText && <div className='whiteText' style={{...styles.comingBetaLabelWrapper }}>{pillText}</div>}
     </button>;
   }
 }
@@ -70,12 +68,7 @@ const styles = {
   disabled: {
     opacity: 0.5
   },
-  fontIcon: {
-    height: 60,
-    width: 60
-  },
   label: {
-    ...h3,
     fontSize: 14,
     height: 60,
     display: 'flex',
@@ -91,8 +84,8 @@ const styles = {
     }
   },
   comingBetaLabelWrapper: {
-    ...h5White,
     fontSize: 10,
+    fontWeight: 500,
     height: 16,
     position: 'absolute',
     left: '50%',

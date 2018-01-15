@@ -32,8 +32,9 @@ import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 
 /**
@@ -84,7 +85,9 @@ public class TestUDFs extends BaseTestServer {
 
   private JobDataFragment runQuery(String sql) {
     JobData completeJobData =
-        new JobUI(jobs.submitExternalJob(new SqlQuery(sql, Collections.singletonList("cp"), DEFAULT_USERNAME), QueryType.UNKNOWN)).getData();
+        new JobUI(jobs.submitJob(JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(sql, Collections.singletonList("cp"), DEFAULT_USERNAME))
+            .build(), NoOpJobStatusListener.INSTANCE)).getData();
     return completeJobData.truncate(500);
   }
 

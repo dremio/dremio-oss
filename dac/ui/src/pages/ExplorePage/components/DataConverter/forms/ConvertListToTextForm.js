@@ -23,13 +23,15 @@ import TextField from 'components/Fields/TextField';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { FLEX_NOWRAP_COL_START, LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
 import TransformForm, {formWrapperProps} from '../../forms/TransformForm';
 import { transformProps } from './../../forms/TransformationPropTypes';
 
 const SECTIONS = [NewFieldSection];
+
+// todo: loc
 
 @Radium
 export class ConvertListToTextForm extends Component {
@@ -51,8 +53,8 @@ export class ConvertListToTextForm extends Component {
         'label': 'Pipe'
       },
       {
-        'option': '  ',
-        'label': 'Custom...'
+        'option': '',
+        'label': 'Custom…'
       }
     ];
   }
@@ -63,16 +65,17 @@ export class ConvertListToTextForm extends Component {
       <div style={styles.base}>
         <div style={styles.options}>
           <span style={formLabel}>{la('Options:')}</span>
-          <Radio {...format} style={body} label='Delimiter' radioValue='text'/>
-          <Radio {...format} style={body} label='JSON encoding' radioValue='json'/>
+          <Radio {...format} label='Delimiter' radioValue='text'/>
+          <Radio {...format} label='JSON encoding' radioValue='json'/>
         </div>
         <span style={formLabel}>{la('Delimiter:')}</span>
         <div style={styles.options}>
-          <span style={body}>{la('Separate list objects with a')}</span>
+          <span>{la('Separate list objects with a')}</span>
           <Select
             disabled={format.value !== 'text'}
             items={this.options}
-            {...delimiter}/>
+            {...delimiter}
+            value={this.options.some(e => e.option === delimiter.value) ? delimiter.value : ''}/>
           <TextField
             style={styles.input}
             disabled={format.value !== 'text'}

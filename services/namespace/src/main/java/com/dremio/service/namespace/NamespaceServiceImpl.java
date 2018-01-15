@@ -73,6 +73,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 
 /**
  * Namespace management.
@@ -145,6 +146,54 @@ public class NamespaceServiceImpl implements NamespaceService {
         .valueSerializer(DatasetSplitSerializer.class)
         .buildIndexed(DatasetSplitConverter.class);
     }
+  }
+
+  /**
+   * Helper class for finding split orphans.
+   */
+  private static class SplitRange implements Comparable<SplitRange> {
+
+    private final Range<String> range;
+
+    public SplitRange(Range<String> range) {
+      super();
+      this.range = range;
+    }
+
+    @Override
+    public int compareTo(SplitRange o) {
+      return range.lowerEndpoint().compareTo(o.range.lowerEndpoint());
+    }
+
+  }
+
+  public int deleteSplitOrphans() {
+    final List<SplitRange> ranges = new ArrayList<>();
+
+    int itemsDeleted = 0;
+    for(Map.Entry<byte[], NameSpaceContainer> entry : namespace.find()) {
+      NameSpaceContainer container = entry.getValue();
+      if(container.getType() == Type.DATASET && container.getDataset().getReadDefinition() != null && container.getDataset().getReadDefinition().getSplitVersion() != null) {
+        ranges.add(new SplitRange(DatasetSplitId.getSplitStringRange(container.getDataset())));
+      }
+    }
+
+    for(Map.Entry<DatasetSplitId, DatasetSplit> e : splitsStore.find()) {
+      String id = e.getKey().getSplitIdentifier();
+      final int item = Collections.binarySearch(ranges, new SplitRange(Range.singleton(id)));
+
+      // we should never find a match since we're searching for a split key.
+      Preconditions.checkArgument(item < 0);
+
+      final int insertionPoint = (-item) - 1;
+      final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
+
+      if(consideredRange < 0 || ranges.get(consideredRange).range.contains(id)) {
+        splitsStore.delete(e.getKey());
+        itemsDeleted++;
+      }
+    }
+    return itemsDeleted;
   }
 
   /**
@@ -429,14 +478,34 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   }
 
+  private NameSpaceContainer getEntityByIndex(IndexKey key, String index, Type type) throws NamespaceNotFoundException {
+    NameSpaceContainer namespaceContainer = getByIndex(key, index);
+
+    if (namespaceContainer == null || namespaceContainer.getType() != type) {
+      throw new NamespaceNotFoundException(new NamespaceKey(key.toString()), "not found");
+    }
+
+    return namespaceContainer;
+  }
+
   @Override
   public SourceConfig getSource(NamespaceKey sourcePath) throws NamespaceException {
     return getEntity(sourcePath, SOURCE).getSource();
   }
 
   @Override
+  public SourceConfig getSourceById(String id) throws NamespaceNotFoundException {
+    return getEntityByIndex(NamespaceIndexKeys.SOURCE_ID, id, SOURCE).getSource();
+  }
+
+  @Override
   public SpaceConfig getSpace(NamespaceKey spacePath) throws NamespaceException {
     return getEntity(spacePath, SPACE).getSpace();
+  }
+
+  @Override
+  public SpaceConfig getSpaceById(String id) throws NamespaceNotFoundException {
+    return getEntityByIndex(NamespaceIndexKeys.SPACE_ID, id, SPACE).getSpace();
   }
 
   @Override

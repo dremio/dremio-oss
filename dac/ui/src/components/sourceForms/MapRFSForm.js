@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import { getCreatedSource } from 'selectors/resources';
@@ -52,7 +54,7 @@ export class MapRFSForm extends Component {
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Cluster Name')}</h3>
+              <h2 style={sectionTitle}>{la('Cluster Name')}</h2>
               <FieldWithError {...fields.config.clusterName}>
                 <TextField {...fields.config.clusterName}/>
               </FieldWithError>
@@ -62,14 +64,14 @@ export class MapRFSForm extends Component {
                 label={la('Impersonation')} style={{margin: '-20px 0 20px 0'}}/>
             </div>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Options')}</h3>
+              <h2 style={sectionTitle}>{la('Options')}</h2>
               <FieldWithError {...fields.config.secure} style={formRow}>
                 <Checkbox {...fields.config.secure} label={la('Encrypt Connection')}/>
               </FieldWithError>
             </div>
             <SourceProperties fields={fields} />
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <MetadataRefresh fields={fields} hideObjectNames showAuthorization/>
               </AdvancedOptionsExpandable>

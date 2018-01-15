@@ -15,33 +15,28 @@
  */
 package com.dremio.dac.service.errors;
 
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+
 import com.dremio.dac.model.common.ResourcePath;
 
 /**
  * Base exception for resources not found
  *
  */
-public abstract class NotFoundException extends ServiceException {
+public abstract class NotFoundException extends WebApplicationException {
   private static final long serialVersionUID = 1L;
 
-  private final ResourcePath resourcePath;
-
   public NotFoundException(ResourcePath path, String description, Throwable error) {
-    super(makeMessage(path, description, error));
-    this.resourcePath = path;
+    super(makeMessage(path, description), error, Response.Status.NOT_FOUND);
   }
 
   public NotFoundException(ResourcePath path, String description) {
-    super(makeMessage(path, description));
-    this.resourcePath = path;
-  }
-
-  public ResourcePath getResourcePath() {
-    return resourcePath;
+    super(makeMessage(path, description), Response.Status.NOT_FOUND);
   }
 
   private static String makeMessage(final ResourcePath path, final String resource) {
-    return String.format("%s at %s not found", resource, path);
+    return String.format("%s at [%s] not found", resource, path);
   }
 
   private static String makeMessage(final ResourcePath path, final String resource, final Throwable error) {

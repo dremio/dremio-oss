@@ -24,7 +24,7 @@ export DREMIO_ENV_SCRIPT="dremio-env"
 
 function exit_with_usage {
   RC=$1
-  echo "Usage: dremio (backup|restore|set-password|upgrade) [args...]" >&2
+  echo "Usage: dremio (backup|clean|restore|set-password|upgrade) [args...]" >&2
   exit $RC
 }
 
@@ -52,6 +52,10 @@ shift
 case "$action" in
     backup)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.Backup
+        ;;
+
+    clean)
+        DREMIO_MAINCLASS=com.dremio.dac.cmd.Clean
         ;;
 
     restore)

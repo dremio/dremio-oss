@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.resource;
 
+import static com.dremio.dac.resource.ApiIntentMessageMapper.toLayoutId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -67,6 +68,8 @@ import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.accelerator.proto.PartitionDistributionStrategy;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -216,7 +219,8 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     waitForMaterialization(completed.getId(), false);
 
     //make sure that expiry time is more than a 100 years
-    Iterable<Materialization> materializations = getAccelerationService().getMaterializations(completed.getRawLayouts().getLayoutList().get(0).getId());
+    Iterable<Materialization> materializations = getAccelerationService().getMaterializations(
+      toLayoutId(completed.getRawLayouts().getLayoutList().get(0).getId()));
     for (Materialization materialization : materializations) {
       assertTrue(materialization.getExpiration() > System.currentTimeMillis() + IGNORE_REFRESH_TTL_MILLIS);
     }
@@ -348,7 +352,7 @@ public class TestAccelerationResource extends AccelerationTestUtil {
 
     //now get the aggregate layout id and save it
     LayoutApiDescriptor aggLayout = completed.getAggregationLayouts().getLayoutList().get(0);
-    LayoutId aggLayoutId = aggLayout.getId();
+    LayoutId aggLayoutId = toLayoutId(aggLayout.getId());
     assertNotNull(aggLayoutId);
 
     //make sure that there is an empty name string
@@ -359,7 +363,7 @@ public class TestAccelerationResource extends AccelerationTestUtil {
 
     //now get the raw layout id and save it
     LayoutApiDescriptor rawLayout = completed.getRawLayouts().getLayoutList().get(0);
-    LayoutId rawLayoutId = rawLayout.getId();
+    LayoutId rawLayoutId = toLayoutId(rawLayout.getId());
     assertNotNull(rawLayoutId);
 
     //make sure that there is an empty name string
@@ -378,7 +382,7 @@ public class TestAccelerationResource extends AccelerationTestUtil {
 
     //now get the aggregate layout id and compare it
     LayoutApiDescriptor updatedAggLayout = updated.getAggregationLayouts().getLayoutList().get(0);
-    LayoutId updatedAggLayoutId = updatedAggLayout.getId();
+    LayoutId updatedAggLayoutId = toLayoutId(updatedAggLayout.getId());
     assertNotNull(updatedAggLayoutId);
     assertEquals(aggLayoutId, updatedAggLayoutId);
   }
@@ -724,7 +728,11 @@ public class TestAccelerationResource extends AccelerationTestUtil {
 
     final SourceUI putSource1 = expectSuccess(getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(source)), SourceUI.class);
 
-    getJobsService().submitExternalJob(new SqlQuery("select * from src1.t1", SystemUser.SYSTEM_USERNAME), QueryType.UI_RUN);
+    getJobsService()
+        .submitJob(JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery("select * from src1.t1", SystemUser.SYSTEM_USERNAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build(), NoOpJobStatusListener.INSTANCE);
 
     DatasetPath path = new DatasetPath(ImmutableList.of("src1", "t1"));
 
@@ -750,7 +758,11 @@ public class TestAccelerationResource extends AccelerationTestUtil {
     waitForLayoutGeneration(accel1.getId());
 
     // if the job completes successfully, that means it was able to handle the schema learning
-    getJobsService().submitExternalJob(new SqlQuery("select * from src1.t1", SystemUser.SYSTEM_USERNAME), QueryType.UI_RUN).getData().loadIfNecessary();
+
+    getJobsService().submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from src1.t1", SystemUser.SYSTEM_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
   }
 
   @Test

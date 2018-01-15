@@ -29,7 +29,7 @@ describe('ListItem', () => {
     const wrapper = shallow(<ListItem {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
   });
-  it('should render ...', () => {
+  it('should render common props', () => {
     const wrapper = shallow(<ListItem {...commonProps}/>);
     expect(wrapper).to.have.length(1);
   });

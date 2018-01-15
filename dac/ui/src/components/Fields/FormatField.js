@@ -13,10 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
 
+import PropTypes from 'prop-types';
+
 import { FieldWithError, TextField, Select } from './';
+
+// todo: loc
 
 @pureRender
 export default class FormatField extends Component {
@@ -43,7 +47,7 @@ export default class FormatField extends Component {
 
   render() {
     const {options, ...props} = this.props;
-    const items = options.concat([{label: 'Custom...', option: ''}]);
+    const items = options.concat([{label: 'Custom…', option: ''}]);
 
     return (
       <FieldWithError {...props} errorPlacement='top'>

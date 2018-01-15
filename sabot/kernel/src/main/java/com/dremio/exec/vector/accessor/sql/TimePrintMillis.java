@@ -17,7 +17,7 @@ package com.dremio.exec.vector.accessor.sql;
 
 import java.sql.Time;
 
-import org.apache.arrow.vector.util.DateUtility;
+import org.joda.time.LocalDateTime;
 
 public class TimePrintMillis extends Time {
   private static final String[] leadingZeroes = {"", "0", "00"};
@@ -25,17 +25,20 @@ public class TimePrintMillis extends Time {
   // Desired length of the milli second portion should be 3
   private static final int DESIRED_MILLIS_LENGTH = 3;
 
-  public TimePrintMillis(long time) {
-    super(time);
+  // Millis of the date time object.
+  final private int millisOfSecond;
+
+  public TimePrintMillis(LocalDateTime time) {
+    super(time.getHourOfDay(), time.getMinuteOfHour(), time.getSecondOfMinute());
+    millisOfSecond = time.getMillisOfSecond();
   }
 
   @Override
   public String toString () {
-    int millis = (int) (getTime() % DateUtility.secondsToMillis);
     StringBuilder time = new StringBuilder().append(super.toString());
 
-    if (millis > 0) {
-      String millisString = Integer.toString(millis);
+    if (millisOfSecond > 0) {
+      String millisString = Integer.toString(millisOfSecond);
 
       // dot to separate the fractional seconds
       time.append(".");

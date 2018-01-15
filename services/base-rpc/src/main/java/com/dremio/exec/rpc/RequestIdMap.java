@@ -53,11 +53,13 @@ class RequestIdMap {
   void channelClosed(Throwable ex) {
     isOpen.set(false);
     if (ex != null) {
-      final RpcException e = RpcException.mapException(ex);
+      final IntObjectHashMap<RpcOutcome<?>> clonedMap;
       synchronized (map) {
-        map.forEach(new SetExceptionProcedure(e));
+        clonedMap = map.clone();
         map.clear();
       }
+      final RpcException e = RpcException.mapException(ex);
+      clonedMap.forEach(new SetExceptionProcedure(e));
     }
   }
 

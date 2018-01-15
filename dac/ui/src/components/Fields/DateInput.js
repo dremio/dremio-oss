@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Popover from 'material-ui/Popover';
 import { DateRange } from 'react-date-range';
 import moment from 'moment';
 
 import FontIcon from 'components/Icon/FontIcon';
 
-import { body } from 'uiTheme/radium/typography';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 import { dateTypeToFormat, TIME, DATE } from 'constants/DataTypes';
 
@@ -154,10 +154,10 @@ export default class DateInput extends Component {
     const popoverStyle = this.getPopoverStyle();
 
     return (
-      <div style={[styles.base, body]}>
+      <div style={styles.base}>
         <input
           ref='input'
-          style={[styles.input, body, props.style]}
+          style={[styles.input, props.style]}
           type='text'
           value={state.value}
           onChange={this.handleInputChange}

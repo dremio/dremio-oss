@@ -38,6 +38,11 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
     return coreKVStore.newKey().setObject(key);
   }
 
+  @Override
+  public KVAdmin getAdmin() {
+    return coreKVStore.getAdmin();
+  }
+
   private KVStoreTuple<V> buildValue(V  value) {
     return coreKVStore.newValue().setObject(value);
   }

@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import { loadProvision, removeProvision, openAddProvisionModal, openEditProvisionModal, editProvision }
@@ -28,7 +29,7 @@ import Header from 'pages/AdminPage/components/Header';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import Button from 'components/Buttons/Button';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import { body, formDescription, h4 } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 import { page, pageContent } from 'uiTheme/radium/general';
 
 import ClusterListView from './ClusterListView';
@@ -147,7 +148,7 @@ export class ProvisioningPage extends Component {
     return (
       <div style={styles.baseContent}>
         {showInitialSetup && <div style={{paddingTop: 15}}>
-          <h4 style={h4}>{la('Provisioning Options')}</h4>
+          <h4>{la('Provisioning Options')}</h4>
           <div style={formDescription}>{la('No provisioning option set up. Select one to get started.')}</div>
           <SelectClusterType
             onSelectClusterType={this.handleSelectClusterType}
@@ -175,7 +176,7 @@ export class ProvisioningPage extends Component {
       text={la('Add New')}
     />;
     return (
-      <div id='admin-provisioning' style={[body, page]}>
+      <div id='admin-provisioning' style={page}>
         <Header title={la('Provisioning')} endChildren={addNewButton} />
         <ViewStateWrapper
           viewState={viewState}

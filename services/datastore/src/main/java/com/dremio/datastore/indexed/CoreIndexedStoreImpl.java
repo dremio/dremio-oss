@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore.indexed;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -32,6 +33,7 @@ import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.KVStoreProvider.DocumentConverter;
 import com.dremio.datastore.KVStoreProvider.DocumentWriter;
@@ -66,9 +68,11 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   }
 
   @Override
-  public int reIndex() {
+  public int reindex() {
     Iterable<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iter = find();
     int elementCount = 0;
+
+    index.delete();
     for (Entry<KVStoreTuple<K>, KVStoreTuple<V>> entry:iter) {
       index(entry.getKey(), entry.getValue());
       elementCount++;
@@ -261,4 +265,45 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
 
     return new Sort(sortFields);
   }
+
+  @Override
+  public KVAdmin getAdmin() {
+    return new IndexedKVAdmin(base.getAdmin());
+  }
+
+  private class IndexedKVAdmin extends KVAdmin {
+
+    private final KVAdmin delegate;
+
+    public IndexedKVAdmin(KVAdmin delegate) {
+      super();
+      this.delegate = delegate;
+    }
+
+    @Override
+    public int reindex() {
+      return CoreIndexedStoreImpl.this.reindex();
+    }
+
+    @Override
+    public void compactKeyValues() throws IOException {
+      delegate.compactKeyValues();
+    }
+
+    @Override
+    public String getStats() {
+      StringBuilder sb = new StringBuilder();
+      sb.append(delegate.getStats());
+      sb.append("\tIndex Stats\n");
+      sb.append("\t\t* live records: ");
+      sb.append(index.getLiveRecords());
+      sb.append("\n\t\t* deleted records: ");
+      sb.append(index.getDeletedRecords());
+      sb.append("\n");
+      return sb.toString();
+    }
+
+
+  }
+
 }

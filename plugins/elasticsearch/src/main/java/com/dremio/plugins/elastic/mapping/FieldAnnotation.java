@@ -31,6 +31,7 @@ public class FieldAnnotation {
 
   private final SchemaPath path;
   private final boolean analyzed;
+  private final boolean normalized;
   private final boolean docValueMissing;
   private final List<String> dateFormats;
   private final ElasticSpecialType specialType;
@@ -38,8 +39,9 @@ public class FieldAnnotation {
   private FieldAnnotation(ElasticAnnotation annotation) {
     super();
     this.path = SchemaPath.getCompoundPath(FluentIterable.from(annotation.getPathList()).toArray(String.class));
-    this.analyzed = annotation.hasAnalyzed() ? annotation.getAnalyzed() : false;
-    this.docValueMissing = annotation.hasDocValueMissing() ? annotation.getDocValueMissing() : false;
+    this.analyzed = annotation.hasAnalyzed() && annotation.getAnalyzed();
+    this.normalized = annotation.hasNormalized() && annotation.getNormalized();
+    this.docValueMissing = annotation.hasDocValueMissing() && annotation.getDocValueMissing();
     this.dateFormats = annotation.getDateFormatsList();
     this.specialType = annotation.hasSpecialType() ? annotation.getSpecialType() : null;
 
@@ -51,6 +53,14 @@ public class FieldAnnotation {
 
   public boolean isAnalyzed() {
     return analyzed;
+  }
+
+  public boolean isNormalized() {
+    return normalized;
+  }
+
+  public boolean isAnalyzedOrNormalized() {
+    return normalized || analyzed;
   }
 
   public boolean isUnknown() {

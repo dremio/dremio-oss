@@ -58,12 +58,13 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "kv")
         .baselineValues("hive.default", "kv_parquet")
         .baselineValues("hive.default", "kv_sh")
-        .baselineValues("hive.default", "countstar_parquet")
+        .baselineValues("hive.default", "kv_mixedschema")
         .baselineValues("hive.default", "simple_json")
         .baselineValues("hive.default", "partition_with_few_schemas")
         .baselineValues("hive.default", "parquet_timestamp_nulls")
         .baselineValues("hive.default", "dummy")
         .baselineValues("hive.default", "sorted_parquet")
+        .baselineValues("hive.default", "parquet_region")
         .go();
 
     testBuilder()

@@ -67,6 +67,7 @@ message Materialization {
   optional MaterializatonFailure failure = 11;
   //layout version
   optional int32 layoutVersion = 12;
+  optional int64 refreshChainStartTime = 13;
 }
 
 message MaterializationUpdate {

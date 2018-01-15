@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import Select from 'components/Fields/Select';
 
@@ -27,7 +29,7 @@ import Radio from 'components/Fields/Radio';
 import DateInput from 'components/Fields/DateInput';
 import actionUtils from 'utils/actionUtils/actionUtils';
 import { applyValidators, isRequiredIfAnotherPropertyEqual} from 'utils/validation';
-import { body, formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { isDateType, BOOLEAN } from 'constants/DataTypes';
 import BooleanSelect from './BooleanSelect';
 
@@ -136,14 +138,14 @@ export default class ReplaceFooter extends Component {
     if (columnType === BOOLEAN) {
       return <BooleanSelect
         {...replacementValue}
-        style={{ ...style.text, ...body, marginRight: 5 }}
+        style={{ ...style.text, marginRight: 5 }}
       />;
     }
     return <TextField
       data-qa='replaceValueFooter'
       {...replacementValue}
       onChange={this.onChange}
-      style={{ ...style.text, ...body }}
+      style={style.text}
     />;
   }
 
@@ -171,7 +173,7 @@ export default class ReplaceFooter extends Component {
               {...replaceType}
               radioValue='VALUE'
               label='Value'
-              style={{ ...style.moveCenterStyle, ...body, marginLeft: 10 }}/>
+              style={{ ...style.moveCenterStyle, marginLeft: 10 }}/>
             <FieldWithError
               {...replacementValue}
               errorPlacement='bottom'
@@ -183,7 +185,7 @@ export default class ReplaceFooter extends Component {
               {...replaceType}
               radioValue='NULL'
               label='Null'
-              style={{...style.moveCenterStyle, ...body, marginLeft: -5 }}/>
+              style={{...style.moveCenterStyle, marginLeft: -5 }}/>
           </div>
         </div>
         <NewFieldSection columnName={columnName} fields={this.props.fields} style={{ marginBottom: 0}}/>

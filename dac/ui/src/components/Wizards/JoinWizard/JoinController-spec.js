@@ -242,6 +242,25 @@ describe('JoinController', () => {
       wrapper.setProps(props);
       expect(commonProps.submit).to.be.called;
     });
+
+    it('should set state.previewError if this.submit was called and throw an error', () => {
+      const error = {_error: {message: 'error', id: '1'}};
+      const nextProps = {
+        ...commonProps,
+        activeRecommendedJoin: Immutable.fromJS({ id: '2'}),
+        values: {
+          columns: [{joinedColumn: 'A', joinedTableKeyColumnName: 'B'}]
+        },
+        recommendedJoins: Immutable.List([2]),
+        joinTab: RECOMMENDED_JOIN
+      };
+      sinon.stub(instance, 'submit').returns({
+        catch: c => c(error)
+      });
+      instance.tryToPreviewRecommendedJoin(nextProps);
+      expect(instance.submit).to.be.called;
+      expect(wrapper.state('previewError')).to.equal(error);
+    });
   });
 
   it('should select dataset', () => {
@@ -266,6 +285,18 @@ describe('JoinController', () => {
       const props = {joinTab: CUSTOM_JOIN, values: {activeDataset: ['path']}, loadJoinDataset: sinon.spy()};
       instance.tryToLoadJoinDataset(props);
       expect(props.loadJoinDataset).to.be.called;
+    });
+  });
+
+  describe('#renderPreviewErrorMessage', () => {
+    it('should render PreviewErrorMessage if we have previewError in state', () => {
+      wrapper.setState({ previewError: {_error: {message: 'error', id: '1'}} });
+      expect(wrapper.find('Message')).to.have.length(1);
+      expect(wrapper.find('Message').props().message).to.be.eql('error');
+    });
+
+    it('should not render PreviewErrorMessage if there is no previewError in state', () => {
+      expect(wrapper.find('Message')).to.have.length(0);
     });
   });
 });

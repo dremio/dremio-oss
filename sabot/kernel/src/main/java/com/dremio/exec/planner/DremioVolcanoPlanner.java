@@ -18,13 +18,15 @@ package com.dremio.exec.planner;
 import java.util.List;
 
 import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.SubstitutionProvider;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.runtime.Hook;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.Substitution;
 import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
@@ -33,6 +35,8 @@ import com.dremio.exec.planner.sql.SqlConverter;
 public class DremioVolcanoPlanner extends VolcanoPlanner {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioVolcanoPlanner.class);
 
+  private final SubstitutionProvider substitutionProvider;
+
   private static final boolean IS_DEBUG = java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments()
       .toString().indexOf("-agentlib:jdwp") > 0;
 
@@ -40,7 +44,9 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   private CancelFlag cancelFlag = null;
 
   public DremioVolcanoPlanner(final SqlConverter converter) {
-    super(converter.getCostFactory(), converter.getSettings(), converter.getSubstitutionProvider());
+    super(converter.getCostFactory(), converter.getSettings());
+    this.substitutionProvider = converter.getSubstitutionProvider();
+
     setExecutor(new ConstExecutor(converter.getFunctionImplementationRegistry(), converter.getFunctionContext(), converter.getSettings()));
     clearRelTraitDefs();
     addRelTraitDef(ConventionTraitDef.INSTANCE);
@@ -49,15 +55,25 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   }
 
   @Override
-  protected void findAndRegisterSubstitutions(final SubstitutionProvider provider, final RelNode query) {
-    final List<RelNode> substitutions = provider.findSubstitutions(query);
+  protected void useApplicableMaterializations() {
+    final List<Substitution> substitutions = substitutionProvider.findSubstitutions(originalRoot);
     LOGGER.debug("found {} substitutions", substitutions.size());
-    for (final RelNode substitution : substitutions) {
-      if (!isRegistered(substitution)) {
+    for (final Substitution substitution : substitutions) {
+      if (!isRegistered(substitution.getReplacement())) {
+        RelNode equiv = substitution.getEquivalent();
+        if (equiv == null) {
+          equiv = getRoot();
+        }
         Hook.SUB.run(substitution);
-        register(substitution, getSubset(getRoot()));
+        register(substitution.getReplacement(), ensureRegistered(equiv, null));
       }
     }
+  }
+
+  @Override
+  public RelNode findBestExp() {
+    final RelNode bestExp = super.findBestExp();
+    return substitutionProvider.processPostPlanning(bestExp);
   }
 
   public void setCancelFlag(CancelFlag cancelFlag) {

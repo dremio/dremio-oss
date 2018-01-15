@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import FontIcon from 'components/Icon/FontIcon';
 import { Column, Table } from 'fixed-data-table-2';
@@ -29,7 +31,7 @@ import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
 
-import { h4, formLabel, formDescription, formContext } from 'uiTheme/radium/typography';
+import { formLabel, formDescription, formContext } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
 
 import LayoutInfo from '../LayoutInfo';
@@ -43,6 +45,7 @@ const HEADER_HEIGHT = 90;
 const COLUMN_WIDTH = 70;
 const GRID_PADDING = 20;
 
+@injectIntl
 @Radium
 export class AccelerationGrid extends Component {
   static propTypes = {
@@ -56,7 +59,8 @@ export class AccelerationGrid extends Component {
     onFilterChange: PropTypes.func,
     activeTab: PropTypes.string.isRequired,
     filter: PropTypes.string,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -68,6 +72,8 @@ export class AccelerationGrid extends Component {
     visibleLayoutExtraSettingsIndex: -1
   }
 
+  focusedColumn = undefined;
+
   componentDidMount() {
     this.updateResizeTable();
     if (window.addEventListener) {
@@ -78,6 +84,14 @@ export class AccelerationGrid extends Component {
   componentWillUnmount() {
     if (window.removeEventListener) {
       window.removeEventListener('resize', this.updateResizeTable);
+    }
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.activeTab !== this.props.activeTab) {
+      this.focusedColumn = undefined;
+    } else if (nextProps.layoutFields.length > this.props.layoutFields.length) {
+      this.focusedColumn = this.props.layoutFields.length;
     }
   }
 
@@ -98,7 +112,7 @@ export class AccelerationGrid extends Component {
           style={{paddingBottom: 0}}
         />
         <div style={styles.leftHeaderCellLabel}>
-          <div>{la('Fields')}</div>
+          <h4>{la('Fields')}</h4>
         </div>
       </div>
     </div>
@@ -106,7 +120,7 @@ export class AccelerationGrid extends Component {
 
   findLayoutData(columnIndex) {
     const isRaw = this.props.activeTab === 'raw';
-    const id = this.props.layoutFields[columnIndex].id.id.value;
+    const id = this.props.layoutFields[columnIndex].id.value;
 
     // small complexity here avoids having to store data in the form just for the sake of display
     // but have to search since an intermediate layout could have been deleted
@@ -114,7 +128,7 @@ export class AccelerationGrid extends Component {
       isRaw ? 'rawLayouts' : 'aggregationLayouts',
       'layoutList'
     ]);
-    return layoutList.find(layout => layout.getIn(['id', 'id']) === id);
+    return layoutList.find(layout => layout.get('id') === id);
   }
 
   renderHeaderCell = (rowIndex, columnIndex, shouldJumpTo = false) => { //todo: loc
@@ -129,8 +143,8 @@ export class AccelerationGrid extends Component {
       </div>; // these are styled different intentionally
     }
 
-    // todo: proper string sub loc
-    const placeholderName = `Reflection #${columnIndex + 1}`;
+    // todo: loc
+    const placeholderName = this.props.intl.formatMessage({id:'Reflection.UnnamedReflection'});
     const name = this.props.layoutFields[columnIndex].name.value || placeholderName;
 
     return (
@@ -143,14 +157,14 @@ export class AccelerationGrid extends Component {
         backgroundColor: '#EFF6F9'
       }}>
         <div style={{...styles.layoutDescriptionLine, ...(shouldJumpTo ? commonStyles.highlight : {})}}>
-          <div style={{display: 'flex', alignItems: 'center', paddingLeft: 5}}>
+          <div className='h4' style={{display: 'flex', alignItems: 'center', paddingLeft: 5}}>
             <ValidityIndicator isValid={layoutData && layoutData.get('hasValidMaterialization')}/>
             {/*
               use PrevalidatedTextField as a buffer against expensive rerender as you type
             */}
             <PrevalidatedTextField {...this.props.layoutFields[columnIndex].name}
               placeholder={placeholderName}
-              style={{...h4, flex: 1, border: '1px solid transparent', background: 'none', marginLeft: 5}} />
+              style={styles.prevalidatedField} />
             { this.props.layoutFields.length > 1 &&
               <FontIcon type='Minus'
                 style={styles.layoutHeaderIcon}
@@ -231,7 +245,7 @@ export class AccelerationGrid extends Component {
 
     let jumpToIndex;
     const columnNodes = layoutFields.map((layout, index) => {
-      const shouldJumpTo = layout.id.id.value === layoutId;
+      const shouldJumpTo = layout.id.value === layoutId;
 
       const column = <Column
         key={index}
@@ -261,7 +275,7 @@ export class AccelerationGrid extends Component {
               headerHeight={HEADER_HEIGHT}
               width={this.state.tableWidth}
               height={height}
-              scrollToColumn={jumpToIndex + 1}>
+              scrollToColumn={(typeof this.focusedColumn === 'number' ? this.focusedColumn : jumpToIndex) + 1}>
               <Column
                 header={this.renderLeftHeaderCell()}
                 width={COLUMN_WIDTH * 4 /* both raw/aggregrate show 4-wide field list */}
@@ -270,7 +284,8 @@ export class AccelerationGrid extends Component {
                 cell={(props) => this.renderLeftSideCell(props.rowIndex, props.columnIndex)}
               />
               { columnNodes }
-            </Table>) }
+            </Table>)
+          }
         </AutoSizer>
       </div>
     );
@@ -318,9 +333,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'flex-start',
     paddingLeft: 10,
-    alignItems: 'center',
+    alignItems: 'center'
     // backgroundColor: '#e5f3f0',
-    ...h4
   },
   leftCell: {
     display: 'flex',
@@ -371,6 +385,17 @@ const styles = {
       height: 21,
       width: 24
     }
+  },
+  prevalidatedField: {
+    flex: 1,
+    border: '1px solid transparent', // keep 1px to prevent wiggle on focus
+    background: 'none',
+    paddingLeft: 0,
+    paddingRight: 0,
+    marginLeft: 9, // align with content underneath
+    marginRight: 9, // balance with left
+    fontSize: 'inherit',
+    fontWeight: 'inherit'
   },
   layoutHeaderIcon: { // todo: ax, hover
     flexGrow: 0,

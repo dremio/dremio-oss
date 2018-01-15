@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import config from 'utils/config';
+import { injectIntl } from 'react-intl';
 
 import fileABug from 'utils/fileABug';
 import { getLoginUrl } from 'routes';
@@ -24,9 +26,11 @@ import Menu from 'components/Menus/Menu';
 import MenuItem from 'components/Menus/MenuItem';
 import DividerHr from 'components/Menus/DividerHr';
 
+@injectIntl
 export class AccountMenu extends Component {
   static propTypes = {
-    closeMenu: PropTypes.func.isRequired
+    closeMenu: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -54,14 +58,22 @@ export class AccountMenu extends Component {
   }
 
   render() {
+    const { intl } = this.props;
+
     return <Menu>
-      {config.shouldEnableBugFiling && <MenuItem isInformational>
-        <span style={styles.menuInformation}>{la('Internal Build')}</span>
-      </MenuItem>}
-      {config.shouldEnableBugFiling && <MenuItem onTouchTap={this.onFileABug}>{la('File a Bug')}</MenuItem>}
+      {config.shouldEnableBugFiling
+        && <MenuItem isInformational>
+          <span style={styles.menuInformation}>{intl.formatMessage({ id: 'HeaderMenu.InternalBuild' })}</span>
+        </MenuItem>}
+      {config.shouldEnableBugFiling
+        && <MenuItem onTouchTap={this.onFileABug}>{intl.formatMessage({ id: 'HeaderMenu.FileABug' })}</MenuItem>}
       {config.shouldEnableBugFiling && <DividerHr/>}
-      <MenuItem onTouchTap={this.onAccountSettings}>{la('Account Settings')}</MenuItem>
-      <MenuItem onTouchTap={this.onLogOut}>{la('Log Out')}</MenuItem>
+      <MenuItem onTouchTap={this.onAccountSettings}>
+        {intl.formatMessage({ id: 'HeaderMenu.AccountSettings' })}
+      </MenuItem>
+      <MenuItem onTouchTap={this.onLogOut}>
+        {intl.formatMessage({ id: 'HeaderMenu.LogOut' })}
+      </MenuItem>
     </Menu>;
   }
 }

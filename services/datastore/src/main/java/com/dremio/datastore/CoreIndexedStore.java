@@ -46,6 +46,6 @@ public interface CoreIndexedStore<K, V> extends CoreKVStore<K, V> {
    * ReIndex all the entries in the store
    * @return number of entries which got reIndexed.
    */
-   int reIndex();
+   int reindex();
 
 }

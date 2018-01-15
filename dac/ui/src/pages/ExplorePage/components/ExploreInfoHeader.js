@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import CopyButton from 'components/Buttons/CopyButton';
 import Immutable from 'immutable';
 import DocumentTitle from 'react-document-title';
+import { injectIntl } from 'react-intl';
 
 import EllipsedText from 'components/EllipsedText';
 import modelUtils from 'utils/modelUtils';
 import { constructFullPath } from 'utils/pathUtils';
+import { formatMessage } from 'utils/locale';
 
 import { PHYSICAL_DATASET_TYPES } from 'constants/datasetTypes';
 //actions
@@ -53,7 +56,7 @@ import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { getHistory, getTableColumns } from 'selectors/explore';
 
 import './ExploreInfoHeader.less';
@@ -61,6 +64,7 @@ import './ExploreInfoHeader.less';
 export const TABLEAU_TOOL_NAME = 'Tableau';
 export const QLIK_TOOL_NAME = 'Qlik Sense';
 
+@injectIntl
 @Radium
 export class ExploreInfoHeader extends PureComponent {
   static propTypes = {
@@ -72,6 +76,7 @@ export class ExploreInfoHeader extends PureComponent {
     rightTreeVisible: PropTypes.bool,
     location: PropTypes.object,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
+    intl: PropTypes.object.isRequired,
 
     // connected
     history: PropTypes.instanceOf(Immutable.Map),
@@ -107,7 +112,7 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   static getNameForDisplay(dataset) {
-    const defaultName = la('New Query');
+    const defaultName = formatMessage('NewQuery.NewQuery');
     if (!dataset) {
       return defaultName;
     }
@@ -228,11 +233,11 @@ export class ExploreInfoHeader extends PureComponent {
     this.transformIfNecessary(
       (didTransform, dataset) => {
         this.props.showConfirmationDialog({
-          title: la('Download Limit'),
-          confirmText: la('Download'),
-          text: la('Downloads are limited to one million records.'),
+          title: this.props.intl.formatMessage({ id: 'Download.DownloadLimit' }),
+          confirmText: this.props.intl.formatMessage({ id: 'Download.Download' }),
+          text: this.props.intl.formatMessage({ id: 'Download.DownloadLimitValue' }),
           doNotAskAgainKey: 'isDownloadWarningDisabled',
-          doNotAskAgainText: la('Do not warn me about the download limit again.'),
+          doNotAskAgainText: this.props.intl.formatMessage({ id: 'Download.DownloadLimitWarn' }),
           confirm: () => this.props.startDownloadDataset(dataset, format)
         });
       }
@@ -341,7 +346,7 @@ export class ExploreInfoHeader extends PureComponent {
 
   renderCopyToClipBoard(fullPath) {
     return fullPath
-      ? <CopyButton text={fullPath} title={la('Copy Path')} style={{transform: 'translateY(1px)'}}/>
+      ? <CopyButton text={fullPath} title={this.props.intl.formatMessage({ id: 'Path.Copy' })} style={{transform: 'translateY(1px)'}}/>
       : null;
   }
 
@@ -350,14 +355,15 @@ export class ExploreInfoHeader extends PureComponent {
     const isEditedDataset = this.isEditedDataset();
     const nameStyle = isEditedDataset ? { fontStyle: 'italic' } : {};
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(dataset);
+    const edited = this.props.intl.formatMessage({ id: 'Dataset.Edited' });
     return (
       <DatasetItemLabel
         customNode={ // todo: string replace loc
           <div>
             <div style={{...style.dbName, ...formLabel}} data-qa={nameForDisplay}>
-              <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? ` (${la('edited')})` : ''}`}>
+              <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? edited : ''}`}>
                 <span>{nameForDisplay}</span>
-                <span data-qa='dataset-edited'>{isEditedDataset ? ` (${la('edited')})` : ''}</span>
+                <span data-qa='dataset-edited'>{isEditedDataset ? edited : ''}</span>
               </EllipsedText>
               {this.renderCopyToClipBoard(constructFullPath(fullPath))}
             </div>
@@ -417,7 +423,7 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   render() {
-    const { dataset } = this.props;
+    const { dataset, intl } = this.props;
     const classes = classNames('explore-info-header', { 'move-right': this.props.rightTreeVisible });
     const isInProgress = this.props.exploreViewState.get('isInProgress');
     const shouldEnableButtons = dataset.get('isNewQuery') || dataset.get('datasetType'); // new query or loaded
@@ -456,8 +462,8 @@ export class ExploreInfoHeader extends PureComponent {
               disabled={!shouldEnableButtons}
               defaultValue={
                 mustSaveAs
-                  ? { name: 'saveAs', label: la('Save As...')}
-                  : { name: 'save', label: la('Save')}
+                  ? { name: 'saveAs', label: intl.formatMessage({ id: 'Dataset.SaveAs' })}
+                  : { name: 'save', label: intl.formatMessage({ id: 'Dataset.Save' })}
               }
               hideDropdown={mustSaveAs}
               menu={<SaveMenu/>}/>
@@ -534,7 +540,6 @@ const style = {
     backgroundColor: '#43B8C9',
     borderBottom: '1px solid #3399A8',
     borderRadius: 2,
-    ...body,
     color: '#fff',
     ':hover': {
       backgroundColor: 'rgb(104, 198, 211)'

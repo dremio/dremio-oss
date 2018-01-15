@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import classNames from 'classnames/bind';
 import Radium from 'radium';
 
-import FontIcon from 'components/Icon/FontIcon';
+import PropTypes from 'prop-types';
 
-import { body } from 'uiTheme/radium/typography';
+import FontIcon from 'components/Icon/FontIcon';
 
 @Radium
 class RightTreeTabHeader extends Component {
@@ -33,7 +33,7 @@ class RightTreeTabHeader extends Component {
       <li
         className={classes}
         onClick={this.props.onClick.bind(this, this.props.tabId)}
-        style={[styles.tab, body]}>
+        style={[styles.tab]}>
         <FontIcon type={icons[this.props.tabId]}/>
         <span className='title'>{this.props.title}</span>
       </li>

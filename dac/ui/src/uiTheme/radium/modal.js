@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { body } from 'uiTheme/radium/typography';
 
 export const overlay = {
   backgroundColor: 'rgba(41,56,73,0.5)',
@@ -93,7 +92,6 @@ export const modalPadding = {
 };
 
 export const confirmBodyText = {
-  ...body,
   ...modalPadding,
   fontSize: 14,
   display: 'flex',

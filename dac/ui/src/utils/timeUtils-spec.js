@@ -48,82 +48,82 @@ describe('Tests for time utils', () => {
   describe('test duration convert function', () => {
     it('several seconds duration', () => {
       let duration = moment.duration(2, 'seconds');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:00:02');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('2s');
       duration = moment.duration(5, 'seconds');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:00:05');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('5s');
       duration = moment.duration(0, 'seconds');
       expect(TimeUtils.durationWithZero(duration)).to.equal('<1s');
       duration = moment.duration(10, 'seconds');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:00:10');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('10s');
       duration = moment.duration(20, 'seconds');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:00:20');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('20s');
       duration = moment.duration(30, 'seconds');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:00:30');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('30s');
       duration = moment.duration(43, 'seconds');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:00:43');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('43s');
     });
     it('several minutes duration', () => {
       let duration = moment.duration(2, 'minutes');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:02:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('2m:00s');
       duration = moment.duration(5, 'minutes');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:05:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('5m:00s');
       duration = moment.duration(0, 'minutes');
       expect(TimeUtils.durationWithZero(duration)).to.equal('<1s');
       duration = moment.duration(10, 'minutes');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:10:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('10m:00s');
       duration = moment.duration(20, 'minutes');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:20:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('20m:00s');
       duration = moment.duration(30, 'minutes');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:30:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('30m:00s');
       duration = moment.duration(43, 'minutes');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:43:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('43m:00s');
     });
     it('several hours duration', () => {
       let duration = moment.duration(2, 'hours');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('02:00:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('2h:00m:00s');
       duration = moment.duration(5, 'hours');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('05:00:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('5h:00m:00s');
       duration = moment.duration(0, 'hours');
       expect(TimeUtils.durationWithZero(duration)).to.equal('<1s');
       duration = moment.duration(10, 'hours');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('10:00:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('10h:00m:00s');
       duration = moment.duration(20, 'hours');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('20:00:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('20h:00m:00s');
       duration = moment.duration(30, 'hours');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('30:00:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('30h:00m:00s');
       duration = moment.duration(43, 'hours');
-      expect(TimeUtils.durationWithZero(duration)).to.equal('43:00:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('43h:00m:00s');
     });
     it('various duration', () => {
       let duration = moment.duration({
         seconds: 2,
         minutes: 20
       });
-      expect(TimeUtils.durationWithZero(duration)).to.equal('00:20:02');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('20m:02s');
       duration = moment.duration({
         seconds: 2,
         minutes: 0,
         hours: 2
       });
-      expect(TimeUtils.durationWithZero(duration)).to.equal('02:00:02');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('2h:00m:02s');
       duration = moment.duration({
         seconds: 0,
         minutes: 5,
         hours: 22
       });
-      expect(TimeUtils.durationWithZero(duration)).to.equal('22:05:00');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('22h:05m:00s');
       duration = moment.duration({
         seconds: 2,
         minutes: 0,
         hours: 32
       });
-      expect(TimeUtils.durationWithZero(duration)).to.equal('32:00:02');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('32h:00m:02s');
       duration = moment.duration({
         seconds: 2,
         minutes: 20,
         hours: 2
       });
-      expect(TimeUtils.durationWithZero(duration)).to.equal('02:20:02');
+      expect(TimeUtils.durationWithZero(duration)).to.equal('2h:20m:02s');
     });
   });
 });

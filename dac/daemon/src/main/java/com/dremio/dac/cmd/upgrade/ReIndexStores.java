@@ -25,7 +25,7 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 public class ReIndexStores extends UpgradeTask {
 
   public ReIndexStores() {
-    super("ReIndex stores", VERSION_106, VERSION_110);
+    super("ReIndex stores", VERSION_106, VERSION_130);
     }
 
   @Override
@@ -39,5 +39,4 @@ public class ReIndexStores extends UpgradeTask {
     int elementsReIndexed = localKVStoreProvider.reIndex(storeId);
     System.out.printf("%d Elements ReIndexed. \r\n", elementsReIndexed);
   }
-
 }

@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from 'pure-render-decorator';
-
+import { injectIntl } from 'react-intl';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 
 import Modal from 'components/Modals/Modal';
 import EditSourceView from './EditSourceView';
 
 @pureRender
+@injectIntl
 export class EditSourceModal extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
@@ -31,7 +33,8 @@ export class EditSourceModal extends Component {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
-    query: PropTypes.object
+    query: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   hide = () => {
@@ -39,11 +42,11 @@ export class EditSourceModal extends Component {
   }
 
   render() {
-    const { isOpen, query, hide, updateFormDirtyState } = this.props;
+    const { isOpen, query, hide, updateFormDirtyState, intl } = this.props;
     return (
       <Modal
         size='large'
-        title={la('Edit Source')}
+        title={intl.formatMessage({ id: 'Source.EditSource' })}
         isOpen={isOpen}
         hide={hide}>
         { query.name &&

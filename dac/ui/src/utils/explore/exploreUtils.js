@@ -149,13 +149,6 @@ class ExploreUtils {
       Boolean(transform.getIn(['selection', 'mapPathList']));
   }
 
-  describeSqlFuncs(code, args = []) {
-    if (args.length === 0) {
-      return code;
-    }
-    return `${code}()`;
-  }
-
   /**
    * Trims empty cells out of selection. Returns null if selection spans multiple cells.
    * @param selection
@@ -455,37 +448,13 @@ class ExploreUtils {
     return query.mode === 'edit' || dataset.get('canReapply') || query.hasOrigin === 'true';
   }
 
-  getIconByEntityType(type) {
-    switch (type && type.toUpperCase()) {
-    case 'DATASET':
-    case 'VIRTUAL_DATASET':
-      return 'VirtualDataset';
-    case 'PHYSICALDATASET':
-    case 'PHYSICAL_DATASET':
-    case 'TABLE':
-      return 'PhysicalDataset';
-    case 'SPACE':
-      return 'Space';
-    case 'SOURCE':
-      return 'Database';
-    case 'HOME':
-      return 'Home';
-    case 'FILE':
-      return 'File';
-    case 'PHYSICAL_DATASET_SOURCE_FILE':
-      return 'File';
-    case 'PHYSICAL_DATASET_SOURCE_FOLDER':
-      return 'FolderData';
-    case 'PHYSICAL_DATASET_HOME_FILE':
-      return 'File';
-    case 'FOLDER':
-      return 'Folder';
-    default:
-      return 'FileEmpty';
+  needSelection(method, transformType) {
+    // in props.transform we can get transformType = 'extract' and method = "Values"
+    // it happens when we switch between "Keep only" and "Extract"
+    if (transformType === 'extract') {
+      return true;
     }
-  }
 
-  needSelection(method) {
     return notNeedSelectionMethod.indexOf(method) === -1;
   }
 

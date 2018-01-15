@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Modal from 'components/Modals/Modal';
 import { connect } from 'react-redux';
 import { destroy } from 'redux-form';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import { denormalizeFile } from 'selectors/resources';
 
@@ -35,11 +37,13 @@ import { getViewState } from 'selectors/resources';
 import { getEntityType } from 'utils/pathUtils';
 import { resetViewState } from 'actions/resources';
 
+import FileFormatForm from '../../forms/FileFormatForm';
 import AddFileFormPage1 from './AddFileFormPage1';
-import FileFormatForm from './../../../components/forms/FileFormatForm';
+
 
 export const PREVIEW_VIEW_ID = 'AddFileModalPreview';
 
+@injectIntl
 export class AddFileModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
@@ -57,7 +61,8 @@ export class AddFileModal extends Component {
     uploadCancel: PropTypes.func.isRequired,
     destroy: PropTypes.func.isRequired,
     resetViewState: PropTypes.func.isRequired,
-    resetFileFormatPreview: PropTypes.func
+    resetFileFormatPreview: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {username: PropTypes.string};
@@ -130,13 +135,13 @@ export class AddFileModal extends Component {
   }
 
   render() {
-    const { file, isOpen, previewViewState } = this.props;
+    const { file, isOpen, previewViewState, intl } = this.props;
     const { page } = this.state;
     const pageSettings = [{
-      title: la('Add File: Browse for File (Step 1 of 2)'),
+      title: intl.formatMessage({ id: 'File.AddFileStep1' }),
       size: 'small'
     }, {
-      title: la('Add File: Set Format (Step 2 of 2)'),
+      title: intl.formatMessage({ id: 'File.AddFileStep2' }),
       size: 'large'
     }];
     return (
@@ -157,7 +162,7 @@ export class AddFileModal extends Component {
             file={file}
             onFormSubmit={this.onSubmitFormat}
             onCancel={this.goToPage.bind(this, 0)}
-            cancelText='Back'
+            cancelText={intl.formatMessage({ id: 'Common.Back' })}
             onPreview={this.onPreview}
             previewViewState={previewViewState}
           />

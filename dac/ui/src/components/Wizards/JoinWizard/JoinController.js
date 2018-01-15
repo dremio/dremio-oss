@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { result } from 'lodash/object';
 import uuid from 'uuid';
@@ -25,6 +26,7 @@ import DefaultWizardFooter from 'components/Wizards/components/DefaultWizardFoot
 import StepWizard from 'components/Wizards/components/StepWizard';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
+import Message from 'components/Message';
 
 import { loadExploreEntities } from 'actions/explore/dataset/get';
 import { loadJoinDataset, setJoinTab, resetJoins, setJoinStep } from 'actions/explore/join';
@@ -90,6 +92,8 @@ export class JoinController extends Component {
     recommendedJoins: Immutable.List()
   };
 
+  state = {};
+
   recommendationsPromise = null; // eslint-disable-line react/sort-comp
 
   componentWillMount() {
@@ -149,7 +153,9 @@ export class JoinController extends Component {
       && !oldActiveRecommendedJoin.equals(nextProps.activeRecommendedJoin);
     if (isActiveRecommendedJoinChanged) {
       if (isValidJoin(nextProps.values)) {
-        this.submit(nextProps.values, 'preview');
+        this.submit(nextProps.values, 'preview').catch((error) => {
+          this.setState({ previewError: error });
+        });
       }
     }
   }
@@ -247,6 +253,16 @@ export class JoinController extends Component {
     );
   }
 
+  renderPreviewErrorMessage() {
+    return this.state.previewError && (
+      <Message
+        messageType='error'
+        message={this.state.previewError._error.message}
+        messageId={this.state.previewError._error.id}
+      />
+    );
+  }
+
   render() {
     const { joinTab } = this.props;
     const isRecommendedTabActive = joinTab === RECOMMENDED_JOIN;
@@ -272,6 +288,7 @@ export class JoinController extends Component {
 
     return (
       <div className='join'>
+        {this.renderPreviewErrorMessage()}
         <InnerComplexForm
           {...this.props}
           style={styles.form}

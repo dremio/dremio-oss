@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import { getUser } from 'selectors/admin';
 import config from 'utils/config';
 
 import { FLEX_WRAP_COL_START, LINE_START_CENTER, LINE_NOWRAP_BETWEEN} from 'uiTheme/radium/flexStyle';
-import { h2, formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { PALE_GREY, SECONDARY, SECONDARY_BORDER } from 'uiTheme/radium/colors';
 
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
@@ -53,7 +55,7 @@ export class Info extends Component {
 
     return (
       <div className='account-info-form'>
-        <div style={styles.header}>{la('General Information')}</div>
+        <h2 style={styles.header}>{la('General Information')}</h2>
         {view}
       </div>
     );
@@ -82,7 +84,6 @@ export default connectComplexForm({
 
 const styles = {
   header: {
-    ...h2,
     borderBottom: `2px solid ${PALE_GREY}`,
     marginBottom: 30,
     paddingBottom: 10

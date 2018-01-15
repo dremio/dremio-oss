@@ -17,7 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
-import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.SimpleIntVector;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -30,9 +30,10 @@ import com.dremio.sabot.exec.context.OperatorContext;
 public abstract class AbstractParquetReader extends AbstractRecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractParquetReader.class);
 
-  protected UInt4Vector deltas;
+  protected SimpleIntVector deltas;
 
-  public AbstractParquetReader(final OperatorContext context, final List<SchemaPath> columns, UInt4Vector deltas) {
+  public AbstractParquetReader(final OperatorContext context, final List<SchemaPath> columns,
+                               SimpleIntVector deltas) {
     super(context, columns);
     this.deltas = deltas;
   }

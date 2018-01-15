@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
-
-import { body } from 'uiTheme/radium/typography';
 
 import Tabs from 'components/Tabs';
 
@@ -202,7 +201,6 @@ const styles = {
     position: 'relative'
   },
   emptyCard: {
-    ...body,
     height: 180,
     width: 460,
     minWidth: 455,

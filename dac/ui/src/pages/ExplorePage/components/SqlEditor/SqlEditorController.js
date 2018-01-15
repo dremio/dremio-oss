@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import { FormattedMessage } from 'react-intl';
+
+import PropTypes from 'prop-types';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
-import DragTarget from 'components/DragComponents/DragTarget';
 
 import { reapplyDataset } from 'actions/explore/dataset/reapply';
 import { setCurrentSql, setQueryContext } from 'actions/explore/view';
@@ -61,7 +63,6 @@ export class SqlEditorController extends Component {
     super(props);
     this.insertFunc = this.insertFunc.bind(this);
     this.insertFullPathAtCursor = this.insertFullPathAtCursor.bind(this);
-    this.onDrop = this.onDrop.bind(this);
     this.state = {
       sqlState: true,
       funcHelpPanel: false,
@@ -85,15 +86,6 @@ export class SqlEditorController extends Component {
       (!prevProps.dataset.get('isNewQuery') || this.props.exploreViewState !== prevProps.exploreViewState)
     ) {
       this.refs.editor.focus();
-    }
-  }
-
-  onDrop(dropEvent) {
-    const { args, id } = dropEvent;
-    if (args) {
-      this.refs.editor.insertFunction(id, false, args);
-    } else {
-      this.refs.editor.insertFullPathAtDrop(id);
     }
   }
 
@@ -121,11 +113,11 @@ export class SqlEditorController extends Component {
   }
 
   insertFullPathAtCursor(id) {
-    this.refs.editor.insertFullPathAtCursor(id);
+    this.refs.editor.insertFullPath(id);
   }
 
-  insertFunc(functionName) {
-    this.refs.editor.insertFunction(functionName, true);
+  insertFunc(functionName, args) {
+    this.refs.editor.insertFunction(functionName, args);
   }
 
   toggleDatasetPanel = () => this.setState({
@@ -156,7 +148,7 @@ export class SqlEditorController extends Component {
           style={{...sqlEditorButton, lineHeight: '24px'}}
           onClick={this.handleEditOriginal}
         >
-          {la('Edit Original SQL')}
+          <FormattedMessage id='SQL.EditOriginal'/>
         </SimpleButton>
       );
     }
@@ -172,7 +164,7 @@ export class SqlEditorController extends Component {
             style={[styles.helpers, bodySmall, isActiveDatasets ? styles.helpersHovered : {}]}
             onClick={this.toggleDatasetPanel}
             key='datasets'>
-            {la('Datasets')}
+            <FormattedMessage id='Dataset.Datasets'/>
           </button>
           <DatasetsPanel
             dataset={this.props.dataset}
@@ -185,7 +177,7 @@ export class SqlEditorController extends Component {
             style={[styles.helpers, bodySmall, isActiveFuncs ? styles.helpersHovered : {}]}
             onClick={this.toggleFunctionsHelpPanel}
             key='functions'>
-            {la('Functions')}
+            <FormattedMessage id='Common.Functions'/>
           </button>
           <FunctionsHelpPanel
             height={this.props.sqlSize - MARGIN_PANEL}
@@ -202,21 +194,20 @@ export class SqlEditorController extends Component {
     const sqlStyle = this.props.sqlState ? {} : {height: 0, overflow: 'hidden'};
 
     const sqlBlock = (
-      <div style={[styles.sqlAutoCompleteWrap, sqlStyle]}>
-        <SqlAutoComplete
-          dataset={this.props.dataset}
-          type={this.props.type}
-          isGrayed={this.shouldSqlBoxBeGrayedOut()}
-          context={this.props.queryContext}
-          changeQueryContext={this.handleContextChange}
-          ref='editor'
-          onChange={this.handleSqlChange}
-          defaultValue={this.props.dataset.get('sql')}
-          sqlSize={this.props.sqlSize}
-          datasetsPanel={this.state.datasetsPanel}
-          funcHelpPanel={this.state.funcHelpPanel}
-        />
-      </div>
+      <SqlAutoComplete
+        dataset={this.props.dataset}
+        type={this.props.type}
+        isGrayed={this.shouldSqlBoxBeGrayedOut()}
+        context={this.props.queryContext}
+        changeQueryContext={this.handleContextChange}
+        ref='editor'
+        onChange={this.handleSqlChange}
+        defaultValue={this.props.dataset.get('sql')}
+        sqlSize={this.props.sqlSize}
+        datasetsPanel={this.state.datasetsPanel}
+        funcHelpPanel={this.state.funcHelpPanel}
+        dragType={this.props.dragType}
+      />
     );
     const toggleButton = this.props.sqlState
       ? (
@@ -236,9 +227,9 @@ export class SqlEditorController extends Component {
             </div>
             {this.renderSqlBlocks()}
           </div>
-          <DragTarget dragType={this.props.dragType} onDrop={this.onDrop}>
+          <div style={[styles.sqlAutoCompleteWrap, sqlStyle]}>
             {sqlBlock}
-          </DragTarget>
+          </div>
         </div>
       </div>
     );

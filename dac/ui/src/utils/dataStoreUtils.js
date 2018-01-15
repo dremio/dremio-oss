@@ -15,10 +15,10 @@
  */
 import config from 'utils/config';
 
+// todo: loc - all this one-off custom loc stuff needs tearing out and replacing
+
 const languageHash = {
-  'en': 'dataEN',
-  'ru': 'dataRU',
-  'fr': 'dataFR'
+  'en': 'dataEN'
 };
 
 let languages = {};

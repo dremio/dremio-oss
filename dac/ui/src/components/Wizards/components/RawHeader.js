@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { h5 } from 'uiTheme/radium/typography';
 
 @PureRender
 @Radium
@@ -69,9 +70,9 @@ class RawHeader extends Component {
   render() {
     return (
       <div className='raw-wizard-header' style={[style.base]}>
-        <div style={[style.content, h5 ]}>
+        <h5 style={style.content}>
           {this.props.text}{this.getSeparator()}{this.subSteps()}
-        </div>
+        </h5>
         {this.getCloseIcon()}
       </div>
     );
@@ -88,9 +89,7 @@ const style = {
   'content': {
     'display': 'flex',
     'marginLeft': 15,
-    'alignItems': 'center',
-    'fontSize': 15,
-    'fontWeight': 600
+    'alignItems': 'center'
   },
   'iconTheme': {
     'Container': {

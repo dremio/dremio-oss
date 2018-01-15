@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component, PropTypes} from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import FieldWithError from 'components/Fields/FieldWithError';
 import TextField from 'components/Fields/TextField';
-import { body } from 'uiTheme/radium/typography';
 import { section, sectionTitle, description as descriptionStyle } from 'uiTheme/radium/forms';
-import { applyValidators, isRequired, isNumber } from 'utils/validation';
+import { applyValidators, isRequired, isWholeNumber } from 'utils/validation';
 
 export default class Host extends Component {
   static getFields() {
@@ -39,17 +40,17 @@ export default class Host extends Component {
     return applyValidators(values, [
       isRequired('hostname'),
       isRequired('port'),
-      isNumber('port')
+      isWholeNumber('port')
     ]);
   }
 
   render() {
     const {style, fields: {hostname, port}} = this.props;
     const title = this.props.title ? <div style={styles.title}>{this.props.title}</div> : null;
-    const description = this.props.description ? <div style={styles.des}>{this.props.description}</div> : null;
+    const description = this.props.description ? <div className='largerFontSize' style={styles.des}>{this.props.description}</div> : null;
     return (
       <div style={{...section, ...style}}>
-        {title}
+        <h2>{title}</h2>
         {description}
         <FieldWithError errorPlacement='top' label='Host' {...hostname} style={{display: 'inline-block'}}>
           <TextField {...hostname} />
@@ -68,7 +69,6 @@ const styles = {
     margin: '10px 0'
   },
   des: {
-    ...body,
     ...descriptionStyle,
     margin: '10px 0'
   }

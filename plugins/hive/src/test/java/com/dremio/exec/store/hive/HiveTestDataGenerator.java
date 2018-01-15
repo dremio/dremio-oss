@@ -22,6 +22,10 @@ import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Map;
@@ -196,6 +200,23 @@ public class HiveTestDataGenerator {
     if (emptyTableLocation.exists()) {
       FileUtils.forceDelete(emptyTableLocation);
     }
+
+    // create Parquet format based table
+    final File regionDir = new File(BaseTestQuery.getTempDir("region"));
+    regionDir.mkdirs();
+    final URL url = Resources.getResource("region.parquet");
+    if (url == null) {
+      throw new IOException(String.format("Unable to find path %s.", "region.parquet"));
+    }
+
+    final File file = new File(regionDir, "region.parquet");
+    file.deleteOnExit();
+    regionDir.deleteOnExit();
+    Files.copy(Paths.get(url.toURI()), Paths.get(file.toURI()));
+
+    final String parquetUpperSchemaTable = "create external table parquet_region(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
+      "stored as parquet location '" + file.getParent() + "'";
+    executeQuery(hiveDriver, parquetUpperSchemaTable);
 
     // create a Hive table that has columns with data types which are supported for reading in Dremio.
     testDataFile = generateAllTypesDataFile();
@@ -503,24 +524,15 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, "ALTER TABLE kv_parquet ADD COLUMNS (newcol string)");
 
     executeQuery(hiveDriver,
-        "CREATE TABLE countStar_Parquet (int_field INT) STORED AS parquet");
-
-    final int numOfRows = 200;
-    final StringBuffer sb = new StringBuffer();
-    sb.append("VALUES ");
-    for(int i = 0; i < numOfRows; ++i) {
-      if(i != 0) {
-        sb.append(",");
-      }
-      sb.append("(").append(i).append(")");
-    }
-
-    executeQuery(hiveDriver, "INSERT INTO TABLE countStar_Parquet \n" +
-        sb.toString());
+        "CREATE TABLE kv_mixedschema(key INT, value STRING) PARTITIONED BY (part int) STORED AS ORC");
+    executeQuery(hiveDriver, "INSERT INTO TABLE kv_mixedschema PARTITION(part=1) SELECT key, value FROM default.kv LIMIT 2");
+    executeQuery(hiveDriver, "ALTER TABLE kv_mixedschema change column key key string");
+    executeQuery(hiveDriver, "INSERT INTO TABLE kv_mixedschema PARTITION(part=2) " +
+        "SELECT key, value FROM default.kv ORDER BY key DESC LIMIT 2");
 
     executeQuery(hiveDriver, "CREATE TABLE sorted_parquet(id int, key int) clustered by (id) sorted by (key) into 10 buckets stored as Parquet");
 
-    executeQuery(hiveDriver, "INSERT INTO TABLE sorted_parquet select int_field as id, int_field as key from countStar_Parquet distribute by id sort by key");
+    executeQuery(hiveDriver, "INSERT INTO TABLE sorted_parquet select key as id, key as key from kv_parquet distribute by id sort by key");
 
     // Create a StorageHandler based table (DRILL-3739)
     executeQuery(hiveDriver, "CREATE TABLE kv_sh(key INT, value STRING) STORED BY " +

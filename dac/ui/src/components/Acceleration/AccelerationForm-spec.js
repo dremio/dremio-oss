@@ -48,16 +48,16 @@ describe('AccelerationForm', () => {
       aggregationLayouts: {
         // WARNING: this might not be exactly accurate - but it's enough for the test
         layoutList: [
-          {id:{id:'a'}, details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}},
-          {id:{id:null}, details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}
+          {id:'a', details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}},
+          {id:null, details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}
         ],
         enabled: true
       },
       rawLayouts: {
         // WARNING: this might not be exactly accurate - but it's enough for the test
         layoutList: [
-          {id:{id:'b'}, details: {displayFieldList: ['cm1']}},
-          {id:{id:null}, details: {displayFieldList: ['cm1']}}
+          {id:'b', details: {displayFieldList: ['cm1']}},
+          {id:null, details: {displayFieldList: ['cm1']}}
         ],
         enabled: true
       },
@@ -255,7 +255,7 @@ describe('AccelerationForm', () => {
         'aggregationLayouts': {
           // WARNING: this might not be exactly accurate - but it's enough for the test
           layoutList: [
-            {id:{id:'a'}, details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}},
+            {id:'a', details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}},
             {details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}
           ],
           enabled: true
@@ -263,7 +263,7 @@ describe('AccelerationForm', () => {
         'rawLayouts': {
           // WARNING: this might not be exactly accurate - but it's enough for the test
           layoutList: [
-            {id:{id:'b'}, details: {displayFieldList: ['cm1']}},
+            {id:'b', details: {displayFieldList: ['cm1']}},
             {details: {displayFieldList: ['cm1']}}
           ],
           enabled: true
@@ -401,6 +401,7 @@ describe('AccelerationForm', () => {
       const props = {
         ...commonProps,
         deleteAcceleration: sinon.stub().returns(Promise.resolve()),
+        updateFormDirtyState: sinon.stub(),
         acceleration: Immutable.Map({ id: { id: 'abc' } })
       };
       const instance = shallow(<AccelerationForm {...props}/>).instance();
@@ -408,6 +409,7 @@ describe('AccelerationForm', () => {
       instance.deleteAcceleration().then(() => {
         expect(props.onCancel).to.have.been.called;
       });
+      expect(props.updateFormDirtyState).to.be.calledWith(false);
     });
   });
 });

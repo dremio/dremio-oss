@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { reduxForm, propTypes as formPropTypes } from 'redux-form';
 import flatten from 'lodash/flatten';
 import { merge } from 'lodash/object';

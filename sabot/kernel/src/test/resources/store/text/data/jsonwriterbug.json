@@ -1,0 +1,36 @@
+{
+  "attributes": {
+            "City": {
+                "type": "String",
+                "value": []
+            },
+            "Region": {
+                "type": "String",
+                "value": []
+            },
+            "Address": {
+                "type": "String",
+                "value": []
+            },
+            "Country": {
+                "type": "String",
+                "value": []
+            },
+            "Postal Code": {
+                "type": "String",
+                "value": []
+            },
+            "Contact Name": {
+                "type": "String",
+                "value": []
+            },
+            "Contact Email": {
+                "type": "String",
+                "value": []
+            },
+            "Contact Phone": {
+                "type": "String",
+                "value": []
+            }
+        }
+}

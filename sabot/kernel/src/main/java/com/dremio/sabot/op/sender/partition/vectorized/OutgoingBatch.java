@@ -22,7 +22,6 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.Vectors;
 
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.HashPartitionSender;
@@ -149,10 +148,10 @@ public class OutgoingBatch extends VectorContainer {
     stats.addLongStat(Metric.NUM_FLUSHES, 1);
 
     for (NullableVarBinaryVector.Mutator mutator : varbins) {
-      Vectors.setLastSet(mutator, preCopyIdx);
+      mutator.setLastSet(preCopyIdx);
     }
     for (NullableVarCharVector.Mutator mutator : varchars) {
-      Vectors.setLastSet(mutator, preCopyIdx);
+      mutator.setLastSet(preCopyIdx);
     }
     setAllCount(preCopyIdx);
     if (!hasSchema()) {

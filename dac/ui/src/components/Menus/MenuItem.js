@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
 import MenuItemMaterial from 'material-ui/MenuItem';
 import { Popover } from 'material-ui/Popover';
-import { body } from 'uiTheme/radium/typography';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 
 import './MenuItem.less';
@@ -86,7 +86,7 @@ export default class MenuItem extends Component {
 
   render() {
     const { menuItems, rightIcon, onTouchTap, disabled, isInformational } = this.props;
-    const itemStyle = {...styles.menuItem, ...body, ...(isInformational && styles.informational)};
+    const itemStyle = {...styles.menuItem, ...(isInformational && styles.informational)};
     const className = classNames({disabled}, 'menu-item-inner');
     return (
       <div>
@@ -145,6 +145,7 @@ const styles = {
     margin: 0
   },
   menuItem: {
+    fontSize: 12,
     padding: '0 10px',
     height: 25,
     display: 'flex',

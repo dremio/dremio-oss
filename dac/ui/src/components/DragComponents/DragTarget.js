@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { DropTarget } from 'react-dnd';
 import { findDOMNode } from 'react-dom';
 
@@ -23,7 +24,7 @@ const target = {
   drop(props, monitor) {
     const hasDroppedOnChild = monitor.didDrop();
     if (props.onDrop && (props.canDropOnChild || !hasDroppedOnChild)) {
-      props.onDrop(monitor.getItem(), props.index, hasDroppedOnChild);
+      props.onDrop(monitor.getItem(), monitor);
     }
   },
   hover(props, monitor, component) {
@@ -50,30 +51,44 @@ const target = {
   }
 };
 
-@DropTarget(props => props.dragType, target, (connect, monitor) => ({
-  connectDropTarget: connect.dropTarget(),
-  isOver: monitor.isOver(),
-  canDrop: monitor.canDrop()
-}))
+@DropTarget(props => props.dragType, target, (connect, monitor) => {
+  return {
+    connectDropTarget: connect.dropTarget(),
+    isOver: monitor.isOver(),
+    canDrop: monitor.canDrop()
+  };
+})
 export default class DragTargetWrap extends Component {
   static propTypes = {
     dragType: PropTypes.string.isRequired,
+    onDragOver: PropTypes.func,
     onDrop: PropTypes.func,
+    onEnter: PropTypes.func,
+    onLeave: PropTypes.func,
     moveColumn: PropTypes.func,
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     connectDropTarget: PropTypes.func,
     children: PropTypes.node,
-    canDropOnChild: PropTypes.bool
+    canDropOnChild: PropTypes.bool,
+    isOver: PropTypes.bool
   };
 
   static defaultProps = {
     canDropOnChild: false,
-    dragType: DEFAULT_TYPE
+    dragType: DEFAULT_TYPE,
+    isOver: false
   };
+
+  componentWillReceiveProps(nextProps) {
+    if (this.props.isOver !== nextProps.isOver) {
+      if (nextProps.isOver && this.props.onEnter) this.props.onEnter();
+      if (!nextProps.isOver && this.props.onLeave) this.props.onLeave();
+    }
+  }
 
   render() {
     return this.props.connectDropTarget(
-      <div style={styles.base}>
+      <div onDragOver={this.props.onDragOver} style={styles.base}>
         {this.props.children}
       </div>
     );

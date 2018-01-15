@@ -49,4 +49,75 @@ describe('jobsUtils', () => {
       expect(jobsUtils.getFormattedRecords('blabla')).to.be.eql('');
     });
   });
+
+  describe('getReflectionsByRelationship', () => {
+    it('no relationships recorded (failed planning, pre-1.3, etc)', () => {
+      expect(jobsUtils.getReflectionsByRelationship(new Immutable.Map())).to.be.eql({});
+    });
+    it('', () => {
+      const jobDetails = Immutable.fromJS({
+        acceleration: {
+          reflectionRelationships: [
+            {
+              'relationship': 'CONSIDERED',
+              'test-extra': 0
+            },
+            {
+              'relationship': 'CHOSEN',
+              'test-extra': 1
+            },
+            {
+              'relationship': 'MATCHED',
+              'test-extra': 2
+            },
+            {
+              'relationship': 'CONSIDERED',
+              'test-extra': 3
+            },
+            {
+              'relationship': 'CHOSEN',
+              'test-extra': 4
+            },
+            {
+              'relationship': 'MATCHED',
+              'test-extra': 5
+            }
+          ]
+        }
+      });
+
+      expect(jobsUtils.getReflectionsByRelationship(jobDetails)).to.be.eql({
+        'CONSIDERED': [
+          {
+            'relationship': 'CONSIDERED',
+            'test-extra': 0
+          },
+          {
+            'relationship': 'CONSIDERED',
+            'test-extra': 3
+          }
+        ],
+        'CHOSEN': [
+          {
+            'relationship': 'CHOSEN',
+            'test-extra': 1
+          },
+          {
+            'relationship': 'CHOSEN',
+            'test-extra': 4
+          }
+        ],
+        'MATCHED': [
+          {
+            'relationship': 'MATCHED',
+            'test-extra': 2
+          },
+          {
+            'relationship': 'MATCHED',
+            'test-extra': 5
+          }
+        ]
+      });
+    });
+  });
 });

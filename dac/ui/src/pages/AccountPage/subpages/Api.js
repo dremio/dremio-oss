@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import { Link } from 'react-router';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import { generateApiKey } from 'actions/account';
-import { h2, body } from 'uiTheme/radium/typography';
 import { PALE_GREY } from 'uiTheme/radium/colors';
 import Button from 'components/Buttons/Button';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
@@ -44,7 +44,7 @@ class Api extends Component {
   render() {
     const apiKey = this.props.apiKey && this.props.apiKey || '';
     return (
-      <div id='account-api' style={body}>
+      <div id='account-api'>
         <h2 style={styles.header}>{la('Api Access')}</h2>
         <div className='description'>
           Lorem ipsum dolor sit amet, consectetur elit, sed do eiusmod tempor incididunt ut
@@ -71,7 +71,6 @@ class Api extends Component {
 
 const styles = {
   header: {
-    ...h2,
     borderBottom: `2px solid ${PALE_GREY}`,
     marginBottom: 10,
     paddingBottom: 10

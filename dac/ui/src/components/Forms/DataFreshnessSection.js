@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import { section, label } from 'uiTheme/radium/forms';
 import { formDefault } from 'uiTheme/radium/typography';
 import HoverHelp from 'components/HoverHelp';

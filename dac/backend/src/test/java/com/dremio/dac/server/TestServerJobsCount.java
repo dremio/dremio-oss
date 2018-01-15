@@ -30,7 +30,9 @@ import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.file.File;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -91,7 +93,10 @@ public class TestServerJobsCount extends BaseTestServer {
 
   @Test
   public void testDsg1External() {
-    Job job = jobsService.submitExternalJob(new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME), QueryType.UI_RUN);
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
     assertEquals(inc(dsg1), jobsService.getJobsCount(dsg1.toNamespaceKey()));
     assertEquals(inc(sample1), jobsService.getJobsCount(sample1.toNamespaceKey()));
@@ -99,7 +104,10 @@ public class TestServerJobsCount extends BaseTestServer {
 
   @Test
   public void testDsg2UI() {
-    Job job = jobsService.submitExternalJob(new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME), QueryType.UI_RUN);
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
     assertEquals(inc(dsg2), jobsService.getJobsCount(dsg2.toNamespaceKey()));
     assertEquals(inc(sample2), jobsService.getJobsCount(sample2.toNamespaceKey()));
@@ -107,7 +115,10 @@ public class TestServerJobsCount extends BaseTestServer {
 
   @Test
   public void testDsg2Internal() {
-    Job job = jobsService.submitExternalJob(new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME), QueryType.UI_INTERNAL_PREVIEW);
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from DG.dsg2", SampleDataPopulator.DEFAULT_USER_NAME))
+        .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
     // internal jobs don't get counted
     assertEquals((int) jobsCount.get(dsg2), jobsService.getJobsCount(dsg2.toNamespaceKey()));
@@ -116,7 +127,10 @@ public class TestServerJobsCount extends BaseTestServer {
 
   @Test
   public void testDsg1Unknown() {
-    Job job = jobsService.submitExternalJob(new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME), QueryType.UNKNOWN);
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from DG.dsg1", SampleDataPopulator.DEFAULT_USER_NAME))
+        .setQueryType(QueryType.UNKNOWN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
     // unkown jobs are not counted
     assertEquals((int)jobsCount.get(dsg1), jobsService.getJobsCount(dsg1.toNamespaceKey()));
@@ -126,7 +140,10 @@ public class TestServerJobsCount extends BaseTestServer {
 
   @Test
   public void testDsg10External() {
-    Job job = jobsService.submitExternalJob(new SqlQuery("select * from DG.dsg10", SampleDataPopulator.DEFAULT_USER_NAME), QueryType.UI_RUN);
+    Job job = jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from DG.dsg10", SampleDataPopulator.DEFAULT_USER_NAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
     assertEquals(inc(dsg10), jobsService.getJobsCount(dsg10.toNamespaceKey()));
     assertEquals(inc(dsg9), jobsService.getJobsCount(dsg9.toNamespaceKey()));

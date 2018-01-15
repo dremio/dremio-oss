@@ -241,6 +241,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
+        in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
         java.math.BigDecimal decimal = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
         out.value = decimal.hashCode() ^ ((int) seed.value) ^ (seed.value >> 16);
       }

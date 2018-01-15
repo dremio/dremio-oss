@@ -97,6 +97,7 @@ import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.CatalogServiceImpl;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.Binder;
@@ -125,6 +126,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestServer.class);
 
   private static final String API_LOCATION = "apiv2";
+  private static final String PUBLIC_API_LOCATION = "api";
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   protected static final String DEFAULT_PASSWORD = SampleDataPopulator.PASSWORD;
 
@@ -217,6 +219,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static WebTarget rootTarget;
   private static WebTarget apiV2;
   private static WebTarget masterApiV2;
+  private static WebTarget publicAPI;
+  private static WebTarget masterPublicAPI;
   private static DACDaemon executorDaemon;
   private static DACDaemon currentDremioDaemon;
   private static DACDaemon masterDremioDaemon;
@@ -245,6 +249,14 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static WebTarget getMasterAPIv2() {
     return masterApiV2;
+  }
+
+  public static WebTarget getPublicAPI(Integer version) {
+    return publicAPI.path("v" + version);
+  }
+
+  public static WebTarget getMasterPublicAPI() {
+    return masterPublicAPI;
   }
 
   protected static DACDaemon getCurrentDremioDaemon() {
@@ -305,10 +317,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
     rootTarget = client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort());
     apiV2 = rootTarget.path(API_LOCATION);
+    publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
     if (isMultinode()) {
       masterApiV2 = client.target("http://localhost:" + masterDremioDaemon.getWebServer().getPort()).path(API_LOCATION);
+      masterPublicAPI = client.target("http://localhost:" + masterDremioDaemon.getWebServer().getPort()).path(PUBLIC_API_LOCATION);
     } else {
       masterApiV2 = apiV2;
+      masterPublicAPI = publicAPI;
     }
   }
 
@@ -588,7 +603,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
           .deleteEverything(SimpleUserService.USER_STORE);
     }
     currentDremioDaemon.getBindingProvider().lookup(StoragePluginRegistry.class).updateNamespace(Sets.newHashSet("cp", "__datasetDownload", "__home", "__jobResultsStore", "$scratch"), CatalogService.REFRESH_EVERYTHING_NOW);
-    currentDremioDaemon.getBindingProvider().lookup(CatalogService.class).testTrimBackgroundTasks();
+    ((CatalogServiceImpl)currentDremioDaemon.getBindingProvider().lookup(CatalogService.class)).testTrimBackgroundTasks();
   }
 
   protected void setSpace() throws NamespaceException, IOException {

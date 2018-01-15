@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { Popover } from 'material-ui/Popover';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import EllipsedText from 'components/EllipsedText';
 
@@ -45,6 +47,7 @@ export function FilterSelectMenuItem({item, onChange, checked}) {
   </div>);
 }
 
+@injectIntl
 @pureRender
 @Radium
 export default class FilterSelectMenu extends Component {
@@ -64,7 +67,9 @@ export default class FilterSelectMenu extends Component {
     // callbacks
     loadItemsForFilter: PropTypes.func,
     onItemSelect: PropTypes.func,
-    onItemUnselect: PropTypes.func
+    onItemUnselect: PropTypes.func,
+
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = { // todo: `la` loc not building correctly here
@@ -197,7 +202,7 @@ export default class FilterSelectMenu extends Component {
 
   renderSelectedLabel() { // todo: better loc
     const selectedItems = !this.props.selectedValues.size
-                            ? la(': All')
+                            ? `: ${this.props.intl.formatMessage({ id: 'Common.All' })}`
                             : this.getSelectedItems().map(item => item.label).join(', ');
     return !this.props.preventSelectedLabel
       ? (

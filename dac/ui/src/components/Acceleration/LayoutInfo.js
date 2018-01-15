@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { Link } from 'react-router';
 
@@ -42,7 +43,7 @@ export default class LayoutInfo extends Component {
 
     const layoutState = syntheticLayoutState(layoutData);
 
-    const jobsURL = jobsUtils.navigationURLForLayoutId(layoutData.id.id);
+    const jobsURL = jobsUtils.navigationURLForLayoutId(layoutData.id);
 
     // todo: ax
     return <div style={{...styles.main, ...this.props.style}}>

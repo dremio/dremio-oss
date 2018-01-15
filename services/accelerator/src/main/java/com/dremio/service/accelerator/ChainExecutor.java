@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.rel.RelNode;
@@ -149,7 +150,7 @@ public class ChainExecutor implements Runnable, AutoCloseable, Iterable<Layout> 
         final MaterializationResult result = task.materialize().get();
 
         // post materialization
-        task.updateMetadataAndSave();
+        task.updateMetadataAndSave(startTimeOfLastChain);
 
         //update materialization cache
         context.getAccelerationService().getMaterlizationProvider().update(
@@ -177,7 +178,7 @@ public class ChainExecutor implements Runnable, AutoCloseable, Iterable<Layout> 
       return; // we should not attempt to rebuild the graph if we have been cancelled
     }
     if (rebuild) {
-      context.getAccelerationService().buildRefreshDependencyGraph();
+      context.getAccelerationService().startBuildDependencyGraph();
     } else if (!runOnce) {
       schedule();
     }
@@ -249,6 +250,10 @@ public class ChainExecutor implements Runnable, AutoCloseable, Iterable<Layout> 
    * @return
    */
   private boolean materializationFailed(Layout layout, Throwable ex) {
+    //ignore Cancellations
+    if (ex instanceof CancellationException) {
+      return false;
+    }
     logger.warn("For sub graph {}, failed running layout {}.", id, layout.getId().getId(), ex);
 
     //obtain materializedLayout for the given layout

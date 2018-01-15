@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { LIST, MAP, TEXT, DATE, TIME, DATETIME } from 'constants/DataTypes';
 import { BIN_TYPES, NUMBER_TYPES, ALL_TYPES } from 'constants/columnTypeGroups';
@@ -40,86 +42,86 @@ export default class SqlGroup extends Component {
       <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_ELEMENTS'
-        title={la('Extract Element(s)...')}
+        title={la('Extract Element(s)…')}
         availableTypes={[LIST]}
         onClick={onClick}/>,
       <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_ELEMENT'
-        title={la('Extract Element...')}
+        title={la('Extract Element…')}
         availableTypes={[MAP]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         disabled
         columnType={columnType}
         actionType='SPLIT_TO_MULTIPLY_FIELDS'
-        title={la('Split to Multiple Fields...')}
+        title={la('Split to Multiple Fields…')}
         availableTypes={[LIST]}
         onClick={onClick}/>,
       <ColumnMenuItem
         columnType={columnType}
         actionType='CONVERT_CASE'
-        title={la('Convert Case...')}
+        title={la('Convert Case…')}
         availableTypes={[TEXT]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_DATE_PART'
-        title={la('Extract Date Part...')}
+        title={la('Extract Date Part…')}
         availableTypes={[DATE]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_TIME_PART'
-        title={la('Extract Time Part...')}
+        title={la('Extract Time Part…')}
         availableTypes={[TIME]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='EXTRACT_PART'
-        title={la('Extract Part...')}
+        title={la('Extract Part…')}
         availableTypes={[DATETIME]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='TRUNCATE_DATE'
-        title={la('Truncate Date...')}
+        title={la('Truncate Date…')}
         availableTypes={[DATE]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='TRUNCATE_TIME'
-        title={la('Truncate Time...')}
+        title={la('Truncate Time…')}
         availableTypes={[TIME]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='TRUNCATE'
-        title={la('Truncate...')}
+        title={la('Truncate…')}
         availableTypes={[DATETIME]}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='ROUND'
-        title={la('Round...')}
+        title={la('Round…')}
         availableTypes={NUMBER_TYPES}
         onClick={onClick}/>,
       false && <ColumnMenuItem
         columnType={columnType}
         actionType='BIN'
-        title={la('Bin...')}
+        title={la('Bin…')}
         availableTypes={BIN_TYPES}
         onClick={onClick}/>,
       <ColumnMenuItem
         columnType={columnType}
         actionType='TRIM_WHITE_SPACES'
-        title={la('Trim Whitespace...')}
+        title={la('Trim Whitespace…')}
         availableTypes={[TEXT]}
         onClick={onClick}/>,
       <ColumnMenuItem
         columnType={columnType}
         actionType='CALCULATED_FIELD'
-        title={la('Calculated Field...')}
+        title={la('Calculated Field…')}
         availableTypes={ALL_TYPES}
         onClick={onClick}
       />

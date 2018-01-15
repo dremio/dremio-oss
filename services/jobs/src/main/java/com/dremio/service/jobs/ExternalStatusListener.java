@@ -19,16 +19,18 @@ package com.dremio.service.jobs;
  * Informs an interested party about job events.
  */
 public interface ExternalStatusListener {
+
   /**
    * Called one or more times when a profile is updated (prior to job completion).
-   * @param profile The updated job.
+   *
+   * @param job updated job
    */
   void profileUpdated(Job job);
 
   /**
    * Called when job is completed. Provides final job object.
-   * @param result
-   * @param profile
+   *
+   * @param job updated job
    */
   void queryCompleted(Job job);
 }

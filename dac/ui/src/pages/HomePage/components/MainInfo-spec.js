@@ -50,7 +50,7 @@ describe('MainInfo', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ...', () => {
+  it('should render commpn props', () => {
     const wrapper = shallow(<MainInfo {...commonProps}/>, { context });
     expect(wrapper).to.have.length(1);
   });

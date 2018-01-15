@@ -33,6 +33,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.homefiles.HomeFileConfig;
 import com.dremio.dac.homefiles.HomeFileTool;
+import com.dremio.dac.server.APIServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
@@ -316,6 +317,7 @@ public class DACDaemonModule implements DACModule {
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
+        registry.provider(KVStoreProvider.class),
         registry.getBindingCreator(),
         isMaster,
         isCoordinator,
@@ -366,6 +368,7 @@ public class DACDaemonModule implements DACModule {
     if(isExecutor){
       registry.bindSelf(
           new FragmentWorkManager(bootstrap,
+              config,
               registry.provider(NodeEndpoint.class),
               registry.provider(SabotContext.class),
               registry.provider(FabricService.class),
@@ -460,6 +463,7 @@ public class DACDaemonModule implements DACModule {
               dacConfig.addDefaultUser));
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
+      registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
 
       // if we have at least one user registered, disable firstTimeApi and checkNoUser
       // but for userGroupService is not started yet so we cannot check for now
@@ -469,6 +473,7 @@ public class DACDaemonModule implements DACModule {
           registry.provider(NodeEndpoint.class),
           registry.provider(SabotContext.class),
           registry.provider(RestServerV2.class),
+          registry.provider(APIServer.class),
           "ui",
           isInternalUGS));
 

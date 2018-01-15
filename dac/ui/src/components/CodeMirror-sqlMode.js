@@ -443,7 +443,7 @@ CodeMirror.defineMode("sql", function(config, parserConfig) {
     // plus list, map, struct
     // plus text/x-sqlite list because we don't have a list of type aliases
     // todo: reconcile with constants/DataTypes.js
-    builtin: set("varbinary bit date float double interval_day_seconds interval_year_months int bigint time timestamp varchar" + " " + "bool boolean bit blob decimal double float long longblob longtext medium mediumblob mediumint mediumtext time timestamp tinyblob tinyint tinytext text clob bigint int int2 int8 integer float double char varchar date datetime year unsigned signed numeric real"),
+    builtin: set("varbinary bit date float double interval_day_seconds interval_year_months int bigint time timestamp varchar" + " " + "list map struct" + " " + "bool boolean bit blob decimal double float long longblob longtext medium mediumblob mediumint mediumtext time timestamp tinyblob tinyint tinytext text clob bigint int int2 int8 integer float double char varchar date datetime year unsigned signed numeric real"),
 
     // search of `/name: (.*)\nargs:\n/g` in sqlfunctions.yml
     // plus text/x-sqlite list

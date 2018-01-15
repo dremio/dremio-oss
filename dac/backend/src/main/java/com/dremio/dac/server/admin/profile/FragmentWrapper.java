@@ -24,6 +24,7 @@ import java.util.List;
 
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
+import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.google.common.base.Preconditions;
@@ -246,6 +247,26 @@ public class FragmentWrapper {
       builder.appendCell(major.getMajorFragmentId() + "-" + m.getMinorFragmentId(), null);
       builder.appendRepeated(m.getState().toString(), null, NUM_NULLABLE_FRAGMENTS_COLUMNS);
     }
+    return builder.build();
+  }
+
+  public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory"};
+
+  public String getMetricsTable() {
+    if (major.getNodePhaseProfileList() == null || major.getNodePhaseProfileList().isEmpty()) {
+      return "";
+    }
+
+    final TableBuilder builder = new TableBuilder(PHASE_METRICS_COLUMNS);
+    final List<NodePhaseProfile> nodePhaseProfiles = new ArrayList<>(major.getNodePhaseProfileList());
+
+    Collections.sort(nodePhaseProfiles, Comparators.nodeAddress);
+
+    for (NodePhaseProfile nodePhaseProfile : nodePhaseProfiles) {
+      builder.appendCell(nodePhaseProfile.getEndpoint().getAddress(), null); // Host name
+      builder.appendBytes(nodePhaseProfile.getMaxMemoryUsed(), null); // Peak Memory
+    }
+
     return builder.build();
   }
 }

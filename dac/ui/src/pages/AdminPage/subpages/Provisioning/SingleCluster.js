@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import { getViewState } from 'selectors/resources';
 import FontIcon from 'components/Icon/FontIcon';
-import { h3, body } from 'uiTheme/radium/typography';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 import Message from 'components/Message';
 import ClusterWorkers from './ClusterWorkers';
@@ -98,7 +98,7 @@ export class SingleCluster extends Component {
         <ViewStateWrapper viewState={viewState}>
           {this.renderClusterState()}
           <div style={styles.title}>
-            <span style={h3}>{entity.get('clusterType')}</span>
+            <span className='h3'>{entity.get('clusterType')}</span>
             <span style={styles.clusterInfoTitle}>
               {clusterInfo}
             </span>
@@ -150,7 +150,6 @@ const styles = {
     marginRight: 5
   },
   clusterInfoTitle: {
-    ...body,
     marginLeft: 5,
     color: '#9a9a9a'
   },

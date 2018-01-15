@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { Toggle } from 'components/Fields';
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
+import {getUniqueName} from 'utils/pathUtils';
 import { commonStyles } from '../commonStyles';
 import AccelerationGridController from './AccelerationGridController';
 
@@ -30,7 +32,7 @@ export default class AccelerationAggregation extends Component {
   static getFields() {
     return [
       'aggregationLayouts.enabled',
-      'aggregationLayouts.layoutList[].id.id',
+      'aggregationLayouts.layoutList[].id',
       'aggregationLayouts.layoutList[].name',
       'aggregationLayouts.layoutList[].details.partitionDistributionStrategy',
       'aggregationLayouts.layoutList[].details.partitionFieldList[].name',
@@ -48,8 +50,11 @@ export default class AccelerationAggregation extends Component {
 
   addNewLayout = () => {
     const { aggregationLayouts } = this.props.fields;
+    const name = getUniqueName(la('New Reflection'), proposedName => {
+      return !aggregationLayouts.layoutList.some(layout => layout.name.value === proposedName);
+    });
     aggregationLayouts.layoutList.addField({
-      name: la('New Reflection'),
+      name,
       details: {
         dimensionFieldList: [],
         measureFieldList: [],
@@ -70,10 +75,10 @@ export default class AccelerationAggregation extends Component {
   renderHeader = () => {
     const { enabled } = this.props.fields.aggregationLayouts;
     const toggleLabel = (
-      <div style={commonStyles.toggleLabel}>
+      <h3 style={commonStyles.toggleLabel}>
         <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
         {la('Aggregation Reflections')}
-      </div>
+      </h3>
     );
     return (
       <div style={commonStyles.header}>

@@ -30,6 +30,8 @@ import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.parquet.format.converter.ParquetMetadataConverter;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
@@ -124,7 +126,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
         throw UserException.dataReadError().message("Unable to find any files for datasets.").build(logger);
       }
       final FileStatus firstFile = firstFileO.get();
-      final ParquetMetadata footer = fsPlugin.getFooterCache().getFooter(firstFile);
+      final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
       final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
         ((ParquetFormatPlugin)formatPlugin).getConfig().autoCorrectCorruptDates);
       final boolean readInt96AsTimeStamp = operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).bool_val;

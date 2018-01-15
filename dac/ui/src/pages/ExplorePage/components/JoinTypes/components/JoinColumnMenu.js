@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import { formLabel } from 'uiTheme/radium/typography';
@@ -32,7 +34,7 @@ export default class JoinColumnMenu extends PureComponent {
     columns: PropTypes.object,
     disabledColumnNames: PropTypes.instanceOf(Immutable.Set),
     type: PropTypes.string,
-    path: PropTypes.string
+    nameForDisplay: PropTypes.string
   };
 
   render() {
@@ -40,7 +42,7 @@ export default class JoinColumnMenu extends PureComponent {
     return ( // todo: loc
       <div style={[styles.base]}>
         <div style={{...styles.titleWrap, ...formLabel}}>
-          <EllipsedText text={`Select fields from “${this.props.path}”${type === 'default' ? ' (current)' : ''}:`}/>
+          <EllipsedText text={`Select fields from “${this.props.nameForDisplay}”${type === 'default' ? ' (current)' : ''}:`}/>
         </div>
         <DragColumnMenu
           style={styles.menu}
@@ -51,7 +53,7 @@ export default class JoinColumnMenu extends PureComponent {
           handleDragStart={handleDragStart && handleDragStart.bind(this, this.props.type)}
           onDragEnd={onDragEnd}
           dragType={this.props.dragType}
-          name={this.props.path + ' <current>'}/>
+          name={this.props.nameForDisplay + ' <current>'}/>
       </div>
     );
   }

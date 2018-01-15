@@ -15,11 +15,13 @@
  */
 import { shallow } from 'enzyme';
 import merge from 'lodash/merge';
+import { injectIntl } from 'react-intl';
 import Immutable from 'immutable';
 import { minimalFormProps } from 'testUtil';
-import {FileFormatForm} from './FileFormatForm';
+import { FileFormatForm } from './FileFormatForm';
 import { ExcelFormatForm, TextFormatForm, XLSFormatForm } from './FormatForms';
 
+const FileFormatFormIntl = injectIntl(FileFormatForm);
 describe('FileFormatForm', () => {
   let minimalProps;
   let commonProps;
@@ -63,14 +65,14 @@ describe('FileFormatForm', () => {
         isFailed: false
       })
     };
-    wrapper = shallow(<FileFormatForm {...commonProps}/>);
+    wrapper = shallow(<FileFormatFormIntl {...commonProps}/>);
   });
 
 
   describe('Rendering', () => {
 
     it('renders <ModalForm>', () => {
-      const wrap = shallow(<FileFormatForm {...minimalProps}/>);
+      const wrap = shallow(<FileFormatFormIntl {...minimalProps}/>);
       expect(wrap.find('ModalForm')).to.have.length(1);
     });
 
@@ -83,7 +85,7 @@ describe('FileFormatForm', () => {
       expect(wrapper.find('ExcelFormatForm')).to.have.length(0);
 
       const excelFields = merge({}, commonProps.fields, {type: {value: 'Excel'}});
-      wrapper = shallow(<FileFormatForm {...commonProps} fields={excelFields}/>);
+      wrapper = shallow(<FileFormatFormIntl {...commonProps} fields={excelFields}/>);
       expect(wrapper.find('ExcelFormatForm')).to.have.length(1);
     });
 

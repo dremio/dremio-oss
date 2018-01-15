@@ -15,15 +15,15 @@
  */
 // todo: rename this file
 
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import pureRender from 'pure-render-decorator';
 
+import { FormattedMessage } from 'react-intl';
 import { FormBody, FormTitle } from 'components/Forms';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
-
-import { h4, body } from 'uiTheme/radium/typography';
 
 import { getIconDataTypeFromEntity } from 'utils/iconUtils';
 
@@ -49,9 +49,11 @@ export default class DatasetOverviewForm extends Component {
 
     // todo: if a real form likely want wrapped in ModalForm like siblings?
     return (
-      <FormBody style={styles.body}>
-        <FormTitle>{la('Overview')}</FormTitle>
-        <div style={body}>
+      <FormBody>
+        <FormTitle>
+          <FormattedMessage id = 'Common.Overview' />
+        </FormTitle>
+        <div>
           <DatasetItemLabel
             name={entity.get('name')}
             item={entity}
@@ -66,10 +68,3 @@ export default class DatasetOverviewForm extends Component {
   }
 }
 
-const styles = {
-  subtitle: {
-    ...h4,
-    marginTop: 20,
-    marginBottom: 10
-  }
-};

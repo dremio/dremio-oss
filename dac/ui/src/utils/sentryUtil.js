@@ -16,7 +16,7 @@
 import Raven from 'raven-js';
 import uuid from 'uuid';
 import { getVersionWithEdition } from 'dyn-load/utils/versionUtils';
-import config, { isProductionServer } from './config';
+import config from './config';
 
 class SentryUtil {
 
@@ -26,7 +26,7 @@ class SentryUtil {
   sessionUUID = uuid.v4();
 
   install() {
-    if (isProductionServer() && !config.outsideCommunicationDisabled) {
+    if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
       Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750', {
         release: getVersionWithEdition(),
         serverName: config.clusterId
@@ -38,7 +38,7 @@ class SentryUtil {
   }
 
   logException(ex, context) {
-    if (isProductionServer() && !config.outsideCommunicationDisabled) {
+    if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
       Raven.captureException(ex, {
         extra: context
       });

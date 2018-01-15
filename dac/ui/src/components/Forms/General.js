@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import { section, sectionTitle, formRow } from 'uiTheme/radium/forms';
 
@@ -55,7 +57,7 @@ export default class General extends Component {
     return (
       <div>
         <div className='general' style={section}>
-          <h3 style={sectionTitle}>{la('General')}</h3>
+          <h2 style={sectionTitle}>{la('General')}</h2>
           <div style={{...formRow, display: 'flex'}}>
             <FieldWithError errorPlacement='top' label={la('Name')} {...name}
               style={fieldWithErrorStyle}>

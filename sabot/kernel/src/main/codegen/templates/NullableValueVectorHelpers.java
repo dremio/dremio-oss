@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import com.dremio.exec.proto.UserBitShared.SerializedField;
-import com.dremio.exec.vector.BaseDataValueVector;
 import com.dremio.exec.vector.NullableVectorDefinitionSetter;
 
 import java.lang.Override;
@@ -71,7 +70,7 @@ public final class ${className} extends BaseValueVectorHelper {
     final SerializedField bitsField = metadata.getChild(0);
     TypeHelper.load(vector.bits, bitsField, buffer);
     <#if type.major == "VarLen" >
-    org.apache.arrow.vector.LastSetter.set((Nullable${minor.class}Vector) vector, metadata.getValueCount());
+    vector.getMutator().setLastSet(metadata.getValueCount());
     </#if>
     final int capacity = buffer.capacity();
     final int bitsLength = bitsField.getBufferLength();

@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
-import { h2, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 import { loadSourceCredentials, addSourceCredential, removeSourceCredential } from 'actions/account';
 import { PALE_GREY } from 'uiTheme/radium/colors';
 import Button from 'components/Buttons/Button';
@@ -118,7 +119,6 @@ export default connect(mapStateToProps, {
 
 const styles = {
   header: {
-    ...h2,
     borderBottom: `2px solid ${PALE_GREY}`,
     marginBottom: 10,
     paddingBottom: 10

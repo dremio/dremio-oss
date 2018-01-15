@@ -181,7 +181,7 @@ function deleteUser(user) {
       types: [
         REMOVE_USER_START,
         { type: REMOVE_USER_SUCCESS, meta },
-        REMOVE_USER_FAILURE
+        { type: REMOVE_USER_FAILURE, meta: { notification: true } }
       ],
       method: 'DELETE',
       headers: {'Content-Type': 'application/json'},

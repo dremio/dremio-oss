@@ -22,7 +22,7 @@
 
   "rules":{
     "no-debugger": "warn",
-    "no-console": ["warn", { allow: ["warn", "error", "info"] }],
+    "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
     "react/prop-types": ["error", { "ignore": [], "customValidators": [] }],
     "react/sort-comp": ["off", { // disabled because it's not ready for class properties. also, chris finds it generally annoying ;)
       "order": [
@@ -51,7 +51,7 @@
         "/^(get|set)(?!(InitialState$|DefaultProps$|ChildContext$)).+$/",
         "everything-else",
         "/^render.+$/",
-        "render",
+        "render"
       ]
     }],
     "react/jsx-uses-vars": "error",
@@ -167,7 +167,7 @@
     "$": true,
     "jsPlumb": true,
     "ga": true,
-    "la": true,
+    "la": true, // todo: remove
     "expect": true,
     "sinon": true,
     "Immutable": true

@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes, Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { debounce } from 'lodash/function';
 import Mousetrap from 'mousetrap';
 import invariant from 'invariant';
+import { injectIntl } from 'react-intl';
 
 import * as allSpacesStyles from 'uiTheme/radium/allSpacesAndAllSources';
-import { h3 } from 'uiTheme/radium/typography';
 import EllipsedText from 'components/EllipsedText';
 
 import { SearchField } from 'components/Fields';
@@ -31,6 +32,7 @@ import { constructFullPath } from 'utils/pathUtils';
 import { tableStyles } from '../tableStyles';
 import './BrowseTable.less';
 
+@injectIntl
 export default class BrowseTable extends Component {
   static propTypes = {
     tableData: PropTypes.instanceOf(Immutable.List),
@@ -38,7 +40,8 @@ export default class BrowseTable extends Component {
     title: PropTypes.node,
     buttons: PropTypes.node,
     children: PropTypes.node,
-    filterKey: PropTypes.string.isRequired
+    filterKey: PropTypes.string.isRequired,
+    intl: PropTypes.object.isRequired
     // extra props passed along to underlying Table impl
   };
 
@@ -87,7 +90,7 @@ export default class BrowseTable extends Component {
   }
 
   render() {
-    const { title, buttons, filterKey, tableData, ...passAlongProps } = this.props; // eslint-disable-line no-unused-vars
+    const { title, buttons, tableData, intl, ...passAlongProps } = this.props; // eslint-disable-line no-unused-vars
     invariant(
       !title || typeof title === 'string' || title.props.fullPath,
       'BrowseTable title must be string or BreadCrumbs.'
@@ -99,7 +102,7 @@ export default class BrowseTable extends Component {
     ); //it's needed for https://dremio.atlassian.net/browse/DX-7140
 
     if (tableData.size) {
-      passAlongProps.noDataText = la(`No items found for search “${this.state.filter}”.`); // todo: text sub loc
+      passAlongProps.noDataText = intl.formatMessage({ id: 'Search.BrowseTable'}, { filter: this.state.filter });
     }
 
     return (
@@ -108,7 +111,7 @@ export default class BrowseTable extends Component {
         <div className='list-content' style={allSpacesStyles.main}>
           <div className='row'>
             <div style={allSpacesStyles.header} className='browse-table-viewer-header'>
-              <h3 style={{...styles.heading}}>
+              <h3 style={styles.heading}>
                 <EllipsedText text={
                   !title || typeof title === 'string'
                     ? title
@@ -123,7 +126,7 @@ export default class BrowseTable extends Component {
                   ref={searchField => this.searchField = searchField}
                   onChange={this.handleFilterChange}
                   style={tableStyles.searchField}
-                  placeholder={la('Search...')}
+                  placeholder={intl.formatMessage({ id: 'Dataset.SearchEllipsis' })}
                   showCloseIcon
                   inputClassName='mousetrap'
                 />
@@ -154,7 +157,6 @@ export default class BrowseTable extends Component {
 
 const styles = { // todo: RTL support
   heading: {
-    ...h3,
     flexShrink: 1,
     minWidth: 0,
     direction: 'rtl' // use RTL mode as a hack to make truncation start at the left...

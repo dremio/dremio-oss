@@ -140,17 +140,17 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken) {
+  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
     for (final AttemptObserver observer : observers) {
-      observer.planNormalized(millisTaken);
+      observer.planNormalized(millisTaken, normalizedQueryPlans);
     }
   }
 
   @Override
   public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions,
-                              RelNode query, RelNode target, long millisTaken) {
+                              RelNode target, long millisTaken) {
     for (final AttemptObserver observer : observers) {
-      observer.planSubstituted(materialization, substitutions, query, target, millisTaken);
+      observer.planSubstituted(materialization, substitutions, target, millisTaken);
     }
   }
 

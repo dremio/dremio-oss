@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import ReactDOM from 'react-dom';
 import { Overlay, Portal } from 'react-overlays';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
@@ -28,7 +29,7 @@ import DatasetOverlayContent from './DatasetOverlayContent';
 @pureRender
 export default class DatasetItemLabel extends Component {
   static propTypes = {
-    name: PropTypes.string,
+    name: PropTypes.string, // defaults to last token of fullPath
     inputValue: PropTypes.string,
     fullPath: PropTypes.instanceOf(Immutable.List),
     showFullPath: PropTypes.bool,
@@ -78,8 +79,12 @@ export default class DatasetItemLabel extends Component {
   };
 
   renderDefaultNode() {
-    const { name, inputValue, fullPath, showFullPath } = this.props;
+    let { name, inputValue, fullPath, showFullPath } = this.props;
     const joinedPath = fullPath.slice(0, -1).join('.');
+
+    if (!name && fullPath) {
+      name = fullPath.last();
+    }
 
     return (
       <div style={styles.datasetLabel}>

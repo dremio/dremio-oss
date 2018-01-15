@@ -41,8 +41,9 @@ import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -137,7 +138,9 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
   }
 
   private JobData runExternalQuery(String sql) {
-    return new JobUI(jobsService.submitExternalJob(new SqlQuery(sql, Arrays.asList("@"+DEFAULT_USER_NAME), DEFAULT_USER_NAME), QueryType.UNKNOWN)).getData();
+    return new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(sql, Arrays.asList("@" + DEFAULT_USER_NAME), DEFAULT_USER_NAME))
+        .build(), NoOpJobStatusListener.INSTANCE)).getData();
   }
 
   private JobsService jobsService;

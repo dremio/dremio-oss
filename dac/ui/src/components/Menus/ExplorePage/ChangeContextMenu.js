@@ -27,7 +27,7 @@ class ChangeContextMenu extends Component {
   render() {
     return (
       <Menu>
-        <MenuItem disabled>{la('Switch Context...')}</MenuItem>
+        <MenuItem disabled>{la('Switch Context…')}</MenuItem>
       </Menu>
     );
   }

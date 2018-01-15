@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import uuid from 'uuid';
 
 import FieldList, {AddButton, RemoveButton} from 'components/Fields/FieldList';
@@ -78,7 +79,7 @@ export default class YarnProperties extends Component {
     const des = this.props.description ? <div style={description}>{this.props.description}</div> : null;
     return (
       <div className='properties' style={section}>
-        <h3 style={sectionTitle}>{title}</h3>
+        <h2 style={sectionTitle}>{title}</h2>
         {des}
         <FieldList
           items={propertyList}

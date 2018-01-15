@@ -37,7 +37,9 @@ import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.google.common.base.Preconditions;
@@ -106,7 +108,10 @@ public class DatasetDownloadManager {
     String ctasSql = format("CREATE TABLE %s.%s STORE AS (%s) WITH SINGLE WRITER AS %s",
       SqlUtils.quoteIdentifier(DATASET_DOWNLOAD_STORAGE_PLUGIN), SqlUtils.quoteIdentifier(downloadFilePath.toString()), getTableOptions(downloadFormat), selectQuery);
 
-    final Job job = jobsService.submitDownloadJob(new SqlQuery(ctasSql, userName), downloadId, fileName);
+    final Job job = jobsService.submitJob(
+        JobRequest.newDownloadJobBuilder(downloadId, fileName)
+            .setSqlQuery(new SqlQuery(ctasSql, userName))
+            .build(), NoOpJobStatusListener.INSTANCE);
     logger.debug("Scheduled download job {} for {}", job.getJobId(), datasetPath);
     return job;
   }

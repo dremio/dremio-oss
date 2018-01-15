@@ -19,11 +19,11 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.security.PrivilegedAction;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
@@ -42,12 +42,14 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HiveStoragePlugin2;
-import com.dremio.exec.store.parquet.ParquetFooterCache;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
+import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
+import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -57,6 +59,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 @SuppressWarnings("unused")
@@ -99,39 +102,40 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
     Iterable<RecordReader> readers = null;
     try {
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
-      final HiveSplitXattr firstAttr = HiveSplitXattr.parseFrom(config.getSplits().get(0).getExtendedProperty().toByteArray());
-      final FileSplit firstSplit = (FileSplit) HiveAbstractReader.deserializeInputSplit(firstAttr.getInputSplit());
-      final ParquetFooterCache footerCache = new ParquetFooterCache(FileSystemWrapper.get(firstSplit.getPath(), jobConf), 10, true);
-      readers = FluentIterable.from(config.getSplits()).transform(new Function<DatasetSplit, RecordReader>(){
+      final List<HiveParquetSplit> sortedSplits = Lists.newArrayList();
+      final SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
 
+      for (DatasetSplit spilt : config.getSplits()) {
+        sortedSplits.add(new HiveParquetSplit(spilt));
+      }
+      Collections.sort(sortedSplits);
+
+      readers = FluentIterable.from(sortedSplits).transform(new Function<HiveParquetSplit, RecordReader>(){
 
         @Override
-        public RecordReader apply(final DatasetSplit split) {
+        public RecordReader apply(final HiveParquetSplit split) {
           return currentUGI.doAs(new PrivilegedAction<RecordReader>() {
             @Override
             public RecordReader run() {
-              try {
-                final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
-                final FileSplit fileSplit = (FileSplit) HiveAbstractReader.deserializeInputSplit(splitAttr.getInputSplit());
-                final Path finalPath = fileSplit.getPath();
-
-                final RecordReader innerReader = new FileSplitParquetRecordReader(
-                    context,
-                    readerFactory,
-                    compositeReader.getInnerColumns(),
-                    config.getColumns(),
-                    config.getConditions(),
-                    fileSplit,
-                    footerCache,
-                    jobConf,
-                    vectorize,
-                    enableDetailedTracing
-                );
-
-                return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split);
-              } catch (IOException | ReflectiveOperationException e) {
-                throw new RuntimeException("Failed to create RecordReaders. " + e.getMessage(), e);
+              for (Prop prop : tableAttr.getPartitionPropertiesList().get(split.getPartitionId()).getPartitionPropertyList()) {
+                jobConf.set(prop.getKey(), prop.getValue());
               }
+              // per partition fs is different
+              final FileSystemWrapper fs = ImpersonationUtil.createFileSystem(ImpersonationUtil.getProcessUserName(), jobConf, split.getFileSplit().getPath());
+              final RecordReader innerReader = new FileSplitParquetRecordReader(
+                context,
+                readerFactory,
+                compositeReader.getInnerColumns(),
+                config.getColumns(),
+                config.getConditions(),
+                split.getFileSplit(),
+                footerCache.getFooter(fs, split.getFileSplit().getPath()),
+                jobConf,
+                vectorize,
+                enableDetailedTracing
+              );
+
+              return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split.getDatasetSplit());
             }
           });
 
@@ -144,6 +148,47 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
         AutoCloseables.close(e, readers);
       }
       throw Throwables.propagate(e);
+    }
+  }
+
+  private static class HiveParquetSplit implements Comparable {
+    private final DatasetSplit datasetSplit;
+    private final FileSplit fileSplit;
+    private final int partitionId;
+
+    HiveParquetSplit(DatasetSplit datasetSplit) {
+      this.datasetSplit = datasetSplit;
+      try {
+        final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(datasetSplit.getExtendedProperty().toByteArray());
+        final FileSplit fullFileSplit = (FileSplit) HiveAbstractReader.deserializeInputSplit(splitAttr.getInputSplit());
+        // make a copy of file split, we only need file path, start and length, throw away hosts
+        this.fileSplit = new FileSplit(fullFileSplit.getPath(), fullFileSplit.getStart(), fullFileSplit.getLength(), (String[])null);
+        this.partitionId = splitAttr.getPartitionId();
+      } catch (IOException | ReflectiveOperationException e) {
+        throw new RuntimeException("Failed to parse dataset split for " + datasetSplit.getSplitKey(), e);
+      }
+    }
+
+    public int getPartitionId() {
+      return partitionId;
+    }
+
+    DatasetSplit getDatasetSplit() {
+      return datasetSplit;
+    }
+
+    FileSplit getFileSplit() {
+      return fileSplit;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+      final HiveParquetSplit other = (HiveParquetSplit) o;
+      final int ret = fileSplit.getPath().compareTo(other.fileSplit.getPath());
+      if (ret == 0) {
+        return (int) (fileSplit.getStart() - other.getFileSplit().getStart());
+      }
+      return ret;
     }
   }
 

@@ -29,8 +29,9 @@ import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -72,8 +73,14 @@ public class DropTask extends AsyncTask {
         .setLayoutId(materialization.getLayoutId().getId())
         .setLayoutVersion(materialization.getLayoutVersion())
         .setMaterializationId(materialization.getId().getId());
-    final Job job = jobsService.submitJobWithExclusions(new SqlQuery(query, SYSTEM_USERNAME), QueryType.ACCELERATOR_DROP,
-        datasetPathList, datasetVersion, JobStatusListener.NONE, materializationSummary, SubstitutionSettings.of());
+    final Job job = jobsService.submitJob(
+        JobRequest.newMaterializationJobBuilder(materializationSummary, SubstitutionSettings.of())
+            .setSqlQuery(new SqlQuery(query, SYSTEM_USERNAME))
+            .setQueryType(QueryType.ACCELERATOR_DROP)
+            .setDatasetPath(datasetPathList)
+            .setDatasetVersion(datasetVersion)
+            .build(),
+        NoOpJobStatusListener.INSTANCE);
     try {
       job.getData();
     } catch (final Exception e) {

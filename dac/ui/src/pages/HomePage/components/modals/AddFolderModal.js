@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import Modal from 'components/Modals/Modal';
 
@@ -30,6 +32,7 @@ import './Modal.less';
 
 const VIEW_ID = 'AddFolderModal';
 
+@injectIntl
 export class AddFolderModal extends Component {
 
   static propTypes = {
@@ -39,7 +42,8 @@ export class AddFolderModal extends Component {
     //connected
     parentEntity: PropTypes.instanceOf(Immutable.Map),
     parentType: PropTypes.string,
-    addNewFolderForSpace: PropTypes.func
+    addNewFolderForSpace: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -59,11 +63,11 @@ export class AddFolderModal extends Component {
   }
 
   render() {
-    const { isOpen, hide } = this.props;
+    const { isOpen, hide, intl } = this.props;
     return (
       <Modal
         size='small'
-        title={la('Add Folder')}
+        title={intl.formatMessage({ id: 'Folder.AddFolder' })}
         isOpen={isOpen}
         hide={hide}>
         <AddFolderForm onFormSubmit={this.submit} onCancel={hide}/>

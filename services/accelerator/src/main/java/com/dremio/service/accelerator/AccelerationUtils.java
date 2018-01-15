@@ -28,12 +28,16 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
+import com.dremio.exec.planner.logical.JdbcRel;
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
 import com.dremio.exec.planner.sql.MaterializationDescriptor.LayoutInfo;
 import com.dremio.service.accelerator.proto.Acceleration;
@@ -397,4 +401,35 @@ public final class AccelerationUtils {
       }
     }).toList();
   }
+
+  /**
+   * Obtain the scans based on the plan
+   * @param logicalPlan
+   * @param acceleratorStorageName
+   * @return
+   */
+  public static List<List<String>> getScans(RelNode logicalPlan, final String acceleratorStorageName) {
+    final ImmutableList.Builder<List<String>> builder = ImmutableList.builder();
+    logicalPlan.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(final TableScan scan) {
+        List<String> qualifiedName = scan.getTable().getQualifiedName();
+        if (!qualifiedName.get(0).equals(acceleratorStorageName)) {
+          builder.add(qualifiedName);
+        }
+        return super.visit(scan);
+      }
+
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof JdbcRel) {
+          JdbcRel jdbcRel = (JdbcRel)other;
+          visit(jdbcRel.getJdbcSubTree());
+        }
+        return super.visit(other);
+      }
+    });
+    return builder.build();
+  }
+
 }

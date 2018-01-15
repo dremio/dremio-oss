@@ -15,12 +15,11 @@
  */
 package com.dremio.dac.resource;
 
+import static com.dremio.dac.resource.ApiIntentMessageMapper.toLayoutId;
+
 import java.util.List;
 
 import javax.annotation.Nullable;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.AccelerationStateApiDescriptor;
@@ -63,7 +62,7 @@ import io.protostuff.ByteString;
 public class BaseAccelerationResource {
   private static final LayoutContainerApiDescriptor EMPTY_CONTAINER = new LayoutContainerApiDescriptor();
 
-  private static final Logger logger = LoggerFactory.getLogger(AccelerationResource.class);
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationResource.class);
 
   private final AccelerationService accelerationService;
   private final NamespaceService namespaceService;
@@ -114,9 +113,9 @@ public class BaseAccelerationResource {
   private void calculateAndSetSummaryInfo(Acceleration acceleration, AccelerationApiDescriptor descriptor) {
 
     for (LayoutApiDescriptor layoutDescriptor : getAllLayouts(descriptor)) {
-      Optional<MaterializedLayout> materializedLayout = accelerationService.getMaterializedLayout(layoutDescriptor.getId());
+      Optional<MaterializedLayout> materializedLayout = accelerationService.getMaterializedLayout(toLayoutId(layoutDescriptor.getId()));
       Iterable<Materialization> materializations = AccelerationUtils.getAllMaterializations(materializedLayout);
-      LayoutId layoutId = layoutDescriptor.getId();
+      LayoutId layoutId = toLayoutId(layoutDescriptor.getId());
       layoutDescriptor.setState(materializedLayout
           .transform(new Function<MaterializedLayout, MaterializedLayoutState>() {
             @Override
@@ -141,16 +140,7 @@ public class BaseAccelerationResource {
       }
       Optional<Materialization> latestMaterializationOpt = getLatestMaterialization(layoutId, materializations);
       if (latestMaterializationOpt.isPresent()) {
-        Materialization latestMaterialization = latestMaterializationOpt.get();
-        MaterializationState state = latestMaterialization.getState();
-        if (state == MaterializationState.DONE  &&
-            !isOutOfDate(layout, latestMaterialization) && !hasExpired(latestMaterialization, currentTime) &&
-            (!validMaterialization.isPresent() || !validMaterialization.get().getId().equals(latestMaterialization.getId()))) {
-          // latest materialization is done in state, not expired, but its different from the valid materialization
-          layoutDescriptor.setLatestMaterializationState(MaterializationState.RUNNING);
-        } else {
-         layoutDescriptor.setLatestMaterializationState(state);
-        }
+        layoutDescriptor.setLatestMaterializationState(latestMaterializationOpt.get().getState());
       }
       layoutDescriptor.setTotalByteSize(getTotalSize(layoutId, materializations));
     }
@@ -213,8 +203,9 @@ public class BaseAccelerationResource {
    */
   private void writeMaterializationFailuresIfAny(final AccelerationApiDescriptor descriptor) {
     for (LayoutApiDescriptor layout : getAllLayouts(descriptor)) {
-      Iterable<Materialization> materializations = accelerationService.getMaterializations(layout.getId());
-      Optional<Materialization> materialization = getLatestMaterialization(layout.getId(), materializations);
+      final LayoutId layoutId = toLayoutId(layout.getId());
+      Iterable<Materialization> materializations = accelerationService.getMaterializations(layoutId);
+      Optional<Materialization> materialization = getLatestMaterialization(layoutId, materializations);
 
       if (!materialization.isPresent() || materialization.get().getState() != MaterializationState.FAILED) {
         continue;

@@ -200,6 +200,28 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   }
 
   @Override
+  public FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new NullJsonConverter(fieldId, fieldName, reader);
+  }
+
+  public class NullJsonConverter extends FieldConverter {
+
+    public NullJsonConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+    }
+
+    @Override
+    public void startField() throws IOException {
+      gen.writeFieldName(fieldName);
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      /* writing Null to JSON is a NO-OP */
+    }
+  }
+
+  @Override
   public void startRecord() throws IOException {
     gen.writeStartObject();
   }

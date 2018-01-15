@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { Link } from 'react-router';
 import { connect }   from 'react-redux';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import { PALE_GREY } from 'uiTheme/radium/colors';
-import { h2, body, formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 import { sectionTitle, description, formRow } from 'uiTheme/radium/forms';
 import { setConnectionBiTool } from 'actions/account';
 import { Select } from 'components/Fields';
 import './Business.less';
+
+// todo: loc
 
 @pureRender
 @Radium
@@ -36,7 +39,7 @@ class Business extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      restVal: 'Select...'
+      restVal: 'Select…'
     };
     this.BiOption = Immutable.List([
       Immutable.Map({ value: 'tableau', label: 'Tableau' }),
@@ -57,13 +60,13 @@ class Business extends Component {
 
   render() {
     return (
-      <div id='account-info' style={body}>
+      <div id='account-info'>
         <h2 style={[styles.header]}>Business Intelligence (BI)</h2>
         <div className='description' style={description}>
           The <Link to='#'>Dremio Connector</Link> enables BI tools to connect to a Dremio Cluster..
         </div>
         <div className='pageitems'>
-          <h3 style={[styles.setTopIndent('25px'), sectionTitle]}>Automatically Connect to a BI Tool</h3>
+          <h2 style={[styles.setTopIndent('25px'), sectionTitle]}>Automatically Connect to a BI Tool</h2>
           <div className='description' style={description}>
             Establish a connection from the BI tool to the Dremio cluster:
           </div>
@@ -85,7 +88,7 @@ class Business extends Component {
             Having problems? Make sure you have installed the <Link to='#'>Dremio Connector</Link>.
           </div>
 
-          <h3 style={[styles.setTopIndent('45px'), sectionTitle]}>Manually Connect to a BI Tool</h3>
+          <h2 style={[styles.setTopIndent('45px'), sectionTitle]}>Manually Connect to a BI Tool</h2>
           <div className='description' style={description}>
             Want to use a client that’s not listed? Dremio works with any client that supports ODBC or JDBC.
             Follow the <Link to='#'>step-by-step instructions</Link> and copy the appropriate connection string:
@@ -138,7 +141,6 @@ const styles = {
     'fontWeight': 'bold'
   },
   header: {
-    ...h2,
     borderBottom: `2px solid ${PALE_GREY}`,
     marginBottom: 10,
     paddingBottom: 10
@@ -153,4 +155,3 @@ const styles = {
 export default connect(null, {
   setConnectionBiTool
 })(Business);
-

@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { BINARY, TEXT, INTEGER, FLOAT, DATE, TIME, DATETIME } from 'constants/DataTypes';
 import { TO_BINARY_TYPES, TO_INTEGER_TYPES,
@@ -24,6 +26,7 @@ import { TO_BINARY_TYPES, TO_INTEGER_TYPES,
 import MenuItem from './../MenuItem';
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 
+// todo: loc
 
 @Radium
 @pureRender
@@ -76,43 +79,43 @@ export default class TypeGroup extends Component {
         <ColumnMenuItem
           {...commonProps}
           actionType={TEXT}
-          title={NoParamToText.indexOf(columnType) !== -1 ? 'Text' : 'Text...'}
+          title={NoParamToText.indexOf(columnType) !== -1 ? 'Text' : 'Text…'}
           availableTypes={ALL_TYPES.filter(a => a !== TEXT && a !== BINARY)} // BINARY to TEXT is disabled due to BE bug DX-4110
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={BINARY}
-          title={NoParamToBinary.indexOf(columnType) !== -1 ? 'Binary' : 'Binary...'}
+          title={NoParamToBinary.indexOf(columnType) !== -1 ? 'Binary' : 'Binary…'}
           availableTypes={TO_BINARY_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={INTEGER}
-          title={NoParamToInt.indexOf(columnType) !== -1 ? 'Integer' : 'Integer...'}
+          title={NoParamToInt.indexOf(columnType) !== -1 ? 'Integer' : 'Integer…'}
           availableTypes={TO_INTEGER_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={FLOAT}
-          title={NoParamToFloat.indexOf(columnType) !== -1 ? 'Float' : 'Float...'}
+          title={NoParamToFloat.indexOf(columnType) !== -1 ? 'Float' : 'Float…'}
           availableTypes={TO_FLOAT_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={DATE}
-          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Date' : 'Date...'}
+          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Date' : 'Date…'}
           availableTypes={TO_DATE_TYPES.filter(a => a !== DATE)}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={TIME}
-          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Time' : 'Time...'}
+          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Time' : 'Time…'}
           availableTypes={TO_TIME_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={DATETIME}
-          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Date & Time' : 'Date & Time...'}
+          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Date & Time' : 'Date & Time…'}
           availableTypes={TO_DATE_TYPES.filter(a => a !== DATETIME)}
         />
       </div>

@@ -87,7 +87,9 @@ import com.dremio.file.File;
 import com.dremio.file.FileName;
 import com.dremio.file.FilePath;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -296,7 +298,10 @@ public class HomeResource {
     String fileLocation = PathUtils.toDottedPath(new org.apache.hadoop.fs.Path(fileFormat.getLocation()));
     SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
         SqlUtils.quoteIdentifier(HomeFileConfig.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
-    JobUI job = new JobUI(jobsService.submitExternalJob(query, QueryType.UI_INITIAL_PREVIEW));
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE));
     return job.getData().truncate(500);
   }
 
@@ -400,7 +405,10 @@ public class HomeResource {
     logger.info("filePath: " + filePath.toPathString());
     // TODO, this should be moved to dataset resource and be paginated.
     SqlQuery query = new SqlQuery(format("select * from table(%s (%s)) limit 500", filePath.toPathString(), fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
-    JobUI job = new JobUI(jobsService.submitExternalJob(query, QueryType.UI_INITIAL_PREVIEW));
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE));
     return job.getData().truncate(500);
   }
 

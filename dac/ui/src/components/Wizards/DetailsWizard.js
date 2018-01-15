@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import ApiUtils from 'utils/apiUtils/apiUtils';
@@ -196,7 +197,7 @@ export class DetailsWizard extends Component {
     case 'SPLIT_BY_DATA_TYPE':
       return <RawHeader text='Clean Data' {...defaultProps}/>;
     case 'GROUP_BY':
-      return <RawHeader text='Group by' {...defaultProps}/>;
+      return <RawHeader text='Group By' {...defaultProps}/>;
     case 'transform':
       return <TransformHeader
         location={location}

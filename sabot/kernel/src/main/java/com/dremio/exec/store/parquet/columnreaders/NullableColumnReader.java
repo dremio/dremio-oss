@@ -17,7 +17,6 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.BaseDataValueVector;
 import org.apache.arrow.vector.NullableVectorDefinitionSetter;
 import org.apache.arrow.vector.ValueVector;
 
@@ -29,14 +28,12 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 
 abstract class NullableColumnReader<V extends ValueVector> extends ColumnReader<V>{
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NullableColumnReader.class);
-  protected BaseDataValueVector castedBaseVector;
-  protected NullableVectorDefinitionSetter castedVectorMutator;
+  NullableVectorDefinitionSetter castedVectorMutator;
   protected long definitionLevelsRead = 0;
 
   NullableColumnReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
                        boolean fixedLength, V v, SchemaElement schemaElement) throws ExecutionSetupException {
     super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
-    castedBaseVector = (BaseDataValueVector) v;
     castedVectorMutator = (NullableVectorDefinitionSetter) v.getMutator();
   }
 
@@ -46,7 +43,7 @@ abstract class NullableColumnReader<V extends ValueVector> extends ColumnReader<
     readLength = 0;
     readLengthInBits = 0;
     recordsReadInThisIteration = 0;
-    vectorData = castedBaseVector.getBuffer();
+    vectorData = valueVec.getDataBuffer();
 
     // values need to be spaced out where nulls appear in the column
     // leaving blank space for nulls allows for random access to values
@@ -105,10 +102,8 @@ abstract class NullableColumnReader<V extends ValueVector> extends ColumnReader<
       // Write the nulls if any
       //
       if (nullRunLength > 0) {
-        int writerIndex =
-            ((BaseDataValueVector) valueVec).getBuffer().writerIndex();
-        castedBaseVector.getBuffer().setIndex(0, writerIndex + (int) Math
-            .ceil(nullRunLength * dataTypeLengthInBits / 8.0));
+        int writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, writerIndex + (int) Math.ceil(nullRunLength * dataTypeLengthInBits / 8.0));
         writeCount += nullRunLength;
         valuesReadInCurrentPass += nullRunLength;
         recordsReadInThisIteration += nullRunLength;

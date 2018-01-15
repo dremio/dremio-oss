@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+
+import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import S3Credentials from 'components/Forms/S3Credentials';
@@ -56,7 +58,7 @@ export class S3Form extends Component {
           <General fields={fields} editing={editing}>
             <S3Credentials fields={fields}/>
             <div className='external-buckets' style={section}>
-              <h3 style={sectionTitle}>{la('External Buckets')}</h3>
+              <h2 style={sectionTitle}>{la('External Buckets')}</h2>
               <div style={description}>
                 {la('Note: All buckets associated with the AWS account will be added automatically.')}
               </div>
@@ -67,7 +69,7 @@ export class S3Form extends Component {
               </FieldWithError>
             </div>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Options')}</h3>
+              <h2 style={sectionTitle}>{la('Options')}</h2>
               <div style={formRow}>
                 <Checkbox {...fields.config.secure} label={la('Enable SSL Encryption')}/>
               </div>
@@ -76,7 +78,7 @@ export class S3Form extends Component {
               <SourceProperties fields={fields} />
             </FieldWithError>
             <div style={section}>
-              <h3 style={sectionTitle}>{la('Advanced Options')}</h3>
+              <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
                 <MetadataRefresh fields={fields} hideObjectNames/>
               </AdvancedOptionsExpandable>

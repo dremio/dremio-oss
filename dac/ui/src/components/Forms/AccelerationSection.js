@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { sectionTitle } from 'uiTheme/radium/forms';
 import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 

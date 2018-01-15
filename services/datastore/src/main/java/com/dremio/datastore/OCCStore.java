@@ -56,6 +56,12 @@ class OCCStore<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
     return store.contains(key);
   }
 
+
+  @Override
+  public KVAdmin getAdmin() {
+    return store.getAdmin();
+  }
+
   @Override
   public KVStoreTuple<VALUE> get(KVStoreTuple<KEY> key) {
     return store.get(key);

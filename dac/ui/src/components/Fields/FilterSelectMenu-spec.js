@@ -118,7 +118,7 @@ describe('FilterSelectMenu', () => {
 
     it('should render All if none selected', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps} selectedValues={Immutable.List()}/>);
-      expect(wrapper.find('.filter-select-label').props().text).to.eql(': All');
+      expect(wrapper.find('.filter-select-label').props().text).to.eql(': {"0":{"id":"Common.All"}}');
     });
   });
 

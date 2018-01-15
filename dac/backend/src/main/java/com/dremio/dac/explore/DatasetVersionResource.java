@@ -105,6 +105,7 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
@@ -242,7 +243,9 @@ public class DatasetVersionResource {
 
   @GET @Path("review")
   @Produces(APPLICATION_JSON)
-  public InitialPreviewResponse reviewDatasetVersion(@QueryParam("jobId") String jobId, @QueryParam("tipVersion") DatasetVersion tipVersion) throws DatasetVersionNotFoundException, NamespaceException {
+  public InitialPreviewResponse reviewDatasetVersion(@QueryParam("jobId") String jobId,
+                                                     @QueryParam("tipVersion") DatasetVersion tipVersion)
+      throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     return tool.createReviewResponse(datasetPath, getDatasetConfig(), jobId, tipVersion);
   }
 

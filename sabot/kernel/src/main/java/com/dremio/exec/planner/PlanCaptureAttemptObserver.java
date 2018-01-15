@@ -32,7 +32,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
@@ -45,10 +44,12 @@ import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.proto.UserBitShared.SubstitutionProfile;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
+import com.google.protobuf.ByteString;
 
 public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanCaptureAttemptObserver.class);
@@ -56,8 +57,9 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private final boolean verbose;
   private final FunctionImplementationRegistry funcRegistry;
   private final List<PlanPhaseProfile> planPhases = Lists.newArrayList();
-  private final Map<Pair<String, String>, LayoutMaterializedViewProfile>
+  private final Map<String, LayoutMaterializedViewProfile>
     mapIdToAccelerationProfile = new LinkedHashMap<>();
+  private final AccelerationDetailsPopulator detailsPopulator;
 
   private String text;
   private String json;
@@ -69,10 +71,15 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private long normalizationMillis = 0;
   private long substitutionMillis = 0;
   private int numSubstitutions = 0;
+  private List<String> normalizedQueryPlans;
 
-  public PlanCaptureAttemptObserver(final boolean verbose, final FunctionImplementationRegistry funcRegistry) {
+  private volatile ByteString accelerationDetails;
+
+  public PlanCaptureAttemptObserver(final boolean verbose, final FunctionImplementationRegistry funcRegistry,
+                                    AccelerationDetailsPopulator detailsPopulator) {
     this.verbose = verbose;
     this.funcRegistry = funcRegistry;
+    this.detailsPopulator = detailsPopulator;
   }
 
   public AccelerationProfile getAccelerationProfile() {
@@ -82,8 +89,14 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       .setMillisTakenGettingMaterializations(findMaterializationMillis)
       .setMillisTakenNormalizing(normalizationMillis)
       .setMillisTakenSubstituting(substitutionMillis);
+    if (normalizedQueryPlans != null) {
+      builder.addAllNormalizedQueryPlans(normalizedQueryPlans);
+    }
     if (!mapIdToAccelerationProfile.isEmpty()) {
       builder.addAllLayoutProfiles(mapIdToAccelerationProfile.values());
+    }
+    if (accelerationDetails != null) {
+      builder.setAccelerationDetails(accelerationDetails);
     }
     return builder.build();
   }
@@ -112,13 +125,14 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     accelerated = true;
     for (Substitution sub : info.getSubstitutions()) {
       final MaterializationDescriptor descriptor = sub.getMaterialization();
-      final Pair<String, String> key = Pair.of(descriptor.getLayoutId(), descriptor.getMaterializationId());
+      final String key = descriptor.getLayoutId();
 
       final LayoutMaterializedViewProfile lmvProfile = mapIdToAccelerationProfile.get(key);
       if (lmvProfile != null) {
         mapIdToAccelerationProfile.put(key, LayoutMaterializedViewProfile.newBuilder(lmvProfile).setNumUsed(lmvProfile.getNumUsed() + 1).build());
       }
     }
+    detailsPopulator.planAccelerated(info);
   }
 
   @Override
@@ -132,20 +146,29 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken) {
+  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
     normalizationMillis = millisTaken;
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Normalization")
       .setDurationMillis(normalizationMillis)
       .setPlan("")
       .build());
+    if (verbose) {
+      this.normalizedQueryPlans = Lists.transform(normalizedQueryPlans, new Function<RelNode, String>() {
+        @Nullable
+        @Override
+        public String apply(@Nullable RelNode plan) {
+          return asString(plan);
+        }
+      });
+    }
   }
 
   @Override
   public void planSubstituted(DremioRelOptMaterialization materialization,
                               List<RelNode> substitutions,
-                              RelNode query, RelNode target, long millisTaken) {
-    final Pair<String, String> key = Pair.of(materialization.getLayoutId(), materialization.getMaterializationId());
+                              RelNode target, long millisTaken) {
+    final String key = materialization.getLayoutId();
     final LayoutMaterializedViewProfile oldProfile = mapIdToAccelerationProfile.get(key);
 
     final LayoutMaterializedViewProfile.Builder layoutBuilder;
@@ -172,7 +195,6 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     }
     if (verbose) {
       layoutBuilder
-        .addNormalizedQueryPlans(asString(query))
         .addAllSubstitutions(FluentIterable.from(substitutions).transform(new Function<RelNode, SubstitutionProfile>() {
           @Nullable
           @Override
@@ -183,7 +205,9 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     }
     mapIdToAccelerationProfile.put(key, layoutBuilder.build());
     substitutionMillis += millisTaken;
-    numSubstitutions += substitutions == null ? 0 : substitutions.size();
+    numSubstitutions += substitutions.size();
+
+    detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken);
   }
 
   @Override
@@ -195,6 +219,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         logger.warn("Failed to capture query output schema", e);
       }
     }
+
+    accelerationDetails = ByteString.copyFrom(detailsPopulator.computeAcceleration());
   }
 
   @Override
@@ -255,6 +281,26 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     }
 
     planPhases.add(b.build());
+
+    if (verbose && phase.useMaterializations && planner instanceof VolcanoPlanner && numSubstitutions > 0) {
+      try {
+        Map<String, RelNode> bestPlansWithReflections = new CheapestPlanWithReflectionVisitor((VolcanoPlanner) planner).getBestPlansWithReflections();
+        for (String reflection : bestPlansWithReflections.keySet()) {
+          String plan = RelOptUtil.toString(bestPlansWithReflections.get(reflection), SqlExplainLevel.ALL_ATTRIBUTES);
+          LayoutMaterializedViewProfile profile = mapIdToAccelerationProfile.get(reflection);
+          if (profile != null) {
+            mapIdToAccelerationProfile.put(
+              reflection,
+              LayoutMaterializedViewProfile.newBuilder(profile)
+                .setOptimizedPlanBytes(ByteString.copyFrom(plan.getBytes()))
+                .build()
+            );
+          }
+        }
+      } catch (Exception e) {
+        logger.debug("Failed to find best plans with reflections", e);
+      }
+    }
   }
 
   @Override

@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.ws.rs.core.SecurityContext;
+
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -50,12 +52,14 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.FieldTransformationBase;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.proto.model.dataset.Column;
@@ -102,9 +106,11 @@ import com.dremio.dac.proto.model.dataset.OrderDirection;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.ReplaceSelectionType;
 import com.dremio.dac.proto.model.dataset.ReplaceType;
+import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformAddCalculatedField;
 import com.dremio.dac.proto.model.dataset.TransformConvertCase;
 import com.dremio.dac.proto.model.dataset.TransformConvertToSingleType;
+import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
 import com.dremio.dac.proto.model.dataset.TransformDrop;
 import com.dremio.dac.proto.model.dataset.TransformExtract;
 import com.dremio.dac.proto.model.dataset.TransformField;
@@ -116,20 +122,31 @@ import com.dremio.dac.proto.model.dataset.TransformSort;
 import com.dremio.dac.proto.model.dataset.TransformSorts;
 import com.dremio.dac.proto.model.dataset.TransformSplitByDataType;
 import com.dremio.dac.proto.model.dataset.TransformTrim;
+import com.dremio.dac.proto.model.dataset.TransformType;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.TrimType;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
+import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Transformer tests
  */
-public class TestTransformer { // needed for parsing queries
+public class TestTransformer extends BaseTestServer { // needed for parsing queries
 
   private final DatasetPath datasetPath = new DatasetPath("myspace.parentDS");
   private final From parentDataset = new FromTable(datasetPath.toPathString()).wrap();
@@ -152,6 +169,11 @@ public class TestTransformer { // needed for parsing queries
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
         return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null);
+      }
+
+      @Override
+      protected boolean hasMetadata() {
+        return true;
       }
 
     };
@@ -861,6 +883,11 @@ public class TestTransformer { // needed for parsing queries
       protected QueryMetadata getMetadata(SqlQuery query) {
         return new QueryMetadata(null, null, null, null, sqlNode, rowType, null, null, null, null, BatchSchema.fromCalciteRowType(rowType));
       }
+
+      @Override
+      protected boolean hasMetadata() {
+        return true;
+      }
     };
 
     TransformResult result = new TransformUpdateSQL(sql).accept(actor);
@@ -871,5 +898,103 @@ public class TestTransformer { // needed for parsing queries
     assertEquals(new ExpColumnReference("foo").wrap(), newState.getColumnsList().get(0).getValue());
     assertEquals("b", newState.getColumnsList().get(1).getName());
     assertEquals(new ExpColumnReference("bar").wrap(), newState.getColumnsList().get(1).getValue());
+  }
+
+  @Test
+  public void testTransformWithExtract() throws Exception {
+    setSpace();
+    DatasetPath myDatasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
+    createDatasetFromParentAndSave(myDatasetPath, "cp.\"tpch/supplier.parquet\"");
+
+    DatasetUI dataset = getDataset(myDatasetPath);
+
+    Transformer testTransformer =
+      new Transformer(l(SabotContext.class), newNamespaceService(), newDatasetVersionMutator(),
+        null, l(SecurityContext.class));
+
+    VirtualDatasetUI vdsui = DatasetsUtil.getHeadVersion(myDatasetPath, newNamespaceService(),
+      newDatasetVersionMutator());
+    List<ViewFieldType> sqlFields = vdsui.getSqlFieldsList();
+    boolean isContainOriginal = false;
+    boolean isContainConverted = false;
+    for (ViewFieldType sqlType : sqlFields) {
+      if (sqlType.getName().equalsIgnoreCase("s_address")) {
+        isContainOriginal = true;
+        break;
+      }
+    }
+    assertTrue(isContainOriginal);
+    isContainOriginal = false;
+    VirtualDatasetUI vdsuiTransformed = testTransformer.transformWithExtract(dataset.getDatasetVersion(), myDatasetPath,
+      vdsui,
+      new TransformRename("s_address", "s_addr"));
+
+    List<ViewFieldType> sqlFieldsTransformed = vdsuiTransformed.getSqlFieldsList();
+    for (ViewFieldType sqlType : sqlFieldsTransformed) {
+      if (sqlType.getName().equalsIgnoreCase("s_addr")) {
+        isContainConverted = true;
+      }
+      if (sqlType.getName().equalsIgnoreCase("s_address")) {
+        isContainOriginal = true;
+      }
+    }
+    assertTrue(isContainConverted);
+    assertTrue(!isContainOriginal);
+  }
+
+  @Test // Test retrieval of metadata by transformWithExecute() through use of the QueryParser.
+  public void testTransformMetadataRetrieval() throws Exception {
+    // Setup the dataset and transformations.
+    setSpace();
+    final NamespaceService namespaceService = newNamespaceService();
+    final DatasetVersionMutator datasetService = newDatasetVersionMutator();
+
+    final String updatedSQL = "SELECT * FROM cp.\"tpch/supplier.parquet\" LIMIT 3";
+    final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.testTransform");
+    final DatasetUI dataset =createDatasetFromSQLAndSave(datasetPath, updatedSQL, asList("cp"));
+
+    final Transform firstTransform =
+      new Transform().setType(TransformType.createFromParent).setTransformCreateFromParent(
+        new TransformCreateFromParent().setCreateFrom(new From().setType(FromType.Table).setTable(
+          new FromTable().setDatasetPath(datasetPath.toPathString()))));
+
+    final TransformCreateFromParent transformCreateFromParent = firstTransform.getTransformCreateFromParent();
+    final DatasetPath headPath = new DatasetPath(transformCreateFromParent.getCreateFrom().getTable().getDatasetPath());
+    final DatasetConfig headConfig = namespaceService.getDataset(headPath.toNamespaceKey());
+    final VirtualDatasetUI headVersion = datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
+    final QueryExecutor executor = new QueryExecutor(l(JobsService.class), null, null);
+
+    final Transformer testTransformer =
+      new Transformer(l(SabotContext.class), namespaceService, datasetService,
+        executor, l(SecurityContext.class));
+
+    final TransformUpdateSQL transformUpdateSQL =
+      new TransformUpdateSQL().setSql(updatedSQL).setSqlContextList(new ArrayList<>(Arrays.asList("cp")));
+
+    // Setup the transform actor such that query executor will find the relevant job in the job store
+    // when executing the query as part of the metadata retrieval.
+    final Transformer.ExecuteTransformActor actor = testTransformer.
+      new ExecuteTransformActor(
+        QueryType.UI_PREVIEW,
+        dataset.getDatasetVersion(),
+        headVersion.getState(),
+        false,
+        l(SecurityContext.class).getUserPrincipal().getName(),
+        new DatasetPath("tmp.UNTITLED"),
+        executor);
+
+    SqlQuery query =
+      new SqlQuery(transformUpdateSQL.getSql(), transformUpdateSQL.getSqlContextList(),
+        l(SecurityContext.class).getUserPrincipal().getName());
+
+    // Force metadata to be regenerated.
+    QueryMetadata queryMetadata = actor.getMetadata(query);
+
+    // Check the generated QueryMetadata matches that of the updated SQL.
+    assertNotNull(queryMetadata);
+    assertEquals(7, queryMetadata.getRowType().getFieldList().size());
+    assertEquals("3", ((SqlSelect)queryMetadata.getSqlNode().get()).getFetch().toString());
+    assertEquals(new ArrayList<>(Arrays.asList("cp", "tpch/supplier.parquet")),
+      queryMetadata.getParents().get().get(0).getDatasetPathList());
   }
 }

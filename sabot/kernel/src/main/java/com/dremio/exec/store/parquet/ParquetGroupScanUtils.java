@@ -29,6 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -43,10 +44,10 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.parquet.Metadata.ColumnMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetFileMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetTableMetadata;
@@ -329,9 +330,9 @@ public class ParquetGroupScanUtils {
 
     // TODO: do we need this code path?
     if (entries.size() == 1) {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), entries.get(0), fs, formatPlugin.getConfig(), plugin.getFsConf());
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), plugin.getFsConf());
     } else {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(plugin.getFooterCache(), entries, formatPlugin.getConfig(), plugin.getFsConf());
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, formatPlugin.getConfig(), plugin.getFsConf());
     }
 
     ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getExecutors())

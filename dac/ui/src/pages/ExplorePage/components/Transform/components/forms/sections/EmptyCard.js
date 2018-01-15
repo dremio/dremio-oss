@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { body } from 'uiTheme/radium/typography';
 
 const EmptyCard = () => {
   return (
@@ -25,7 +24,6 @@ const EmptyCard = () => {
 
 const styles = {
   emptyCard: {
-    ...body,
     height: 150,
     width: 460,
     minWidth: 455,

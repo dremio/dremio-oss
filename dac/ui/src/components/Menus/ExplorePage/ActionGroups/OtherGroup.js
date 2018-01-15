@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 import { KEEP_ONLY_TYPES } from './../../../../constants/columnTypeGroups';
@@ -32,14 +34,14 @@ export default class OtherGroup extends Component {
       <ColumnMenuItem
         columnType={columnType}
         actionType='KEEP_ONLY'
-        title={la('Keep Only...')}
+        title={la('Keep Only…')}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
       />,
       <ColumnMenuItem
         columnType={columnType}
         actionType='EXCLUDE'
-        title={la('Exclude...')}
+        title={la('Exclude…')}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
       />

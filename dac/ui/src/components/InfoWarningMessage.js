@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
+
+import PropTypes from 'prop-types';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import { PALE_BLUE } from 'uiTheme/radium/colors';
-import { body } from 'uiTheme/radium/typography';
 import Button from 'components/Buttons/Button';
 
 const styles = {
@@ -59,8 +60,8 @@ class InfoWarningMessage extends Component {
     return (
       <div style={styles.quoteWrapper}>
         <div className='quote-block' style={styles.quoteBlock}>
-          <div style={body}>{this.props.text}</div>
-          <div style={[body, this.props.info ? {marginTop: 8} : {}]}>{this.props.info}</div>
+          <div>{this.props.text}</div>
+          <div style={this.props.info ? {marginTop: 8} : {}}>{this.props.info}</div>
           <Button
             type={ButtonTypes.CUSTOM}
             innerText={styles.innerText}

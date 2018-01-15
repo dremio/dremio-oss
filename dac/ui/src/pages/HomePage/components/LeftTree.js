@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PropTypes, Component } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
+import {FormattedMessage, injectIntl} from 'react-intl';
+
+import PropTypes from 'prop-types';
 
 import FinderNav from 'components/FinderNav';
 import FinderNavItem from 'components/FinderNavItem';
@@ -25,7 +28,7 @@ import ViewStateWrapper from 'components/ViewStateWrapper';
 import LinkButton from 'components/Buttons/LinkButton';
 import SimpleButton from 'components/Buttons/SimpleButton';
 
-import { h3, body, formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from 'uiTheme/radium/typography';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
@@ -35,6 +38,7 @@ import Radium from 'radium';
 
 import './LeftTree.less';
 
+@injectIntl
 @pureRender
 @Radium
 export class LeftTree extends Component {
@@ -52,7 +56,8 @@ export class LeftTree extends Component {
     sourcesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     toggleSpacePin: PropTypes.func,
     toggleSourcePin: PropTypes.func,
-    createSampleSource: PropTypes.func.isRequired
+    createSampleSource: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   state = {
@@ -85,12 +90,14 @@ export class LeftTree extends Component {
     const addHref = this.getAddSpaceHref();
     return this.props.spaces.size > 0 ? null : <div className='button-wrap'>
       <span style={formDescription}>
-        {la('You do not have any spaces.')}
+        <FormattedMessage id='Space.NoSpaces'/>
       </span>
       {addHref && <LinkButton
         buttonStyle='primary'
         data-qa={'add-spaces'}
-        to={addHref}>{la('Add Space')}</LinkButton>}
+        to={addHref}>
+        <FormattedMessage id='Space.AddSpace'/>
+      </LinkButton>}
     </div>;
   }
 
@@ -115,17 +122,23 @@ export class LeftTree extends Component {
     // - only sample source(s), user can add: show text and add button
     return <div className='button-wrap'>
       <span style={formDescription}>
-        {isEmpty ? la('You do not have any sources.') : la('Add your own source:')}
+        {isEmpty
+          ? <FormattedMessage id='Source.NoSources'/>
+          : <FormattedMessage id='Source.AddOwnSource'/>}
       </span>
       {this.getCanAddSource() && isEmpty && <SimpleButton
         buttonStyle='primary'
         submitting={this.state.isAddingSampleSource}
         style={{padding: '0 12px'}}
-        onClick={this.addSampleSource}>{la('Add Sample Source')}</SimpleButton>}
+        onClick={this.addSampleSource}>
+        <FormattedMessage id='Source.AddSampleSource'/>
+      </SimpleButton>}
       {this.getCanAddSource() && <LinkButton
         buttonStyle='primary'
         data-qa={'add-sources'}
-        to={addHref}>{la('Add Source')}</LinkButton>}
+        to={addHref}>
+        <FormattedMessage id='Source.AddSource'/>
+      </LinkButton>}
     </div>;
   }
 
@@ -139,17 +152,19 @@ export class LeftTree extends Component {
 
   getAddSourceHref() {
     return this.getCanAddSource() ?
-      {...this.context.location, state: {modal: 'AddSourceModal', source: null}} : undefined;
+      {...this.context.location, state: {modal: 'AddSourceModal'}} : undefined;
   }
 
   render() {
-    const { className, spaces, sources, spacesViewState, sourcesViewState } = this.props;
+    const { className, spaces, sources, spacesViewState, sourcesViewState, intl } = this.props;
     const classes = classNames('left-tree', className);
     const homeItem = this.getHomeObject();
 
     return (
-      <div className={classes} style={[styles.leftTreeHolder, body]}>
-        <div style={[styles.headerViewer, h3]}>{la('Datasets')}</div>
+      <div className={classes} style={[styles.leftTreeHolder]}>
+        <h3 style={[styles.headerViewer]}>
+          <FormattedMessage id='Dataset.Datasets'/>
+        </h3>
         <ul className='header-block' style={styles.homeWrapper}>
           <FinderNavItem item={homeItem} />
         </ul>
@@ -162,7 +177,7 @@ export class LeftTree extends Component {
           <ViewStateWrapper viewState={spacesViewState} style={{...styles.columnFlex}}>
             <FinderNav
               navItems={spaces}
-              title={la('Spaces')}
+              title={intl.formatMessage({ id: 'Space.Spaces' })}
               toggleActivePin={this.props.toggleSpacePin}
               isInProgress={spacesViewState.get('isInProgress')}
               addHref={this.getAddSpaceHref()}
@@ -179,7 +194,7 @@ export class LeftTree extends Component {
           <ViewStateWrapper viewState={sourcesViewState} style={{...styles.columnFlex}}>
             <FinderNav
               navItems={sources}
-              title={la('Sources')}
+              title={intl.formatMessage({ id: 'Source.Sources' })}
               toggleActivePin={this.props.toggleSourcePin}
               isInProgress={sourcesViewState.get('isInProgress')}
               addHref={this.getAddSourceHref()}

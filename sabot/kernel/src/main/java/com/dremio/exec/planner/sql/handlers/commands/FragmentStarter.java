@@ -130,8 +130,6 @@ class FragmentStarter {
     for (final NodeEndpoint ep : intFragmentMap.keySet()) {
       sendRemoteFragments(ep, intFragmentMap.get(ep), endpointLatch, fragmentSubmitFailures);
     }
-    stopwatch.stop();
-    observer.intermediateFragmentScheduling(stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
     final long timeout = RPC_WAIT_IN_MSECS_PER_FRAGMENT * numIntFragments;
     if(numIntFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)){
@@ -143,6 +141,8 @@ class FragmentStarter {
               timeout, numIntFragments, numIntFragments - numberRemaining)
           .build(logger);
     }
+    stopwatch.stop();
+    observer.intermediateFragmentScheduling(stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
     // if any of the intermediate fragment submissions failed, fail the query
     final List<FragmentSubmitFailures.SubmissionException> submissionExceptions = fragmentSubmitFailures.submissionExceptions;
@@ -177,6 +177,7 @@ class FragmentStarter {
       sendRemoteFragments(ep, leafFragmentMap.get(ep), null, null);
     }
     stopwatch.stop();
+    // No waiting on acks of sent leaf fragments; so this number is not be reliable
     observer.leafFragmentScheduling(stopwatch.elapsed(TimeUnit.MILLISECONDS));
   }
 

@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import moment from 'moment';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import {title, contextCard, cardTitle, contextAttrs, attrLabel, attrValue} from 'uiTheme/radium/rightContext';
 import FontIcon from 'components/Icon/FontIcon';
@@ -85,7 +86,7 @@ export class DatasetContext extends Component {
     const isAccelerationHovered = Radium.getState(this.state, 'acceleration', ':hover');
     const isDetailsHovered = Radium.getState(this.state, 'details', ':hover');
     return <ViewStateWrapper viewState={viewState}>
-      <div style={title}>About this Dataset</div>
+      <h4 style={title}>About this Dataset</h4>
       <div style={contextCard} key='details'>
         <div style={styles.headerWithPencil}>
           <div style={cardTitle}>Details</div>

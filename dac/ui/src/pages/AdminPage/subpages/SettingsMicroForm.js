@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { propTypes as reduxFormPropTypes} from 'redux-form';
 

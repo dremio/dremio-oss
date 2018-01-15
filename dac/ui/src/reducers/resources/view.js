@@ -21,8 +21,6 @@ import { RESET_VIEW_STATE, UPDATE_VIEW_STATE, DISMISS_VIEW_STATE_ERROR } from 'a
 import { CANCEL_TRANSFORM } from 'actions/explore/dataset/transform';
 import { RESET_NEW_QUERY } from 'actions/explore/view';
 
-import sentryUtil from 'utils/sentryUtil';
-
 export const NO_INTERNET_MESSAGE = 'Could not connect to the Dremio server.'; // todo: loc
 
 
@@ -134,7 +132,6 @@ function updateLoadingViewId(state, action) {
   }
 
   // FAILURE
-  sentryUtil.logException(new Error('Request Failed'), {action});
   return state.mergeIn([viewId], {
     viewId,
     isInProgress: false,

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import { BLUE } from 'uiTheme/radium/colors';
 import { checkboxFocus, fieldDisabled } from 'uiTheme/radium/forms';
@@ -81,6 +83,7 @@ const styles = {
     cursor: 'pointer', // todo: use css to make all <label>s cursor:pointer?
     display: 'inline-flex',
     position: 'relative',
+    alignItems: 'center', // This looks off in FF<=50 (DX-8124) - but resolving messes up the latest versions of browsers
     ':focus': {}  // need empty object so that radium listens to focus events
   },
   labelDisabled: { // todo: DRY with button
@@ -99,8 +102,7 @@ const styles = {
     border: '1px solid #bbb',
     borderRadius: 1,
     background: '#fff',
-    verticalAlign: 'text-bottom',
-    alignSelf: 'center' // DX-8124 needed for FF<=50 checkbox style issue
+    verticalAlign: 'text-bottom'
   },
   checked: {
     border: `1px solid ${BLUE}`,

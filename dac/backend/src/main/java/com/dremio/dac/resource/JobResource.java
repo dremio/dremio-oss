@@ -93,7 +93,7 @@ public class JobResource {
   @Produces(APPLICATION_JSON)
   public JobUI getJob(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     try {
-      return new JobUI(jobsService.getJobChecked(new JobId(jobId)));
+      return new JobUI(jobsService.getJob(new JobId(jobId)));
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
@@ -121,12 +121,14 @@ public class JobResource {
   @Produces(APPLICATION_JSON)
   public JobDetailsUI getJobDetail(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     JobId id = new JobId(jobId);
-    Job job = jobsService.getJob(id);
-    if(job != null){
-      return new JobDetailsUI(job);
-    }else{
-      throw new JobResourceNotFoundException(id);
+    final Job job;
+    try {
+      job = jobsService.getJob(id);
+    } catch (JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
+
+    return new JobDetailsUI(job);
   }
 
   public static String getPaginationURL(JobId jobId) {
@@ -144,10 +146,12 @@ public class JobResource {
     Preconditions.checkArgument(limit > 0, "Limit should be greater than 0");
     Preconditions.checkArgument(offset >= 0, "Limit should be greater than or equal to 0");
 
-    final Job job =  jobsService.getJob(jobId);
-    if (job == null) {
+    final Job job;
+    try {
+      job = jobsService.getJob(jobId);
+    } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
-      throw new JobResourceNotFoundException(jobId);
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
     // job results in pagination requests.
@@ -164,10 +168,12 @@ public class JobResource {
     Preconditions.checkArgument(rowNum >= 0, "Row number shouldn't be negative");
     Preconditions.checkNotNull(columnName, "Expected a non-null column name");
 
-    final Job job =  jobsService.getJob(jobId);
-    if (job == null) {
+    final Job job;
+    try {
+      job = jobsService.getJob(jobId);
+    } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
-      throw new JobResourceNotFoundException(jobId);
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
     return new JobUI(job).getData().range(rowNum, 1).extractValue(columnName, 0);
@@ -184,7 +190,8 @@ public class JobResource {
   @GET
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response downloadData(@PathParam("jobId") JobId jobId) throws IOException, JobResourceNotFoundException {
+  public Response downloadData(@PathParam("jobId") JobId jobId)
+      throws IOException, JobResourceNotFoundException, JobNotFoundException {
     final Job job = jobsService.getJob(jobId);
     final JobInfo jobInfo = job.getJobAttempt().getInfo();
 

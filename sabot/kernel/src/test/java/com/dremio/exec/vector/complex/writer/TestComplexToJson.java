@@ -38,10 +38,36 @@ public class TestComplexToJson extends BaseTestQuery {
     List<QueryDataBatch> results;
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
 
-    client = new DremioClient(config, clusterCoordinator);
-    client.setSupportComplexTypes(false);
-    client.connect();
+    setup();
     results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/regions.csv`");
+    checkResult(loader, results);
+
+    setup();
+    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/regions.csv`");
+    checkResult(loader, results);
+
+    client = parent_client;
+  }
+
+  @Test
+  public void test1() throws Exception {
+    DremioClient parent_client = client;
+
+    List<QueryDataBatch> results;
+    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+
+    setup();
+    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json`");
+    checkResult(loader, results);
+
+    setup();
+    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json`");
+    checkResult(loader, results);
+
+    client = parent_client;
+  }
+
+  private void checkResult(RecordBatchLoader loader, List<QueryDataBatch> results) {
     loader.load(results.get(0).getHeader().getDef(), results.get(0).getData());
     RecordBatchDef def = results.get(0).getHeader().getDef();
     // the entire row is returned as a single column
@@ -52,22 +78,11 @@ public class TestComplexToJson extends BaseTestQuery {
       result.release();
     }
     client.close();
-
-    client = new DremioClient(config, clusterCoordinator);
-    client.setSupportComplexTypes(true);
-    client.connect();
-    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/regions.csv`");
-    loader.load(results.get(0).getHeader().getDef(), results.get(0).getData());
-    def = results.get(0).getHeader().getDef();
-    // the entire row is returned as a single column
-    assertEquals(1, def.getFieldCount());
-    loader.clear();
-    for(QueryDataBatch result : results) {
-      result.release();
-    }
-    client.close();
-
-    client = parent_client;
   }
 
+  private void setup() throws Exception {
+    client = new DremioClient(config, clusterCoordinator);
+    client.setSupportComplexTypes(false);
+    client.connect();
+  }
 }

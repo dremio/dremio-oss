@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import deepEqual from 'deep-equal';
 import Radium from 'radium';
+import PropTypes from 'prop-types';
 import moment from 'moment';
 import c3 from 'c3';
 import 'c3/c3.css';

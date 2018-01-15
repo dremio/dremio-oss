@@ -15,6 +15,9 @@
  */
 package com.dremio.plugins.elastic;
 
+
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,15 +31,17 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
-import com.dremio.plugins.elastic.ElasticActions.ElasticAction;
-import com.dremio.plugins.elastic.ElasticActions.Result;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ClusterMetadata;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public class ElasticActions {
+
+  private static final String APPLICATION_JSON = "application/json";
 
   static JsonParser parser = new JsonParser();
 
@@ -138,7 +143,7 @@ public class ElasticActions {
     @Override
     public Result getResult(WebTarget target) {
       try {
-        return new JsonResult(target.path("_nodes").request().buildGet().invoke(byte[].class));
+        return new JsonResult(target.path("_nodes").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -148,7 +153,7 @@ public class ElasticActions {
   public static class Health extends ElasticAction {
     public Result getResult(WebTarget target) {
       try {
-        return new JsonResult(target.path("_cluster/health").request().buildGet().invoke(byte[].class));
+        return new JsonResult(target.path("_cluster/health").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -195,38 +200,38 @@ public class ElasticActions {
 
       context.addContext(t);
       context.addContext("Query", query);
-      return t.request().build("POST", Entity.json(query));
+      return t.request().header(CONTENT_TYPE, APPLICATION_JSON).build("POST", Entity.json(query));
     }
 
   }
 
   public static class SearchScroll extends ElasticAction2<byte[]> {
 
+    @JsonProperty("scroll_id")
     private String scrollId;
+    @JsonProperty("scroll")
     private String scrollTimeout;
 
     public SearchScroll() {
       super("get next search result", byte[].class);
     }
 
-    public SearchScroll setScrollId(String scrollId){
+    public SearchScroll setScrollId(String scrollId) {
       this.scrollId = scrollId;
+      return this;
+    }
+
+    public SearchScroll setScrollTimeout(String scrollTimeout) {
+      this.scrollTimeout = scrollTimeout;
       return this;
     }
 
     @Override
     Invocation buildRequest(WebTarget initial, ContextListener context) {
-      WebTarget target = initial.path("_search/scroll").queryParam("scroll", scrollTimeout);
-      context.addContext("ScrollId", scrollId);
+      WebTarget target = initial.path("_search/scroll");
       context.addContext(target);
-      return target.request().buildPost(Entity.text(scrollId));
+      return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildPost(Entity.json(this));
     }
-
-    public SearchScroll setScrollTimeout(String scrollTimeout){
-      this.scrollTimeout = scrollTimeout;
-      return this;
-    }
-
   }
 
   public static class DeleteScroll {
@@ -237,7 +242,7 @@ public class ElasticActions {
     }
 
     public void delete(WebTarget target, InvocationCallback<Response> callback) {
-      target.path("_search/scroll").path(scrollId).request().buildDelete().submit(callback);
+      target.path("_search/scroll").path(scrollId).request().header(CONTENT_TYPE, APPLICATION_JSON).buildDelete().submit(callback);
     }
   }
 
@@ -256,7 +261,7 @@ public class ElasticActions {
 
     public Result getResult(WebTarget target) {
       try {
-        return new JsonResult(target.path(Joiner.on(",").join(indexes)).path("_search_shards").request().buildGet().invoke(byte[].class));
+        return new JsonResult(target.path(Joiner.on(",").join(indexes)).path("_search_shards").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -292,7 +297,7 @@ public class ElasticActions {
 
     public Result getResult(WebTarget target) {
       try {
-        return new CountResult(parse(target.path(Joiner.on(",").join(indexes)).path(Joiner.on(",").join(types)).path("_count").request().buildGet().invoke(String.class)).get("count").getAsLong());
+        return new CountResult(parse(target.path(Joiner.on(",").join(indexes)).path(Joiner.on(",").join(types)).path("_count").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(String.class)).get("count").getAsLong());
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -307,7 +312,7 @@ public class ElasticActions {
     @Override
     public Result getResult(WebTarget target) {
       try {
-        return new JsonResult(target.path("_alias").path(alias).request().header("Accept", "application/json").header("content-type", "application/json").buildGet().invoke(byte[].class));
+        return new JsonResult(target.path("_alias").path(alias).request().header("Accept", APPLICATION_JSON).header("content-type", APPLICATION_JSON).buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -324,7 +329,7 @@ public class ElasticActions {
 
     @Override
     public Result getResult(WebTarget target) {
-      final Response obj = target.path(index).request().build("HEAD").invoke();
+      final Response obj = target.path(index).request().header(CONTENT_TYPE, APPLICATION_JSON).build("HEAD").invoke();
       return new Result() {
         @Override
         public int getAsInt() {
@@ -354,10 +359,12 @@ public class ElasticActions {
       this.responseClazz = responseClazz;
     }
 
+    @JsonIgnore
     public Class<T> getResponseClass(){
       return responseClazz;
     }
 
+    @JsonIgnore
     String getAction(){
       return action;
     }
@@ -385,7 +392,7 @@ public class ElasticActions {
       }
 
       context.addContext(target);
-      return target.request().buildGet();
+      return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet();
     }
 
   }

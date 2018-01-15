@@ -44,8 +44,11 @@ import com.dremio.exec.store.SchemaTreeProvider;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.file.FileFormat;
@@ -108,7 +111,7 @@ public class QueryExecutor {
             try {
               statusListener.jobCompleted();
               return new JobUI(jobsService.getJob(job.getJobId()));
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | JobNotFoundException e) {
               logger.debug("job {} not found for dataset {}", job.getJobId().getId(), messagePath, e);
               // no result
             }
@@ -118,14 +121,19 @@ public class QueryExecutor {
         logger.debug("job not found. Running a new one: " + messagePath);
       }
 
-      return new JobUI(jobsService.submitJob(query, queryType, datasetPath.toNamespaceKey(), version, statusListener));
+      return new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(queryType)
+          .setDatasetPath(datasetPath.toNamespaceKey())
+          .setDatasetVersion(version)
+          .build(), statusListener));
     } catch (UserRemoteException e) {
       throw new DACRuntimeException(format("Failure while running %s query for dataset %s :\n%s", queryType, messagePath, query) + "\n" + e.getMessage(), e);
     }
   }
 
   public JobUI runQuery(SqlQuery query, QueryType queryType, DatasetPath datasetPath, DatasetVersion version) {
-    return runQueryWithListener(query, queryType, datasetPath, version, JobStatusListener.NONE);
+    return runQueryWithListener(query, queryType, datasetPath, version, NoOpJobStatusListener.INSTANCE);
   }
 
   public List<String> getColumnList(final String username, DatasetPath path) {
@@ -153,6 +161,9 @@ public class QueryExecutor {
   public JobDataFragment previewPhysicalDataset(String table, FileFormat formatOptions) {
     SqlQuery query = new SqlQuery(format("select * from table(%s (%s))", table, formatOptions.toTableOptions()), null, context.getUserPrincipal().getName());
     // We still need to truncate the results to 500 as the preview physical datasets doesn't support pagination yet
-    return new JobUI(jobsService.submitExternalJob(query, QueryType.UI_INITIAL_PREVIEW)).getData().truncate(500);
+    return new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE)).getData().truncate(500);
   }
 }

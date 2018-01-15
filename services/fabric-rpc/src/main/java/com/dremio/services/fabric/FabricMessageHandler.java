@@ -15,9 +15,12 @@
  */
 package com.dremio.services.fabric;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -28,6 +31,7 @@ import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
@@ -36,6 +40,7 @@ import io.netty.buffer.ByteBuf;
  * Handles messages associated with RPC fabric.
  */
 class FabricMessageHandler {
+  private static final Logger logger = LoggerFactory.getLogger(FabricMessageHandler.class);
 
   private final FabricProtocol[] protocols = new FabricProtocol[64];
   private AtomicLong sync = new AtomicLong();
@@ -65,7 +70,19 @@ class FabricMessageHandler {
           // Transfer data to protocol allocator. Disabled until we get shutdown ordering correct.
           // buf.transferOwnership(allocator);
         }
-    protocol.handle(connection, message.getInnerRpcType(), message.getMessage(), dBody, new ChainedResponseSender(responseSender, protocolId));
+
+    final Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      protocol.handle(connection, message.getInnerRpcType(), message.getMessage(),
+          dBody, new ChainedResponseSender(responseSender, protocolId));
+    } finally {
+      final long time = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      if (time > RpcBus.RPC_DELAY_WARNING_THRESHOLD) {
+        logger.warn(String.format(
+            "Message of mode REQUEST for protocol %d of rpc type %d took longer than %dms. Actual duration was %dms.",
+            protocolId, message.getInnerRpcType(), RpcBus.RPC_DELAY_WARNING_THRESHOLD, time));
+      }
+    }
   }
 
   private static class ChainedResponseSender implements ResponseSender {

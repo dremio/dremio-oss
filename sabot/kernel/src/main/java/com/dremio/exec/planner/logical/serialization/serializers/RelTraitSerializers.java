@@ -223,7 +223,7 @@ public final class RelTraitSerializers {
       final boolean isKnown = collationSet.contains(object);
       kryo.writeObject(output, isKnown);
       if (isKnown) {
-        kryo.writeObject(output, object == RelCollations.EMPTY ? 0 : 1);
+        kryo.writeObject(output, object.equals(RelCollations.EMPTY) ? 0 : 1);
         return;
       }
 

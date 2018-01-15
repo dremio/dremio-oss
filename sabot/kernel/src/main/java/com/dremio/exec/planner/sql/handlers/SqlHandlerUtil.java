@@ -283,6 +283,6 @@ public class SqlHandlerUtil {
     final CreateTableEntry createTableEntry = schema.createNewTable(Util.last(storeTable), WriterOptions.DEFAULT, storageOptions);
 
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
-    return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry);
+    return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry, inputRel.getRowType());
   }
 }

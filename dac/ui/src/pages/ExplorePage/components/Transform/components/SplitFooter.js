@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+
+import PropTypes from 'prop-types';
 
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import Select from 'components/Fields/Select';
@@ -23,7 +25,7 @@ import TextField from 'components/Fields/TextField';
 import FieldWithError from 'components/Fields/FieldWithError';
 import { applyValidators, isRequired } from 'utils/validation';
 import { LINE_START_CENTER, FLEX_WRAP_COL_CENTER } from 'uiTheme/radium/flexStyle';
-import { formLabel, body } from 'uiTheme/radium/typography';
+import { formLabel } from 'uiTheme/radium/typography';
 
 @PureRender
 @Radium
@@ -135,7 +137,6 @@ const styles = {
   select: {
     marginLeft: -2,
     width: 100,
-    height: 24,
-    ...body
+    height: 24
   }
 };

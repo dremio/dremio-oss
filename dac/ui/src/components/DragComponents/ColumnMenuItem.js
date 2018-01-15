@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
-import { body, unavailable } from 'uiTheme/radium/typography';
+import { unavailable } from 'uiTheme/radium/typography';
 import { ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { typeToIconType } from 'constants/DataTypes';
 import { constructFullPath } from 'utils/pathUtils';
@@ -65,7 +66,7 @@ export default class ColumnMenuItem extends Component {
     const { item, disabled, preventDrag, fieldType } = this.props;
     const font = disabled
       ? unavailable
-      : body;
+      : {};
     const disabledHoverStyle = preventDrag || disabled
       ? {
         cursor: 'default',

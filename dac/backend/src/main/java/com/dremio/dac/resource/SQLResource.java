@@ -30,7 +30,9 @@ import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 
 /**
@@ -57,7 +59,10 @@ public class SQLResource {
   public JobDataFragment query(CreateFromSQL sql) {
     SqlQuery query = new SqlQuery(sql.getSql(), sql.getContext(), securityContext);
     // Pagination is not supported in this API, so we need to truncate the results to 500 records
-    return new JobUI(jobs.submitExternalJob(query, QueryType.REST)).getData().truncate(500);
+    return new JobUI(jobs.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.REST)
+        .build(), NoOpJobStatusListener.INSTANCE)).getData().truncate(500);
   }
 
 }

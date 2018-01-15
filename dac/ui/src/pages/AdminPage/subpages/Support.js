@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PureComponent } from 'react';
+
+import PropTypes from 'prop-types';
 
 import { connect } from 'react-redux';
 import settingActions from 'actions/resources/setting';
@@ -22,7 +24,6 @@ import { addNotification } from 'actions/notification';
 import { getViewState } from 'selectors/resources';
 import Immutable from 'immutable';
 
-import { body } from 'uiTheme/radium/typography';
 import { description } from 'uiTheme/radium/forms';
 import './Support.less';
 
@@ -65,7 +66,7 @@ export class Support extends PureComponent {
   }
 
   render() {
-    return <div className='support-settings' style={body}>
+    return <div className='support-settings'>
       <Header>{la('Support Settings')}</Header>
 
       <ViewStateWrapper viewState={this.props.viewState}>

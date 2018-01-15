@@ -58,5 +58,5 @@ window.fileABug = fileABug; // expose for other tools (e.g. bookmarklet)
 function truncate(str = '') {
   const lines = str.split('\n');
   if (lines.length <= 10) return str;
-  return lines.slice(0, 10).join('\n') + '\n...';
+  return lines.slice(0, 10).join('\n') + '\n…';
 }

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
 import { connect }   from 'react-redux';
 import pureRender from 'pure-render-decorator';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import Modal from 'components/Modals/Modal';
 import { CANCEL, CUSTOM, NEXT } from 'components/Buttons/ButtonTypes';
@@ -28,6 +30,7 @@ import { constructFullPath, splitFullPath } from 'utils/pathUtils';
 
 import UpdateDatasetView from './UpdateDatasetView';
 
+@injectIntl
 @pureRender
 export class UpdateDataset extends Component {
   static propTypes = {
@@ -45,28 +48,34 @@ export class UpdateDataset extends Component {
     dependentDatasets: PropTypes.array,
     space: PropTypes.object,
     pathname: PropTypes.string,
-    queryContext: PropTypes.instanceOf(Immutable.List)
+    queryContext: PropTypes.instanceOf(Immutable.List),
+    intl: PropTypes.object.isRequired
   };
 
   constructor(props) {
     super(props);
+    const { intl } = props;
     this.config = {
       rename: () => ({
-        title: la('Rename Dataset'),
+        title: intl.formatMessage({ id: 'Dataset.RenameDataset'}),
         hidePath: true,
         buttons: [
-          { name: la('Cancel'), key: 'cancel', type: CANCEL },
-          { name: la('Rename'), key: 'renameDataset', type: NEXT }
+          { name: intl.formatMessage({ id: 'Common.Cancel' }), key: 'cancel', type: CANCEL },
+          { name: intl.formatMessage({ id: 'Common.Rename' }), key: 'renameDataset', type: NEXT }
         ]
       }),
       move: (dependentDatasets) => {
         const hasDeps = dependentDatasets && dependentDatasets.length;
         const buttons = [
-          { name: la('Cancel'), key: 'cancel', type: CANCEL },
-          { name: la('Make a Copy'), key: 'copyDataset', type: hasDeps ? NEXT : CUSTOM },
-          { name: hasDeps ? la('Move Anyway') : la('Move'), key: 'moveDataset', type: hasDeps ? CUSTOM : NEXT }
+          { name: intl.formatMessage({ id: 'Common.Cancel' }), key: 'cancel', type: CANCEL },
+          { name: intl.formatMessage({ id: 'Common.MakeCopy' }), key: 'copyDataset', type: hasDeps ? NEXT : CUSTOM },
+          {
+            name: intl.formatMessage({ id: hasDeps ? 'Common.MoveAnyway' : 'Common.Move' }),
+            key: 'moveDataset',
+            type: hasDeps ? CUSTOM : NEXT
+          }
         ];
-        return { title: la('Move Dataset'), buttons };
+        return { title: intl.formatMessage({ id: 'Dataset.MoveDataset' }), buttons };
       }
     };
   }
@@ -106,17 +115,13 @@ export class UpdateDataset extends Component {
   }
 
   submit = (keyAction, values) => {
-    if (keyAction === 'cancel') {
-      this.props.hide();
-    } else {
-      return ApiUtils.attachFormSubmitHandlers(
-        this[keyAction](values)
-      ).then((res) => {
-        if (res && !res.error) {
-          this.props.hide();
-        }
-      });
-    }
+    return ApiUtils.attachFormSubmitHandlers(
+      this[keyAction](values)
+    ).then((res) => {
+      if (res && !res.error) {
+        this.props.hide();
+      }
+    });
   }
 
   render() {
@@ -128,6 +133,7 @@ export class UpdateDataset extends Component {
 
     const datasetView = config
       ? <UpdateDatasetView
+        hide={this.props.hide}
         initialPath={initialPath}
         name={this.props.query.name}
         buttons={config.buttons}

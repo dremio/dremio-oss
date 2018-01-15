@@ -105,6 +105,37 @@ public class DACJobResultsSerializer extends AbstractRowBasedRecordWriter {
     // no-op; no need to close the JsonGenerator as it is the responsibility of the caller
   }
 
+  @Override
+  public FieldConverter getNewNullConverter(int fieldId, String fieldName, FieldReader reader) {
+    return new NullJsonConverter(fieldId, fieldName, reader);
+  }
+
+  public class NullJsonConverter extends FieldConverter {
+    private JsonOutputContext context;
+
+    public NullJsonConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+      context = new JsonOutputContext(recordSizeLimit);
+    }
+
+    @Override
+    public void startField() throws IOException {
+      context.reset(recordSizeLimit);
+      gen.writeStartObject();
+      gen.writeFieldName("v");
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      /* NO-OP */
+    }
+
+    @Override
+    public void endField() throws IOException {
+      gen.writeEndObject();
+    }
+  }
+
   <#list vv.types as dremioType>
   <#assign finalType = "Nullable" + dremioType >
   <#if dremioType == "Union" || dremioType == "Map" || dremioType == "List" >

@@ -26,9 +26,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.column.statistics.Statistics;
+import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -38,6 +38,7 @@ import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.TimedRunnable;
@@ -56,14 +57,13 @@ public class Metadata {
    * Get the parquet metadata for the parquet files in the given directory, including those in subdirectories
    *
    * @param fs
-   * @param path
    * @return
    * @throws IOException
    */
-  public static ParquetTableMetadata getParquetTableMetadata(ParquetFooterCache cache, FileStatus status, FileSystem fs,
+  public static ParquetTableMetadata getParquetTableMetadata(FileStatus status, FileSystem fs,
       ParquetFormatConfig formatConfig, Configuration fsConf) throws IOException {
     Metadata metadata = new Metadata(formatConfig, fsConf);
-    return metadata.getParquetTableMetadata(ImmutableList.of(status), cache);
+    return metadata.getParquetTableMetadata(ImmutableList.of(status));
   }
 
   /**
@@ -73,10 +73,10 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  public static ParquetTableMetadata getParquetTableMetadata(ParquetFooterCache cache,
-      List<FileStatus> fileStatuses, ParquetFormatConfig formatConfig, Configuration fsConf) throws IOException {
+  public static ParquetTableMetadata getParquetTableMetadata(
+    List<FileStatus> fileStatuses, ParquetFormatConfig formatConfig, Configuration fsConf) throws IOException {
     Metadata metadata = new Metadata(formatConfig, fsConf);
-    return metadata.getParquetTableMetadata(fileStatuses, cache);
+    return metadata.getParquetTableMetadata(fileStatuses);
   }
 
   private Metadata(ParquetFormatConfig formatConfig, Configuration fsConf) {
@@ -91,9 +91,9 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private ParquetTableMetadata getParquetTableMetadata(List<FileStatus> fileStatuses, ParquetFooterCache cache)
+  private ParquetTableMetadata getParquetTableMetadata(List<FileStatus> fileStatuses)
       throws IOException {
-    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(cache, fileStatuses);
+    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(fileStatuses);
     return new ParquetTableMetadata(fileMetadataList);
   }
 
@@ -104,11 +104,10 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private List<ParquetFileMetadata> getParquetFileMetadata(ParquetFooterCache cache,
-      List<FileStatus> fileStatuses) throws IOException {
+  private List<ParquetFileMetadata> getParquetFileMetadata(List<FileStatus> fileStatuses) throws IOException {
     List<TimedRunnable<ParquetFileMetadata>> gatherers = Lists.newArrayList();
     for (FileStatus file : fileStatuses) {
-      gatherers.add(new MetadataGatherer(file, cache));
+      gatherers.add(new MetadataGatherer(file));
     }
 
     List<ParquetFileMetadata> metaDataList = Lists.newArrayList();
@@ -122,11 +121,9 @@ public class Metadata {
   private class MetadataGatherer extends TimedRunnable<ParquetFileMetadata> {
 
     private FileStatus fileStatus;
-    private ParquetFooterCache cache;
 
-    public MetadataGatherer(FileStatus fileStatus, ParquetFooterCache cache) {
+    public MetadataGatherer(FileStatus fileStatus) {
       this.fileStatus = fileStatus;
-      this.cache = cache;
     }
 
     @Override
@@ -135,7 +132,7 @@ public class Metadata {
       return processUGI.doAs(new PrivilegedExceptionAction<ParquetFileMetadata>() {
         @Override
         public ParquetFileMetadata run() throws Exception {
-          return getParquetFileMetadata(cache, fileStatus);
+          return getParquetFileMetadata(fileStatus);
         }
       });
     }
@@ -158,13 +155,10 @@ public class Metadata {
     return getOriginalType(t, path, depth + 1);
   }
 
-  private ParquetFileMetadata getParquetFileMetadata(ParquetFooterCache cache, FileStatus file) throws IOException {
+  private ParquetFileMetadata getParquetFileMetadata(FileStatus file) throws IOException {
     final ParquetMetadata metadata;
-    if(cache != null){
-      metadata = cache.getFooter(file);
-    } else {
-      metadata = ParquetFileReader.readFooter(fs.getConf(), file);
-    }
+
+    metadata = SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER);
 
     MessageType schema = metadata.getFileMetaData().getSchema();
 
@@ -221,11 +215,10 @@ public class Metadata {
 
       RowGroupMetadata rowGroupMeta =
           new RowGroupMetadata(rowGroup.getStartingPos(), length, rowGroup.getRowCount(),
-              getHostAffinity(cache, file, rowGroup.getStartingPos(), length), columnMetadataList);
+              getHostAffinity(file, rowGroup.getStartingPos(), length), columnMetadataList);
 
       rowGroupMetadataList.add(rowGroupMeta);
     }
-    String path = Path.getPathWithoutSchemeAndAuthority(file.getPath()).toString();
 
     return new ParquetFileMetadata(file, file.getLen(), rowGroupMetadataList, columnTypeInfo);
   }
@@ -239,9 +232,9 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private Map<String, Float> getHostAffinity(ParquetFooterCache cache, FileStatus fileStatus, long start, long length)
+  private Map<String, Float> getHostAffinity(FileStatus fileStatus, long start, long length)
       throws IOException {
-    BlockLocation[] blockLocations = cache != null ? cache.getBlockLocations(fileStatus, start, length) : fs.getFileBlockLocations(fileStatus, start, length);
+    BlockLocation[] blockLocations = fs.getFileBlockLocations(fileStatus, start, length);
     Map<String, Float> hostAffinityMap = Maps.newHashMap();
     for (BlockLocation blockLocation : blockLocations) {
       for (String host : blockLocation.getHosts()) {
