@@ -85,7 +85,7 @@ describe('Transform', () => {
         expect(context.router.replace).to.calledWith({
           ...minimalProps.location,
           state: {
-            ...location.state,
+            ...minimalProps.location.state,
             method: 'Pattern'
           }
         });
@@ -124,7 +124,7 @@ describe('Transform', () => {
         expect(context.router.replace).to.calledWith({
           ...minimalProps.location,
           state: {
-            ...location.state,
+            ...minimalProps.location.state,
             method: 'Pattern'
           }
         });

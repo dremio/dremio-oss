@@ -19,15 +19,14 @@ package com.dremio.exec.physical.config;
 import java.util.Iterator;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.service.namespace.StoragePluginId;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -49,17 +48,21 @@ public class WriterCommitterPOP extends AbstractSingle {
           @JsonProperty("tempLocation") String tempLocation,
           @JsonProperty("finalLocation") String finalLocation,
           @JsonProperty("userName") String userName,
-          @JsonProperty("pluginConfig") FileSystemConfig config,
+          @JsonProperty("pluginId") StoragePluginId pluginId,
           @JsonProperty("child") PhysicalOperator child,
           @JacksonInject StoragePluginRegistry engineRegistry
   ) throws ExecutionSetupException {
       super(child, userName);
       this.tempLocation = tempLocation;
       this.finalLocation = finalLocation;
-      this.plugin = Preconditions.checkNotNull((FileSystemPlugin) engineRegistry.getPlugin(config));
+      this.plugin = Preconditions.checkNotNull((FileSystemPlugin) engineRegistry.getPlugin(pluginId));
   }
 
-  public WriterCommitterPOP(String tempLocation, String finalLocation, String userName, FileSystemPlugin plugin,
+  public WriterCommitterPOP(
+      String tempLocation,
+      String finalLocation,
+      String userName,
+      FileSystemPlugin plugin,
       PhysicalOperator child) {
     super(child, userName);
     this.plugin = Preconditions.checkNotNull(plugin);
@@ -85,8 +88,8 @@ public class WriterCommitterPOP extends AbstractSingle {
     return finalLocation;
   }
 
-  public FileSystemConfig getPluginConfig() {
-    return plugin.getConfig();
+  public StoragePluginId getPluginId() {
+    return plugin.getId();
   }
 
   @JsonIgnore

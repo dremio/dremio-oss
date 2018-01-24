@@ -55,7 +55,7 @@ public class CopierOperator implements SingleInputOperator {
   private List<TransferPair> transferPairs = new ArrayList<>();
 
   // random vector to determine if no copy is needed.
-  private ValueVector.Accessor indicator;
+  private ValueVector randomVector;
   // if set to true, outputData() will use transfer instead of copy when no copy is needed
   private boolean checkForStraightCopy;
 
@@ -69,7 +69,7 @@ public class CopierOperator implements SingleInputOperator {
     this.incoming = incoming;
 
     for(VectorWrapper<?> w : incoming){
-      indicator = w.getValueVector().getAccessor();
+      randomVector = w.getValueVector();
       checkForStraightCopy = true;
     }
 
@@ -120,7 +120,7 @@ public class CopierOperator implements SingleInputOperator {
 
   @Override
   public int outputData() {
-    if(checkForStraightCopy && incoming.getRecordCount() == indicator.getValueCount()){
+    if(checkForStraightCopy && incoming.getRecordCount() == randomVector.getValueCount()){
       for(TransferPair tp : transferPairs){
         tp.transfer();
       }
@@ -140,8 +140,7 @@ public class CopierOperator implements SingleInputOperator {
 
     if(copiedRecords > 0){
       for(VectorWrapper<?> v : output){
-        ValueVector.Mutator m = v.getValueVector().getMutator();
-        m.setValueCount(copiedRecords);
+        v.getValueVector().setValueCount(copiedRecords);
       }
     }
     output.setRecordCount(copiedRecords);

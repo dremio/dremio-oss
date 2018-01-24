@@ -41,6 +41,7 @@ export default class Toggle extends Component {
         onToggle={onChange}
         toggled={value}
         style={style}
+        className='field'
       />
     );
   }

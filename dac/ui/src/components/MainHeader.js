@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { FormattedMessage, injectIntl } from 'react-intl';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 
 import ChatItem from 'dyn-load/components/HeaderItemsTypes/ChatItem';
 
@@ -56,9 +56,10 @@ export class MainHeader extends Component {
           className='dremio'
           to='/'
           style={styles.logo}>
-          <FontIcon
-            type='NarwhalLogoWithNameLight'
-            theme={styles.logoIcon} />
+          <Art
+            src={'NarwhalLogoWithNameLight.svg'}
+            alt={this.props.intl.formatMessage({id: 'App.NarwhalLogo'})}
+            style={styles.logoIcon} />
         </Link>
         <div className='header-wrap'>
           <div className='left-part'>
@@ -112,10 +113,11 @@ const styles = {
     margin: '5px 0 0 7px'
   },
   logoIcon: {
-    'Icon': {
-      'width': 115,
-      'height': 36
-    }
+    width: 115,
+    height: 36,
+    position: 'relative',
+    top: -2,
+    left: -4
   },
   rightPart: {
     margin: '0 4px 0 0'

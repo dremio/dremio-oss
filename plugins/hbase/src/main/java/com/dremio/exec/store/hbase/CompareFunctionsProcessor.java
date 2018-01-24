@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.hbase;
 
+import static com.dremio.common.expression.ConvertExpression.CONVERT_FROM;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -68,7 +70,7 @@ class CompareFunctionsProcessor extends AbstractExprVisitor<Boolean, LogicalExpr
     return COMPARE_FUNCTIONS_TRANSPOSE_MAP.keySet().contains(functionName);
   }
 
-  public static CompareFunctionsProcessor process(FunctionCall call, boolean nullComparatorSupported) {
+  public static CompareFunctionsProcessor process(FunctionCall call) {
     String functionName = call.getName();
     LogicalExpression nameArg = call.args.get(0);
     LogicalExpression valueArg = call.args.size() >= 2 ? call.args.get(1) : null;
@@ -82,7 +84,7 @@ class CompareFunctionsProcessor extends AbstractExprVisitor<Boolean, LogicalExpr
         evaluator.functionName = COMPARE_FUNCTIONS_TRANSPOSE_MAP.get(functionName);
       }
       evaluator.success = nameArg.accept(evaluator, valueArg);
-    } else if (nullComparatorSupported && call.args.get(0) instanceof SchemaPath) {
+    } else if (call.args.get(0) instanceof SchemaPath) {
       evaluator.success = true;
       evaluator.path = (SchemaPath) nameArg;
     }
@@ -144,8 +146,22 @@ class CompareFunctionsProcessor extends AbstractExprVisitor<Boolean, LogicalExpr
   }
 
   @Override
+  public Boolean visitFunctionCall(FunctionCall call, LogicalExpression valueArg) throws RuntimeException {
+    if (call.getName().toLowerCase().startsWith(CONVERT_FROM)) {
+      try {
+        String encoding = call.getName().substring(CONVERT_FROM.length());
+        ConvertExpression convertExpression = new ConvertExpression(CONVERT_FROM, encoding, call.args.get(0));
+        return convertExpression.accept(this, valueArg);
+      } catch (Exception e) {
+        return super.visitFunctionCall(call, valueArg);
+      }
+    }
+    return super.visitFunctionCall(call, valueArg);
+  }
+
+  @Override
   public Boolean visitConvertExpression(ConvertExpression e, LogicalExpression valueArg) throws RuntimeException {
-    if (e.getConvertFunction() == ConvertExpression.CONVERT_FROM) {
+    if (CONVERT_FROM.equals(e.getConvertFunction())) {
 
       String encodingType = e.getEncodingType();
       int prefixLength    = 0;
@@ -158,7 +174,7 @@ class CompareFunctionsProcessor extends AbstractExprVisitor<Boolean, LogicalExpr
       if (e.getInput() instanceof FunctionCall) {
 
         // We can prune scan range only for big-endian encoded data
-        if (encodingType.endsWith("_BE") == false) {
+        if (!encodingType.endsWith("_BE")) {
           return false;
         }
 
@@ -172,9 +188,9 @@ class CompareFunctionsProcessor extends AbstractExprVisitor<Boolean, LogicalExpr
         LogicalExpression valueArg1 = call.args.size() >= 2 ? call.args.get(1) : null;
         LogicalExpression valueArg2 = call.args.size() >= 3 ? call.args.get(2) : null;
 
-        if (((nameArg instanceof SchemaPath) == false) ||
-             (valueArg1 == null) || ((valueArg1 instanceof IntExpression) == false) ||
-             (valueArg2 == null) || ((valueArg2 instanceof IntExpression) == false)) {
+        if ((!(nameArg instanceof SchemaPath)) ||
+             (valueArg1 == null) || (!(valueArg1 instanceof IntExpression)) ||
+             (valueArg2 == null) || (!(valueArg2 instanceof IntExpression))) {
           return false;
         }
 

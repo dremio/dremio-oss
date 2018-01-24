@@ -30,19 +30,15 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.SourceName;
-import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.proto.model.source.HdfsConfig;
 import com.dremio.dac.server.BaseTestServer;
@@ -61,9 +57,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
-import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
@@ -185,55 +179,5 @@ public class TestHdfs extends BaseTestMiniDFS {
     JobDataFragment jobData = job.getData().truncate(500);
     assertEquals(3, jobData.getReturnedRowCount());
     assertEquals(2, jobData.getSchema().getFieldCount());
-  }
-
-  // DX-7484: only a single instance of HDFS may exist
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-  @Test
-  public void testSingleInstanceCreate() throws Exception {
-    // 'setup' would have already registered a Hdfs instance
-    // Attempting to register a second one. Expect a failure
-    final HdfsConfig hdfsConfig = new HdfsConfig();
-    hdfsConfig.setHostname(host);
-    hdfsConfig.setPort(port);
-    SourceUI source = new SourceUI();
-    source.setName("expect failure");
-    source.setConfig(hdfsConfig);
-    expectedException.expect(UserException.class);
-    expectedException.expectMessage("Conflict with existing HDFS source dachdfs_test. Dremio only allows a single instance of this type");
-    l(SourceService.class).registerSourceWithRuntime(source);
-  }
-
-  // DX-8184: editing of single-instance HDFS storage plugin
-  @Test
-  public void testSingleInstanceEdit() throws Exception {
-    // 'setup' would have already registered an Hdfs instance 'SOURCE_NAME'
-    // Attempting to edit that instance. Expect success
-    final SourceConfig origConfig = l(NamespaceService.class).getSource(new SourcePath(new SourceName(SOURCE_NAME)).toNamespaceKey());
-    assertEquals(origConfig.getDescription(), SOURCE_DESC);
-
-    String newDesc = SOURCE_DESC + "_amended";
-
-    final HdfsConfig hdfsConfig = new HdfsConfig();
-    hdfsConfig.setHostname(host);
-    hdfsConfig.setPort(port);
-    SourceUI source = new SourceUI();
-    source.setName(SOURCE_NAME);
-    source.setConfig(hdfsConfig);
-    source.setId(SOURCE_ID);
-    source.setDescription(newDesc);
-    source.setVersion(origConfig.getVersion());
-    l(SourceService.class).registerSourceWithRuntime(source);
-
-    final SourceConfig modifiedConfig = l(NamespaceService.class).getSource(new SourcePath(new SourceName(SOURCE_NAME)).toNamespaceKey());
-    assertEquals(modifiedConfig.getDescription(), newDesc);
-
-    // Back to original description
-    source.setDescription(SOURCE_DESC);
-    source.setVersion(modifiedConfig.getVersion());
-    l(SourceService.class).registerSourceWithRuntime(source);
-
-    final SourceConfig backToOrigConfig = l(NamespaceService.class).getSource(new SourcePath(new SourceName(SOURCE_NAME)).toNamespaceKey());
-    assertEquals(backToOrigConfig.getDescription(), SOURCE_DESC);
   }
 }

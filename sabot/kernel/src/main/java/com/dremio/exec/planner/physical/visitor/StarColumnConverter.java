@@ -35,7 +35,6 @@ import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.OldScanPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.google.common.collect.Lists;
@@ -189,39 +188,6 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
   }
 
   @Override
-  public Prel visitOldScan(OldScanPrel scanPrel, Void value) throws RuntimeException {
-    if (StarColumnHelper.containsStarColumn(scanPrel.getRowType()) && prefixedForStar ) {
-
-      List<RexNode> exprs = Lists.newArrayList();
-
-      for (RelDataTypeField field : scanPrel.getRowType().getFieldList()) {
-        RexNode expr = scanPrel.getCluster().getRexBuilder().makeInputRef(field.getType(), field.getIndex());
-        exprs.add(expr);
-      }
-
-      List<String> fieldNames = Lists.newArrayList();
-
-      long tableId = tableNumber.getAndIncrement();
-
-      for (String name : scanPrel.getRowType().getFieldNames()) {
-        if (StarColumnHelper.isNonPrefixedStarColumn(name)) {
-          fieldNames.add("T" +  tableId + StarColumnHelper.PREFIX_DELIMITER + name);  // Add prefix to * column.
-        } else {
-          fieldNames.add(name);  // Keep regular column as it is.
-        }
-      }
-      RelDataType rowType = RexUtil.createStructType(scanPrel.getCluster().getTypeFactory(), exprs, fieldNames);
-
-      // insert a PAS.
-      ProjectPrel proj = new ProjectPrel(scanPrel.getCluster(), scanPrel.getTraitSet(), scanPrel, exprs, rowType);
-
-      return proj;
-    } else {
-      return visitPrel(scanPrel, value);
-    }
-  }
-
-  @Override
   public Prel visitScan(ScanPrelBase scanPrel, Void value) throws RuntimeException {
     if (StarColumnHelper.containsStarColumn(scanPrel.getRowType()) && prefixedForStar ) {
 
@@ -262,8 +228,8 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
     // That means we should pick a different name that does not conflict with the original names, in additional
     // to make sure it's unique in the set of unique names.
 
-    HashSet<String> uniqueNames = new HashSet<String>();
-    HashSet<String> origNames = new HashSet<String>(names);
+    HashSet<String> uniqueNames = new HashSet<>();
+    HashSet<String> origNames = new HashSet<>(names);
 
     List<String> newNames = Lists.newArrayList();
 

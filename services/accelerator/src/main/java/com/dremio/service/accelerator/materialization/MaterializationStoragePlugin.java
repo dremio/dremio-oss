@@ -18,15 +18,16 @@ package com.dremio.service.accelerator.materialization;
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
@@ -38,10 +39,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.ops.ViewExpansionContext;
+import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.ColumnMaterializationShuttle;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.FileMaterializationShuttle;
 import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
@@ -49,10 +51,11 @@ import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers.KryoDeser
 import com.dremio.exec.planner.acceleration.LogicalPlanDeserializer;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.AbstractStoragePlugin;
-import com.dremio.exec.store.ConversionContext;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
 import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.StoragePluginTypeRulesFactory;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.service.accelerator.AccelerationUtils;
@@ -62,7 +65,11 @@ import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
 import com.dremio.service.accelerator.store.AccelerationStore;
 import com.dremio.service.accelerator.store.MaterializationStore;
-import com.dremio.service.namespace.TableInstance;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.base.Function;
@@ -72,13 +79,18 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+
+import io.protostuff.ByteString;
 
 /**
  * A plugin that exposes existing materializations as materialized view tables.
  *
  * Materialized view table converts serialized logical plan to {@link RelNode}.
  */
-public class MaterializationStoragePlugin extends AbstractStoragePlugin<ConversionContext.NamespaceConversionContext> {
+public class MaterializationStoragePlugin implements StoragePlugin {
+
+  private static final StoragePluginType TYPE = new StoragePluginType("materialization", Factory.class);
 
   private static final Logger logger = LoggerFactory.getLogger(MaterializationStoragePlugin.class);
 
@@ -87,6 +99,7 @@ public class MaterializationStoragePlugin extends AbstractStoragePlugin<Conversi
   private final Supplier<MaterializationStore> materializationStore;
   private final StoragePluginRegistry registry;
   private final AccelerationManager accelerationManager;
+  private final StoragePluginId pluginId;
 
   /**
    * Constructor signature is required by the initialization mechanism
@@ -95,6 +108,7 @@ public class MaterializationStoragePlugin extends AbstractStoragePlugin<Conversi
    * @param name
    */
   public MaterializationStoragePlugin(final MaterializationStoragePluginConfig config, final SabotContext context, String name) throws ExecutionSetupException {
+    this.pluginId = new StoragePluginId(name, config, TYPE);
     this.config = config;
     this.accelerationManager = context.getAccelerationManager();
     final Provider<KVStoreProvider> kvStoreProvider = new Provider<KVStoreProvider>() {
@@ -123,16 +137,6 @@ public class MaterializationStoragePlugin extends AbstractStoragePlugin<Conversi
   }
 
   @Override
-  public StoragePluginConfig getConfig() {
-    return config;
-  }
-
-  @Override
-  public RelNode getRel(final RelOptCluster cluster, final RelOptTable relOptTable, final ConversionContext.NamespaceConversionContext relContext) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public ViewTable getView(final List<String> path, final SchemaConfig schemaConfig) {
     if (path.size() != 2) {
       logger.debug("path must consists of 2 segments [pluginName, layoutId]. got {}",
@@ -147,28 +151,6 @@ public class MaterializationStoragePlugin extends AbstractStoragePlugin<Conversi
     }
     return new MaterializedViewTable(layout.get(), schemaConfig.getUserName(), schemaConfig.getViewExpansionContext());
   }
-
-  @Override
-  public List<DatasetConfig> listDatasets() {
-    return Collections.emptyList();
-  }
-
-  @Override
-  public boolean folderExists(final SchemaConfig schemaConfig, final List<String> folderPath) throws IOException {
-    // This should all be in namespace. Okay to respond negatively because there is no such thing as fall through.
-    return false;
-  }
-
-  @Override
-  public DatasetConfig getDataset(final List<String> tableSchemaPath, final TableInstance tableInstance, final SchemaConfig schemaConfig) {
-    return null;
-  }
-
-  @Override
-  public boolean supportsRead() {
-    return true;
-  }
-
 
   class MaterializedViewTable extends ViewTable {
     private final Layout layout;
@@ -291,6 +273,71 @@ public class MaterializationStoragePlugin extends AbstractStoragePlugin<Conversi
           }
         })
         .or(shuttle);
+  }
+
+  @Override
+  public void close() throws Exception {
+  }
+
+  @Override
+  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+    return null;
+  }
+
+  @Override
+  public boolean containerExists(NamespaceKey key) {
+    return false;
+  }
+
+  @Override
+  public boolean datasetExists(NamespaceKey key) {
+    return false;
+  }
+
+  @Override
+  public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
+    return false;
+  }
+
+  @Override
+  public SourceState getState() {
+    return SourceState.GOOD;
+  }
+
+  @Override
+  public StoragePluginId getId() {
+    return pluginId;
+  }
+
+  @Override
+  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
+    return null;
+  }
+
+  @Override
+  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
+    return CheckResult.UNCHANGED;
+  }
+
+  @Override
+  public void start() throws IOException {
+  }
+
+  /**
+   * Empty rules factory.
+   */
+  public static class Factory implements StoragePluginTypeRulesFactory {
+
+    @Override
+    public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, StoragePluginType pluginType) {
+      return ImmutableSet.of();
+    }
+
   }
 
 }

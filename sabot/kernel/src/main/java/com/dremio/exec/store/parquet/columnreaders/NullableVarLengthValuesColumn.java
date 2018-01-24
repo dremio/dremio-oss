@@ -19,6 +19,7 @@ import io.netty.buffer.ArrowBuf;
 
 import java.io.IOException;
 
+import org.apache.arrow.vector.BaseNullableVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
@@ -71,7 +72,7 @@ public abstract class NullableVarLengthValuesColumn<V extends ValueVector> exten
     if ( columnDescriptor.getMaxDefinitionLevel() > currDefLevel) {
       nullsRead++;
       // set length of zero, each index in the vector defaults to null so no need to set the nullability
-      variableWidthVector.getMutator().setValueLengthSafe(
+      ((BaseNullableVariableWidthVector)variableWidthVector).setValueLengthSafe(
           valuesReadInCurrentPass + pageReader.valuesReadyToRead, 0);
       currentValNull = true;
       return false;// field is null, no length to add to data vector
@@ -121,14 +122,14 @@ public abstract class NullableVarLengthValuesColumn<V extends ValueVector> exten
   protected void readField(long recordsToRead) {
     // TODO - unlike most implementations of this method, the recordsReadInThisIteration field is not set here
     // should verify that this is not breaking anything
-    currentValNull = variableWidthVector.getAccessor().getObject(valuesReadInCurrentPass) == null;
+    currentValNull = variableWidthVector.getObject(valuesReadInCurrentPass) == null;
     // again, I am re-purposing the unused field here, it is a length n BYTES, not nodes
     if (! currentValNull) {
       if (usingDictionary) {
         currDictValToWrite = pageReader.dictionaryValueReader.readBytes();
       }
       // re-purposing  this field here for length in BYTES to prevent repetitive multiplication/division
-      dataTypeLengthInBits = variableWidthVector.getAccessor().getValueLength(valuesReadInCurrentPass);
+      dataTypeLengthInBits = ((BaseNullableVariableWidthVector)variableWidthVector).getValueLength(valuesReadInCurrentPass);
       boolean success = setSafe(valuesReadInCurrentPass, pageReader.pageData,
           (int) pageReader.readPosInBytes + 4, dataTypeLengthInBits);
       assert success;

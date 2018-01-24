@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -280,15 +282,6 @@ public class FileSelection {
       return newRoot.isEmpty() ? new Path(Path.SEPARATOR) : new Path(newRoot);
     } else {
       return new Path(root);
-    }
-  }
-
-  public static String removeLeadingSlash(String path) {
-    if (path.charAt(0) == '/') {
-      String newPath = path.substring(1);
-      return removeLeadingSlash(newPath);
-    } else {
-      return path;
     }
   }
 

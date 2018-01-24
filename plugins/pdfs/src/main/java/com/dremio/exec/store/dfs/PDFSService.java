@@ -116,6 +116,12 @@ public class PDFSService implements Service {
 
   @Override
   public void close() throws Exception {
+    // If pool is null, service is not started yet
+    if (pool == null) {
+      allocator.close();
+      return;
+    }
+
     // DX-5178
     // we have to synchronize here so the pool is either open or closed since elsewhere a static reference is taken.
     synchronized(pool){

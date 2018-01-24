@@ -25,7 +25,6 @@ import org.apache.calcite.avatica.Meta.StatementHandle;
 
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.DremioStatement;
-import com.dremio.jdbc.InvalidParameterSqlException;
 
 /**
  * Dremio's implementation of {@link Statement}.
@@ -156,24 +155,14 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   public int getQueryTimeout() throws SQLException
   {
     throwIfClosed();
-    return 0;  // (No no timeout.)
+    return super.getQueryTimeout();
   }
 
   @Override
-  public void setQueryTimeout( int milliseconds )
+  public void setQueryTimeout( int seconds )
       throws SQLException {
     throwIfClosed();
-    if ( milliseconds < 0 ) {
-      throw new InvalidParameterSqlException(
-          "Invalid (negative) \"milliseconds\" parameter to setQueryTimeout(...)"
-          + " (" + milliseconds + ")" );
-    }
-    else {
-      if ( 0 != milliseconds ) {
-        throw new SQLFeatureNotSupportedException(
-            "Setting network timeout is not supported." );
-      }
-    }
+    super.setQueryTimeout(seconds);
   }
 
   @Override

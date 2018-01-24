@@ -49,15 +49,15 @@ class CustomerGenerator extends TpchGenerator {
   private final RandomString marketSegmentRandom = randomString(1140279430, DISTRIBUTIONS.getMarketSegments());
   private final RandomText commentRandom = randomText(1335826707, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
 
-  private final NullableBigIntVector.Mutator customerKey;
-  private final NullableBigIntVector.Mutator nationKey;
-  private final NullableBigIntVector.Mutator accountBalance;
+  private final NullableBigIntVector customerKey;
+  private final NullableBigIntVector nationKey;
+  private final NullableBigIntVector accountBalance;
 
-  private final NullableVarCharVector.Mutator customerName;
-  private final NullableVarCharVector.Mutator address;
-  private final NullableVarCharVector.Mutator phone;
-  private final NullableVarCharVector.Mutator marketSegment;
-  private final NullableVarCharVector.Mutator comment;
+  private final NullableVarCharVector customerName;
+  private final NullableVarCharVector address;
+  private final NullableVarCharVector phone;
+  private final NullableVarCharVector marketSegment;
+  private final NullableVarCharVector comment;
 
   public CustomerGenerator(BufferAllocator allocator, GenerationDefinition def, int partitionIndex, String...includedColumns) {
     super(TpchTable.CUSTOMER, allocator, def, partitionIndex, includedColumns);

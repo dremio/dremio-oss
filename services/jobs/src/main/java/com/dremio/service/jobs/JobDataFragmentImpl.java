@@ -68,7 +68,7 @@ public class JobDataFragmentImpl implements JobDataFragment {
   public Object extractValue(String column, int index){
     Pair<RecordBatchData, Integer> dataBatch = find(index);
     Integer columnIndex = nameToColumnIndex.get(column);
-    return dataBatch.getKey().getVectors().get(columnIndex).getAccessor().getObject(dataBatch.getValue());
+    return dataBatch.getKey().getVectors().get(columnIndex).getObject(dataBatch.getValue());
   }
 
   private Pair<RecordBatchData, Integer> find(int index) {

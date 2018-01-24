@@ -94,4 +94,5 @@ public class EasyGroupScan extends AbstractFileGroupScan {
         throw new UnsupportedOperationException("format not supported " + datasetType);
     }
   }
+
 }

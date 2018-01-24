@@ -17,6 +17,7 @@ package com.dremio.exec.expr;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.antlr.runtime.ANTLRStringStream;
@@ -46,6 +47,7 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector;
 
 public class ExpressionTest extends ExecTest {
@@ -128,7 +130,8 @@ public class ExpressionTest extends ExecTest {
       assertEquals(0, error.getErrorCount());
     }
 
-    final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null).getRoot();
+    FunctionContext mockFunctionContext = mock(FunctionContext.class);
+    final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null, mockFunctionContext).getRoot();
     cg.addExpr(new ValueVectorWriteExpression(new TypedFieldId(materializedExpr.getCompleteType(), -1), materializedExpr));
     return cg.getCodeGenerator().generateAndGet();
   }

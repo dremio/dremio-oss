@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.dremio.common.utils.PathUtils;
-import com.dremio.dac.model.graph.DatasetGraphNode.Field;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.service.jobs.JobIndexKeys;

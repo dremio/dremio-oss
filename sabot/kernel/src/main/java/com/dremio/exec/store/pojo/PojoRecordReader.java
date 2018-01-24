@@ -18,9 +18,11 @@ package com.dremio.exec.store.pojo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -28,7 +30,8 @@ import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordDataType;
@@ -40,12 +43,11 @@ import com.dremio.exec.store.pojo.Writers.LongWriter;
 import com.dremio.exec.store.pojo.Writers.StringWriter;
 import com.dremio.exec.store.pojo.Writers.TimeStampMilliWriter;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class PojoRecordReader<T> extends AbstractRecordReader implements Iterable<T> {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PojoRecordReader.class);
-//  private static final com.dremio.exec.testing.ControlsInjector injector = com.dremio.exec.testing.ControlsInjectorFactory.getInjector(PojoRecordReader.class);
 
   private final Class<T> pojoClass;
   private final List<T> pojoObjects;
@@ -55,58 +57,66 @@ public class PojoRecordReader<T> extends AbstractRecordReader implements Iterabl
 
   private Iterator<T> currentIterator;
 
-  /**
-   * TODO: Cleanup the callers to pass the List of POJO objects directly rather than iterator.
-   * @param pojoClass
-   * @param iterator
-   */
   public PojoRecordReader(Class<T> pojoClass, Iterator<T> iterator) {
-    super(null, null);
+    this(pojoClass, iterator, null);
+  }
+
+  public PojoRecordReader(Class<T> pojoClass, Iterator<T> iterator, List<SchemaPath> columns) {
+    super(null, columns);
     this.pojoClass = pojoClass;
     this.pojoObjects = ImmutableList.copyOf(iterator);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    try {
-      Field[] fields = pojoClass.getDeclaredFields();
-      List<PojoWriter> writers = Lists.newArrayList();
 
-      for (int i = 0; i < fields.length; i++) {
-        Field f = fields[i];
+    final Set<String> selectedColumns = new HashSet<>();
+    if(this.getColumns() != null) {
+      for(SchemaPath path : getColumns()) {
+        Preconditions.checkArgument(path.isSimplePath());
+        selectedColumns.add(path.getAsUnescapedPath().toLowerCase());
+      }
+    }
 
-        if (Modifier.isStatic(f.getModifiers())) {
-          continue;
-        }
+    Field[] fields = pojoClass.getDeclaredFields();
+    List<PojoWriter> writers = Lists.newArrayList();
 
-        Class<?> type = f.getType();
-        PojoWriter w = null;
-        if(type == int.class || type == Integer.class) {
-          w = new IntWriter(f);
-        } else if(type == long.class || type == Long.class) {
-          w = new LongWriter(f);
-        } else if(type == boolean.class || type == Boolean.class) {
-          w = new BitWriter(f);
-        } else if(type == double.class || type == Double.class) {
-          w = new DoubleWriter(f);
-        } else if(type.isEnum()) {
-          w = new EnumWriter(f, output.getManagedBuffer());
-        } else if(type == String.class) {
-          w = new StringWriter(f, output.getManagedBuffer());
-        } else if (type == Timestamp.class) {
-          w = new TimeStampMilliWriter(f);
-        } else {
-          throw new ExecutionSetupException(String.format("PojoRecord reader doesn't yet support conversions from type [%s].", type));
-        }
+    for (int i = 0; i < fields.length; i++) {
+      Field f = fields[i];
+
+      if (Modifier.isStatic(f.getModifiers())) {
+        continue;
+      }
+
+      Class<?> type = f.getType();
+      PojoWriter w = null;
+      if(type == int.class || type == Integer.class) {
+        w = new IntWriter(f);
+      } else if(type == long.class || type == Long.class) {
+        w = new LongWriter(f);
+      } else if(type == boolean.class || type == Boolean.class) {
+        w = new BitWriter(f);
+      } else if(type == double.class || type == Double.class) {
+        w = new DoubleWriter(f);
+      } else if(type.isEnum()) {
+        w = new EnumWriter(f, output.getManagedBuffer());
+      } else if(type == String.class) {
+        w = new StringWriter(f, output.getManagedBuffer());
+      } else if (type == Timestamp.class) {
+        w = new TimeStampMilliWriter(f);
+      } else {
+        throw new ExecutionSetupException(String.format("PojoRecord reader doesn't yet support conversions from type [%s].", type));
+      }
+
+      // only add writers that are included in selected columns.
+      if(getColumns() == null || getColumns().equals(GroupScan.ALL_COLUMNS) || selectedColumns.contains(f.getName().toLowerCase())) {
         writers.add(w);
         w.init(output);
       }
-
-      this.writers = writers.toArray(new PojoWriter[writers.size()]);
-
-    } catch(SchemaChangeException e) {
-      throw new ExecutionSetupException("Failure while setting up schema for PojoRecordReader.", e);
     }
+
+    this.writers = writers.toArray(new PojoWriter[writers.size()]);
+
 
     currentIterator = pojoObjects.iterator();
   }
@@ -170,6 +180,11 @@ public class PojoRecordReader<T> extends AbstractRecordReader implements Iterabl
 
   @Override
   public void close() {
+  }
+
+  @Override
+  protected boolean supportsSkipAllQuery() {
+    return true;
   }
 
   public static BatchSchema getSchema(Class<?> pojoClass){

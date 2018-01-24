@@ -84,15 +84,30 @@ message UserToBitHandshake {
   optional exec.shared.RpcEndpointInfos client_infos = 8;
 
   // Extra Dremio properties
-  // Request recordbatch format
-  optional RecordBatchFormat recordBatchFormat = 1000 [ default = DRILL_1_0 ];
+  // Request recordbatch type (to detect Drill vs Dremio)
+  optional RecordBatchType record_batch_type = 1000 [ default = DRILL ];
+  // Record batch formats supported by clients
+  repeated RecordBatchFormat supported_record_batch_formats = 1001;
 }
 
+// Batch type: Drill or Dremio
+// (Cannot be changed without breaking compatibility)
+enum RecordBatchType {
+    DRILL = 0;
+    DREMIO = 1;
+}
+
+// Known recorded batch formats
 enum RecordBatchFormat {
+  // Unknown format: happens when protobuf get a unknown value
+  // and assign it to this value. Should not be used otherwise.
+  UNKNOWN = 0;
   // Format introduced by DRILL in version 1.0 and later
-  DRILL_1_0 = 0;
+  DRILL_1_0 = 1;
   // Format introduced by DREMIO in version 0.9 and later
-  DREMIO_0_9 = 1;
+  DREMIO_0_9 = 2;
+  // Format introduced by DREMIO in verion 1.4 and later
+  DREMIO_1_4 = 3;
 }
 
 message RequestResults {
@@ -133,6 +148,9 @@ message BitToUserHandshake {
   optional string error_message = 5;
   optional exec.shared.RpcEndpointInfos server_infos = 6;
   repeated RpcType supported_methods = 8;
+  // Extra Dremio properties
+  // Record batch format chosen by server based on client support.
+  optional RecordBatchFormat record_batch_format = 1000;
 }
 
 /*

@@ -100,11 +100,6 @@ public class WebServer implements Service {
   }
 
   /**
-   * Name of the property containing the dremio master node name
-   */
-  public static final String MASTER_NODE_NAME = "dremio.master.node";
-
-  /**
    * Dremio hostname to use for response (usually match the Host header field).
    */
   public static final String X_DREMIO_HOSTNAME = "x-dremio-hostname";
@@ -159,7 +154,7 @@ public class WebServer implements Service {
     if (config.webSSLEnabled) {
       Pair<ServerConnector, KeyStore> connectorTrustStorePair =
           new HttpsConnectorGenerator().createHttpsConnector(embeddedJetty, config.getConfig(),
-              config.getMasterNode(), endpointProvider.get().getAddress());
+              config.thisNode, endpointProvider.get().getAddress());
       serverConnector = connectorTrustStorePair.getLeft();
       trustStore = connectorTrustStorePair.getRight();
     } else {
@@ -207,7 +202,6 @@ public class WebServer implements Service {
     // Rest API
     ResourceConfig restServer = restServerProvider.get();
 
-    restServer.property(WebServer.MASTER_NODE_NAME, config.getMasterNode());
     restServer.property(RestServerV2.ERROR_STACKTRACE_ENABLE, config.sendStackTraceToClient);
     restServer.property(RestServerV2.TEST_API_ENABLE, config.allowTestApis);
     restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);

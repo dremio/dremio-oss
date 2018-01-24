@@ -513,7 +513,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
         }
         recordsToRead = Math.min(DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
         for (final ValueVector vv : nullFilledVectors ) {
-          vv.getMutator().setValueCount( (int) recordsToRead);
+          vv.setValueCount( (int) recordsToRead);
         }
         mockRecordsRead += recordsToRead;
         totalRecordsRead += recordsToRead;
@@ -538,7 +538,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       // (by simply setting the value counts inside of them, as they start null filled)
       if (nullFilledVectors != null) {
         for (final ValueVector vv : nullFilledVectors ) {
-          vv.getMutator().setValueCount(firstColumnStatus.getRecordsReadInCurrentPass());
+          vv.setValueCount(firstColumnStatus.getRecordsReadInCurrentPass());
         }
       }
 

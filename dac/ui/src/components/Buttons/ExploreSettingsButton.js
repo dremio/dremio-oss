@@ -66,9 +66,10 @@ export default class ExploreSettingsButton extends Component {
     if (disabled) {
       return;
     }
-    const { router } = this.context;
+    const { router, location } = this.context;
     router.push({
-      ...location, state: {
+      ...location,
+      state: {
         modal: 'DatasetSettingsModal',
         datasetUrl: dataset.getIn(['apiLinks', 'namespaceEntity']),
         datasetType: dataset.get('datasetType'),

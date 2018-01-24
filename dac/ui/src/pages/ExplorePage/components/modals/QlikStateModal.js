@@ -78,7 +78,7 @@ export class QlikStateModal extends Component {
       : <FormattedMessage id={QlikStateModal.ERROR_MESSAGES[code]} />;
 
     const showIEMessage =
-      (code === 'QLIK_CONNECT_FAILED' && ['IE', 'Microsoft Edge'].includes(browserUtils.getPlatform().name));
+      (code === 'QLIK_CONNECT_FAILED' && browserUtils.isMSBrowser());
 
     return (
       <div style={styles.contentStyle}>

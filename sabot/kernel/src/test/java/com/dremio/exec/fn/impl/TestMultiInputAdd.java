@@ -46,9 +46,9 @@ public class TestMultiInputAdd extends BaseTestQuery {
 
         for (VectorWrapper<?> v : batchLoader) {
 
-            ValueVector.Accessor accessor = v.getValueVector().getAccessor();
+            ValueVector vv = v.getValueVector();
 
-            assertTrue((accessor.getObject(0)).equals(10));
+            assertTrue((vv.getObject(0)).equals(10));
         }
 
         batchLoader.clear();

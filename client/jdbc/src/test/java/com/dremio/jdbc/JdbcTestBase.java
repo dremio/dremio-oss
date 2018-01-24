@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
@@ -152,4 +153,31 @@ public class JdbcTestBase extends ExecTest {
     fail("Intentional failure--did other test methods still run?");
   }
 
+
+  /**
+   * Prints all of resultset to std out.
+   * @param rs ResultSet to print
+   * @throws SQLException
+   */
+  public static void print(ResultSet rs) throws SQLException {
+    ResultSetMetaData metadata = rs.getMetaData();
+    final int cnt = metadata.getColumnCount();
+
+    for (int i = 1; i <= cnt; i++) {
+      if (i > 1) {
+        System.out.print(",  ");
+      }
+      metadata.getColumnName(i);
+    }
+
+    while (rs.next()) {
+        for (int i = 1; i <= cnt; i++) {
+            if (i > 1) {
+              System.out.print(",  ");
+            }
+            System.out.print(rs.getString(i));
+        }
+        System.out.println("");
+    }
+  }
 }

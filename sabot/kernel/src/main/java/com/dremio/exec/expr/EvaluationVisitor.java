@@ -60,6 +60,9 @@ import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
+import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
+import com.dremio.sabot.exec.context.FunctionContext;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.sun.codemodel.JBlock;
@@ -77,10 +80,11 @@ import com.sun.codemodel.JVar;
  */
 public class EvaluationVisitor {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EvaluationVisitor.class);
+  private final FunctionContext functionContext;
 
-
-  public EvaluationVisitor() {
+  public EvaluationVisitor(FunctionContext functionContext) {
     super();
+    this.functionContext = functionContext;
   }
 
   public HoldingContainer addExpr(LogicalExpression e, ClassGenerator<?> generator) {
@@ -91,7 +95,7 @@ public class EvaluationVisitor {
     } else {
       constantBoundaries = ConstantExpressionIdentifier.getConstantExpressionSet(e);
     }
-    return e.accept(new CSEFilter(constantBoundaries), generator);
+    return e.accept(new CSEFilter(constantBoundaries, functionContext), generator);
   }
 
   private class ExpressionHolder {
@@ -153,6 +157,16 @@ public class EvaluationVisitor {
   }
 
   private class EvalVisitor extends AbstractExprVisitor<HoldingContainer, ClassGenerator<?>, RuntimeException> {
+    private final FunctionContext functionContext;
+
+    EvalVisitor(FunctionContext functionContext) {
+      super();
+      this.functionContext = functionContext;
+    }
+
+    FunctionContext getFunctionContext() {
+      return functionContext;
+    }
 
     @Override
     public HoldingContainer visitFunctionCall(FunctionCall call, ClassGenerator<?> generator) throws RuntimeException {
@@ -178,7 +192,13 @@ public class EvaluationVisitor {
       CompleteType resolvedOutput = holderExpr.getCompleteType();
       AbstractFunctionHolder holder = (AbstractFunctionHolder) holderExpr.getHolder();
 
-      JVar[] workspaceVars = holder.renderStart(generator, resolvedOutput, null);
+      FunctionErrorContext errorContext = null;
+      if (holder.usesErrContext()) {
+        errorContext = FunctionErrorContextBuilder.builder()
+          .build();
+        functionContext.registerFunctionErrorContext(errorContext);
+      }
+      JVar[] workspaceVars = holder.renderStart(generator, resolvedOutput, null, errorContext);
 
       if (holder.isNested()) {
         generator.getMappingSet().enterChild();
@@ -705,8 +725,8 @@ public class EvaluationVisitor {
 
   private class CSEFilter extends ConstantFilter {
 
-    public CSEFilter(Set<LogicalExpression> constantBoundaries) {
-      super(constantBoundaries);
+    public CSEFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext) {
+      super(constantBoundaries, functionContext);
     }
 
     @Override
@@ -932,8 +952,8 @@ public class EvaluationVisitor {
 
     private Set<LogicalExpression> constantBoundaries;
 
-    public ConstantFilter(Set<LogicalExpression> constantBoundaries) {
-      super();
+    public ConstantFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext) {
+      super(functionContext);
       this.constantBoundaries = constantBoundaries;
     }
 

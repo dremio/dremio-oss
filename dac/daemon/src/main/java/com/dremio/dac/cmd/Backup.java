@@ -41,7 +41,6 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.dremio.dac.daemon.NetworkUtil;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.server.DACConfig;
@@ -146,7 +145,7 @@ public class Backup {
 
     final Client client = clientBuilder.build();
     WebTarget target = client.target(format("%s://%s:%d",
-        dacConfig.webSSLEnabled ? "https" : "http", dacConfig.masterNode, dacConfig.getHttpPort())).path("apiv2");
+        dacConfig.webSSLEnabled ? "https" : "http", dacConfig.thisNode, dacConfig.getHttpPort())).path("apiv2");
 
     final UserLogin userLogin = new UserLogin(userName, password);
     final UserLoginSession userLoginSession = readEntity(UserLoginSession.class, target.path("/login").request(JSON).buildPost(Entity.json(userLogin)));
@@ -160,8 +159,8 @@ public class Backup {
     final DACConfig dacConfig = DACConfig.newConfig();
     final BackupManagerOptions options = BackupManagerOptions.parse(args);
     try {
-      if (!NetworkUtil.addressResolvesToThisNode(dacConfig.getMasterNode())) {
-        throw new UnsupportedOperationException("Backup should be ran on master node " + dacConfig.getMasterNode());
+      if (!dacConfig.isMaster) {
+        throw new UnsupportedOperationException("Backup should be ran on master node. ");
       }
 
       // Make sure that unqualified paths are resolved locally first, and default filesystem
@@ -180,10 +179,10 @@ public class Backup {
         backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
     } catch(IOException e) {
       System.err.println(format("Failed to create backup at %s: %s ", options.backupDir, e.getMessage()));
-      System.exit(-1);
+      System.exit(1);
     } catch (Exception e) {
       System.err.println(format("Failed to create backup at %s: %s ", options.backupDir, e));
-      System.exit(-1);
+      System.exit(1);
     }
   }
 }

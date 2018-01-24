@@ -146,21 +146,21 @@ public class WriterOperator implements SingleInputOperator {
     final byte[] fragmentUniqueIdBytes = fragmentUniqueId.getBytes();
     int i = 0;
     for(OutputEntry e : listener.entries){
-      fragmentIdVector.getMutator().setSafe(i, fragmentUniqueIdBytes, 0, fragmentUniqueIdBytes.length);
+      fragmentIdVector.setSafe(i, fragmentUniqueIdBytes, 0, fragmentUniqueIdBytes.length);
 
-      summaryVector.getMutator().setSafe(i, e.recordCount);
+      summaryVector.setSafe(i, e.recordCount);
 
       if (e.metadata != null) {
-        metadataVector.getMutator().setSafe(i, e.metadata, 0, e.metadata.length);
+        metadataVector.setSafe(i, e.metadata, 0, e.metadata.length);
       }
 
       if (e.path != null) {
         byte[] bytePath = e.path.getBytes(Charsets.UTF_8);
-        pathVector.getMutator().setSafe(i, bytePath, 0, bytePath.length);
+        pathVector.setSafe(i, bytePath, 0, bytePath.length);
       }
 
       if (e.partitionNumber != null) {
-        partitionNumberVector.getMutator().setSafe(i, e.partitionNumber);
+        partitionNumberVector.setSafe(i, e.partitionNumber);
       }
 
       i++;

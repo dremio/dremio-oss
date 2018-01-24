@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.arrow.vector.NullableVarCharVector;
@@ -36,12 +37,11 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.QueryTestUtil;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.compile.ClassTransformer.ScalarReplacementOption;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.util.ByteBufUtil.HadoopWritables;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -53,6 +53,7 @@ import io.netty.buffer.ArrowBuf;
 public class TestConvertFunctions extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestConvertFunctions.class);
 
+  private static final FunctionErrorContext context = FunctionErrorContextBuilder.builder().build();
   private static final String CONVERSION_TEST_LOGICAL_PLAN = "functions/conv/conversionTestWithLogicalPlan.json";
   private static final String CONVERSION_TEST_PHYSICAL_PLAN = "functions/conv/conversionTestWithPhysicalPlan.json";
 
@@ -69,7 +70,6 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test // DRILL-3854
   public void testConvertFromConvertToInt() throws Exception {
-    final OptionValue srOption = QueryTestUtil.setupScalarReplacementOption(nodes[0], ScalarReplacementOption.OFF);
     try {
       final String newTblName = "testConvertFromConvertToInt_tbl";
       final String ctasQuery = String.format("CREATE TABLE %s.%s as \n" +
@@ -95,8 +95,6 @@ public class TestConvertFunctions extends BaseTestQuery {
           .build()
           .run();
     } finally {
-      // restore the system option
-      QueryTestUtil.restoreScalarReplacementOption(nodes[0], srOption);
       test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
     }
   }
@@ -332,66 +330,131 @@ public class TestConvertFunctions extends BaseTestQuery {
 
     long longVal = 0;
     buffer.clear();
-    HadoopWritables.writeVLong(buffer, _0, _9, 0);
-    longVal = HadoopWritables.readVLong(buffer, _0, _9);
+    HadoopWritables.writeVLong(context, buffer, _0, _9, 0);
+    longVal = HadoopWritables.readVLong(context, buffer, _0, _9);
     assertEquals(longVal, 0);
 
     buffer.clear();
-    HadoopWritables.writeVLong(buffer, _0, _9, Long.MAX_VALUE);
-    longVal = HadoopWritables.readVLong(buffer, _0, _9);
+    HadoopWritables.writeVLong(context, buffer, _0, _9, Long.MAX_VALUE);
+    longVal = HadoopWritables.readVLong(context, buffer, _0, _9);
     assertEquals(longVal, Long.MAX_VALUE);
 
     buffer.clear();
-    HadoopWritables.writeVLong(buffer, _0, _9, Long.MIN_VALUE);
-    longVal = HadoopWritables.readVLong(buffer, _0, _9);
+    HadoopWritables.writeVLong(context, buffer, _0, _9, Long.MIN_VALUE);
+    longVal = HadoopWritables.readVLong(context, buffer, _0, _9);
     assertEquals(longVal, Long.MIN_VALUE);
 
     int intVal = 0;
     buffer.clear();
-    HadoopWritables.writeVInt(buffer, _0, _9, 0);
-    intVal = HadoopWritables.readVInt(buffer, _0, _9);
+    HadoopWritables.writeVInt(context, buffer, _0, _9, 0);
+    intVal = HadoopWritables.readVInt(context, buffer, _0, _9);
     assertEquals(intVal, 0);
 
     buffer.clear();
-    HadoopWritables.writeVInt(buffer, _0, _9, Integer.MAX_VALUE);
-    intVal = HadoopWritables.readVInt(buffer, _0, _9);
+    HadoopWritables.writeVInt(context, buffer, _0, _9, Integer.MAX_VALUE);
+    intVal = HadoopWritables.readVInt(context, buffer, _0, _9);
     assertEquals(intVal, Integer.MAX_VALUE);
 
     buffer.clear();
-    HadoopWritables.writeVInt(buffer, _0, _9, Integer.MIN_VALUE);
-    intVal = HadoopWritables.readVInt(buffer, _0, _9);
+    HadoopWritables.writeVInt(context, buffer, _0, _9, Integer.MIN_VALUE);
+    intVal = HadoopWritables.readVInt(context, buffer, _0, _9);
     assertEquals(intVal, Integer.MIN_VALUE);
     buffer.release();
   }
 
   @Test // DRILL-4862
   public void testBinaryString() throws Exception {
-    // TODO(DRILL-2326) temporary until we fix the scalar replacement bug for this case
-    final OptionValue srOption = QueryTestUtil.setupScalarReplacementOption(nodes[0], ScalarReplacementOption.TRY);
+    final String[] queries = {
+        "SELECT convert_from(binary_string(key), 'INT_BE') as intkey \n" +
+            "FROM cp.`functions/conv/conv.json`"
+    };
 
-    try {
-      final String[] queries = {
-          "SELECT convert_from(binary_string(key), 'INT_BE') as intkey \n" +
-              "FROM cp.`functions/conv/conv.json`"
-      };
-
-      for (String query: queries) {
-        testBuilder()
-            .sqlQuery(query)
-            .ordered()
-            .baselineColumns("intkey")
-            .baselineValues(1244739896)
-            .baselineValues(new Object[] { null })
-            .baselineValues(1313814865)
-            .baselineValues(1852782897)
-            .build()
-            .run();
-      }
-
-    } finally {
-      // restore the system option
-      QueryTestUtil.restoreScalarReplacementOption(nodes[0], srOption);
+    for (String query: queries) {
+      testBuilder()
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("intkey")
+          .baselineValues(1244739896)
+          .baselineValues(new Object[] { null })
+          .baselineValues(1313814865)
+          .baselineValues(1852782897)
+          .build()
+          .run();
     }
+  }
+
+  @Test
+  public void testConvertIllegalUtf8() throws Exception {
+    final String[] queries = {
+      "SELECT convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43'), 'UTF8') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\xF9\\x41\\x20\\x42\\x20\\x43'), 'UTF8', '') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\x41\\x20\\xFA\\x42\\x20\\x43'), 'UTF8', '') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43\\xFC'), 'UTF8', '') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\xFB\\x20\\x42\\x20\\x43'), 'UTF8', 'A') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\x41\\x20\\xFE\\x20\\x43'), 'UTF8', 'B') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\x41\\x20\\x42\\x20\\xFF'), 'UTF8', 'C') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43'), 'UTF8', '') as val FROM (values(1))",
+      "SELECT convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43'), 'UTF8', 'X') as val FROM (values(1))",
+    };
+
+    for (String query: queries) {
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("val")
+        .baselineValues("A B C")
+        .build()
+        .run();
+    }
+
+    // Now test without a constant expression -- repeating a previous test (testConvertToComplexJSON), only with
+    // an extra argument to convert_from
+    String result1 =
+      "[ {\n" +
+        "  \"$numberLong\" : 4\n" +
+        "}, {\n" +
+        "  \"$numberLong\" : 6\n" +
+        "} ]";
+    String[] result2 = new String[] { null };
+
+    testBuilder()
+      .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8', '') as varchar(100)) as json_str from cp.`/store/json/input2.json`")
+      .unOrdered()
+      .baselineColumns("json_str")
+      .baselineValues(result1)
+      .baselineValues(result2)
+      .baselineValues(result1)
+      .baselineValues(result1)
+      .go();
+  }
+
+  @Test
+  public void testIsUtf8() throws Exception {
+    final String[] queries = {
+      "SELECT is_utf8(convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43'), 'UTF8')) as val FROM (values(1))",
+      "SELECT NOT is_utf8(convert_from(binary_string('\\xF9\\x41\\x20\\x42\\x20\\x43'), 'UTF8')) as val FROM (values(1))",
+      "SELECT NOT is_utf8(convert_from(binary_string('\\x41\\x20\\xFA\\x42\\x20\\x43'), 'UTF8')) as val FROM (values(1))",
+      "SELECT NOT is_utf8(convert_from(binary_string('\\x41\\x20\\x42\\x20\\x43\\xFC'), 'UTF8')) as val FROM (values(1))"
+    };
+
+    for (String query: queries) {
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("val")
+        .baselineValues(true)
+        .build()
+        .run();
+    }
+
+    testBuilder()
+      .sqlQuery("SELECT is_utf8(l_comment) as A FROM cp.`tpch/lineitem.parquet` LIMIT 1")
+      .ordered()
+      .baselineColumns("A")
+      .baselineValues(true)
+      .build()
+      .run();
+
   }
 
   protected <T> void verifySQL(String sql, T expectedResults) throws Throwable {
@@ -407,11 +470,11 @@ public class TestConvertFunctions extends BaseTestQuery {
       if (result.getData() != null) {
         loader.load(result.getHeader().getDef(), result.getData());
         ValueVector v = loader.iterator().next().getValueVector();
-        for (int j = 0; j < v.getAccessor().getValueCount(); j++) {
+        for (int j = 0; j < v.getValueCount(); j++) {
           if  (v instanceof NullableVarCharVector) {
-            res.add(new String(((NullableVarCharVector) v).getAccessor().get(j)));
+            res.add(new String(((NullableVarCharVector) v).get(j)));
           } else {
-            res.add(v.getAccessor().getObject(j));
+            res.add(v.getObject(j));
           }
         }
         loader.clear();

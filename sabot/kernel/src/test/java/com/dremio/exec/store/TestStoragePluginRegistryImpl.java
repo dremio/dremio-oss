@@ -25,6 +25,7 @@ import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
@@ -46,10 +47,11 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.ExecTest;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.sys.SystemTablePluginProvider;
+import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.DirectProvider;
@@ -78,16 +80,14 @@ import com.google.common.collect.Sets;
 import io.protostuff.ByteString;
 
 /**
- * Unit tests for {@link StoragePluginRegistryImpl}. Currently it only tests
- * {@link StoragePluginRegistryImpl#refreshSourceMetadataInNamespace(String)}. We can add more
- * tests as we fix issues or add features.
+ * Unit tests for {@link StoragePluginRegistryImpl}.
  */
 public class TestStoragePluginRegistryImpl {
 
   private KVStoreProvider kvStore;
   private StoragePluginRegistryImpl registry;
   private NamespaceService ns;
-  private StoragePlugin2 testStoragePlugin;
+  private StoragePlugin testStoragePlugin;
   private NamespaceKey testPluginKey;
   private CatalogService catalogService;
   private SchedulerService schedulerService;
@@ -122,16 +122,12 @@ public class TestStoragePluginRegistryImpl {
     when(sabotContext.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence()).thenReturn(new LogicalPlanPersistence(SabotConfig.create(), CLASSPATH_SCAN_RESULT));
     when(sabotContext.getStoreProvider()).thenReturn(pStoreProvider);
+    when(sabotContext.getConfig()).thenReturn(ExecTest.DEFAULT_SABOT_CONFIG);
 
-    final SystemTablePluginProvider sysPlugin = new SystemTablePluginProvider(new Provider<SabotContext>() {
+    final SystemTablePluginConfigProvider sysPlugin = new SystemTablePluginConfigProvider();
+    final Provider<SystemTablePluginConfigProvider> sysPluginProvider = new Provider<SystemTablePluginConfigProvider>() {
       @Override
-      public SabotContext get() {
-        return sabotContext;
-      }
-    });
-    final Provider<SystemTablePluginProvider> sysPluginProvider = new Provider<SystemTablePluginProvider>() {
-      @Override
-      public SystemTablePluginProvider get() {
+      public SystemTablePluginConfigProvider get() {
         return sysPlugin;
       }
     };
@@ -152,7 +148,7 @@ public class TestStoragePluginRegistryImpl {
     catalogService.start();
     registry = bindResult[0];
 
-    testStoragePlugin = new TestStoragePlugin2();
+    testStoragePlugin = new TestStoragePlugin();
 
     testPluginKey = new NamespaceKey("test");
     SourceConfig testSourceConfig = new SourceConfig()
@@ -335,8 +331,8 @@ public class TestStoragePluginRegistryImpl {
     return ret;
   }
 
-  private void doMockDatasets(StoragePlugin2 plugin, final List<SourceTableDefinition> datasets) throws Exception {
-    ((TestStoragePlugin2) plugin).setDatasets(datasets);
+  private void doMockDatasets(StoragePlugin plugin, final List<SourceTableDefinition> datasets) throws Exception {
+    ((TestStoragePlugin) plugin).setDatasets(datasets);
   }
 
   private static void assertDatasetsAreEqual(List<SourceTableDefinition> expDatasets, List<NamespaceKey> actualDatasetKeys) {
@@ -392,10 +388,10 @@ public class TestStoragePluginRegistryImpl {
     assertEquals(0, ns.getAllDatasets(testPluginKey).size());
   }
 
-  class TestStoragePlugin2 implements StoragePlugin2 {
+  class TestStoragePlugin implements StoragePlugin {
     private List<SourceTableDefinition> datasets = null;
 
-    public TestStoragePlugin2() {}
+    public TestStoragePlugin() {}
     public void setDatasets(List<SourceTableDefinition> datasets) {
       this.datasets = datasets;
     }
@@ -435,6 +431,12 @@ public class TestStoragePluginRegistryImpl {
     }
     public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
       return CheckResult.UNCHANGED;
+    }
+    @Override
+    public void close() throws Exception {
+    }
+    @Override
+    public void start() throws IOException {
     }
   }
 }

@@ -79,6 +79,7 @@ import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.source.proto.SourceType;
 import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.annotations.VisibleForTesting;
@@ -165,12 +166,13 @@ public class SourceService {
   private void validateSourceConfig(SourceConfig sourceConfig) {
     // TODO: move this further down to the namespace or catalog service.  For some reason InputValidation does not work on SourceConfig.
     Preconditions.checkNotNull(sourceConfig);
+    Preconditions.checkNotNull(sourceConfig.getName(), "Source name is missing.");
     Preconditions.checkArgument(sourceConfig.getName().length() > 2, "Source names need to be at least 3 characters long.");
     Preconditions.checkArgument(!sourceConfig.getName().contains("."), "Source names can not contain periods.");
     Preconditions.checkArgument(!sourceConfig.getName().contains("\""), "Source names can not contain double quotes.");
     Preconditions.checkArgument(!sourceConfig.getName().startsWith(HomeName.HOME_PREFIX), "Source names can not start with the '%s' character.", HomeName.HOME_PREFIX);
     // TODO: add more specific numeric limits here, we never want to allow a 0 ms refresh.
-    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy(), "Source metadata policy cannot be null.");
+    Preconditions.checkNotNull(sourceConfig.getMetadataPolicy(), "Source metadata policy is missing.");
     Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getAuthTtlMs(), "Source metadata policy values can not be null.");
     Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getDatasetDefinitionExpireAfterMs(), "Source metadata policy values can not be null.");
     Preconditions.checkNotNull(sourceConfig.getMetadataPolicy().getDatasetDefinitionRefreshAfterMs(), "Source metadata policy values can not be null.");
@@ -324,7 +326,7 @@ public class SourceService {
   public NamespaceTree listSource(SourceName sourceName, SourceConfig sourceConfig, String userName)
     throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
     try {
-      final StoragePlugin<?> plugin = checkNotNull(plugins.getPlugin(sourceName.getName()), "storage plugin %s not found", sourceName);
+      final StoragePlugin plugin = checkNotNull(plugins.getPlugin(sourceName.getName()), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(singletonList(sourceName.getName()), userName), sourceName, sourceName.getName());
@@ -345,7 +347,7 @@ public class SourceService {
    */
   public Folder getFolder(SourceName sourceName, SourceFolderPath folderPath, boolean includeContents, String userName) throws SourceFolderNotFoundException, NamespaceException, PhysicalDatasetNotFoundException, IOException {
     try {
-      final StoragePlugin<?> plugin = checkNotNull(plugins.getPlugin(sourceName.getName()), "storage plugin %s not found", sourceName);
+      final StoragePlugin plugin = checkNotNull(plugins.getPlugin(sourceName.getName()), "storage plugin %s not found", sourceName);
       final boolean isFileSystemPlugin = (plugin instanceof FileSystemPlugin);
       FolderConfig folderConfig;
       if (isFileSystemPlugin) {
@@ -403,7 +405,7 @@ public class SourceService {
     final String name = sourceName.getName();
     final String prefix = folderPath.toPathString();
     try {
-      final StoragePlugin<?> plugin = checkNotNull(plugins.getPlugin(name), "storage plugin %s not found", sourceName);
+      final StoragePlugin plugin = checkNotNull(plugins.getPlugin(name), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(folderPath.toPathList(), userName), sourceName, prefix);
@@ -580,7 +582,7 @@ public class SourceService {
 
   public SourceState getSourceState(String sourceName) throws SourceNotFoundException {
     try {
-      StoragePlugin<?> plugin = plugins.getPlugin(sourceName);
+      StoragePlugin plugin = plugins.getPlugin(sourceName);
       if (plugin != null) {
         return plugin.getState();
       } else {
@@ -593,7 +595,7 @@ public class SourceService {
 
   @VisibleForTesting
   public StoragePlugin getStoragePlugin(String sourceName) throws SourceNotFoundException, ExecutionSetupException {
-    StoragePlugin<?> plugin = plugins.getPlugin(sourceName);
+    StoragePlugin plugin = plugins.getPlugin(sourceName);
     if (plugin == null) {
       throw new SourceNotFoundException(sourceName);
     }
@@ -601,10 +603,17 @@ public class SourceService {
   }
 
   public List<SourceConfig> getSources() {
-    final List<SourceConfig> sources = new ArrayList();
+    final List<SourceConfig> sources = new ArrayList<>();
 
     for (SourceConfig sourceConfig : namespaceService.getSources()) {
-      if (isInternal(sourceConfig)) {
+      String name = sourceConfig.getName();
+      if (isInternal(sourceConfig)
+          || sourceConfig.getType() == SourceType.SYS
+          || sourceConfig.getType() == SourceType.INFORMATION_SCHEMA
+
+          // the test harness blows away storage plugin types.
+          || "sys".equals(name)
+          || "INFORMATION_SCHEMA".equals(name)) {
         continue;
       }
 

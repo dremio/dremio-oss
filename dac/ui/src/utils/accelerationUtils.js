@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 export const mapStateToIcon = status => ({
-  NEW: 'PendingGray',
-  RUNNING: 'Pending',
+  NEW: 'Ellipsis',
+  RUNNING: 'Loader fa-spin',
   DONE: 'OKSolid',
   FAILED: 'ErrorSolid',
   DELETED: 'Warning-Solid', // deleted and un-replaced layout is probably bad

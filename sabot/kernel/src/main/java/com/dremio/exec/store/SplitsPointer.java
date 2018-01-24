@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.google.common.base.Predicate;
 
 /**
  * Interface for split pointer
@@ -45,6 +46,14 @@ public interface SplitsPointer {
    * @throws NamespaceException
    */
   SplitsPointer prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException;
+
+
+  /**
+   * Prune a set of splits based on a predicate.
+   * @param splitPredicate The predicate to apply
+   * @return The pruned SplitPointer.
+   */
+  SplitsPointer prune(Predicate<DatasetSplit> splitPredicate);
 
   /**
    * Iterable for splits.

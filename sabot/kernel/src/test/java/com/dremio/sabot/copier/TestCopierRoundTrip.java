@@ -53,10 +53,10 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
 
       for(int i = 0; i < count; i++){
         if(i % 5 == 0){
-          in.getMutator().setSafe(i, i);
+          in.setSafe(i, i);
         }
       }
-      in.getMutator().setValueCount(count);
+      in.setValueCount(count);
 
       List<FieldBufferCopier> copiers = FieldBufferCopier.getCopiers(ImmutableList.<FieldVector>of(in), ImmutableList.<FieldVector>of(out));
       try(
@@ -73,9 +73,9 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
         sv2.setRecordCount(count);
         copy(copiers, sv2);
 
-        out.getMutator().setValueCount(count);
+        out.setValueCount(count);
         for(int i =0; i < count; i++){
-          assertEquals(in.getAccessor().getObject(i), out.getAccessor().getObject(i));
+          assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }
@@ -94,10 +94,10 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
 
       for(int i = 0; i < count; i++){
         if(i % 5 == 0){
-          in.getMutator().setSafe(i, i);
+          in.setSafe(i, i);
         }
       }
-      in.getMutator().setValueCount(count);
+      in.setValueCount(count);
 
       List<FieldBufferCopier> copiers = FieldBufferCopier.getCopiers(ImmutableList.<FieldVector>of(in), ImmutableList.<FieldVector>of(out));
       try(
@@ -114,9 +114,9 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
         sv2.setRecordCount(count);
         copy(copiers, sv2);
 
-        out.getMutator().setValueCount(count);
+        out.setValueCount(count);
         for(int i =0; i < count; i++){
-          assertEquals(in.getAccessor().getObject(i), out.getAccessor().getObject(i));
+          assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }
@@ -136,10 +136,10 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
       for(int i = 0; i < count; i++){
         if(i % 5 == 0){
           byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
-          in.getMutator().setSafe(i, data, 0, data.length);
+          in.setSafe(i, data, 0, data.length);
         }
       }
-      in.getMutator().setValueCount(count);
+      in.setValueCount(count);
 
       List<FieldBufferCopier> copiers = FieldBufferCopier.getCopiers(ImmutableList.<FieldVector>of(in), ImmutableList.<FieldVector>of(out));
       try(
@@ -157,9 +157,9 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
         sv2.setRecordCount(count);
         copy(copiers, sv2);
 
-        out.getMutator().setValueCount(count);
+        out.setValueCount(count);
         for(int i =0; i < count; i++){
-          assertEquals(in.getAccessor().getObject(i), out.getAccessor().getObject(i));
+          assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }

@@ -1507,4 +1507,36 @@ public class TestExampleQueries extends PlanTestBase {
         .build()
         .run();
   }
+
+  @Test /* DX-9921, DX-9914 */
+  public void testLargeConcat() throws Exception {
+    final String largeString = "abcdefjssjdbsjbsbsbhbhbchbhbchbchbchdbhbchbshshchchchchdbchdbchdbchdchhchdcjncsjchbhsbhbshsbchsbhsbhsbxhsbxhsbhsbhbhbhbhbhbhbhbhbhbhcbshcbshcbshcbhcbscjbcdbchdbchdbchdbchdbhbhbhbchbdhcbdhbchdbchdbncjdncjndjncjdncjdcjdncjdcnkkdncndjcndjncjdncjdcdjnjndjnccjdn";
+    String query = "SELECT concat(first_name, 'abcdefjssjdbsjbsbsbhbhbchbhbchbchbchdbhbchbshshchchchchdbchdbchdbchdchhchdcjncsjchbhsbhbshsbchsbhsbhsbxhsbxhsbhsbhbhbhbhbhbhbhbhbhbhcbshcbshcbshcbhcbscjbcdbchdbchdbchdbchdbhbhbhbchbdhcbdhbchdbchdbncjdncjndjncjdncjdcjdncjdcnkkdncndjcndjncjdncjdcdjnjndjnccjdn') FROM cp.`employees.json`";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues("Steve" + largeString)
+      .baselineValues("Mary" + largeString)
+      .baselineValues("Leo" + largeString)
+      .baselineValues("Nancy" + largeString)
+      .baselineValues("Clara" + largeString)
+      .baselineValues("Marcella" + largeString)
+      .baselineValues("Charlotte" + largeString)
+      .baselineValues("Benjamin" + largeString)
+      .baselineValues("John" + largeString)
+      .baselineValues("Lynn" + largeString)
+      .baselineValues("Donald" + largeString)
+      .baselineValues("William" + largeString)
+      .baselineValues("Amy" + largeString)
+      .baselineValues("Judy" + largeString)
+      .baselineValues("Frederick" + largeString)
+      .baselineValues("Phil" + largeString)
+      .baselineValues("Lori" + largeString)
+      .baselineValues("Anil" + largeString)
+      .baselineValues("Bh" + largeString)
+      .build()
+      .run();
+  }
 }

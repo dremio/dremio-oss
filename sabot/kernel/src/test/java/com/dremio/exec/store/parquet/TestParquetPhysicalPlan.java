@@ -63,12 +63,12 @@ public class TestParquetPhysicalPlan extends ExecTest {
         for (VectorWrapper vw : loader) {
           System.out.print(vw.getValueVector().getField().getName() + ": ");
           ValueVector vv = vw.getValueVector();
-          for (int i = 0; i < vv.getAccessor().getValueCount(); i++) {
-            Object o = vv.getAccessor().getObject(i);
+          for (int i = 0; i < vv.getValueCount(); i++) {
+            Object o = vv.getObject(i);
             if (o instanceof byte[]) {
               System.out.print(" [" + new String((byte[]) o) + "]");
             } else {
-              System.out.print(" [" + vv.getAccessor().getObject(i) + "]");
+              System.out.print(" [" + vv.getObject(i) + "]");
             }
 //            break;
           }

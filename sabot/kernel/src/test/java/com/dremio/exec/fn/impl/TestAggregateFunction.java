@@ -46,8 +46,8 @@ public class TestAggregateFunction extends BaseTestQuery {
 
       int i = 0;
       for (VectorWrapper<?> v : batchLoader) {
-        ValueVector.Accessor accessor = v.getValueVector().getAccessor();
-        assertEquals(values[i++], (accessor.getObject(0)));
+        ValueVector vv = v.getValueVector();
+        assertEquals(values[i++], (vv.getObject(0)));
       }
 
     }

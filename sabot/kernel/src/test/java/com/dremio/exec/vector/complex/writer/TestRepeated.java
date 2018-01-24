@@ -227,8 +227,8 @@ public class TestRepeated extends ExecTest {
 
     final ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-    System.out.println("Map of Object[0]: " + ow.writeValueAsString(mapVector.getAccessor().getObject(0)));
-    System.out.println("Map of Object[1]: " + ow.writeValueAsString(mapVector.getAccessor().getObject(1)));
+    System.out.println("Map of Object[0]: " + ow.writeValueAsString(mapVector.getObject(0)));
+    System.out.println("Map of Object[1]: " + ow.writeValueAsString(mapVector.getObject(1)));
 
     final ByteArrayOutputStream stream = new ByteArrayOutputStream();
     final JsonWriter jsonWriter = new JsonWriter(stream, true, true);

@@ -18,7 +18,12 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
+
 import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
@@ -30,11 +35,6 @@ import com.dremio.exec.physical.config.SingleMergeExchange;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class SingleMergeExchangePrel extends ExchangePrel {
 
@@ -83,10 +83,6 @@ public class SingleMergeExchangePrel extends ExchangePrel {
     Prel child = (Prel) this.getInput();
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-
-    if (PrelUtil.getSettings(getCluster()).isSingleMode()) {
-      return childPOP;
-    }
 
     SingleMergeExchange g = new SingleMergeExchange(childPOP, PrelUtil.getOrdering(this.collation, getInput().getRowType()));
     return creator.addMetadata(this, g);

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { DATASET_TYPES_TO_ICON_TYPES } from 'constants/datasetTypes';
+import { formatMessage } from './locale';
 
 const FILE_TYPES_TO_ICON_TYPES = {
   database: 'Database',
@@ -104,10 +105,9 @@ export function getFormatMessageIdByEntityIconType(iconType) {
   }
 }
 
-//TODO: when 'DX-8981 Phase 5 switch to react-intl' will be merged we could use localUtils.formatMessage
-export function getArtPropsByEntityIconType(iconType, intl) {
+export function getArtPropsByEntityIconType(iconType) {
   return {
     src: `${iconType}.svg`,
-    alt: intl.formatMessage({ id: getFormatMessageIdByEntityIconType(iconType) })
+    alt: formatMessage(getFormatMessageIdByEntityIconType(iconType))
   };
 }

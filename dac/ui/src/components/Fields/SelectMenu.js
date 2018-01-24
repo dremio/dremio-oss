@@ -108,7 +108,7 @@ export default class SelectMenu extends Component {
         data-qa={`${name}-filter`}
         onClick={this.handleRequestOpen}
         style={[styles.base]}
-        className='filter-select-menu'>
+        className='filter-select-menu field'>
         <span>{label}</span>
         {this.renderInfoAboutSelectedItems()}
         <FontIcon type='ArrowDownSmall'/>

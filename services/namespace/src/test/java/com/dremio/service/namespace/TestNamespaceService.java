@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.List;
@@ -844,4 +845,18 @@ public class TestNamespaceService {
     }
   }
 
+  @Test
+  public void testDeleteEntityNotFound() throws Exception {
+    try (final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+      kvstore.start();
+      final NamespaceServiceImpl ns = new NamespaceServiceImpl(kvstore);
+
+      try {
+        ns.deleteEntity(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, 123L);
+        fail("deleteEntity should have failed.");
+      } catch(NamespaceNotFoundException e) {
+        // Expected
+      }
+    }
+  }
 }

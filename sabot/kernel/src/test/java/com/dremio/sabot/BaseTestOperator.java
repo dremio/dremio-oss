@@ -92,6 +92,7 @@ import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
 import com.dremio.sabot.exec.context.ContextInformation;
+import com.dremio.sabot.exec.context.ContextInformationImpl;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
@@ -286,7 +287,7 @@ public class BaseTestOperator extends ExecTest {
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
         functionLookup = new FunctionImplementationRegistry(config, result);
 
-        contextInformation = new ContextInformation(UserCredentials.getDefaultInstance(), QueryContextInformation.getDefaultInstance());
+        contextInformation = new ContextInformationImpl(UserCredentials.getDefaultInstance(), QueryContextInformation.getDefaultInstance());
 
       }catch(Exception e){
         throw new RuntimeException(e);

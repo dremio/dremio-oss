@@ -16,10 +16,12 @@
 package com.dremio.exec.store.sys;
 
 import com.dremio.common.store.StoragePluginConfig;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
  * A namesake plugin configuration for system tables.
  */
+@JsonTypeName("sys")
 public class SystemTablePluginConfig extends StoragePluginConfig {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemTablePluginConfig.class);
 
@@ -27,12 +29,12 @@ public class SystemTablePluginConfig extends StoragePluginConfig {
 
   public static final SystemTablePluginConfig INSTANCE = new SystemTablePluginConfig();
 
-  private SystemTablePluginConfig() {
+  public SystemTablePluginConfig() {
   }
 
   @Override
   public boolean equals(Object o) {
-    return this == o;
+    return o instanceof SystemTablePluginConfig;
   }
 
   @Override

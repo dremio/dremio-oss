@@ -53,6 +53,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.ExternalIdHelper;
@@ -453,7 +454,7 @@ public class TestJobService extends BaseTestServer {
     FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(StoragePluginRegistry.class).getPlugin("$scratch");
 
     // Make sure the table data files exist
-    File ctasTableDir = new File(plugin.getConfig().getPath(), "ctas");
+    File ctasTableDir = new File(plugin.getId().<FileSystemConfig>getConfig().getPath(), "ctas");
     assertTrue(ctasTableDir.exists());
     assertTrue(ctasTableDir.list().length >= 1);
 

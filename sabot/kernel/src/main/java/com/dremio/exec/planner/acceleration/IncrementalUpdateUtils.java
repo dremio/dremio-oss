@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.logical.ConvertibleScan;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -208,9 +207,6 @@ public class IncrementalUpdateUtils {
 
     @Override
     public RelNode visit(TableScan tableScan) {
-      if (tableScan instanceof ConvertibleScan) {
-        return ((ConvertibleScan) tableScan).convert().accept(this);
-      }
       if (!(tableScan instanceof IncrementallyUpdateable)) {
         return tableScan;
       }
@@ -254,10 +250,6 @@ public class IncrementalUpdateUtils {
   public static class AddModTimeShuttle extends StatelessRelShuttleImpl {
     @Override
     public RelNode visit(TableScan tableScan) {
-      if (tableScan instanceof ConvertibleScan) {
-        return ((ConvertibleScan) tableScan).convert().accept(this);
-      }
-
       if(tableScan instanceof IncrementallyUpdateable){
         return ((IncrementallyUpdateable) tableScan).projectInvisibleColumn(UPDATE_COLUMN);
       }

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
+import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -410,13 +412,4 @@ public class ImplicitFilesystemColumnFinder {
     return pairs;
 
   }
-
-  private String removeLeadingSlash(String path) {
-    String result = path;
-    while(result.charAt(0) == '/') {
-      result = result.substring(1);
-    }
-    return result;
-  }
-
 }

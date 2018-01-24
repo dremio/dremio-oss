@@ -114,7 +114,7 @@ public abstract class ColumnReader<V extends ValueVector> {
 
       } while (valuesReadInCurrentPass < recordsToReadInThisPass && pageReader.hasPage());
     }
-    valueVec.getMutator().setValueCount(valuesReadInCurrentPass);
+    valueVec.setValueCount(valuesReadInCurrentPass);
   }
 
   public void clear() {

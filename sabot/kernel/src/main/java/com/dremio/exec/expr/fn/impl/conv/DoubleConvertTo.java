@@ -30,6 +30,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 
 @FunctionTemplate(name = "convert_toDOUBLE", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@SuppressWarnings("unused") // found through classpath search
 public class DoubleConvertTo implements SimpleFunction {
 
   @Param Float8Holder in;

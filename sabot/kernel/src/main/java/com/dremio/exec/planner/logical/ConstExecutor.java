@@ -135,7 +135,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
 
       // If we fail to reduce anything, catch the exception and return the same expression.
       try {
-        LogicalExpression logEx = RexToExpr.toExpr(new ParseContext(plannerSettings), null /* input rel */, newCall);
+        LogicalExpression logEx = RexToExpr.toExpr(new ParseContext(plannerSettings), null /* input rowtype */, rexBuilder, newCall);
         LogicalExpression materializedExpr = ExpressionTreeMaterializer.materializeAndCheckErrors(logEx, null, funcImplReg);
 
         if (NON_REDUCIBLE_TYPES.contains(materializedExpr.getCompleteType().toMinorType())) {

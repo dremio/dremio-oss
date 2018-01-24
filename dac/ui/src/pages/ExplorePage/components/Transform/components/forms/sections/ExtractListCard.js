@@ -44,7 +44,7 @@ export default class ExtractListCard extends Component {
       return ExtractMultipleList.validate(values);
     }
     return {
-      type: 'Type is required'
+      type: 'Type is required.'
     };
   }
 

@@ -43,7 +43,7 @@ public class TestPermissionCheckCache {
   @Test
   public void ensureNotCached() throws Exception {
     final String username = "ensureNotCached";
-    final StoragePlugin2 plugin = mock(StoragePlugin2.class);
+    final StoragePlugin plugin = mock(StoragePlugin.class);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenReturn(true);
     assertTrue(checks.hasAccess(plugin, username, new NamespaceKey(Lists.newArrayList("what")), null, null, new MetadataStatsCollector()));
@@ -55,7 +55,7 @@ public class TestPermissionCheckCache {
   @Test
   public void ensureCached() throws Exception {
     final String username = "ensureCached";
-    final StoragePlugin2 plugin = mock(StoragePlugin2.class);
+    final StoragePlugin plugin = mock(StoragePlugin.class);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenReturn(true, false);
     final MetadataPolicy policy = new MetadataPolicy().setAuthTtlMs(10_000L);
@@ -69,7 +69,7 @@ public class TestPermissionCheckCache {
   @Test
   public void ensureReloaded() throws Exception {
     final String username = "ensureReloaded";
-    final StoragePlugin2 plugin = mock(StoragePlugin2.class);
+    final StoragePlugin plugin = mock(StoragePlugin.class);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenReturn(true, false);
     final MetadataPolicy policy = new MetadataPolicy().setAuthTtlMs(500L);
@@ -84,7 +84,7 @@ public class TestPermissionCheckCache {
   @Test
   public void throwsProperly() throws Exception {
     final String username = "throwsProperly";
-    final StoragePlugin2 plugin = mock(StoragePlugin2.class);
+    final StoragePlugin plugin = mock(StoragePlugin.class);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenThrow(new RuntimeException("you shall not pass"));
     final MetadataPolicy policy = new MetadataPolicy().setAuthTtlMs(1000L);

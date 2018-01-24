@@ -299,8 +299,12 @@ public class SchemaMerger {
 
   private static void recordAnnotations(SchemaPath path, ElasticField elasticField, ResultBuilder resultToPopulate){
     if(elasticField != null){
-      if(elasticField.getIndexing() != Indexing.NOT_ANALYZED || elasticField.isNormalized()){
-        resultToPopulate.isNotGroupable(path);
+      if(elasticField.getIndexing() != Indexing.NOT_ANALYZED){
+        resultToPopulate.isAnalyzed(path);
+      }
+
+      if (elasticField.isNormalized()) {
+        resultToPopulate.isNormalized(path);
       }
 
       if(!elasticField.hasDocValues()){
@@ -390,8 +394,12 @@ public class SchemaMerger {
       annotations.put(path,  anno(path).setSpecialType(ElasticSpecialType.IP_TYPE).build());
     }
 
-    public void isNotGroupable(SchemaPath path){
+    public void isAnalyzed(SchemaPath path){
       annotations.put(path, anno(path).setAnalyzed(true).build());
+    }
+
+    public void isNormalized(SchemaPath path) {
+      annotations.put(path, anno(path).setNormalized(true).build());
     }
 
     public void hasNoDocValue(SchemaPath path){

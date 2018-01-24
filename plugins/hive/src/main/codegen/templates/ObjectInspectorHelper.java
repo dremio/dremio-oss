@@ -192,6 +192,8 @@ public class ObjectInspectorHelper {
             JConditional jnullif = jc._else()._if(data.eq(JExpr._null()));
             jnullif._then().assign(returnValueHolder.ref("isSet"), JExpr.lit(0));
 
+            jnullif._else().assign(returnValueHolder.ref("buffer"),
+                returnValueHolder.ref("buffer").invoke("reallocIfNeeded").arg(data.ref("length")));
             jnullif._else().add(returnValueHolder.ref("buffer")
                 .invoke("setBytes").arg(JExpr.lit(0)).arg(data));
             jnullif._else().assign(returnValueHolder.ref("start"), JExpr.lit(0));

@@ -15,7 +15,7 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import static com.dremio.sabot.op.sort.external.CustomGenerator.ID;
+import static com.dremio.sabot.CustomGenerator.ID;
 import static java.util.Collections.singletonList;
 import static org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
 import static org.apache.calcite.rel.RelFieldCollation.NullDirection.FIRST;
@@ -36,6 +36,7 @@ import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.CustomGenerator;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
@@ -65,7 +66,8 @@ public class TestMemoryRun extends BaseTestOperator {
 
   @Test
   public void testCloseToCopier() throws Exception {
-    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema())) {
+    final ExternalSortTracer tracer = new ExternalSortTracer();
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer)) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToCopier(memoryRun, 100, totalAdded);
     }
@@ -73,7 +75,8 @@ public class TestMemoryRun extends BaseTestOperator {
 
   @Test
   public void testCloseToDisk() throws Exception {
-    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema())) {
+    final ExternalSortTracer tracer = new ExternalSortTracer();
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer)) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToDisk(memoryRun, totalAdded);
     }

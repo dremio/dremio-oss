@@ -20,6 +20,8 @@ package com.dremio.exec.expr.fn.impl;
  * Thanks goes to Julian Hyde and other contributors of optiq.
  */
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+
 /**
  * Utilities for converting SQL {@code LIKE} and {@code SIMILAR} operators
  * to regular expressions.
@@ -45,6 +47,25 @@ public class RegexpUtil {
       "[:alnum:]", "\\p{Alnum}"
   };
 
+  public static class RegexException extends RuntimeException {
+    private final String pattern;
+    private final int position;
+
+    public RegexException(String message, String pattern, int position) {
+      super(message);
+      this.pattern = pattern;
+      this.position = position;
+    }
+
+    public String getPattern() {
+      return pattern;
+    }
+
+    public int getPosition() {
+      return position;
+    }
+  }
+
   /**
    * Translates a SQL LIKE pattern to Java regex pattern. No escape char.
    */
@@ -53,12 +74,17 @@ public class RegexpUtil {
   }
 
   /**
+   * Translates a SQL LIKE pattern to Java regex pattern. No escape char.
+   */
+  public static String sqlToRegexLike(String sqlPattern, FunctionErrorContext errCtx) {
+    return sqlToRegexLike(sqlPattern, null, errCtx);
+  }
+
+  /**
    * Translates a SQL LIKE pattern to Java regex pattern, with optional
    * escape string.
    */
-  public static String sqlToRegexLike(
-      String sqlPattern,
-      CharSequence escapeStr) {
+  public static String sqlToRegexLike(String sqlPattern, CharSequence escapeStr) {
     final char escapeChar;
     if (escapeStr != null) {
       if (escapeStr.length() != 1) {
@@ -69,6 +95,22 @@ public class RegexpUtil {
       escapeChar = 0;
     }
     return sqlToRegexLike(sqlPattern, escapeChar);
+  }
+
+  /**
+   * Translates a SQL LIKE pattern to Java regex pattern, with optional
+   * escape string.
+   */
+  public static String sqlToRegexLike(String sqlPattern, CharSequence escapeStr, FunctionErrorContext errCtx) {
+    try {
+      return sqlToRegexLike(sqlPattern, escapeStr);
+    } catch (RegexException e) {
+      throw errCtx.error()
+        .message(e.getMessage())
+        .addContext("pattern", e.getPattern())
+        .addContext("position", e.getPosition())
+        .build();
+    }
   }
 
   /**
@@ -111,13 +153,11 @@ public class RegexpUtil {
   }
 
   private static RuntimeException invalidEscapeCharacter(String s) {
-    return new RuntimeException(
-        "Invalid escape character '" + s + "'");
+    return new RegexException("Invalid escape character", s, 0);
   }
 
   private static RuntimeException invalidEscapeSequence(String s, int i) {
-    return new RuntimeException(
-        "Invalid escape sequence '" + s + "', " + i);
+    return new RegexException("Invalid escape sequence", s, i);
   }
 
   private static void similarEscapeRuleChecking(
@@ -221,6 +261,13 @@ public class RegexpUtil {
   }
 
   /**
+   * Translates a SQL SIMILAR pattern to Java regex pattern. No escape char.
+   */
+  public static String sqlToRegexSimilar(String sqlPattern, FunctionErrorContext errCtx) {
+    return sqlToRegexSimilar(sqlPattern, (char) 0, errCtx);
+  }
+
+  /**
    * Translates a SQL SIMILAR pattern to Java regex pattern, with optional
    * escape string.
    */
@@ -237,6 +284,30 @@ public class RegexpUtil {
       escapeChar = 0;
     }
     return sqlToRegexSimilar(sqlPattern, escapeChar);
+  }
+
+  public static String sqlToRegexSimilar(String sqlPattern, CharSequence escapeStr, FunctionErrorContext errCtx) {
+    try {
+      return sqlToRegexSimilar(sqlPattern, escapeStr);
+    } catch (RegexException e) {
+      throw errCtx.error()
+        .message(e.getMessage())
+        .addContext("position", e.getPosition())
+        .addContext("pattern", e.getPattern())
+        .build();
+    }
+  }
+
+  public static String sqlToRegexSimilar(String pattern, char escapeChar, FunctionErrorContext errCtx) {
+    try {
+      return sqlToRegexSimilar(pattern, escapeChar);
+    } catch (RegexException e) {
+      throw errCtx.error()
+        .message(e.getMessage())
+        .addContext("position", e.getPosition())
+        .addContext("pattern", e.getPattern())
+        .build();
+    }
   }
 
   /**

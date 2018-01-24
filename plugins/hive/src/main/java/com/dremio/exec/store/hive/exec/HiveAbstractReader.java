@@ -291,7 +291,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
       int records = populateData();
 
       for (ValueVector v : vectors) {
-        v.getMutator().setValueCount(records);
+        v.setValueCount(records);
       }
 
       return records;

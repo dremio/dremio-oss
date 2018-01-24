@@ -86,7 +86,7 @@ public final class WithOptionsTableMacro implements TableMacro {
   @Override
   public TranslatableTable apply(final List<Object> arguments) {
     try {
-      SourceTableDefinition definition = plugin.getStoragePlugin2().getDatasetWithOptions(new NamespaceKey
+      SourceTableDefinition definition = plugin.getDatasetWithOptions(new NamespaceKey
           (tableSchemaPath),
         new TableInstance(sig, arguments), schemaConfig.getIgnoreAuthErrors(), schemaConfig.getUserName());
       if(definition == null){

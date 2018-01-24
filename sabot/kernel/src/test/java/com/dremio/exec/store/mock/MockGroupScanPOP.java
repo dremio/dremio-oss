@@ -30,17 +30,19 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
-import com.dremio.exec.physical.base.OldAbstractGroupScan;
+import com.dremio.exec.physical.base.AbstractBase;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.SubScan;
-import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -52,17 +54,21 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 @JsonTypeName("mock-scan")
-public class MockGroupScanPOP extends OldAbstractGroupScan<MockGroupScanPOP.MockScanEntry> {
+public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGroupScanPOP.MockScanEntry> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockGroupScanPOP.class);
 
   private final String url;
   protected final List<MockScanEntry> readEntries;
+  private final BatchSchema schema;
+  private final List<String> columns;
 
   @JsonCreator
   public MockGroupScanPOP(@JsonProperty("url") String url, @JsonProperty("entries") List<MockScanEntry> readEntries) {
-    super(null, getSchema(readEntries), getColumns(readEntries));
-    this.readEntries = readEntries;
+    super((String) null);
+    this.readEntries = readEntries == null ? ImmutableList.<MockScanEntry>of() : readEntries;
+    this.schema = getSchema(this.readEntries);
     this.url = url;
+    this.columns = getColumns(this.readEntries);
   }
 
   static BatchSchema getSchema(List<MockScanEntry> entries) {
@@ -83,11 +89,6 @@ public class MockGroupScanPOP extends OldAbstractGroupScan<MockGroupScanPOP.Mock
 
   public ScanStats getScanStats() {
     return ScanStats.TRIVIAL_TABLE;
-  }
-
-  @Override
-  public ScanCostFactor getScanCostFactor() {
-    return ScanCostFactor.OTHER;
   }
 
   public String getUrl() {
@@ -228,12 +229,6 @@ public class MockGroupScanPOP extends OldAbstractGroupScan<MockGroupScanPOP.Mock
   }
 
   @Override
-  public StoragePlugin getPlugin() {
-    return null;
-  }
-
-
-  @Override
   public Iterator<MockScanEntry> getSplits(ExecutionNodeMap executionNodes) {
     return this.readEntries.iterator();
   }
@@ -257,24 +252,54 @@ public class MockGroupScanPOP extends OldAbstractGroupScan<MockGroupScanPOP.Mock
   }
 
   @Override
-  public MockGroupScanPOP clone(List<SchemaPath> columns) {
-    return this;
-  }
-
-  @Override
   public List<SchemaPath> getColumns() {
     return Collections.emptyList();
-  }
-
-  @Override
-  public String getDigest() {
-    return toString();
   }
 
   @Override
   public String toString() {
     return "MockGroupScanPOP [url=" + url
         + ", readEntries=" + readEntries + "]";
+  }
+
+  @Override
+  public List<String> getTableSchemaPath() {
+    return ImmutableList.of("mock");
+  }
+
+  @Override
+  public BatchSchema getSchema() {
+    return schema;
+  }
+
+  @Override
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+    return physicalVisitor.visitGroupScan(this, value);
+  }
+
+  @Override
+  public int getOperatorType() {
+    return 9001;
+  }
+
+  @Override
+  public Iterator<PhysicalOperator> iterator() {
+    return ImmutableList.<PhysicalOperator>of().iterator();
+  }
+
+  @Override
+  public int getMinParallelizationWidth() {
+    return 1;
+  }
+
+  @Override
+  public DistributionAffinity getDistributionAffinity() {
+    return DistributionAffinity.SOFT;
+  }
+
+  @Override
+  protected BatchSchema constructSchema(FunctionLookupContext context) {
+    return schema;
   }
 
 }

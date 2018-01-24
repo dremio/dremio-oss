@@ -25,6 +25,7 @@ import java.util.Collections;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserException;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -98,5 +99,34 @@ public class TestPathUtils {
     assertEquals("b/c.json", PathUtils.relativePath(new Path("/a/b/c.json"), new Path("/a")));
     assertEquals("c/d/e", PathUtils.relativePath(new Path("/a/b/c/d/e"), new Path("/a/b")));
     assertEquals("/a/b", PathUtils.relativePath(new Path("/a/b"), new Path("/c/d"))); // no common prefix
+  }
+
+  @Test
+  public void testRemoveLeadingSlash() {
+    assertEquals("", PathUtils.removeLeadingSlash(""));
+    assertEquals("", PathUtils.removeLeadingSlash("/"));
+    assertEquals("aaaa", PathUtils.removeLeadingSlash("/aaaa"));
+    assertEquals("aaaa/bbb", PathUtils.removeLeadingSlash("/aaaa/bbb"));
+    assertEquals("aaaa/bbb", PathUtils.removeLeadingSlash("///aaaa/bbb"));
+  }
+
+  @Test
+  public void testVerifyNoAccessOutsideBase() {
+    PathUtils.verifyNoAccessOutsideBase(new Path("/"), new Path("/"));
+    PathUtils.verifyNoAccessOutsideBase(new Path("/"), new Path("/a"));
+    PathUtils.verifyNoAccessOutsideBase(new Path("/"), new Path("/a/b"));
+    PathUtils.verifyNoAccessOutsideBase(new Path("/a"), new Path("/a/b"));
+    PathUtils.verifyNoAccessOutsideBase(new Path("/a"), new Path("/a/b/c"));
+    PathUtils.verifyNoAccessOutsideBase(new Path("/a"), new Path("/a/b/c"));
+    try {
+      PathUtils.verifyNoAccessOutsideBase(new Path("/a"), new Path("/a/../b/c"));
+      fail();
+    } catch (UserException ex) {
+    }
+    try {
+      PathUtils.verifyNoAccessOutsideBase(new Path("/a"), new Path("/a/b/../../c"));
+      fail();
+    } catch (UserException ex) {
+    }
   }
 }

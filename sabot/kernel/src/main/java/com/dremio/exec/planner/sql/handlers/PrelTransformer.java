@@ -66,7 +66,6 @@ import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.DremioHepPlanner;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
-import com.dremio.exec.planner.PlannerCallback;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.PlannerType;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -80,7 +79,6 @@ import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.ScanConverter;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -326,7 +324,6 @@ public class PrelTransformer {
                            boolean log) {
     final Stopwatch watch = Stopwatch.createStarted();
     final RuleSet rules = config.getRules(phase);
-    final PlannerCallback callback = config.getPlannerCallback(phase);
     final RelTraitSet toTraits = targetTraits.simplify();
     final RelOptPlanner logPlanner;
 
@@ -345,7 +342,6 @@ public class PrelTransformer {
       final HepPlanner planner = new DremioHepPlanner(
           hepPgmBldr.build(), config.getContext().getPlannerSettings(), config.getConverter().getCostFactory());
       logPlanner = planner;
-      callback.initializePlanner(planner);
 
       final List<RelMetadataProvider> list = Lists.newArrayList();
       list.add(DefaultRelMetadataProvider.INSTANCE);
@@ -373,7 +369,6 @@ public class PrelTransformer {
       planner.setNoneConventionHaveInfiniteCost(phase != PlannerPhase.JDBC_PUSHDOWN);
       planner.setCancelFlag(new CancelFlag(60, TimeUnit.SECONDS, phase));
       final Program program = Programs.of(rules);
-      callback.initializePlanner(planner);
 
       final List<RelMetadataProvider> list = Lists.newArrayList();
       list.add(DefaultRelMetadataProvider.INSTANCE);
@@ -413,7 +408,13 @@ public class PrelTransformer {
     Prel phyRelNode;
     try {
       final Stopwatch watch = Stopwatch.createStarted();
+      // System.setProperty("calcite.debug", "true");
       final RelNode relNode = transform(config, PlannerType.VOLCANO, PlannerPhase.PHYSICAL, drel, traits, true);
+      // System.clearProperty("calcite.debug");
+      // PrintWriter pw = new PrintWriter(System.out);
+      //((VolcanoPlanner)drel.getCluster().getPlanner()).dump(pw);
+      // pw.flush();
+
       phyRelNode = (Prel) relNode.accept(new PrelFinalizer());
       // log externally as we need to finalize before traversing the tree.
       log(PlannerType.VOLCANO, PlannerPhase.PHYSICAL, phyRelNode, logger, watch);
@@ -642,13 +643,6 @@ public class PrelTransformer {
     return RelRoot.of(reduced, convertible.kind);
   }
 
-  private static RelNode convertScans(RelNode node, SqlHandlerConfig config) {
-    final Stopwatch stopwatch = Stopwatch.createStarted();
-    final RelNode nodeConverted = node.accept(ScanConverter.INSTANCE);
-    config.getObserver().planConvertedScan(nodeConverted, stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    return nodeConverted;
-  }
-
   private static RelNode convertToRelRootAndJdbc(SqlHandlerConfig config, SqlNode node) throws RelConversionException {
 
     // First try and convert without "expanding" exists/in/subqueries
@@ -657,7 +651,7 @@ public class PrelTransformer {
     // convert scans
     // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
     // rel node with RexSubQuery have the same JDBC convention.
-    final RelNode convertedNodeNotExpanded = convertScans(convertible.rel, config);
+    final RelNode convertedNodeNotExpanded = convertible.rel;
     RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(null);
     checker.visit(convertedNodeNotExpanded);
 
@@ -669,7 +663,7 @@ public class PrelTransformer {
       convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
     } else {
       // If there is a rexSubQuery, then get the ones without (don't pass in SqlHandlerConfig here since we don't want to record it twice)
-      convertedNodeWithoutRexSubquery = convertScans(toConvertibleRelRoot(config, node, true).rel, config);
+      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, node, true).rel;
       if (!checker.canPushdownRexSubQuery()) {
         // if there are RexSubQuery nodes with none-jdbc convention, abandon and expand the entire tree
         convertedNode = convertedNodeWithoutRexSubquery;

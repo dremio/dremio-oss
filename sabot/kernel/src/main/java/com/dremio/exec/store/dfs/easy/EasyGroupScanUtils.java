@@ -71,7 +71,7 @@ public class EasyGroupScanUtils {
   private void initFromSelection(FileSelection selection, EasyFormatPlugin<?> formatPlugin) throws IOException {
     final FileSystemWrapper dfs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf());
     this.selection = selection;
-    BlockMapBuilder b = new BlockMapBuilder(dfs, plugin.getExecutors());
+    BlockMapBuilder b = new BlockMapBuilder(dfs, plugin.getContext().getExecutors());
     this.chunks = b.generateFileWork(selection.getStatuses(), formatPlugin.isBlockSplittable());
   }
 

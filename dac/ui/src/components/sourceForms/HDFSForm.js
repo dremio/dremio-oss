@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-
 import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
@@ -22,18 +21,16 @@ import SingleHost from 'components/Forms/SingleHost';
 import SourceProperties from 'components/Forms/SourceProperties';
 import Checkbox from 'components/Fields/Checkbox';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
-
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { getCreatedSource } from 'selectors/resources';
-
 import { section, sectionTitle } from 'uiTheme/radium/forms';
 import AdvancedOptionsExpandable from 'components/Forms/AdvancedOptionsExpandable';
+import { FieldWithError, TextField } from 'components/Fields';
 
 import { HDFS } from 'dyn-load/constants/sourceTypes';
 
 const SECTIONS = [General, SingleHost, SourceProperties, MetadataRefresh];
-const DEFAULT_PORT = 8020;
 
 export class HDFSForm extends Component {
 
@@ -55,15 +52,19 @@ export class HDFSForm extends Component {
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
-            <SingleHost fields={fields} title='NameNode'/>
+            <SingleHost style={{marginBottom: 5}} fields={fields} title='NameNode'/>
             <div style={section}>
-              <Checkbox {...fields.config.enableImpersonation}
-                label={la('Impersonation')} style={{margin: '-20px 0 20px 0'}}/>
+              <Checkbox {...fields.config.enableImpersonation} label={la('Impersonation')} />
             </div>
             <SourceProperties fields={fields} />
             <div style={section}>
               <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
+                <div style={styles.formSubRow}>
+                  <FieldWithError errorPlacement='top' label={la('Root Path')} {...fields.config.rootPath}>
+                    <TextField {...fields.config.rootPath}/>
+                  </FieldWithError>
+                </div>
                 <MetadataRefresh fields={fields} hideObjectNames showAuthorization/>
               </AdvancedOptionsExpandable>
             </div>
@@ -79,8 +80,9 @@ function mapStateToProps(state, props) {
   const initialValues = {
     ...props.initialValues,
     config: {
-      port:DEFAULT_PORT,
+      port: 8020,
       enableImpersonation: false,
+      rootPath: '/',
       ...props.initialValues.config
     }
   };
@@ -96,5 +98,11 @@ function mapStateToProps(state, props) {
 
 export default connectComplexForm({
   form: 'source',
-  fields: ['config.enableImpersonation']
+  fields: ['config.enableImpersonation', 'config.rootPath']
 }, SECTIONS, mapStateToProps, null)(HDFSForm);
+
+const styles = {
+  formSubRow: {
+    marginBottom: 6
+  }
+};

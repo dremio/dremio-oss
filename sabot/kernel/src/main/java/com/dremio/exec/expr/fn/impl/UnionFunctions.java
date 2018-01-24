@@ -31,6 +31,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.resolver.TypeCastRules;
 
 import io.netty.buffer.ArrowBuf;
@@ -170,13 +171,16 @@ public class UnionFunctions {
 
     @Param UnionHolder in;
     @Output UnionHolder out;
+    @Inject FunctionErrorContext errorContext;
 
     public void setup() {}
 
     public void eval() {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
-          throw new UnsupportedOperationException("The input is not a LIST type");
+          throw errorContext.error()
+              .message("The input is not a LIST type")
+              .build();
         }
         out.reader = in.reader;
       } else {
@@ -210,13 +214,16 @@ public class UnionFunctions {
 
     @Param UnionHolder in;
     @Output UnionHolder out;
+    @Inject FunctionErrorContext errorContext;
 
     public void setup() {}
 
     public void eval() {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.MAP) {
-          throw new UnsupportedOperationException("The input is not a MAP type");
+          throw errorContext.error()
+              .message("The input is not a MAP type")
+              .build();
         }
         out.reader = in.reader;
       } else {

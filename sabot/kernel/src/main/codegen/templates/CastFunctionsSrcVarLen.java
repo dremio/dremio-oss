@@ -15,14 +15,6 @@
  */
 <@pp.dropOutputFile />
 
-<#macro doError>
-  { 
-    byte[] buf = new byte[in.end - in.start];
-    in.buffer.getBytes(in.start, buf, 0, in.end - in.start);  
-    throw new NumberFormatException(new String(buf, com.google.common.base.Charsets.UTF_8));
-  }  
-</#macro>
-
 <#list cast.types as type>
 <#if type.major == "SrcVarlen">
 
@@ -37,6 +29,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.*;
 import javax.inject.Inject;
 import io.netty.buffer.ArrowBuf;
@@ -50,6 +43,7 @@ public class Cast${type.from}${type.to} implements SimpleFunction{
 
   @Param ${type.from}Holder in;
   @Output ${type.to}Holder out;
+  @Inject FunctionErrorContext errCtx;
 
   public void setup() {}
 
@@ -59,14 +53,17 @@ public class Cast${type.from}${type.to} implements SimpleFunction{
       byte[] buf = new byte[in.end - in.start];
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
     
-      //TODO: need capture format exception, and issue SQLERR code.
-      out.value = ${type.javaType}.parse${type.parse}(new String(buf, com.google.common.base.Charsets.UTF_8));
-      
+      try{
+        out.value = ${type.javaType}.parse${type.parse}(new String(buf, com.google.common.base.Charsets.UTF_8));
+      } catch (RuntimeException e) {
+        throw errCtx.error(e)
+          .build();
+      }
     <#elseif type.to=="Int" >
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToInt(in.start, in.end, in.buffer);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToInt(in.start, in.end, in.buffer, errCtx);
     
     <#elseif type.to == "BigInt">
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToLong(in.start, in.end, in.buffer);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToLong(in.start, in.end, in.buffer, errCtx);
     </#if>
   }
 }

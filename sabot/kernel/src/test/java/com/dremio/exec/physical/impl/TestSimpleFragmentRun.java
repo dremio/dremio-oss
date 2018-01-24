@@ -89,7 +89,7 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
           } else {
             System.out.print("\t");
           }
-          System.out.print(value.getValueVector().getAccessor().getObject(i));
+          System.out.print(value.getValueVector().getObject(i));
         }
         if (!first) {
           System.out.println();
@@ -167,8 +167,8 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
               System.out.print("\t");
             }
 
-            final ValueVector.Accessor accessor = v.getValueVector().getAccessor();
-            System.out.print(accessor.getObject(r));
+            final ValueVector vv = v.getValueVector();
+            System.out.print(vv.getObject(r));
           }
           if (!first) {
             System.out.println();

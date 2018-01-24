@@ -50,14 +50,13 @@ public class DremioConfig extends NestedConfig {
 
   public static final String LOCAL_WRITE_PATH_STRING = "paths.local";
   public static final String DIST_WRITE_PATH_STRING = "paths.dist";
-  public static final String MASTER_NODE_STRING = "master.name";
-  public static final String MASTER_PORT_INT = "master.port";
 
   public static final String ENABLE_COORDINATOR_BOOL = "services.coordinator.enabled";
+  public static final String ENABLE_MASTER_BOOL = "services.coordinator.master.enabled";
   public static final String ENABLE_EXECUTOR_BOOL = "services.executor.enabled";
-  public static final String EMBEDDED_MASTER_ZK_ENABLED_BOOL = "services.coordinator.embedded_master_zk.enabled";
-  public static final String EMBEDDED_MASTER_ZK_ENABLED_PORT_INT = "services.coordinator.embedded_master_zk.port";
-  public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING = "services.coordinator.embedded_master_zk.path";
+  public static final String EMBEDDED_MASTER_ZK_ENABLED_BOOL = "services.coordinator.master.embedded-zookeeper.enabled";
+  public static final String EMBEDDED_MASTER_ZK_ENABLED_PORT_INT = "services.coordinator.master.embedded-zookeeper.port";
+  public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING = "services.coordinator.master.embedded-zookeeper.path";
   public static final String WEB_ENABLED_BOOL = "services.coordinator.web.enabled";
   public static final String WEB_SSL_ENABLED_BOOL = "services.coordinator.web.ssl.enabled";
   public static final String WEB_SSL_KEYSTORE = "services.coordinator.web.ssl.keyStore";
@@ -72,6 +71,7 @@ public class DremioConfig extends NestedConfig {
   public static final String SCHEDULER_SERVICE_THREAD_COUNT = "services.coordinator.scheduler.threads";
   public static final String WEB_TOKEN_CACHE_EXPIRATION = "services.coordinator.web.tokens.cache.expiration_minutes";
   public static final String TASK_ON_IDLE_LOAD_SHED = "debug.task.on_idle_load_shed";
+  public static final String TASK_RESCHEDULE_ON_UNBLOCK = "debug.task.reschedule_on_unblock";
   public static final String KERBEROS_PRINCIPAL = "services.kerberos.principal";
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
 
@@ -114,9 +114,9 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_ALLOW_TEST_APIS_BOOL = "debug.allowTestApis";
   public static final String DEBUG_USE_MEMORY_STRORAGE_BOOL = "debug.useMemoryStorage";
   public static final String DEBUG_FORCE_REMOTE_BOOL = "debug.forceRemote";
-  public static final String DEBUG_FORCE_MASTER_BOOL = "debug.forceMaster";
   public static final String DEBUG_ADD_DEFAULT_USER = "debug.addDefaultUser";
   public static final String DEBUG_ALLOW_NEWER_KVSTORE = "debug.allowNewerKVStore";
+  public static final String DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL = "debug.master.election.disabled";
 
   public static final String FABRIC_MEMORY_RESERVATION = "services.fabric.memory.reservation";
 
@@ -299,8 +299,6 @@ public class DremioConfig extends NestedConfig {
     // legacy stuff for now.
     config = setSystemProperty(config, "dremd.write", LOCAL_WRITE_PATH_STRING);
     config = setSystemProperty(config, "dremio_autoPort", DEBUG_AUTOPORT_BOOL);
-    config = setSystemProperty(config, "dremd.master", MASTER_NODE_STRING);
-    config = setSystemProperty(config, "dremd.masterPort", MASTER_PORT_INT);
     config = setSystemProperty(config, "dac_prepopulate", DEBUG_PREPOPULATE_BOOL);
     config = setSystemProperty(config, "dremio_allowTestApis", DEBUG_ALLOW_TEST_APIS_BOOL);
     config = setSystemProperty(config, "dremd.localPort", SERVER_PORT_INT);

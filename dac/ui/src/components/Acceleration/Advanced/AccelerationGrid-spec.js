@@ -70,7 +70,8 @@ describe('AccelerationGrid', () => {
   it('should correct render Columns and cells', () => {
     wrapper = mount(<AccelerationGrid {...commonProps}/>);
     expect(wrapper.find(Table)).to.have.length(1);
-    expect(wrapper.find('.fixedDataTableRowLayout_body .fixedDataTableCellGroupLayout_cellGroupWrapper')).to.have.length(2);
+    // fixedDataTable renders an extra hidden fixedDataTableCellGroupLayout_cellGroupWrapper, so add 1
+    expect(wrapper.find('.fixedDataTableRowLayout_body .fixedDataTableCellGroupLayout_cellGroupWrapper')).to.have.length(2 + 1);
   });
 
   describe('#renderSubCellHeaders', () => {

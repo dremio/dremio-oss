@@ -33,7 +33,9 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -128,6 +130,13 @@ public class SplitsPointerImpl implements SplitsPointer {
       }
     }
     return this;
+  }
+
+
+  @Override
+  public SplitsPointer prune(Predicate<DatasetSplit> splitPredicate) {
+    List<DatasetSplit> splits = FluentIterable.from(getSplitIterable()).filter(splitPredicate).toList();
+    return new SplitsPointerImpl(splits, getTotalSplitsCount());
   }
 
   @Override

@@ -44,6 +44,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JExpr;
+import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
 
@@ -64,6 +65,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   protected final ValueReference[] parameters;
   private final ValueReference returnValue;
   private final FunctionInitializer initializer;
+  private final boolean usesErrContext;
 
   public BaseFunctionHolder(
       FunctionAttributes attributes,
@@ -83,7 +85,16 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     this.derivation = attributes.getDerivation();
     this.initializer = initializer;
 
-    // Make sure functions with INTERNAL null handling use a Nullabe output
+    boolean usesErrContext = false;
+    for (int i = 0; i < workspaceVars.length; i++) {
+      WorkspaceReference ref = workspaceVars[i];
+      if (ref.getType() == FunctionErrorContext.class) {
+        usesErrContext = true;
+      }
+    }
+    this.usesErrContext = usesErrContext;
+
+    // Make sure functions with INTERNAL null handling use a Nullable output
     assert nullHandling != NullHandling.INTERNAL || returnValue.getOldType().getMode() == TypeProtos.DataMode.OPTIONAL :
       "Function [" + initializer.getClassName() + "] with INTERNAL null handling should use a Nullable output";
 
@@ -114,8 +125,8 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   }
 
   @Override
-  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables) {
-    return declareWorkspaceVariables(g);
+  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, FunctionErrorContext errorContext) {
+    return declareWorkspaceVariables(g, errorContext);
   }
 
   @Override
@@ -142,11 +153,17 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return attributes.isDeterministic();
   }
 
+  public boolean isDynamic() {
+    return attributes.isDynamic();
+  }
+
   public FunctionSyntax getSyntax() {
     return syntax;
   }
 
-  protected JVar[] declareWorkspaceVariables(ClassGenerator<?> g) {
+  protected JVar[] declareWorkspaceVariables(ClassGenerator<?> g, FunctionErrorContext errorContext) {
+    assert usesErrContext == (errorContext != null);  // Caller should have created a FunctionErrorContext if usesErrContext()
+
     JVar[] workspaceJVars = new JVar[workspaceVars.length];
     for (int i = 0; i < workspaceVars.length; i++) {
       WorkspaceReference ref = workspaceVars[i];
@@ -161,12 +178,17 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
       }
 
       if (ref.isInject()) {
-        if (FunctionContext.INJECTABLE_GETTER_METHODS.get(ref.getType()) != null) {
-          g.getBlock(BlockType.SETUP).assign(
-              workspaceJVars[i],
-              JExpr.direct("context").invoke(
-                  FunctionContext.INJECTABLE_GETTER_METHODS.get(ref.getType())
-              ));
+        String injectableFactoryFunction = FunctionContext.INJECTABLE_GETTER_METHODS.get(ref.getType());
+        if (injectableFactoryFunction != null) {
+          JInvocation injectableFactoryInvocation = JExpr.direct("context").invoke(injectableFactoryFunction);
+          if (ref.getType() == FunctionErrorContext.class) {
+            injectableFactoryInvocation.arg(JExpr.lit(errorContext.getId()));
+            g.getBlock(BlockType.SETUP)
+              .assign(workspaceJVars[i], injectableFactoryInvocation);
+          } else {
+            g.getBlock(BlockType.SETUP)
+              .assign(workspaceJVars[i], injectableFactoryInvocation);
+          }
         } else {
           // Invalid injectable type provided, this should have been caught in FunctionConverter
           throw new IllegalArgumentException("Invalid injectable type requested in UDF: " + ref.getType().getSimpleName());
@@ -259,6 +281,11 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   @Override
   public int getParamCount() {
     return this.parameters.length;
+  }
+
+  @Override
+  public boolean usesErrContext() {
+    return usesErrContext;
   }
 
   public boolean isConstant(int i) {

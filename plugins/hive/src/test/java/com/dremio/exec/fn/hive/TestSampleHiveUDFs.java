@@ -25,6 +25,7 @@ import org.junit.Test;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.google.common.base.Charsets;
 
 public class TestSampleHiveUDFs extends HiveTestBase {
 
@@ -163,5 +164,31 @@ public class TestSampleHiveUDFs extends HiveTestBase {
     } finally {
       test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
     }
+  }
+
+  @Test // DX-10234
+  public void testLargeOutputValues() throws Exception {
+    final String longVal1 = "Not every application requires security. Random assignment can be an efficient way for " +
+        "multiple entities to generate identifiers in a shared space without any coordination or partitioning. " +
+        "Coordination can be slow, especially in a clustered or distributed environment, and splitting up a space " +
+        "causes problems when entities end up with shares that are too small or too big";
+    final String longVal2 = longVal1 + longVal1 + longVal1;
+
+    String query = String.format("SELECT " +
+        "testHiveUDFCHAR(col) as c1, " +
+        "testHiveUDFVARCHAR(col) as c2, " +
+        "testHiveUDFBINARY(convert_to(col, 'UTF8')) as c3 FROM " +
+        "(values('%s'), ('%s'), (cast(null as varchar))) as t(col)", longVal1, longVal2);
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("c1", "c2", "c3")
+        .baselineValues(longVal1.substring(0, 255) /* CHAR return type returns max of 255 chars */,
+            longVal1, longVal1.getBytes(Charsets.UTF_8))
+        .baselineValues(longVal2.substring(0, 255) /* CHAR return type returns max of 255 chars */,
+            longVal2, longVal2.getBytes(Charsets.UTF_8))
+        .baselineValues(null, null, null)
+        .go();
   }
 }

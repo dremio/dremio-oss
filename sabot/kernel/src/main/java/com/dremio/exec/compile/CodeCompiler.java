@@ -83,19 +83,4 @@ public class CodeCompiler {
       this.clazz = clazz;
     }
   }
-
-  /**
-   * Flush the compiled classes from the cache.
-   *
-   * <p>The cache has SabotContext lifetime, so the only way items go out of it
-   * now is by being aged out because of the maximum cache size.
-   *
-   * <p>The intent of flushCache() is to make it possible to flush the cache for
-   * testing purposes, although this could be used by users in case issues arise. If
-   * that happens, remove the visible for testing annotation.
-   */
-  @VisibleForTesting
-  public void flushCache() {
-    cache.invalidateAll();
-  }
 }

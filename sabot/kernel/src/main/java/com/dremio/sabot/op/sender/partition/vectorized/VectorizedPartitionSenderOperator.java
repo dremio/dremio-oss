@@ -51,6 +51,7 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BaseSender;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric;
 import com.dremio.sabot.op.sender.partition.vectorized.MultiDestCopier.CopyWatches;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
@@ -62,6 +63,8 @@ import io.netty.util.internal.PlatformDependent;
  * Each incoming batch may be processed in multiple passes, each time copying up to numRecordsBeforeFlush rows.
  */
 public class VectorizedPartitionSenderOperator extends BaseSender {
+  @VisibleForTesting
+  public static final int PARTITION_MULTIPLE = 8;
 
   /** used to ensure outgoing batches creation and */
   private final Object batchCreationLock = new Object();
@@ -99,12 +102,26 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
   /**
    * modLookup[p] = outgoing batch that should receive the next row for partition p.<br>
-   * Twice the number of receivers to ensure we can use bitwise operation instead of mod when computing
-   * the target partition for a given hash AND we can update both associated batches with a simple access
+   * Sized to a power-of-two to ensure we can use bitwise operation instead of mod when computing
+   * the target partition for a given hash
+   * Batches are assigned round-robin to the partition lookup:
+   *   modLookup[0] = batches[0]
+   *   modLookup[1] = batches[1]
+   *   ...
+   *   modLookup[#receivers-1] = batches[#receivers-1]
+   *   modLookup[#receivers] = batches[0]
+   *   modLookup[#receivers+1] = batches[1]
+   *   ...
+   *   modLookup(2*#receivers-1] = batches[#receivers-1]
+   *   ...
+   *   # Pattern repeats PARTITION_MULTIPLE times
+   * The relationship between a partition# and a batch# is always:
+   *   batchNum % numReceivers = partitionNum % numReceivers
+   * Please note that this relationship holds even though there are twice as many batches as there are receivers
    */
   private final OutgoingBatch[] modLookup;
 
-  /** next power of 2 of number of receivers */
+  /** number of partitions. Set to the next power of 2 of the number of receivers */
   private final int modSize;
 
   /**
@@ -132,9 +149,9 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
     stats.setLongStat(N_RECEIVERS, numReceivers);
 
-    modSize = Numbers.nextPowerOfTwo(numReceivers);
-    modLookup = new OutgoingBatch[numReceivers * 2];
-    batches = new OutgoingBatch[numReceivers * 2];
+    modSize = PARTITION_MULTIPLE * Numbers.nextPowerOfTwo(numReceivers);
+    modLookup = new OutgoingBatch[modSize];
+    batches = new OutgoingBatch[2 * numReceivers];
   }
 
   @Override
@@ -207,9 +224,9 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
       // Only allocate the primary batch. Backup batch is allocated when it is needed.
       batches[p].allocateNew();
-
-      modLookup[p] = batches[p];
-      modLookup[batchB] = batches[p];
+    }
+    for (int p = 0; p < modSize; p++) {
+      modLookup[p] = batches[p % numReceivers];
     }
   }
 
@@ -326,7 +343,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   }
 
   private void generateCopyIndices(final int start, final int numRowsToCopy) {
-    long srcAddr = partitionIndices.getBuffer().memoryAddress() + start*4;
+    long srcAddr = partitionIndices.getDataBufferAddress() + start*4;
     long dstAddr = copyIndices.getBuffer().memoryAddress();
 
     final int mod = modSize - 1;
@@ -349,8 +366,14 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
         for (MultiDestCopier copier : copiers) {
           copier.updateTargets(nextBatchIdx, nextBatch.getFieldVector(copier.getFieldId()));
         }
-        modLookup[batch.getBatchIdx()] = nextBatch;
-        modLookup[nextBatchIdx] = nextBatch;
+        // Paired batches must be located at very specific places within modLookup. In particular, the batch pair
+        // repeats every #receivers (see the comment above the modLookup definition).
+        assert (batch.getBatchIdx() % numReceivers) == (nextBatchIdx % numReceivers) :
+          String.format("Batch pairs must be aligned to #receivers. Instead: curr batch: %d, next batch: %d, #receivers: %d",
+            batch.getBatchIdx(), nextBatchIdx, numReceivers);
+        for (int b = (nextBatchIdx % numReceivers); b < modSize; b += numReceivers) {
+          modLookup[b] = nextBatch;
+        }
       }
     }
   }
@@ -393,4 +416,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     return visitor.visitTerminalOperator(this, value);
   }
 
+  @VisibleForTesting
+  public OperatorContext getOperatorContext() {
+    return context;
+  }
 }

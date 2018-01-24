@@ -50,7 +50,7 @@ export default class FieldWithError extends Component {
     const showError = Boolean(touched && error);
 
     return (
-      <div className='field-with-error' data-qa={name} style={{...style, position:'relative'}}>
+      <div className='field-with-error field' data-qa={name} style={{...style, position:'relative'}}>
         {this.renderLabel()}
         {React.cloneElement(React.Children.only(children), {ref: 'target'})}
         <Overlay

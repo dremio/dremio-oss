@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.NullableMapVector;
-import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.hbase.Cell;
@@ -44,7 +43,9 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.FirstKeyOnlyFilter;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
@@ -78,7 +79,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
 
   public HBaseRecordReader(
       Connection connection,
-      HBaseSubScan.HBaseSubScanSpec subScanSpec,
+      HBaseSubScanSpec subScanSpec,
       List<SchemaPath> projectedColumns,
       OperatorContext context,
       boolean sample) {
@@ -92,7 +93,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
     this.context = context;
     this.sample = sample;
     hbaseScan
-        .setFilter(subScanSpec.getScanFilter())
+        .setFilter(subScanSpec.asScanFilter())
         .setCaching((int) numRowsPerBatch);
 
     if (!isStarQuery()) {
@@ -160,7 +161,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
       for (SchemaPath column : getColumns()) {
         if (column.equals(ROW_KEY_PATH)) {
           if (sample) {
-            Field field = new Field(column.getAsNamePart().getName(), true, MinorType.VARBINARY.getType(), null);
+            Field field = CompleteType.VARBINARY.toField(column.getAsNamePart().getName());
             rowKeyVector = outputMutator.addField(field, NullableVarBinaryVector.class);
           } else {
             rowKeyVector = (NullableVarBinaryVector) output.getVector(ROW_KEY);
@@ -232,7 +233,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
       // parse the result and populate the value vectors
       Cell[] cells = result.rawCells();
       if (rowKeyVector != null) {
-        rowKeyVector.getMutator().setSafe(rowCount, cells[0].getRowArray(), cells[0].getRowOffset(), cells[0].getRowLength());
+        rowKeyVector.setSafe(rowCount, cells[0].getRowArray(), cells[0].getRowOffset(), cells[0].getRowLength());
       }
       if (!rowKeyOnly) {
         for (final Cell cell : cells) {
@@ -240,7 +241,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
           final int familyLength = cell.getFamilyLength();
           final byte[] familyArray = cell.getFamilyArray();
           final NullableMapVector mv = getOrCreateFamilyVector(outputMutator, new String(familyArray, familyOffset, familyLength), true);
-          mv.getMutator().setIndexDefined(rowCount);
+          mv.setIndexDefined(rowCount);
           final int qualifierOffset = cell.getQualifierOffset();
           final int qualifierLength = cell.getQualifierLength();
           final byte[] qualifierArray = cell.getQualifierArray();
@@ -249,7 +250,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
           final int valueOffset = cell.getValueOffset();
           final int valueLength = cell.getValueLength();
           final byte[] valueArray = cell.getValueArray();
-          v.getMutator().setSafe(rowCount, valueArray, valueOffset, valueLength);
+          v.setSafe(rowCount, valueArray, valueOffset, valueLength);
         }
       }
     }
@@ -288,25 +289,16 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
   }
 
   @Override
-  public void close() {
-    try {
-      if (resultScanner != null) {
-        resultScanner.close();
-      }
-      if (hTable != null) {
-        hTable.close();
-      }
-    } catch (IOException e) {
-      logger.warn("Failure while closing HBase table: " + hbaseTableName, e);
-    }
+  public void close() throws Exception {
+    AutoCloseables.close(resultScanner, hTable);
   }
 
   private void setOutputRowCount(int count) {
     for (ValueVector vv : familyVectorMap.values()) {
-      vv.getMutator().setValueCount(count);
+      vv.setValueCount(count);
     }
     if (rowKeyVector != null) {
-      rowKeyVector.getMutator().setValueCount(count);
+      rowKeyVector.setValueCount(count);
     }
   }
 

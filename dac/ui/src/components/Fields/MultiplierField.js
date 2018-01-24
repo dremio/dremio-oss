@@ -94,7 +94,7 @@ export default class MultiplierField extends Component {
   }
 
   render() {
-    return <span style={{...styles.base, ...this.props.style}}>
+    return <span className='field' style={{...styles.base, ...this.props.style}}>
       <PrevalidatedTextField
         type='number'
         value={stringifyWithoutExponent(this.getConvertedNumberForDisplay())}

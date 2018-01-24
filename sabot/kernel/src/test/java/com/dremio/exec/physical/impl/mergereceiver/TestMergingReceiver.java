@@ -95,14 +95,13 @@ public class TestMergingReceiver extends PopUnitTestBase {
         batchLoader.load(queryData.getDef(), b.getData());
         for (final VectorWrapper vw : batchLoader) {
           final ValueVector vv = vw.getValueVector();
-          final ValueVector.Accessor va = vv.getAccessor();
           final Field materializedField = vv.getField();
-          final int numValues = va.getValueCount();
+          final int numValues = vv.getValueCount();
           for(int valueIdx = 0; valueIdx < numValues; ++valueIdx) {
             if (materializedField.getName().equals("blue")) {
-              Long val = (Long) va.getObject(valueIdx);
+              Long val = (Long) vv.getObject(valueIdx);
               if (val != null) {
-                final long longValue = ((Long) va.getObject(valueIdx)).longValue();
+                final long longValue = ((Long) vv.getObject(valueIdx)).longValue();
                 // check that order is ascending
                 if (lastBlueValue != null) {
                   assertTrue(longValue >= lastBlueValue);

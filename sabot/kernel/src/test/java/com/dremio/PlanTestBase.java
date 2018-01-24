@@ -354,8 +354,8 @@ public class PlanTestBase extends BaseTestQuery {
         System.out.println(vw.getValueVector().getField().getName());
       }
       final ValueVector vv = vw.getValueVector();
-      for (int i = 0; i < vv.getAccessor().getValueCount(); i++) {
-        final Object o = vv.getAccessor().getObject(i);
+      for (int i = 0; i < vv.getValueCount(); i++) {
+        final Object o = vv.getObject(i);
         builder.append(o);
         if (!silent) {
           System.out.println(o);

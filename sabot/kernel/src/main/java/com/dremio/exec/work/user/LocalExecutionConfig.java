@@ -21,7 +21,6 @@ import com.google.common.base.Preconditions;
  */
 public class LocalExecutionConfig implements OptionProvider {
   private final boolean enableLeafLimits;
-  private final long maxQueryWidth;
   private final boolean allowPartitionPruning;
   private final boolean failIfNonEmptySent;
   private final String username;
@@ -32,7 +31,6 @@ public class LocalExecutionConfig implements OptionProvider {
   private final boolean exposeInternalSources;
 
   LocalExecutionConfig(final boolean enableLeafLimits,
-                       final long maxQueryWidth,
                        final boolean failIfNonEmptySent,
                        final String username,
                        final List<String> sqlContext,
@@ -42,7 +40,6 @@ public class LocalExecutionConfig implements OptionProvider {
                        final boolean exposeInternalSources,
                        final SubstitutionSettings substitutionSettings) {
     this.enableLeafLimits = enableLeafLimits;
-    this.maxQueryWidth = maxQueryWidth;
     this.failIfNonEmptySent = failIfNonEmptySent;
     this.username = username;
     this.sqlContext = sqlContext;
@@ -77,10 +74,8 @@ public class LocalExecutionConfig implements OptionProvider {
   public void applyOptions(OptionManager manager) {
     if (enableLeafLimits) {
       manager.setOption(createBoolean(QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true));
-    }
-
-    if (maxQueryWidth > 0L) {
-      manager.setOption(createLong(QUERY, ExecConstants.MAX_WIDTH_GLOBAL_KEY, maxQueryWidth));
+      manager.setOption(createLong(QUERY, ExecConstants.MAX_WIDTH_GLOBAL_KEY, manager.getOption(PlannerSettings.LEAF_LIMIT_MAX_WIDTH)));
+      manager.setOption(createLong(QUERY, ExecConstants.SLICE_TARGET, 1));
     }
 
     // always store results
@@ -121,17 +116,6 @@ public class LocalExecutionConfig implements OptionProvider {
      */
     public Builder setEnableLeafLimits(boolean enableLeafLimits) {
       this.enableLeafLimits = enableLeafLimits;
-      return this;
-    }
-
-    /**
-     * Sets the maximum parallelization width of phases in the query. Set to non-positive number to use system default.
-     *
-     * @param maxQueryWidth maximum parallelization width of phases in the query
-     * @return this builder
-     */
-    public Builder setMaxQueryWidth(long maxQueryWidth) {
-      this.maxQueryWidth = maxQueryWidth;
       return this;
     }
 
@@ -227,7 +211,6 @@ public class LocalExecutionConfig implements OptionProvider {
     public LocalExecutionConfig build() {
       return new LocalExecutionConfig(
           enableLeafLimits,
-          maxQueryWidth,
           failIfNonEmptySent,
           username,
           sqlContext,

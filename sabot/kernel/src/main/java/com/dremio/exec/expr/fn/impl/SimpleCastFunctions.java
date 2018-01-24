@@ -27,6 +27,7 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import io.netty.buffer.ArrowBuf;
 
 public class SimpleCastFunctions {
@@ -39,6 +40,7 @@ public class SimpleCastFunctions {
 
     @Param VarCharHolder in;
     @Output BitHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     public void setup() {
 
@@ -53,7 +55,9 @@ public class SimpleCastFunctions {
       } else if ("false".equals(input) || "0".equals(input)) {
         out.value = 0;
       } else {
-        throw new IllegalArgumentException("Invalid value for boolean: " + input);
+        throw errCtx.error()
+          .message("Invalid value for boolean: '%s'", input)
+          .build();
       }
     }
   }

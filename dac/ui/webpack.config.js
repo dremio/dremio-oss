@@ -121,7 +121,7 @@ const loaders = [
     use: [
       {
         loader: 'babel-loader',
-        query: {
+        options: {
           // eslint-disable-next-line no-sync
           ...JSON.parse(fs.readFileSync(path.resolve(__dirname, '.babelrc'), 'utf8')),
           cacheDirectory: true

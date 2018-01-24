@@ -18,14 +18,16 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
+import { injectIntl } from 'react-intl';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 
 import { RECOMMENDED_JOIN, CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
 import { setJoinTab, clearJoinDataset } from 'actions/explore/join';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
+@injectIntl
 @Radium
 export class JoinHeader extends Component {
   static propTypes = {
@@ -38,7 +40,8 @@ export class JoinHeader extends Component {
     text: PropTypes.string,
     setJoinTab: PropTypes.func,
     joinTab: PropTypes.string,
-    clearJoinDataset: PropTypes.func
+    clearJoinDataset: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -62,7 +65,11 @@ export class JoinHeader extends Component {
   getCloseIcon() {
     const handler = this.props.closeIconHandler;
     const icon = this.props.closeIcon
-      ? <FontIcon type={'XBig'} theme={styles.iconTheme} onClick={handler}/>
+      ? <Art
+        src={'XBig.svg'}
+        alt={this.props.intl.formatMessage({ id: 'Common.Close' })}
+        onClick={handler}
+        style={styles.icon} />
       : null;
     return icon;
   }
@@ -149,16 +156,14 @@ const styles = {
     'fontSize': 15,
     'fontWeight': 600
   },
-  'iconTheme': {
-    'Icon': {
-      float: 'right',
-      margin: '8px 10px 0 0',
-      position: 'relative',
-      width: 24,
-      height: 24,
-      'fontSize': 18,
-      'cursor': 'pointer'
-    }
+  icon: {
+    float: 'right',
+    margin: '8px 10px 0 0',
+    position: 'relative',
+    width: 24,
+    height: 24,
+    fontSize: 18,
+    cursor: 'pointer'
   },
   disabled: {
     color: 'gray',

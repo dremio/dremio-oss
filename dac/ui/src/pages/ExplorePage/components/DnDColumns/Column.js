@@ -20,11 +20,12 @@ import Immutable  from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { DragSource, DropTarget } from 'react-dnd';
+import { injectIntl } from 'react-intl';
 
 import 'components/Icon/FontIcon.less';
-import FontIcon from 'components/Icon/FontIcon.js';
+import Art from 'components/Art';
 
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType, typeToFormatMessageId } from 'constants/DataTypes';
 
 import './Column.less';
 
@@ -80,6 +81,7 @@ const columnTarget = {
   }
 };
 
+@injectIntl
 @Radium
 class Column extends Component {
   static propTypes = {
@@ -94,7 +96,8 @@ class Column extends Component {
     onToggleVisible: PropTypes.func.isRequired,
     showHover: PropTypes.func,
     updateHover: PropTypes.func,
-    hideHover: PropTypes.func
+    hideHover: PropTypes.func,
+    intl: PropTypes.object.isRequired
   }
 
   onToggleVisible = () => {
@@ -102,13 +105,12 @@ class Column extends Component {
   }
 
   render() {
-    const { column, connectDragSource, connectDropTarget, isDragging } = this.props;
+    const { column, connectDragSource, connectDropTarget, isDragging, intl } = this.props;
     const classes = classNames('popup-column', {'column-draging': isDragging});
-    const iconClasses = classNames('fa',
-      {'Visibility': !column.get('hidden')},
-      {'Visibility-Off': column.get('hidden')}
-    );
+    const icon = column.get('hidden') ? 'VisibilityOff' : 'Visibility';
+    const iconAlt = intl.formatMessage({id: `Common.${column.get('hidden') ? 'Hidden' : 'Visible'}`});
     const textStyle = !column.get('hidden') ? style.textVisible : style.textInvisible;
+
     return connectDragSource(connectDropTarget(
       <div className='column-elem' data-qa={`drag-line.${this.props.index}`}>
         <div className={classes}  style={[style.wrapper, textStyle]}>
@@ -116,18 +118,17 @@ class Column extends Component {
             onMouseUp={this.props.allowDrag}
             onMouseDown={this.onToggleVisible}
           >
-            <FontIcon
-              type={iconClasses}
-              theme={{'Icon': style.icon, 'Container': { width: 24 }}}
-            />
+            <Art src={`${icon}.svg`} alt={iconAlt} style={style.icon} />
           </div>
           <div
             onMouseMove={this.props.updateHover}
             onMouseEnter={this.props.showHover}
             onMouseLeave={this.props.hideHover}
             className='wrapper-tree'>
-            <FontIcon type={typeToIconType[column.get('type')]}
-              theme={{'Container': style.container}} />
+            <Art
+              src={`types/${typeToIconType[column.get('type')]}.svg`}
+              alt={intl.formatMessage({id: `${typeToFormatMessageId[column.get('type')]}`})}
+              style={style.container} />
             <div style={style.textElement}>{column.get('name')}</div>
           </div>
         </div>
@@ -153,11 +154,8 @@ const style = {
     height: 26
   },
   container: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-    width: 24,
-    height: 16,
-    margin: '0 5px 9px 0'
+    width: 30,
+    height: 30
   },
   wrapper: {
     display: 'flex',

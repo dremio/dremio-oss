@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.cost;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,6 +41,7 @@ import com.dremio.exec.planner.physical.CustomPrel;
 import com.dremio.exec.planner.physical.DictionaryLookupPrel;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPrel;
+import com.google.common.base.Preconditions;
 
 /**
  * Override {@link RelMdColumnOrigins} to provide column origins for:
@@ -89,25 +91,41 @@ public class RelMdColumnOrigins extends org.apache.calcite.rel.metadata.RelMdCol
       return mq.getColumnOrigins(inputRel, iOutputColumn);
     }
 
-    if (iOutputColumn >= numFieldsInInput + window.groups.size()) {
-      return null;
+    if (iOutputColumn >= window.getRowType().getFieldCount()) {
+      return Collections.emptySet();
     }
 
-    final Group group = window.groups.get(iOutputColumn - numFieldsInInput);
+    int startGroupIdx = iOutputColumn - numFieldsInInput;
+    int curentIdx = 0;
+    Group finalGroup = null;
+    for (Group group : window.groups) {
+      curentIdx += group.aggCalls.size();
+      if (curentIdx > startGroupIdx) {
+        // this is the group
+        finalGroup = group;
+        break;
+      }
+    }
+    Preconditions.checkNotNull(finalGroup);
+    // calculating index of the aggCall within a group
+    // currentIdx = through idx within groups/aggCalls (max currentIdx = sum(groups size * aggCals_per_group) )
+    // since currentIdx at this moment points to the end of the group substracting aggCals_per_group
+    // to get to the beginning of the group and have startGroupIdx substract the diff
+    final int aggCalIdx = startGroupIdx - (curentIdx - finalGroup.aggCalls.size());
+    Preconditions.checkElementIndex(aggCalIdx, finalGroup.aggCalls.size());
 
     final Set<RelColumnOrigin> set = new HashSet<>();
     // Add aggregation column references
-    for(RexWinAggCall aggCall : group.aggCalls) {
-      for(RexNode operand : aggCall.operands) {
-        if (operand instanceof RexInputRef) {
-          final RexInputRef opInputRef = (RexInputRef) operand;
-          if (opInputRef.getIndex() < numFieldsInInput) {
-            Set<RelColumnOrigin> inputSet =
-                mq.getColumnOrigins(inputRel, opInputRef.getIndex());
-            inputSet = createDerivedColumnOrigins(inputSet);
-            if (inputSet != null) {
-              set.addAll(inputSet);
-            }
+    final RexWinAggCall aggCall = finalGroup.aggCalls.get(aggCalIdx);
+    for (RexNode operand : aggCall.operands) {
+      if (operand instanceof RexInputRef) {
+        final RexInputRef opInputRef = (RexInputRef) operand;
+        if (opInputRef.getIndex() < numFieldsInInput) {
+          Set<RelColumnOrigin> inputSet =
+            mq.getColumnOrigins(inputRel, opInputRef.getIndex());
+          inputSet = createDerivedColumnOrigins(inputSet);
+          if (inputSet != null) {
+            set.addAll(inputSet);
           }
         }
       }

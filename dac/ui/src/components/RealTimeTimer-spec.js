@@ -33,11 +33,13 @@ describe('RealTimeTimer', () => {
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<RealTimeTimer {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
+    wrapper.instance().componentWillUnmount();
   });
 
   it('should start timer on mount', () => {
     const wrapper = mount(<RealTimeTimer {...commonProps}/>);
     expect(wrapper.instance().intervalId).to.not.be.undefined;
+    wrapper.instance().componentWillUnmount();
   });
 
   it('should render time since props.startTime', () => {
@@ -45,6 +47,7 @@ describe('RealTimeTimer', () => {
     const wrapper = shallow(<RealTimeTimer {...commonProps}/>);
     expect(wrapper.text()).to.equal('2000');
     Date.now.restore();
+    wrapper.instance().componentWillUnmount();
   });
 
   it('should update every updateInterval', () => {
@@ -59,5 +62,6 @@ describe('RealTimeTimer', () => {
     expect(wrapper.text()).to.equal('11000');
 
     clock.restore();
+    wrapper.instance().componentWillUnmount();
   });
 });

@@ -20,6 +20,7 @@ import javax.inject.Provider;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.Service;
@@ -40,7 +41,7 @@ public class AcceleratorStoragePluginService implements Service {
   public void start() throws Exception {
     final FileSystemPlugin fileSystemPlugin = acceleratorStoragePluginProvider.get();
     final FileSystem fs = fileSystemPlugin.getFS(ImpersonationUtil.getProcessUserName());
-    fs.mkdirs(new Path(fileSystemPlugin.getConfig().getPath()));
+    fs.mkdirs(new Path(fileSystemPlugin.getId().<FileSystemConfig>getConfig().getPath()));
   }
 
   @Override

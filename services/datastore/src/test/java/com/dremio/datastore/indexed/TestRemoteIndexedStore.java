@@ -25,7 +25,9 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.RemoteKVStoreProvider;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.CloseableThreadPool;
+import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -64,8 +66,10 @@ public class TestRemoteIndexedStore extends AbstractTestIndexedStore {
 
     localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, fab, allocator, "localhost", null, true, true, true, false);
     localKVStoreProvider.start();
-    remoteKVStoreProvider = new RemoteKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, rfab, allocator, "localhost", "localhost", localFabricService.getPort());
-    remoteKVStoreProvider.start();
+    remoteKVStoreProvider = new RemoteKVStoreProvider(
+        DremioTest.CLASSPATH_SCAN_RESULT,
+        DirectProvider.wrap(NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(localFabricService.getPort()).build()),
+        rfab, allocator, "localhost");    remoteKVStoreProvider.start();
     return remoteKVStoreProvider;
   }
 

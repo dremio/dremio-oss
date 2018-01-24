@@ -218,6 +218,7 @@ export default class ColumnHeader extends Component {
         type='text'
         disabled={this.isActionsPrevented() || this.props.isResizeInProgress}
         autoComplete='off'
+        data-lpignore='true' // for lastpass: DX-9664 Password auto-complete icons show up in our column headers
         style={style}
         id={`cell${column.name}`}
         contentEditable
@@ -363,11 +364,8 @@ const styles = {
     border: 'none',
     position: 'static',
     alignText: 'center',
-    backgroundColor: '#F3F3F3',
+    backgroundColor: 'transparent',
     marginRight: 0
-  },
-  themeStyle: {
-    backgroundColor: '#F3F3F3'
   },
   popoverAnimation: {
     // need this because of the case where group by or join button overlays column action menu

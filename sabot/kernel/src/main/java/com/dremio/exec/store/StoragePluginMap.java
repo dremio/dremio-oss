@@ -35,44 +35,44 @@ import com.google.common.collect.Multimaps;
  * This is inspired by ConcurrentMap but provides a secondary key mapping that allows an alternative lookup mechanism.
  * The class is responsible for internally managing consistency between the two maps. This class is threadsafe.
  */
-class StoragePluginMap implements Iterable<Entry<String, StoragePlugin<?>>>, AutoCloseable {
+class StoragePluginMap implements Iterable<Entry<String, StoragePlugin>>, AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StoragePluginMap.class);
 
-  private final ConcurrentMap<String, StoragePlugin<?>> nameMap = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, StoragePlugin> nameMap = Maps.newConcurrentMap();
 
-  private final Multimap<StoragePluginConfig, StoragePlugin<?>> configMap =
-      Multimaps.synchronizedListMultimap(LinkedListMultimap.<StoragePluginConfig, StoragePlugin<?>>create());
+  private final Multimap<StoragePluginConfig, StoragePlugin> configMap =
+      Multimaps.synchronizedListMultimap(LinkedListMultimap.<StoragePluginConfig, StoragePlugin>create());
 
-  public void putAll(Map<String, StoragePlugin<?>> mapOfPlugins) {
-    for (Entry<String, StoragePlugin<?>> entry : mapOfPlugins.entrySet()) {
-      StoragePlugin<?> plugin = entry.getValue();
+  public void putAll(Map<String, StoragePlugin> mapOfPlugins) {
+    for (Entry<String, StoragePlugin> entry : mapOfPlugins.entrySet()) {
+      StoragePlugin plugin = entry.getValue();
       nameMap.put(entry.getKey(), plugin);
       // this possibly overwrites items in a map.
-      configMap.put(plugin.getConfig(), plugin);
+      configMap.put(plugin.getId().getConfig(), plugin);
     }
   }
 
-  public boolean replace(String name, StoragePlugin<?> oldPlugin, StoragePlugin<?> newPlugin) {
+  public boolean replace(String name, StoragePlugin oldPlugin, StoragePlugin newPlugin) {
     boolean ok = nameMap.replace(name, oldPlugin, newPlugin);
     if (ok) {
-      configMap.put(newPlugin.getConfig(), newPlugin);
-      configMap.remove(oldPlugin.getConfig(), oldPlugin);
+      configMap.put(newPlugin.getId().getConfig(), newPlugin);
+      configMap.remove(oldPlugin.getId().getConfig(), oldPlugin);
     }
 
     return ok;
   }
 
-  public boolean remove(String name, StoragePlugin<?> oldPlugin) {
+  public boolean remove(String name, StoragePlugin oldPlugin) {
     boolean ok = nameMap.remove(name, oldPlugin);
     if (ok) {
-      configMap.remove(oldPlugin.getConfig(), oldPlugin);
+      configMap.remove(oldPlugin.getId().getConfig(), oldPlugin);
     }
     return ok;
   }
 
-  public void put(String name, StoragePlugin<?> plugin) {
-    StoragePlugin<?> oldPlugin = nameMap.put(name, plugin);
-    configMap.put(plugin.getConfig(), plugin);
+  public void put(String name, StoragePlugin plugin) {
+    StoragePlugin oldPlugin = nameMap.put(name, plugin);
+    configMap.put(plugin.getId().getConfig(), plugin);
     if (oldPlugin != null) {
       try {
         oldPlugin.close();
@@ -82,28 +82,28 @@ class StoragePluginMap implements Iterable<Entry<String, StoragePlugin<?>>>, Aut
     }
   }
 
-  public StoragePlugin<?> putIfAbsent(String name, StoragePlugin<?> plugin) {
-    StoragePlugin<?> oldPlugin = nameMap.putIfAbsent(name, plugin);
+  public StoragePlugin putIfAbsent(String name, StoragePlugin plugin) {
+    StoragePlugin oldPlugin = nameMap.putIfAbsent(name, plugin);
     if (oldPlugin == null) {
-      configMap.put(plugin.getConfig(), plugin);
+      configMap.put(plugin.getId().getConfig(), plugin);
     }
     return oldPlugin;
   }
 
-  public StoragePlugin<?> remove(String name) {
-    StoragePlugin<?> plugin = nameMap.remove(name);
+  public StoragePlugin remove(String name) {
+    StoragePlugin plugin = nameMap.remove(name);
     if (plugin != null) {
-      configMap.remove(plugin.getConfig(), plugin);
+      configMap.remove(plugin.getId().getConfig(), plugin);
     }
     return plugin;
   }
 
-  public StoragePlugin<?> get(String name) {
+  public StoragePlugin get(String name) {
     return nameMap.get(name);
   }
 
   @Override
-  public Iterator<Entry<String, StoragePlugin<?>>> iterator() {
+  public Iterator<Entry<String, StoragePlugin>> iterator() {
     return nameMap.entrySet().iterator();
   }
 
@@ -111,8 +111,8 @@ class StoragePluginMap implements Iterable<Entry<String, StoragePlugin<?>>>, Aut
     return nameMap.keySet();
   }
 
-  public StoragePlugin<?> get(StoragePluginConfig config) {
-    Collection<StoragePlugin<?>> plugins = configMap.get(config);
+  public StoragePlugin get(StoragePluginConfig config) {
+    Collection<StoragePlugin> plugins = configMap.get(config);
     if (plugins == null || plugins.isEmpty()) {
       return null;
     } else {
@@ -122,7 +122,7 @@ class StoragePluginMap implements Iterable<Entry<String, StoragePlugin<?>>>, Aut
     }
   }
 
-  public Iterable<StoragePlugin<?>> plugins() {
+  public Iterable<StoragePlugin> plugins() {
     return nameMap.values();
   }
 

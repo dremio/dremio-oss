@@ -29,24 +29,30 @@ public class ClusterResourceInformation {
 
   private volatile long averageExecutorMemory = 0;
   private volatile int averageExecutorCores = 0;
+  private volatile int executorCount = 0;
+  private final ServiceSet executorSet;
 
   public ClusterResourceInformation(final ClusterCoordinator coordinator) {
-    final ServiceSet executorSet = coordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR);
+    this.executorSet = coordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR);
     executorSet.addNodeStatusListener(new NodeStatusListener() {
       @Override
       public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
-        computeAverageMemory(executorSet.getAvailableEndpoints());
-        computeAverageExecutorCores(executorSet.getAvailableEndpoints());
+        refreshInfo();
       }
 
       @Override
       public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-        computeAverageMemory(executorSet.getAvailableEndpoints());
-        computeAverageExecutorCores(executorSet.getAvailableEndpoints());
+        refreshInfo();
       }
     });
+
+    refreshInfo();
+  }
+
+  private void refreshInfo() {
     computeAverageMemory(executorSet.getAvailableEndpoints());
     computeAverageExecutorCores(executorSet.getAvailableEndpoints());
+    executorCount = executorSet.getAvailableEndpoints().size();
   }
 
   private void computeAverageMemory(final Collection<NodeEndpoint> executors) {
@@ -85,6 +91,14 @@ public class ClusterResourceInformation {
   }
 
   /**
+   * Get the number of executors.
+   * @return Number of registered executors.
+   */
+  public int getExecutorNodeCount() {
+    return executorCount;
+  }
+
+  /**
    * Get the average number of cores in executor nodes.
    * This will be used as the default value of MAX_WIDTH_PER_NODE
    *
@@ -96,7 +110,7 @@ public class ClusterResourceInformation {
       /* user has not overridden the default, use the default MAX_WIDTH_PER_NODE which is average
        * number of cores as computed by ClusterResourceInformation.
        */
-      return (long)averageExecutorCores;
+      return Math.round(averageExecutorCores * 0.7);
     } else {
       return configuredMaxWidthPerNode;
     }

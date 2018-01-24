@@ -18,6 +18,7 @@ package com.dremio.sabot.exec.context;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.store.PartitionExplorer;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
@@ -39,6 +40,7 @@ public interface FunctionContext {
           .put(ArrowBuf.class, "getManagedBuffer")
           .put(PartitionExplorer.class, "getPartitionExplorer")
           .put(ContextInformation.class, "getContextInformation")
+          .put(FunctionErrorContext.class, "getFunctionErrorContext")
           .build();
 
 
@@ -85,6 +87,27 @@ public interface FunctionContext {
    * @return - an object for exploring partitions of all available schemas
    */
   PartitionExplorer getPartitionExplorer();
+
+  /**
+   * Register a function error context for later use (as an injectable) in a function
+   * @return an ID that can be used as a handle to retrieve the function error context from generated code
+   */
+  int registerFunctionErrorContext(FunctionErrorContext errorContext);
+
+  /**
+   * The FunctionErrorContext is provided as an injectable to all functions that need to return an error
+   * This object allows the error message to identify the context of the function within the wider query
+   * @param errorContextId -- the ID that was returned by a previous call to {@link #registerFunctionErrorContext}
+   *
+   * @return an object that provides the context for error messages
+   */
+  FunctionErrorContext getFunctionErrorContext(int errorContextId);
+
+  /**
+   * Temporary hack: until Phase3 of the generalized function exception framework
+   * TODO (DX-9622)
+   */
+  FunctionErrorContext getFunctionErrorContext();
 
   /**
    * Works with value holders cache which holds constant value and its wrapper by type.

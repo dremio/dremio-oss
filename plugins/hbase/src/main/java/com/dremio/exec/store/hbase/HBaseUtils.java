@@ -39,6 +39,21 @@ public class HBaseUtils {
     return str == null ? HConstants.EMPTY_BYTE_ARRAY : Bytes.toBytes(str);
   }
 
+  static String keyToStr(byte[] key) {
+    if(key == null || key.length == 0) {
+      return null;
+    }
+    return Bytes.toStringBinary(key);
+  }
+
+  static String filterToStr(byte[] key) {
+    if(key == null) {
+      return null;
+    }
+
+    return deserializeFilter(key).toString();
+  }
+
   static Filter parseFilterString(String filterString) {
     if (filterString == null) {
       return null;
@@ -134,6 +149,22 @@ public class HBaseUtils {
       return (left == null || left.length == 0) ? right : left;
     }
     return Bytes.compareTo(left, right) < 0 ? left : right;
+  }
+
+  /**
+   * @param left left rowkey
+   * @param right right rowkey
+   * @return 0 if equal, < 0 if left is less than right, > 0 if left is greater than right
+   */
+  public static int compareRowKeys(byte[] left, byte[] right) {
+    return Bytes.compareTo(left, right);
+  }
+
+  /**
+   * Check if a rowkey is empty
+   */
+  public static boolean isRowKeyEmpty(byte[] stoprow) {
+    return stoprow.length == 0;
   }
 
 }

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -28,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 
 import org.apache.arrow.flatbuf.Schema;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
@@ -41,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -285,6 +289,25 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     }
     sb.append(")");
     return sb.toString();
+  }
+
+  public List<Pair<Field,Field>> findDiff(BatchSchema other) {
+    List<Pair<Field,Field>> differentFields = new ArrayList<>();
+    Map<String,Field> fieldMap = FluentIterable.from(getFields())
+      .uniqueIndex(new Function<Field, String>() {
+        @Override
+        public String apply(Field field) {
+          return field.getName();
+        }
+      });
+
+    for (Field field : other) {
+      Field oldField = fieldMap.get(field.getName());
+      if (!Objects.equals(oldField, field)) {
+        differentFields.add(Pair.of(oldField, field));
+      }
+    }
+    return differentFields;
   }
 
   /**

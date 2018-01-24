@@ -81,8 +81,8 @@ public class RexToExpr {
   /**
    * Converts a tree of {@link RexNode} operators into a scalar expression in Dremio syntax.
    */
-  public static LogicalExpression toExpr(ParseContext context, RelNode input, RexNode expr) {
-    final Visitor visitor = new Visitor(context, input);
+  public static LogicalExpression toExpr(ParseContext context, RelDataType rowType, RexBuilder rexBuilder, RexNode expr) {
+    final Visitor visitor = new Visitor(context, rowType, rexBuilder);
     return expr.accept(visitor);
   }
 
@@ -107,7 +107,7 @@ public class RexToExpr {
 
     for (Pair<RexNode, String> pair : projects) {
       if (! StarColumnHelper.subsumeColumn(starColPrefixes, pair.right)) {
-        LogicalExpression expr = toExpr(context, input, pair.left);
+        LogicalExpression expr = toExpr(context, input.getRowType(), input.getCluster().getRexBuilder(), pair.left);
         expressions.add(new NamedExpression(expr, FieldReference.getWithQuotedRef(pair.right)));
       }
     }
@@ -155,19 +155,21 @@ public class RexToExpr {
   }
 
   private static class Visitor extends RexVisitorImpl<LogicalExpression> {
-    private final RelNode input;
     private final ParseContext context;
+    private final RelDataType rowType;
+    private final RexBuilder rexBuilder;
 
-    Visitor(ParseContext context, RelNode input) {
+    Visitor(ParseContext context, RelDataType rowType, RexBuilder rexBuilder) {
       super(true);
       this.context = context;
-      this.input = input;
+      this.rowType = rowType;
+      this.rexBuilder = rexBuilder;
     }
 
     @Override
     public LogicalExpression visitInputRef(RexInputRef inputRef) {
       final int index = inputRef.getIndex();
-      final RelDataTypeField field = input.getRowType().getFieldList().get(index);
+      final RelDataTypeField field = rowType.getFieldList().get(index);
       return FieldReference.getWithQuotedRef(field.getName());
     }
 
@@ -199,12 +201,11 @@ public class RexToExpr {
           case NOT:
             return FunctionCallFactory.createExpression(call.getOperator().getName().toLowerCase(), arg);
           case MINUS_PREFIX:
-            final RexBuilder builder = input.getCluster().getRexBuilder();
             final List<RexNode> operands = Lists.newArrayList();
-            operands.add(builder.makeExactLiteral(new BigDecimal(-1)));
+            operands.add(rexBuilder.makeExactLiteral(new BigDecimal(-1)));
             operands.add(call.getOperands().get(0));
 
-            return visitCall((RexCall) builder.makeCall(
+            return visitCall((RexCall) rexBuilder.makeCall(
                 SqlStdOperatorTable.MULTIPLY,
                     operands));
         }
@@ -223,8 +224,8 @@ public class RexToExpr {
           }
 
           caseArgs = Lists.reverse(caseArgs);
-          // number of arguements are always going to be odd, because
-          // Optiq adds "null" for the missing else expression at the end
+          // number of arguments are always going to be odd, because
+          // Calcite adds "null" for the missing else expression at the end
           assert caseArgs.size()%2 == 1;
           LogicalExpression elseExpression = caseArgs.get(0);
           for (int i=1; i<caseArgs.size(); i=i+2) {
@@ -495,9 +496,14 @@ public class RexToExpr {
 
               return FunctionCallFactory.createExpression(functionName, args.subList(0, 1));
           }
-      } else if ((functionName.equals("convert_from") || functionName.equals("convert_to"))
+      } else if (argsSize == 2 && (functionName.equals("convert_from") || functionName.equals("convert_to"))
                     && args.get(1) instanceof QuotedString) {
-        return FunctionCallFactory.createConvert(functionName, ((QuotedString)args.get(1)).value, args.get(0));
+        // 2-argument convert_{from,to}
+        return FunctionCallFactory.createConvert(functionName, ((QuotedString) args.get(1)).value, args.get(0));
+      } else if (argsSize == 3 && functionName.equals("convert_from" )
+                    && args.get(1) instanceof QuotedString && args.get(2) instanceof QuotedString) {
+        // 3-argument convert_from, with the third argument being the replacement string for illegal conversion values
+        return FunctionCallFactory.createConvertReplace(functionName, (QuotedString)args.get(1), args.get(0), (QuotedString)args.get(2));
       } else if (functionName.equals("date_trunc")) {
         return handleDateTruncFunction(args);
       } else if (functionName.equals("timestampdiff") || functionName.equals("timestampadd")) {

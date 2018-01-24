@@ -55,7 +55,6 @@ public class TestSSLServer extends BaseClientUtils {
     currentDremioDaemon = DACDaemon.newDremioDaemon(
         DACConfig
             .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-            .masterNode(hostname)
             .autoPort(true)
             .allowTestApis(true)
             .serveUI(false)

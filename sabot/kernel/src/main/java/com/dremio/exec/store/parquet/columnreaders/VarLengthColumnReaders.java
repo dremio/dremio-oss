@@ -20,6 +20,7 @@ import io.netty.buffer.ArrowBuf;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.NullableDecimalVector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableVarCharVector;
@@ -46,18 +47,24 @@ public class VarLengthColumnReaders {
 
     @Override
     public boolean setSafe(int index, ArrowBuf bytebuf, int start, int length) {
-      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start, schemaElement.getScale());
+      /* data read from Parquet into the bytebuf is already in BE format, no need
+       * swap bytes to construct BigDecimal. only when we write BigDecimal to
+       * data buffer of decimal vector, we need to swap bytes which the DecimalUtility
+       * function already does.
+       */
+      BigDecimal intermediate = DecimalHelper.getBigDecimalFromBEArrowBuf(bytebuf, index, schemaElement.getScale());
       if (index >= decimalVector.getValueCapacity()) {
         return false;
       }
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getBuffer(), index);
-      decimalVector.getMutator().setIndexDefined(index);
+      /* this will swap bytes as we are writing to the buffer of DecimalVector */
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getDataBuffer(), index);
+      decimalVector.setIndexDefined(index);
       return true;
     }
 
     @Override
     public int capacity() {
-      return decimalVector.getBuffer().capacity();
+      return decimalVector.getDataBuffer().capacity();
     }
   }
 
@@ -74,25 +81,30 @@ public class VarLengthColumnReaders {
 
     @Override
     public boolean setSafe(int index, ArrowBuf bytebuf, int start, int length) {
-      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start, schemaElement.getScale());
+      /* data read from Parquet into the bytebuf is already in BE format, no need
+       * swap bytes to construct BigDecimal. only when we write BigDecimal to
+       * data buffer of decimal vector, we need to swap bytes which the DecimalUtility
+       * function already does.
+       */
+      BigDecimal intermediate = DecimalHelper.getBigDecimalFromBEArrowBuf(bytebuf, index, schemaElement.getScale());
       if (index >= decimalVector.getValueCapacity()) {
         return false;
       }
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getBuffer(), index);
-      decimalVector.getMutator().setIndexDefined(index);
+      /* this will swap bytes as we are writing to the buffer of DecimalVector */
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getDataBuffer(), index);
+      decimalVector.setIndexDefined(index);
       return true;
     }
 
     @Override
     public int capacity() {
-      return decimalVector.getBuffer().capacity();
+      return decimalVector.getDataBuffer().capacity();
     }
   }
 
   public static class VarCharColumn extends VarLengthValuesColumn<NullableVarCharVector> {
 
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
-    protected final NullableVarCharVector.Mutator mutator;
     protected final NullableVarCharVector varCharVector;
 
     VarCharColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
@@ -100,7 +112,6 @@ public class VarLengthColumnReaders {
                   SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       varCharVector = v;
-      mutator = v.getMutator();
     }
 
     @Override
@@ -112,16 +123,16 @@ public class VarLengthColumnReaders {
       if (usingDictionary) {
         currDictValToWrite = pageReader.dictionaryValueReader.readBytes();
         ByteBuffer buf = currDictValToWrite.toByteBuffer();
-        mutator.setSafe(index, buf, buf.position(), currDictValToWrite.length());
+        varCharVector.setSafe(index, buf, buf.position(), currDictValToWrite.length());
       } else {
-        mutator.setSafe(index, 1, start, start + length, bytebuf);
+        varCharVector.setSafe(index, 1, start, start + length, bytebuf);
       }
       return true;
     }
 
     @Override
     public int capacity() {
-      return varCharVector.getBuffer().capacity();
+      return varCharVector.getDataBuffer().capacity();
     }
   }
 
@@ -130,7 +141,6 @@ public class VarLengthColumnReaders {
     int nullsRead;
     boolean currentValNull = false;
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
-    protected final NullableVarCharVector.Mutator mutator;
     private final NullableVarCharVector vector;
 
     NullableVarCharColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
@@ -138,7 +148,6 @@ public class VarLengthColumnReaders {
                           SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       vector = v;
-      this.mutator = vector.getMutator();
     }
 
     @Override
@@ -149,16 +158,16 @@ public class VarLengthColumnReaders {
 
       if (usingDictionary) {
         ByteBuffer buf = currDictValToWrite.toByteBuffer();
-        mutator.setSafe(index, buf, buf.position(), currDictValToWrite.length());
+        vector.setSafe(index, buf, buf.position(), currDictValToWrite.length());
       } else {
-        mutator.setSafe(index, 1, start, start + length, value);
+        vector.setSafe(index, 1, start, start + length, value);
       }
       return true;
     }
 
     @Override
     public int capacity() {
-      return vector.getBuffer().capacity();
+      return vector.getDataBuffer().capacity();
     }
   }
 
@@ -166,14 +175,12 @@ public class VarLengthColumnReaders {
 
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
     private final NullableVarBinaryVector varBinaryVector;
-    private final NullableVarBinaryVector.Mutator mutator;
 
     VarBinaryColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
                     ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarBinaryVector v,
                     SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       varBinaryVector = v;
-      mutator = v.getMutator();
     }
 
     @Override
@@ -185,16 +192,16 @@ public class VarLengthColumnReaders {
       if (usingDictionary) {
         currDictValToWrite = pageReader.dictionaryValueReader.readBytes();
         ByteBuffer buf = currDictValToWrite.toByteBuffer();
-        mutator.setSafe(index, buf, buf.position(), currDictValToWrite.length());
+        varBinaryVector.setSafe(index, buf, buf.position(), currDictValToWrite.length());
       } else {
-        mutator.setSafe(index, 1, start, start + length, value);
+        varBinaryVector.setSafe(index, 1, start, start + length, value);
       }
       return true;
     }
 
     @Override
     public int capacity() {
-      return varBinaryVector.getBuffer().capacity();
+      return varBinaryVector.getDataBuffer().capacity();
     }
   }
 
@@ -204,14 +211,12 @@ public class VarLengthColumnReaders {
     boolean currentValNull = false;
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
     private final NullableVarBinaryVector nullableVarBinaryVector;
-    private final NullableVarBinaryVector.Mutator mutator;
 
     NullableVarBinaryColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
                             ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarBinaryVector v,
                             SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       nullableVarBinaryVector = v;
-      mutator = v.getMutator();
     }
 
 
@@ -223,18 +228,17 @@ public class VarLengthColumnReaders {
 
       if (usingDictionary) {
         ByteBuffer buf = currDictValToWrite.toByteBuffer();
-        mutator.setSafe(index, buf, buf.position(), currDictValToWrite.length());
+        nullableVarBinaryVector.setSafe(index, buf, buf.position(), currDictValToWrite.length());
       } else {
-        mutator.setSafe(index, 1, start, start + length, value);
+        nullableVarBinaryVector.setSafe(index, 1, start, start + length, value);
       }
       return true;
     }
 
     @Override
     public int capacity() {
-      return nullableVarBinaryVector.getBuffer().capacity();
+      return nullableVarBinaryVector.getDataBuffer().capacity();
     }
 
   }
-
 }

@@ -26,7 +26,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.common.OldScanRelBase;
 import com.dremio.exec.planner.common.ScanRelBase;
 
 public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMdDistinctRowCount {
@@ -36,10 +35,6 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
   public static final RelMetadataProvider SOURCE =
       ReflectiveRelMetadataProvider.reflectiveSource(
           BuiltInMethod.DISTINCT_ROW_COUNT.method, INSTANCE);
-
-  public Double getDistinctRowCount(OldScanRelBase scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
-    return getDistinctRowCountFromEstimateRowCount(scan, mq, groupKey, predicate);
-  }
 
   public Double getDistinctRowCount(ScanRelBase scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
     return getDistinctRowCountFromEstimateRowCount(scan, mq, groupKey, predicate);

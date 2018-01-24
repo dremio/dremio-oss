@@ -150,7 +150,7 @@ public class TestSourceConfigurator {
     assertFalse(fsspc.isImpersonationEnabled());
     assertEquals(null, fsspc.getConfig());
     assertEquals(8, fsspc.getFormats().size());
-
+    assertEquals("/", fsspc.getPath());
   }
 
   @Test
@@ -167,6 +167,25 @@ public class TestSourceConfigurator {
     assertTrue(fsspc.isImpersonationEnabled());
     assertEquals(null, fsspc.getConfig());
     assertEquals(8, fsspc.getFormats().size());
+    assertEquals("/", fsspc.getPath());
+  }
+
+  @Test
+  public void testHDFSWithCustomRoot() {
+    HdfsConfig c = new HdfsConfig();
+
+    c.setHostname("hostname1");
+    c.setEnableImpersonation(true);
+    c.setRootPath("/data/custom_root");
+
+    StoragePluginConfig pluginConfig = new HDFSSourceConfigurator().configure(c);
+
+    FileSystemConfig fsspc = (FileSystemConfig)pluginConfig;
+    assertEquals("hdfs://hostname1:9000", fsspc.getConnection());
+    assertTrue(fsspc.isImpersonationEnabled());
+    assertEquals(null, fsspc.getConfig());
+    assertEquals(8, fsspc.getFormats().size());
+    assertEquals("/data/custom_root", fsspc.getPath());
   }
 
   @Test
@@ -180,6 +199,7 @@ public class TestSourceConfigurator {
     assertFalse(fsspc.isImpersonationEnabled());
     assertEquals(null, fsspc.getConfig());
     assertEquals(8, fsspc.getFormats().size());
+    assertEquals("/", fsspc.getPath());
   }
 
   @Test
@@ -194,6 +214,24 @@ public class TestSourceConfigurator {
     assertTrue(fsspc.isImpersonationEnabled());
     assertEquals(null, fsspc.getConfig());
     assertEquals(8, fsspc.getFormats().size());
+    assertEquals("/", fsspc.getPath());
+  }
+
+  @Test
+  public void testMaprFsWithCustomRoot() {
+    MapRFSConfig config = new MapRFSConfig();
+
+    config.setClusterName("my.cluster.com");
+    config.setEnableImpersonation(true);
+    config.setRootPath("/data/custom_root");
+
+    StoragePluginConfig pluginConfig = new MaprFsSourceConfigurator().configure(config);
+    FileSystemConfig fsspc = (FileSystemConfig)pluginConfig;
+    assertEquals("maprfs://my.cluster.com", fsspc.getConnection());
+    assertTrue(fsspc.isImpersonationEnabled());
+    assertEquals(null, fsspc.getConfig());
+    assertEquals(8, fsspc.getFormats().size());
+    assertEquals("/data/custom_root", fsspc.getPath());
   }
 
   @Test

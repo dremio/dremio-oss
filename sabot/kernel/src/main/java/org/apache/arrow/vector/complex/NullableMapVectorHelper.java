@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.SerializedFieldHelper;
@@ -44,6 +45,9 @@ public class NullableMapVectorHelper {
   }
 
   public void load(SerializedField metadata, ArrowBuf buf) {
+    /* clear the current buffers (if any) */
+    mapVector.clear();;
+
     final List<SerializedField> childList = metadata.getChildList();
     int bufOffset = 0;
     int readableBytes = buf.readableBytes();
@@ -54,8 +58,9 @@ public class NullableMapVectorHelper {
     {
       SerializedField child = childList.get(0);
       final Field fieldDef = SerializedFieldHelper.create(child);
-      Preconditions.checkState(fieldDef.getName().equals("$bits$"), "expected validity vector: %s", fieldDef);
-      bufOffset = load(buf, bufOffset, child, mapVector.bits);
+      Preconditions.checkState(fieldDef.getName().equals("$bits$"),
+        "expected validity vector: %s", fieldDef);
+      bufOffset = loadValidityBuffer(child, buf);
     }
 
     Set<String> children = new HashSet<>();
@@ -82,9 +87,25 @@ public class NullableMapVectorHelper {
     for (String remaingChild : children) {
       FieldVector childVector = mapVector.getChild(remaingChild);
       childVector.allocateNew();
-      childVector.getMutator().setValueCount(metadata.getValueCount());
+      childVector.setValueCount(metadata.getValueCount());
     }
-    Preconditions.checkState(bufOffset == readableBytes, "buffer offset %s not equal to readable bytes %s", bufOffset, readableBytes);
+    Preconditions.checkState(bufOffset == readableBytes,
+      "buffer offset %s not equal to readable bytes %s", bufOffset, readableBytes);
+  }
+
+  private int loadValidityBuffer(SerializedField metadata, ArrowBuf buffer) {
+    final int valueCount = metadata.getValueCount();
+    final int actualLength = metadata.getBufferLength();
+    final int expectedLength = BaseValueVectorHelper.getValidityBufferSizeFromCount(valueCount);
+    assert expectedLength == actualLength:
+      String.format("Expected to load %d bytes in validity buffer but actually loaded %d bytes", expectedLength,
+        actualLength);
+
+    mapVector.validityBuffer = buffer.slice(0, actualLength);
+    mapVector.validityBuffer.writerIndex(actualLength);
+    mapVector.validityBuffer.retain(1);
+
+    return actualLength;
   }
 
   private int load(ArrowBuf buf, int bufOffset, final SerializedField child, ValueVector vector) {
@@ -115,14 +136,25 @@ public class NullableMapVectorHelper {
         .setBufferLength(bufferSize)
         .setValueCount(mapVector.valueCount);
 
-    b.addChild(TypeHelper.getMetadata(mapVector.bits));
-    int expectedBufferSize = mapVector.bits.getBufferSize();
+    b.addChild(buildValidityMetadata());
+    int expectedBufferSize = BaseValueVectorHelper.getValidityBufferSizeFromCount(mapVector.valueCount);
     for(ValueVector v : mapVector.getChildren()) {
       SerializedField metadata = TypeHelper.getMetadata(v);
       expectedBufferSize += metadata.getBufferLength();
       b.addChild(metadata);
     }
-    Preconditions.checkState(expectedBufferSize == bufferSize, "Invalid buffer count: %s != %s", expectedBufferSize, bufferSize);
+    Preconditions.checkState(expectedBufferSize == bufferSize,
+      "Invalid buffer count: %s != %s", expectedBufferSize, bufferSize);
     return b.build();
+  }
+
+  private SerializedField buildValidityMetadata() {
+    SerializedField.Builder validityBuilder = SerializedField.newBuilder()
+      .setNamePart(NamePart.newBuilder().setName("$bits$").build())
+      .setValueCount(mapVector.valueCount)
+      .setBufferLength(BaseValueVectorHelper.getValidityBufferSizeFromCount(mapVector.valueCount))
+      .setMajorType(com.dremio.common.types.Types.required(MinorType.BIT));
+
+    return validityBuilder.build();
   }
 }

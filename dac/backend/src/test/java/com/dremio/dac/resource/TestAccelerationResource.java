@@ -24,16 +24,12 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.Collection;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.IOFileFilter;
-import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.junit.After;
@@ -56,8 +52,6 @@ import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.UserExceptionMapper.ErrorMessageWithContext;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.service.accelerator.AccelerationTestUtil;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.accelerator.DependencyGraph;
@@ -668,22 +662,6 @@ public class TestAccelerationResource extends AccelerationTestUtil {
       assertTrue(updatedApiDescriptor.getRawLayouts().getEnabled());
       assertTrue(updatedApiDescriptor.getAggregationLayouts().getEnabled());
     }
-  }
-
-  private Collection<File> getAccelerationFiles() throws Exception {
-    FileSystemConfig pluginConfig = (FileSystemConfig) getCurrentDremioDaemon().getBindingProvider().provider(StoragePluginRegistry.class).get().getPlugin("__accelerator").getConfig();
-    Collection<File> files = FileUtils.listFiles(new File(pluginConfig.getPath()), new IOFileFilter() {
-      @Override
-      public boolean accept(File file) {
-        return file.getName().endsWith("parquet");
-      }
-
-      @Override
-      public boolean accept(File file, String s) {
-        return s.endsWith("parquet");
-      }
-    }, TrueFileFilter.INSTANCE);
-    return files;
   }
 
   @Test

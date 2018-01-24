@@ -20,6 +20,7 @@ import org.apache.arrow.memory.RootAllocator;
 import org.junit.After;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
@@ -50,7 +51,10 @@ public class TestRemoteOCCKVStore extends AbstractTestOCCKVStore {
 
     localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, DirectProvider.<FabricService>wrap(localFabricService), allocator, "localhost", null, true, true, true, false);
     localKVStoreProvider.start();
-    remoteKVStoreProvider = new RemoteKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, DirectProvider.<FabricService>wrap(remoteFabricService), allocator, "localhost", "localhost", localFabricService.getPort());
+    remoteKVStoreProvider = new RemoteKVStoreProvider(
+        DremioTest.CLASSPATH_SCAN_RESULT,
+        DirectProvider.wrap(NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(localFabricService.getPort()).build()),
+        DirectProvider.<FabricService>wrap(remoteFabricService), allocator, "localhost");
     remoteKVStoreProvider.start();
     return remoteKVStoreProvider;
   }

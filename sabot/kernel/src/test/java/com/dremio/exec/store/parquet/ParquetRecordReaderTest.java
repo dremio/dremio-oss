@@ -128,7 +128,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
         NullableBigIntVector.class,
         loader.getValueVectorId(SchemaPath.getCompoundPath("total_sum")).getFieldIds()
     );
-    assertEquals(4999950000l, vw.getValueVector().getAccessor().getObject(0));
+    assertEquals(4999950000l, vw.getValueVector().getObject(0));
     b.release();
     loader.clear();
   }
@@ -147,7 +147,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
         BigIntVector.class,
         loader.getValueVectorId(SchemaPath.getCompoundPath("row_count")).getFieldIds()
     );
-    assertEquals(3573l, vw.getValueVector().getAccessor().getObject(0));
+    assertEquals(3573l, vw.getValueVector().getObject(0));
     b.release();
     loader.clear();
   }

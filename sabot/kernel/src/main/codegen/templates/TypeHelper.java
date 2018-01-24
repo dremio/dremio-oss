@@ -135,7 +135,11 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
       <#if supported>
     if (v instanceof ${minor.class}Vector) {
+        <#if minor.class == "Bit">
+        new ValidityVectorHelper((BitVector) v).load(metadata, buffer);
+        <#else>
         new ${minor.class}VectorHelper((${minor.class}Vector) v).load(metadata, buffer);
+        </#if>
         return;
     } else if (v instanceof Nullable${minor.class}Vector) {
         new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).load(metadata, buffer);
@@ -167,8 +171,12 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
       <#if supported>
     if (v instanceof ${minor.class}Vector)
+      <#if minor.class == "Bit">
+      return new ValidityVectorHelper((BitVector) v).getMetadataBuilder();
+      <#else>
       return new ${minor.class}VectorHelper((${minor.class}Vector) v).getMetadataBuilder();
-    if (v instanceof ${minor.class}Vector)
+      </#if>
+    if (v instanceof Nullable${minor.class}Vector)
       return new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).getMetadataBuilder();
     </#if>
     </#list>
@@ -199,9 +207,13 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
     <#if supported>
     if (v instanceof ${minor.class}Vector)
-    return new ${minor.class}VectorHelper((${minor.class}Vector) v).getMetadata();
+      <#if minor.class == "Bit">
+      return new ValidityVectorHelper((BitVector) v).getMetadata();
+      <#else>
+      return new ${minor.class}VectorHelper((${minor.class}Vector) v).getMetadata();
+      </#if>
     if (v instanceof Nullable${minor.class}Vector)
-    return new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).getMetadata();
+      return new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).getMetadata();
     </#if>
     </#list>
     </#list>
@@ -243,9 +255,9 @@ public class TypeHelper extends BasicTypeHelper {
     case MAP: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
       List<SerializedField> childList = serializedField.getChildList();
-      Preconditions.checkState(childList.size() > 0, "children should start with $bits$ vector");
+      Preconditions.checkState(childList.size() > 0, "children should start with validity vector buffer");
       SerializedField bits = childList.get(0);
-      Preconditions.checkState(bits.getNamePart().getName().equals("$bits$"), "children should start with $bits$ vector: %s", childList);
+      Preconditions.checkState(bits.getNamePart().getName().equals("$bits$"), "children should start with validity vector buffer: %s", childList);
       for (int i = 1; i < childList.size(); i++) {
         SerializedField child = childList.get(i);
         builder.add(getFieldForSerializedField(child));

@@ -31,7 +31,7 @@ import org.apache.calcite.util.Util;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.SchemaUtilities;
-import com.dremio.exec.store.ischema.Records.Column;
+import com.dremio.exec.store.ischema.tables.ColumnsTable;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.google.common.base.Joiner;
 
@@ -78,7 +78,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       }
 
       final RelDataType type = tableObject.getRowType(new JavaTypeFactoryImpl());
-      List<DescribeResult> columns = new ArrayList<DescribeResult>();
+      List<DescribeResult> columns = new ArrayList<>();
       String column = null;
       final SqlIdentifier col = node.getColumn();
       if(col != null){
@@ -90,7 +90,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       }
 
       for(RelDataTypeField field : type.getFieldList()){
-        Column c = new Column("dremio", schema.getName(), tableName, field);
+        ColumnsTable.Column c = new ColumnsTable.Column("dremio", schema.getName(), tableName, field);
         if(column == null || column.equals(field.getName())){
           DescribeResult r = new DescribeResult(field.getName(), c.DATA_TYPE);
           columns.add(r);

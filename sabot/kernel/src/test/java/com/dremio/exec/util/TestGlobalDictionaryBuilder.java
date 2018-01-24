@@ -194,10 +194,10 @@ public class TestGlobalDictionaryBuilder {
       try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
         assertEquals(4, dict.getRecordCount());
         final NullableVarBinaryVector dictValues = dict.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
-        assertEquals("cell", new String(dictValues.getAccessor().get(0), UTF8));
-        assertEquals("landline", new String(dictValues.getAccessor().get(1), UTF8));
-        assertEquals("mobile", new String(dictValues.getAccessor().get(2), UTF8));
-        assertEquals("work", new String(dictValues.getAccessor().get(3), UTF8));
+        assertEquals("cell", new String(dictValues.get(0), UTF8));
+        assertEquals("landline", new String(dictValues.get(1), UTF8));
+        assertEquals("mobile", new String(dictValues.get(2), UTF8));
+        assertEquals("work", new String(dictValues.get(3), UTF8));
       }
       assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
 
@@ -212,11 +212,11 @@ public class TestGlobalDictionaryBuilder {
       try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
         assertEquals(5, dict.getRecordCount());
         final NullableVarBinaryVector dictValues = dict.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
-        assertEquals("cell", new String(dictValues.getAccessor().get(0), UTF8));
-        assertEquals("home", new String(dictValues.getAccessor().get(1), UTF8));
-        assertEquals("landline", new String(dictValues.getAccessor().get(2), UTF8));
-        assertEquals("mobile", new String(dictValues.getAccessor().get(3), UTF8));
-        assertEquals("work", new String(dictValues.getAccessor().get(4), UTF8));
+        assertEquals("cell", new String(dictValues.get(0), UTF8));
+        assertEquals("home", new String(dictValues.get(1), UTF8));
+        assertEquals("landline", new String(dictValues.get(2), UTF8));
+        assertEquals("mobile", new String(dictValues.get(3), UTF8));
+        assertEquals("work", new String(dictValues.get(4), UTF8));
       }
 
       assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());

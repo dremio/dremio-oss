@@ -77,7 +77,7 @@ import com.google.common.collect.FluentIterable;
  */
 @RestResource
 @Secured
-@RolesAllowed({"admin", "user"})
+@RolesAllowed({"admin"})
 @Path("/accelerations")
 public class AccelerationResource extends BaseAccelerationResource {
 

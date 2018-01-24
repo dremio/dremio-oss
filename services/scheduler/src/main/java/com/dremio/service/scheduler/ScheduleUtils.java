@@ -29,12 +29,13 @@ public final class ScheduleUtils {
 
   /**
    * cancel the list of cancellables
+   * @param mayInterruptIfRunning interrupt the thread if the operation is currently running
    * @param cancellables
    */
-  public static void cancel(Cancellable... cancellables) {
+  public static void cancel(boolean mayInterruptIfRunning, Cancellable... cancellables) {
     for (Cancellable cancellable:cancellables) {
       if (cancellable != null && !cancellable.isCancelled()) {
-        cancellable.cancel();
+        cancellable.cancel(mayInterruptIfRunning);
       }
     }
   }

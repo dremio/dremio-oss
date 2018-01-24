@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.holders.DateMilliHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 
@@ -24,19 +26,22 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 @FunctionTemplate(name = "convert_fromDATE_EPOCH", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@SuppressWarnings("unused") // found through classpath search
 public class DateEpochConvertFrom implements SimpleFunction {
 
   @Param VarBinaryHolder in;
   @Output DateMilliHolder out;
+  @Inject FunctionErrorContext errorContext;
 
   @Override
   public void setup() { }
 
   @Override
   public void eval() {
-    com.dremio.exec.util.ByteBufUtil.checkBufferLength(in.buffer, in.start, in.end, 8);
+    com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 8);
 
     in.buffer.readerIndex(in.start);
     long epochMillis = in.buffer.readLong();

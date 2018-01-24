@@ -17,6 +17,7 @@ package com.dremio.exec.planner.logical;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -29,7 +30,7 @@ public class SortRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new SortRule();
 
   private SortRule() {
-    super(RelOptHelper.any(Sort.class, Convention.NONE), "SortRule");
+    super(RelOptHelper.any(LogicalSort.class, Convention.NONE), "SortRule");
   }
 
   @Override

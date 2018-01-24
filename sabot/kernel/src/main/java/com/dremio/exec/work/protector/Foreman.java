@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.DelegatingAttemptObserver;
@@ -155,8 +156,10 @@ public class Foreman {
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
       AttemptObserver observer, UserSession session, OptionProvider options, CoordToExecTunnelCreator tunnelCreator,
       Cache<Long, PreparedPlan> plans, FragmentsStateListener fragmentsStateListener) {
-    return new AttemptManager(context, attemptId, queryRequest, observer, session, options, tunnelCreator, plans,
-      fragmentsStateListener);
+    final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
+        queryRequest.getPriority(), queryRequest.getMaxAllocation());
+    return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans,
+        queryContext, fragmentsStateListener);
   }
 
   public void updateStatus(FragmentStatus status) {
@@ -237,6 +240,12 @@ public class Foreman {
       if (attemptManager != null) {
         attemptManager.cancel();
       }
+    }
+  }
+
+  public synchronized void resume() {
+    if (attemptManager != null) {
+      attemptManager.resume();
     }
   }
 

@@ -32,6 +32,11 @@ export default class ReflectionList extends PureComponent {
     reflections: PropTypes.array.isRequired
   };
 
+  static contextTypes = {
+    location: PropTypes.object.isRequired,
+    loggedInUser: PropTypes.object.isRequired
+  };
+
   render() {
     const items = this.props.reflections.map(({relationship, dataset, reflection, materialization}) => {
       const name = reflection.name || this.props.intl.formatMessage({ id: 'Reflection.UnnamedReflection' });
@@ -56,14 +61,14 @@ export default class ReflectionList extends PureComponent {
             title />
           <div>
             <EllipsedText text={name}>
-              <Link to={{
-                ...location,
+              {this.context.loggedInUser.admin && <Link to={{
+                ...this.context.location,
                 state: {
                   modal: 'AccelerationModal',
                   accelerationId: dataset.id, // BE reuses the IDs
                   layoutId: reflection.id
                 }
-              }}>{name}</Link>
+              }}>{name}</Link>}
             </EllipsedText>
             <EllipsedText text={dataset.path.join('.')} />
           </div>

@@ -109,7 +109,7 @@ export default class SelectWithPopover extends Component {
     const { styleForButton, styleWrap, styleForDropdown, curItem, dataQa } = this.props;
 
     return (
-      <div style={styleWrap || {}}>
+      <div className='field' style={styleWrap || {}}>
         <RaisedButton
           data-qa={dataQa}
           onTouchTap={this.handleTouchTap}

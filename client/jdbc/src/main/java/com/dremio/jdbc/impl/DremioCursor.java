@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.calcite.avatica.AvaticaStatement;
@@ -48,6 +49,7 @@ import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.jdbc.SchemaChangeListener;
+import com.dremio.jdbc.SqlTimeoutException;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.collect.Queues;
@@ -96,6 +98,8 @@ class DremioCursor implements Cursor {
     final LinkedBlockingDeque<QueryDataBatch> batchQueue =
         Queues.newLinkedBlockingDeque();
 
+    // time (as epoch in millis) the query should complete before
+    private long shouldCompleteBefore = Long.MAX_VALUE;
 
     /**
      * ...
@@ -135,8 +139,16 @@ class DremioCursor implements Cursor {
       return stopped;
     }
 
-    public void awaitFirstMessage() throws InterruptedException {
-      firstMessageReceived.await();
+    public void awaitFirstMessage() throws TimeoutException, InterruptedException {
+      if (shouldCompleteBefore == Long.MAX_VALUE) {
+        firstMessageReceived.await();
+      } else {
+        long remaining = shouldCompleteBefore - System.currentTimeMillis();
+        if (!firstMessageReceived.await(remaining, TimeUnit.MILLISECONDS)) {
+          throw new TimeoutException("Did not receive first message before timeout expiration.");
+        };
+      }
+
     }
 
     private void releaseIfFirst() {
@@ -205,10 +217,12 @@ class DremioCursor implements Cursor {
      * @return  the next batch, or {@code null} after last batch has been returned
      * @throws UserException
      *         if the query failed
+     * @throws TimeoutException
+     *         if data was not received before timeout expiration
      * @throws InterruptedException
      *         if waiting on the queue was interrupted
      */
-    QueryDataBatch getNext() throws UserException, InterruptedException {
+    QueryDataBatch getNext() throws UserException, TimeoutException, InterruptedException {
       while (true) {
         if (executionFailureException != null) {
           logger.debug( "[#{}] Dequeued query failure exception: {}.",
@@ -218,7 +232,11 @@ class DremioCursor implements Cursor {
         if (completed && batchQueue.isEmpty()) {
           return null;
         } else {
-          QueryDataBatch qdb = batchQueue.poll(50, TimeUnit.MILLISECONDS);
+          long remaining = shouldCompleteBefore - System.currentTimeMillis();
+          if (remaining < 0) {
+            throw new TimeoutException("Query did not complete before timeout expiration");
+          }
+          QueryDataBatch qdb = batchQueue.poll(Math.min(remaining, 50), TimeUnit.MILLISECONDS);
           if (qdb != null) {
             lastDequeuedBatchNumber++;
             logger.debug( "[#{}] Dequeued query data batch #{}: {}.",
@@ -237,6 +255,10 @@ class DremioCursor implements Cursor {
           }
         }
       }
+    }
+
+    void setShouldCompleteBefore(long shouldCompleteBefore) {
+      this.shouldCompleteBefore = shouldCompleteBefore;
     }
 
     void close() {
@@ -484,6 +506,11 @@ class DremioCursor implements Cursor {
         // error type is accessible, of course. :-( )
         throw new SQLException( e.getMessage(), e );
       }
+      catch ( TimeoutException e ) {
+        throw new SqlTimeoutException(
+            String.format("Cancelled after expiration of timeout of %d seconds.", statement.getQueryTimeout()),
+            e);
+      }
       catch ( InterruptedException e ) {
         // Not normally expected--Dremio doesn't interrupt in this area (right?)--
         // but JDBC client certainly could.
@@ -532,6 +559,12 @@ class DremioCursor implements Cursor {
       preparedStatement = null;
     }
 
+    long queryTimeoutSecs = statement.getQueryTimeout();
+    if (queryTimeoutSecs > 0) {
+      long queryEnd = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(queryTimeoutSecs);
+      resultsListener.setShouldCompleteBefore(queryEnd);
+    }
+
     if (preparedStatement != null) {
         connection.getClient().executePreparedStatement(preparedStatement.getServerHandle(), resultsListener);
     } else {
@@ -540,6 +573,10 @@ class DremioCursor implements Cursor {
 
     try {
       resultsListener.awaitFirstMessage();
+    } catch ( TimeoutException e ) {
+      throw new SqlTimeoutException(
+          String.format("Cancelled after expiration of timeout of %d seconds.", statement.getQueryTimeout()),
+          e);
     } catch ( InterruptedException e ) {
       // Preserve evidence that the interruption occurred so that code higher up
       // on the call stack can learn of the interruption and respond to it if it

@@ -18,6 +18,7 @@ package com.dremio.exec.store.ischema;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -27,15 +28,16 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_Equal() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA='INFORMATION_SCHEMA'";
-    final String scan = "Scan(groupscan=[TABLES, filter=equal(Field=TABLE_SCHEMA,Literal=INFORMATION_SCHEMA)]";
+    final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"INFORMATION_SCHEMA\" } ]";
 
     testHelper(query, scan, false);
   }
 
+  @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushdown_NonEqual() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA <> 'INFORMATION_SCHEMA'";
-    final String scan = "Scan(groupscan=[TABLES, filter=not_equal(Field=TABLE_SCHEMA,Literal=INFORMATION_SCHEMA)]";
+    final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"INFORMATION_SCHEMA\"     }   } } ]";
 
     testHelper(query, scan, false);
   }
@@ -43,7 +45,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_Like() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA LIKE '%SCH%'";
-    final String scan = "Scan(groupscan=[TABLES, filter=like(Field=TABLE_SCHEMA,Literal=%SCH%)]";
+    final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_SCHEMA\"   value: \"*SCH*\" } ]";
 
     testHelper(query, scan, false);
   }
@@ -51,7 +53,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_LikeWithEscape() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA LIKE '%\\\\SCH%' ESCAPE '\\'";
-    final String scan = "Scan(groupscan=[TABLES, filter=like(Field=TABLE_SCHEMA,Literal=%\\\\SCH%,Literal=\\)]";
+    final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_SCHEMA\"   value: \"*\\\\\\\\SCH*\" } ])";
 
     testHelper(query, scan, false);
   }
@@ -61,20 +63,19 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
         "TABLE_SCHEMA = 'sys' AND " +
         "TABLE_NAME <> 'version'";
-    final String scan = "Scan(groupscan=[COLUMNS, filter=booleanand(equal(Field=TABLE_SCHEMA,Literal=sys)," +
-        "not_equal(Field=TABLE_NAME,Literal=version))]";
+    final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"sys\" } ]";
 
-    testHelper(query, scan, false);
+    testHelper(query, scan, true);
   }
 
+  @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushdown_Or() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
         "TABLE_SCHEMA = 'sys' OR " +
         "TABLE_NAME <> 'version' OR " +
         "TABLE_SCHEMA like '%sdfgjk%'";
-    final String scan = "Scan(groupscan=[COLUMNS, filter=booleanor(equal(Field=TABLE_SCHEMA,Literal=sys)," +
-        "not_equal(Field=TABLE_NAME,Literal=version),like(Field=TABLE_SCHEMA,Literal=%sdfgjk%))]";
+    final String scan = "query=[type: BOOLEAN boolean {   op: OR   clauses {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"sys\"     }   }   clauses {     type: NOT     not {       clause {         type: TERM         term {           field: \"SEARCH_NAME\"           value: \"version\"         }       }     }   }   clauses {     type: WILDCARD     wildcard {       field: \"SEARCH_SCHEMA\"       value: \"*sdfgjk*\"     }   } } ]";
 
     testHelper(query, scan, false);
   }
@@ -82,21 +83,22 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushDownWithProject_Equal() throws Exception {
     final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.`COLUMNS` WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
-    final String scan = "Scan(groupscan=[COLUMNS, filter=equal(Field=TABLE_SCHEMA,Literal=INFORMATION_SCHEMA)]";
+    final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"INFORMATION_SCHEMA\" } ]";
     testHelper(query, scan, false);
   }
 
+  @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushDownWithProject_NotEqual() throws Exception {
     final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.`COLUMNS` WHERE TABLE_NAME <> 'TABLES'";
-    final String scan = "Scan(groupscan=[COLUMNS, filter=not_equal(Field=TABLE_NAME,Literal=TABLES)]";
+    final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_NAME\"       value: \"TABLES\"     }   } } ]";
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushDownWithProject_Like() throws Exception {
     final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.`COLUMNS` WHERE TABLE_NAME LIKE '%BL%'";
-    final String scan = "Scan(groupscan=[COLUMNS, filter=like(Field=TABLE_NAME,Literal=%BL%)]";
+    final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_NAME\"   value: \"*BL*\" } ]";
     testHelper(query, scan, false);
   }
 
@@ -105,12 +107,9 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
         "TABLE_SCHEMA = 'sys' AND " +
         "TABLE_NAME = 'version' AND " +
-        "COLUMN_NAME like 'commit%s' AND " +
+        "COLUMN_NAME like 'commit%s' AND " + // this is not expected to pushdown into scan
         "IS_NULLABLE = 'YES'"; // this is not expected to pushdown into scan
-    final String scan = "Scan(groupscan=[COLUMNS, " +
-        "filter=booleanand(equal(Field=TABLE_SCHEMA,Literal=sys),equal(Field=TABLE_NAME,Literal=version)," +
-        "like(Field=COLUMN_NAME,Literal=commit%s))]";
-
+    final String scan = "query=[type: BOOLEAN boolean {   op: AND   clauses {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"sys\"     }   }   clauses {     type: TERM     term {       field: \"SEARCH_NAME\"       value: \"version\"     }   } } ]";
     testHelper(query, scan, true);
   }
 
@@ -119,13 +118,13 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
     if (!filterPrelExpected) {
       // If filter prel is not expected, make sure it is not in plan
-      assertFalse(plan.contains("Filter("));
+      assertFalse(String.format("Expected plan to not contain filter, however it did.\n %s", plan), plan.contains("Filter("));
     } else {
-      assertTrue(plan.contains("Filter("));
+      assertTrue(String.format("Expected plan to contain filter and did not.\n %s", plan), plan.contains("Filter("));
     }
 
     // Check for filter pushed into scan.
-    assertTrue(plan.contains(filterInScan));
+    assertTrue(String.format("Expected plan to contain %s, however it did not.\n %s", filterInScan, plan), plan.contains(filterInScan));
 
     // run the query
     test(query);

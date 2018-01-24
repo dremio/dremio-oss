@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.arrow.memory.util.AutoCloseableLock;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.FlushOptions;
@@ -37,7 +37,9 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
+import com.dremio.common.concurrent.AutoCloseableLock;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -251,15 +253,33 @@ class RocksDBStore implements ByteStore {
 
   @Override
   public void close() throws IOException {
+    // Attempt to acquire all exclusive locks to limit concurrent writes occurring.
+    ArrayList<AutoCloseableLock> acquiredLocks = new ArrayList<>(exclusiveLocks.length);
+    for (int i = 0; i < exclusiveLocks.length; i++) {
+      try {
+        // We cannot ensure that all write locks can be acquired, so a best attempt must be made.
+        // If lock is still held after waiting 3 seconds, continue with the lock acquisition and close.
+        // Note: The data from the concurrent write cannot be guaranteed to be persisted on restart.
+        if (exclusiveLocks[i].tryOpen(3L, TimeUnit.SECONDS) != null) {
+          acquiredLocks.add(exclusiveLocks[i]);
+        }
+      } catch (InterruptedException e) {
+        // Do nothing.
+      }
+    }
+
     DeferredException deferred = new DeferredException();
     deleteAllIterators(deferred);
     try(FlushOptions options = new FlushOptions()){
       options.setWaitForFlush(true);
-      db.flush(options);
+      db.flush(options, handle);
     } catch (RocksDBException ex) {
       deferred.addException(ex);
     }
     deferred.suppressingClose(handle);
+
+    // Release acquired locks.
+    deferred.suppressingClose(AutoCloseables.all(acquiredLocks));
 
     try {
       deferred.close();
@@ -323,7 +343,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public void delete(byte[] key) {
     try (AutoCloseableLock ac = sharedLock(key)) {
-      db.remove(handle, key);
+      db.delete(handle, key);
     } catch (RocksDBException e) {
       throw wrap(e);
     }
@@ -336,7 +356,7 @@ class RocksDBStore implements ByteStore {
       if (!Arrays.equals(oldValue, expectedOldValue)) {
         return false;
       }
-      db.remove(handle, key);
+      db.delete(handle, key);
       return true;
     } catch (RocksDBException e) {
       throw wrap(e);
@@ -376,7 +396,7 @@ class RocksDBStore implements ByteStore {
       FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range);
 
       // Create a new reference which will self register
-      @SuppressWarnings("unused")
+      @SuppressWarnings({ "unused", "resource" })
       final IteratorReference ref = new IteratorReference(iterator);
       return iterator;
     }
@@ -399,7 +419,7 @@ class RocksDBStore implements ByteStore {
       // position at beginning of cursor.
       if (range != null && range.getStart() != null) {
         iter.seek(range.getStart());
-        if (!range.isStartInclusive() && Arrays.equals(iter.key(), range.getStart())) {
+        if (iter.isValid() && !range.isStartInclusive() && Arrays.equals(iter.key(), range.getStart())) {
           iter.next();
         }
       } else {
@@ -465,6 +485,7 @@ class RocksDBStore implements ByteStore {
       openedIterators.incrementAndGet();
     }
 
+    @Override
     public void close() {
       iter.close();
       if (iteratorSet.remove(this)) {

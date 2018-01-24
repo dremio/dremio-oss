@@ -49,7 +49,7 @@ public class BatchPrinter {
         System.out.println(StringUtils.repeat("-", width*17 + 1));
       }
       for (VectorWrapper<?> vw : batch) {
-        Object o = vw.getValueVectors()[sv4.get(j) >>> 16].getAccessor().getObject(sv4.get(j) & 65535);
+        Object o = vw.getValueVectors()[sv4.get(j) >>> 16].getObject(sv4.get(j) & 65535);
         String value;
         if (o == null) {
           value = "null";
@@ -101,7 +101,7 @@ public class BatchPrinter {
         System.out.println(StringUtils.repeat("-", width*52 + 1));
       }
       for (ValueVector vv : vectors) {
-        Object o = vv.getAccessor().getObject(row);
+        Object o = vv.getObject(row);
         String value;
         if (o == null) {
           value = "null";
@@ -138,7 +138,7 @@ public class BatchPrinter {
       }
       int row = sv2.getIndex(i);
       for (ValueVector vv : vectors) {
-        Object o = vv.getAccessor().getObject(row);
+        Object o = vv.getObject(row);
         String value;
         if (o == null) {
           value = "null";

@@ -26,8 +26,6 @@ import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig.SchemaInfoProvider;
-import com.dremio.exec.store.ischema.InfoSchemaStoragePlugin;
-import com.dremio.exec.store.sys.SystemTablePlugin;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.collect.Lists;
 
@@ -71,14 +69,6 @@ public class SchemaTreeProvider {
     try (TimedBlock b = time("Create schema tree")) {
       final NamespaceService ns = dContext.getNamespaceService(schemaConfig.getUserName());
       final SchemaPlus rootSchemaPlus = new ImplicitRootSchema(ns, dContext, schemaConfig, metadataStatsCollector).plus();
-
-      ((InfoSchemaStoragePlugin) dContext.getStorage()
-          .getPlugin(StoragePluginRegistry.INFORMATION_SCHEMA_PLUGIN))
-          .registerSchemas(schemaConfig, rootSchemaPlus);
-
-      ((SystemTablePlugin) dContext.getStorage()
-          .getPlugin(StoragePluginRegistry.SYS_PLUGIN))
-          .registerSchemas(schemaConfig, rootSchemaPlus);
 
       if (schemaConfig.exposeSubSchemasAsTopLevelSchemas()) {
         final RootSchema rootSchema = rootSchemaPlus.unwrap(RootSchema.class);

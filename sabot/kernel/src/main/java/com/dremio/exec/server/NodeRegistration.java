@@ -18,13 +18,16 @@ package com.dremio.exec.server;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadFactory;
 
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.Roles;
+import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.sabot.exec.FragmentWorkManager;
 import com.dremio.service.Service;
@@ -41,7 +44,7 @@ public class NodeRegistration implements Service {
   private final Provider<ForemenWorkManager> foremenManager;
   private final Provider<ClusterCoordinator> coord;
   private final Provider<SabotContext> context;
-  private final List<RegistrationHandle> registrationHandles = new ArrayList<>();;
+  private final List<RegistrationHandle> registrationHandles = new ArrayList<>();
 
   private String endpointName;
   private volatile boolean closed = false;
@@ -59,6 +62,9 @@ public class NodeRegistration implements Service {
     endpointName = endpoint.getAddress() + ":" + endpoint.getUserPort();
     logger.info("Starting NodeRegistration for {}", endpointName);
     Roles roles = endpoint.getRoles();
+    if (roles.getMaster()) {
+      registrationHandles.add(coord.get().getServiceSet(ClusterCoordinator.Role.MASTER).register(endpoint));
+    }
     if (roles.getSqlQuery()) {
       registrationHandles.add(coord.get().getServiceSet(ClusterCoordinator.Role.COORDINATOR).register(endpoint));
     }
@@ -73,45 +79,35 @@ public class NodeRegistration implements Service {
     if (!closed) {
       closed = true;
       logger.info("Waiting for work to complete before shutdown.");
-      final Thread t1 = new Thread(){
-        @Override
-        public void run() {
-          FragmentWorkManager frag;
-          try {
-            frag = fragmentManager.get();
-          } catch (Exception ex){
-            // ignore since this means the fragment manager wasn't running on this node.
-            return;
-          }
-          frag.waitToExit();
-        }
-      };
-
-      final Thread t2 = new Thread(){
-        @Override
-        public void run() {
-          ForemenWorkManager fore;
-          try{
-            fore = foremenManager.get();
-          } catch (Exception ex){
-            // ignore since this means the fragment manager wasn't running on this node.
-            return;
-          }
-          fore.waitToExit();
-        }
-      };
+      ThreadFactory threadFactory = new NamedThreadFactory("noderegistration-shutdown-");
+      Thread t1 = waitToExit(threadFactory, fragmentManager);
+      Thread t2 = waitToExit(threadFactory, foremenManager);
 
       t1.start();
       t2.start();
+
       t1.join();
       t2.join();
 
       logger.info("Unregistering node {}", endpointName);
       if (!registrationHandles.isEmpty()) {
-        AutoCloseables.close(registrationHandles);
+        Thread t = threadFactory.newThread(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              AutoCloseables.close(registrationHandles);
+            } catch (Exception e) {
+              logger.warn("Exception while closing registration handle", e);
+            }
+          }
+        });
 
+        t.start();
         try {
-          Thread.sleep(context.get().getConfig().getInt(ExecConstants.ZK_REFRESH) * 2);
+          t.join(context.get().getConfig().getInt(ExecConstants.ZK_REFRESH) * 2);
+          if (t.isAlive()) {
+            logger.warn("Timeout expired while trying to unregister node");
+          }
         } catch (final InterruptedException e) {
           logger.warn("Interrupted while sleeping during coordination deregistration.");
           // Preserve evidence that the interruption occurred so that code higher up on the call stack can learn of the
@@ -120,5 +116,21 @@ public class NodeRegistration implements Service {
         }
       }
     }
+  }
+
+  private Thread waitToExit(ThreadFactory threadFactory, final Provider<? extends SafeExit> provider) {
+    return threadFactory.newThread(new Runnable() {
+      @Override
+      public void run() {
+        SafeExit safeExit;
+        try {
+          safeExit = provider.get();
+        } catch (Exception ex){
+          // ignore since this means no instance wasn't running on this node.
+          return;
+        }
+        safeExit.waitToExit();
+      }
+    });
   }
 }

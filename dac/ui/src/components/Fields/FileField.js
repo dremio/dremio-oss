@@ -149,7 +149,7 @@ export default class FileField extends Component {
       ? { background: PALE_BLUE, borderStyle: 'solid' }
       : { borderStyle: 'dashed' };
     return (
-      <div style={[styles.base, style]}>
+      <div className='field' style={[styles.base, style]}>
         <Dropzone ref='dropzone' onDrop={this.onDrop} disableClick multiple={false}
           style={{...styles.dropTarget, ...inProgressStyle}}>
           <FontIcon type='Upload' theme={styles.dropIcon}/>

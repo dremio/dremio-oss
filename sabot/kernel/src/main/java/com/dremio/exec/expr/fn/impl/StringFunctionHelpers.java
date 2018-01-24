@@ -19,7 +19,7 @@ import org.apache.arrow.memory.BoundsChecking;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.joda.time.chrono.ISOChronology;
 
-import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.google.common.base.Charsets;
 
 import io.netty.buffer.ArrowBuf;
@@ -32,10 +32,10 @@ public class StringFunctionHelpers {
   static final long MAX_LONG = -Long.MAX_VALUE / RADIX;
   static final int MAX_INT = -Integer.MAX_VALUE / RADIX;
 
-  public static long varTypesToLong(final int start, final int end, ArrowBuf buffer){
+  public static long varTypesToLong(final int start, final int end, ArrowBuf buffer, FunctionErrorContext errCtx){
     if ((end - start) ==0) {
       //empty, not a valid number
-      return nfeL(start, end, buffer);
+      return nfeL(start, end, buffer, errCtx);
     }
 
     int readIndex = start;
@@ -44,7 +44,7 @@ public class StringFunctionHelpers {
 
     if (negative && ++readIndex == end) {
       //only one single '-'
-      return nfeL(start, end, buffer);
+      return nfeL(start, end, buffer, errCtx);
     }
 
 
@@ -55,18 +55,18 @@ public class StringFunctionHelpers {
       digit = Character.digit(buffer.getByte(readIndex++),RADIX);
       //not valid digit.
       if (digit == -1) {
-        return nfeL(start, end, buffer);
+        return nfeL(start, end, buffer, errCtx);
       }
       //overflow
       if (MAX_LONG > result) {
-        return nfeL(start, end, buffer);
+        return nfeL(start, end, buffer, errCtx);
       }
 
       long next = result * RADIX - digit;
 
       //overflow
       if (next > result) {
-        return nfeL(start, end, buffer);
+        return nfeL(start, end, buffer, errCtx);
       }
       result = next;
     }
@@ -74,31 +74,35 @@ public class StringFunctionHelpers {
       result = -result;
       //overflow
       if (result < 0) {
-        return nfeL(start, end, buffer);
+        return nfeL(start, end, buffer, errCtx);
       }
     }
 
     return result;
   }
 
-  private static int nfeL(int start, int end, ArrowBuf buffer){
+  private static int nfeL(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx){
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
     String value = new String(buf, com.google.common.base.Charsets.UTF_8);
-    throw UserException.functionError().message("Failure while attempting to cast value '%s' to Bigint.", value).build(logger);
+    throw errCtx.error()
+      .message("Failure while attempting to cast value '%s' to Bigint.", value)
+      .build();
   }
 
-  private static int nfeI(int start, int end, ArrowBuf buffer){
+  private static int nfeI(int start, int end, ArrowBuf buffer, FunctionErrorContext errCtx){
     byte[] buf = new byte[end - start];
     buffer.getBytes(start, buf, 0, end - start);
     String value = new String(buf, com.google.common.base.Charsets.UTF_8);
-    throw UserException.functionError().message("Failure while attempting to cast value '%s' to Integer.", value).build(logger);
+    throw errCtx.error()
+      .message("Failure while attempting to cast value '%s' to Integer.", value)
+      .build();
   }
 
-  public static int varTypesToInt(final int start, final int end, ArrowBuf buffer){
+  public static int varTypesToInt(final int start, final int end, ArrowBuf buffer, FunctionErrorContext errCtx){
     if ((end - start) ==0) {
       //empty, not a valid number
-      return nfeI(start, end, buffer);
+      return nfeI(start, end, buffer, errCtx);
     }
 
     int readIndex = start;
@@ -107,7 +111,7 @@ public class StringFunctionHelpers {
 
     if (negative && ++readIndex == end) {
       //only one single '-'
-      return nfeI(start, end, buffer);
+      return nfeI(start, end, buffer, errCtx);
     }
 
     int result = 0;
@@ -117,18 +121,18 @@ public class StringFunctionHelpers {
       digit = Character.digit(buffer.getByte(readIndex++), RADIX);
       //not valid digit.
       if (digit == -1) {
-        return nfeI(start, end, buffer);
+        return nfeI(start, end, buffer, errCtx);
       }
       //overflow
       if (MAX_INT > result) {
-        return nfeI(start, end, buffer);
+        return nfeI(start, end, buffer, errCtx);
       }
 
       int next = result * RADIX - digit;
 
       //overflow
       if (next > result) {
-        return nfeI(start, end, buffer);
+        return nfeI(start, end, buffer, errCtx);
       }
       result = next;
     }
@@ -136,7 +140,7 @@ public class StringFunctionHelpers {
       result = -result;
       //overflow
       if (result < 0) {
-        return nfeI(start, end, buffer);
+        return nfeI(start, end, buffer, errCtx);
       }
     }
 

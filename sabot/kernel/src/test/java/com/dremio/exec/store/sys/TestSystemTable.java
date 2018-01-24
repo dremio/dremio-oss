@@ -59,6 +59,11 @@ public class TestSystemTable extends BaseTestQuery {
   }
 
   @Test
+  public void differentCase() throws Exception {
+    test("select * from SYS.OPTIONS");
+  }
+
+  @Test
   public void threadsTable() throws Exception {
     test("select * from sys.threads");
   }

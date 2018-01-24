@@ -16,6 +16,7 @@
 
 package com.dremio.exec.store.hbase;
 
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
@@ -29,100 +30,91 @@ import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.OldScanPrel;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
-public abstract class HBasePushFilterIntoScan extends StoragePluginOptimizerRule {
+public abstract class HBasePushFilterIntoScan extends RelOptRule {
 
   private HBasePushFilterIntoScan(RelOptRuleOperand operand, String description) {
     super(operand, description);
   }
 
-  public static final StoragePluginOptimizerRule FILTER_ON_SCAN = new HBasePushFilterIntoScan(RelOptHelper.some(FilterPrel.class, RelOptHelper.any(OldScanPrel.class)), "HBasePushFilterIntoScan:Filter_On_Scan") {
+  public static final RelOptRule FILTER_ON_SCAN = new HBasePushFilterIntoScan(RelOptHelper.some(FilterPrel.class, RelOptHelper.any(HBaseScanPrel.class)), "HBasePushFilterIntoScan:Filter_On_Scan") {
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-      final OldScanPrel scan = (OldScanPrel) call.rel(1);
-      final FilterPrel filter = (FilterPrel) call.rel(0);
+      final FilterPrel filter = call.rel(0);
+      final HBaseScanPrel scan = call.rel(1);
       final RexNode condition = filter.getCondition();
 
-      HBaseGroupScan groupScan = (HBaseGroupScan)scan.getGroupScan();
-      if (groupScan.isFilterPushedDown()) {
-        /*
-         * The rule can get triggered again due to the transformed "scan => filter" sequence
-         * created by the earlier execution of this rule when we could not do a complete
-         * conversion of Optiq Filter's condition to HBase Filter. In such cases, we rely upon
-         * this flag to not do a re-processing of the rule on the already transformed call.
-         */
+      /*
+       * The rule can get triggered again due to the transformed "scan => filter" sequence
+       * created by the earlier execution of this rule when we could not do a complete
+       * conversion of Calcite Filter's condition to HBase Filter. In such cases, we rely upon
+       * this flag to not do a re-processing of the rule on the already transformed call.
+       */
+      if(scan.isFilterPushed()) {
         return;
       }
 
-      doPushFilterToScan(call, filter, null, scan, groupScan, condition);
+      doPushFilterToScan(call, filter, null, scan, condition);
     }
 
-    @Override
-    public boolean matches(RelOptRuleCall call) {
-      final OldScanPrel scan = (OldScanPrel) call.rel(1);
-      if (scan.getGroupScan() instanceof HBaseGroupScan) {
-        return super.matches(call);
-      }
-      return false;
-    }
   };
 
 
-  public static final StoragePluginOptimizerRule FILTER_ON_PROJECT = new HBasePushFilterIntoScan(RelOptHelper.some(FilterPrel.class, RelOptHelper.some(ProjectPrel.class, RelOptHelper.any(OldScanPrel.class))), "HBasePushFilterIntoScan:Filter_On_Project") {
+  public static final RelOptRule FILTER_ON_PROJECT = new HBasePushFilterIntoScan(RelOptHelper.some(FilterPrel.class, RelOptHelper.some(ProjectPrel.class, RelOptHelper.any(HBaseScanPrel.class))), "HBasePushFilterIntoScan:Filter_On_Project") {
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-      final OldScanPrel scan = (OldScanPrel) call.rel(2);
-      final ProjectPrel project = (ProjectPrel) call.rel(1);
-      final FilterPrel filter = (FilterPrel) call.rel(0);
+      final FilterPrel filter = call.rel(0);
+      final ProjectPrel project = call.rel(1);
+      final HBaseScanPrel scan = call.rel(2);
 
-      HBaseGroupScan groupScan = (HBaseGroupScan)scan.getGroupScan();
-      if (groupScan.isFilterPushedDown()) {
-        /*
-         * The rule can get triggered again due to the transformed "scan => filter" sequence
-         * created by the earlier execution of this rule when we could not do a complete
-         * conversion of Optiq Filter's condition to HBase Filter. In such cases, we rely upon
-         * this flag to not do a re-processing of the rule on the already transformed call.
-         */
-         return;
+      /*
+       * The rule can get triggered again due to the transformed "scan => filter" sequence
+       * created by the earlier execution of this rule when we could not do a complete
+       * conversion of Calcite Filter's condition to HBase Filter. In such cases, we rely upon
+       * this flag to not do a re-processing of the rule on the already transformed call.
+       */
+      if(scan.isFilterPushed()) {
+        return;
       }
 
       // convert the filter to one that references the child of the project
       final RexNode condition =  RelOptUtil.pushPastProject(filter.getCondition(), project);
 
-      doPushFilterToScan(call, filter, project, scan, groupScan, condition);
+      doPushFilterToScan(call, filter, project, scan, condition);
     }
 
-    @Override
-    public boolean matches(RelOptRuleCall call) {
-      final OldScanPrel scan = (OldScanPrel) call.rel(2);
-      if (scan.getGroupScan() instanceof HBaseGroupScan) {
-        return super.matches(call);
-      }
-      return false;
-    }
   };
 
 
-  protected void doPushFilterToScan(final RelOptRuleCall call, final FilterPrel filter, final ProjectPrel project, final OldScanPrel scan, final HBaseGroupScan groupScan, final RexNode condition) {
+  protected void doPushFilterToScan(final RelOptRuleCall call, final FilterPrel filter, final ProjectPrel project, final HBaseScanPrel scan, final RexNode condition) {
 
-    final LogicalExpression conditionExp = RexToExpr.toExpr(new ParseContext(PrelUtil.getPlannerSettings(call.getPlanner())), scan, condition);
-    final HBaseFilterBuilder hbaseFilterBuilder = new HBaseFilterBuilder(groupScan, conditionExp);
+    final LogicalExpression conditionExp = RexToExpr.toExpr(new ParseContext(PrelUtil.getPlannerSettings(call.getPlanner())), scan.getRowType(), scan.getCluster().getRexBuilder(), condition);
+    final HBaseFilterBuilder hbaseFilterBuilder = new HBaseFilterBuilder(TableNameGetter.getTableName(scan.getTableMetadata().getName()), scan.getStartRow(), scan.getStopRow(), scan.getFilter(), conditionExp);
     final HBaseScanSpec newScanSpec = hbaseFilterBuilder.parseTree();
     if (newScanSpec == null) {
       return; //no filter pushdown ==> No transformation.
     }
 
-    final HBaseGroupScan newGroupsScan = new HBaseGroupScan(groupScan.getUserName(), groupScan.getStoragePlugin(),
-        newScanSpec, groupScan.getColumns(), groupScan.getSchema(), groupScan.getTableSchemaPath());
-    newGroupsScan.setFilterPushedDown(true);
+    Predicate<DatasetSplit> predicate = newScanSpec.getRowKeyPredicate();
 
-    final OldScanPrel newScanPrel =
-        OldScanPrel.create(scan, filter.getTraitSet(), newGroupsScan, scan.getRowType(), scan.getQualifiedTableName());
+    TableMetadata metadata = scan.getTableMetadata();
+    if(predicate != null) {
+      try {
+        metadata = metadata.prune(predicate);
+      } catch (NamespaceException ex) {
+        throw Throwables.propagate(ex);
+      }
+    }
+
+    final HBaseScanPrel newScanPrel = new HBaseScanPrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), metadata, scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), newScanSpec.getStartRow(), newScanSpec.getStopRow(), newScanSpec.getSerializedFilter());
 
     // Depending on whether is a project in the middle, assign either scan or copy of project to childRel.
     final RelNode childRel = project == null ? newScanPrel : project.copy(project.getTraitSet(), ImmutableList.of((RelNode)newScanPrel));;
@@ -137,5 +129,6 @@ public abstract class HBasePushFilterIntoScan extends StoragePluginOptimizerRule
       call.transformTo(filter.copy(filter.getTraitSet(), ImmutableList.of(childRel)));
     }
   }
+
 
 }

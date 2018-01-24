@@ -374,32 +374,32 @@ public class TestJsonReader extends PlanTestBase {
         ListVector.class, //
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_1")).getFieldIds() //
     );
-    assertEquals("[1]", vw.getValueVector().getAccessor().getObject(0).toString());
-    assertEquals("[5]", vw.getValueVector().getAccessor().getObject(1).toString());
-    assertEquals("[5,10,15]", vw.getValueVector().getAccessor().getObject(2).toString());
+    assertEquals("[1]", vw.getValueVector().getObject(0).toString());
+    assertEquals("[5]", vw.getValueVector().getObject(1).toString());
+    assertEquals("[5,10,15]", vw.getValueVector().getObject(2).toString());
 
     vw = batchLoader.getValueAccessorById(
         NullableIntVector.class, //
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_3", "inner_1")).getFieldIds() //
     );
-    assertNull(vw.getValueVector().getAccessor().getObject(0));
-    assertEquals(2l, vw.getValueVector().getAccessor().getObject(1));
-    assertEquals(5l, vw.getValueVector().getAccessor().getObject(2));
+    assertNull(vw.getValueVector().getObject(0));
+    assertEquals(2l, vw.getValueVector().getObject(1));
+    assertEquals(5l, vw.getValueVector().getObject(2));
 
     vw = batchLoader.getValueAccessorById(
         NullableIntVector.class, //
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_3", "inner_2")).getFieldIds() //
     );
-    assertNull(vw.getValueVector().getAccessor().getObject(0));
-    assertNull(vw.getValueVector().getAccessor().getObject(1));
-    assertEquals(3l, vw.getValueVector().getAccessor().getObject(2));
+    assertNull(vw.getValueVector().getObject(0));
+    assertNull(vw.getValueVector().getObject(1));
+    assertEquals(3l, vw.getValueVector().getObject(2));
 
     vw = batchLoader.getValueAccessorById(
         ListVector.class, //
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_4", "inner_1")).getFieldIds() //
     );
-    assertEquals("[1,2,3]", vw.getValueVector().getAccessor().getObject(1).toString());
-    assertEquals("[4,5,6]", vw.getValueVector().getAccessor().getObject(2).toString());
+    assertEquals("[1,2,3]", vw.getValueVector().getObject(1).toString());
+    assertEquals("[4,5,6]", vw.getValueVector().getObject(2).toString());
   }
 
   @Test

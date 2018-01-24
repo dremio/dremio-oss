@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
@@ -127,6 +128,8 @@ public class DecimalFunctions {
     DecimalHolder out;
     @Inject
     ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
 
     @Override
     public void setup() {
@@ -137,7 +140,12 @@ public class DecimalFunctions {
     public void eval() {
       String s = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
       java.math.BigDecimal bd = new java.math.BigDecimal(s).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+            .build();
+      }
       out.buffer = buffer;
       out.precision = (int) precision.value;
       out.scale = (int) scale.value;
@@ -158,6 +166,8 @@ public class DecimalFunctions {
     DecimalHolder out;
     @Inject
     ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
 
     @Override
     public void setup() {
@@ -167,7 +177,12 @@ public class DecimalFunctions {
     @Override
     public void eval() {
       java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+            .build();
+      }
       out.buffer = buffer;
       out.precision = (int) precision.value;
       out.scale = (int) scale.value;
@@ -188,6 +203,8 @@ public class DecimalFunctions {
     DecimalHolder out;
     @Inject
     ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
 
     @Override
     public void setup() {
@@ -197,7 +214,12 @@ public class DecimalFunctions {
     @Override
     public void eval() {
       java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+            .build();
+      }
       out.buffer = buffer;
       out.precision = (int) precision.value;
       out.scale = (int) scale.value;
@@ -218,6 +240,8 @@ public class DecimalFunctions {
     NullableDecimalHolder out;
     @Inject
     ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
 
     @Override
     public void setup() {
@@ -228,7 +252,12 @@ public class DecimalFunctions {
     public void eval() {
       out.isSet = 1;
       java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+            .build();
+      }
       out.buffer = buffer;
       out.precision = (int) precision.value;
       out.scale = (int) scale.value;
@@ -249,6 +278,8 @@ public class DecimalFunctions {
     DecimalHolder out;
     @Inject
     ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
 
     @Override
     public void setup() {
@@ -258,7 +289,12 @@ public class DecimalFunctions {
     @Override
     public void eval() {
       java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
-      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+            .build();
+      }
       out.buffer = buffer;
       out.precision = (int) precision.value;
       out.scale = (int) scale.value;

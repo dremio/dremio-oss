@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>1.3.1-201712020438070881-a7af5c8</version>
+    <version>1.4.4-201801230630490666-6d69d32</version>
   </parent>
 
   <artifactId>dremio-daemon-bundle</artifactId>
@@ -35,6 +35,11 @@
     </profile>
     <profile>
       <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
       <dependencies>
         <dependency>
           <groupId>com.dremio.provision</groupId>

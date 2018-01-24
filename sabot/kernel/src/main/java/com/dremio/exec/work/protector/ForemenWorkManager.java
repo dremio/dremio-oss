@@ -47,6 +47,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.RunningQueryProvider;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
@@ -79,7 +80,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 /**
  * Manages all work associated with query oversight and coordination.
  */
-public class ForemenWorkManager implements Service {
+public class ForemenWorkManager implements Service, SafeExit {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForemenWorkManager.class);
 
   // cache of prepared statement queries.
@@ -275,6 +276,16 @@ public class ForemenWorkManager implements Service {
     return false;
   }
 
+  public boolean resume(ExternalId externalId) {
+    final ManagedForeman managed = externalIdToForeman.get(externalId);
+    if (managed != null) {
+      managed.foreman.resume();
+      return true;
+    }
+
+    return false;
+  }
+
 
   private ReAttemptHandler newInternalAttemptHandler(OptionManager options, boolean failIfNonEmpty) {
     if (options.getOption(ExecConstants.ENABLE_REATTEMPTS)) {
@@ -447,6 +458,12 @@ public class ForemenWorkManager implements Service {
     @Override
     public Ack cancelQuery(ExternalId query) {
       cancel(query);
+      return Acks.OK;
+    }
+
+    @Override
+    public Ack resumeQuery(ExternalId query) {
+      resume(query);
       return Acks.OK;
     }
 

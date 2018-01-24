@@ -22,7 +22,6 @@ import java.util.Objects;
 import javax.inject.Inject;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -93,8 +92,8 @@ public final class HomeFileConfig {
     return isPdfsBased;
   }
 
-  public FileSystem createFileSystem() throws IOException {
-    FileSystem fs = FileSystemWrapper.get(location, fsConf);
+  public FileSystemWrapper createFileSystem() throws IOException {
+    FileSystemWrapper fs = FileSystemWrapper.get(location, fsConf);
     fs.mkdirs(new Path(location.getPath()), DEFAULT_PERMISSIONS);
     fs.mkdirs(stagingDir, DEFAULT_PERMISSIONS);
     fs.mkdirs(uploadsDir, DEFAULT_PERMISSIONS);

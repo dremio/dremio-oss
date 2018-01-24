@@ -25,6 +25,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
@@ -46,6 +47,7 @@ import com.dremio.service.users.UserService;
  *
  * Note: should not be automatically registered!
  */
+@Bootstrap
 @Path("/bootstrap")
 public class BootstrapResource {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BootstrapResource.class);

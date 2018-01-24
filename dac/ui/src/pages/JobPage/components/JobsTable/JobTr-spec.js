@@ -64,6 +64,6 @@ describe('JobsTr-spec', () => {
       jobsUtils.getJobDuration(commonProps.job.get('startTime'), commonProps.job.get('endTime'))
     );
     expect(wrapper.find('.sql').find('TextHighlight').prop('text')).to.equal(commonProps.job.get('description'));
-    expect(wrapper.find('FontIcon').first().prop('type')).to.equal('OKSolid');
+    expect(wrapper.find('JobStateIcon').first().prop('state')).to.equal('COMPLETED');
   });
 });

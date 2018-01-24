@@ -15,27 +15,14 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG_NAME;
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.COLS_COL_COLUMN_NAME;
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.SCHS_COL_SCHEMA_NAME;
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.SHRD_COL_TABLE_NAME;
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.SHRD_COL_TABLE_SCHEMA;
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.TBLS_COL_TABLE_TYPE;
-import static com.dremio.exec.store.ischema.InfoSchemaTableType.CATALOGS;
-import static com.dremio.exec.store.ischema.InfoSchemaTableType.COLUMNS;
-import static com.dremio.exec.store.ischema.InfoSchemaTableType.SCHEMATA;
-import static com.dremio.exec.store.ischema.InfoSchemaTableType.TABLES;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.calcite.schema.SchemaPlus;
-
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.ViewExpansionContext;
+import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -49,33 +36,25 @@ import com.dremio.exec.proto.UserProtos.GetSchemasReq;
 import com.dremio.exec.proto.UserProtos.GetSchemasResp;
 import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.GetTablesResp;
-import com.dremio.exec.proto.UserProtos.LikeFilter;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.SchemaMetadata;
 import com.dremio.exec.proto.UserProtos.TableMetadata;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.SchemaConfig.SchemaInfoProvider;
-import com.dremio.exec.store.SchemaTreeProvider;
-import com.dremio.exec.store.ischema.ExprNode;
-import com.dremio.exec.store.ischema.InfoSchemaFilter;
-import com.dremio.exec.store.ischema.InfoSchemaFilter.ConstantExprNode;
-import com.dremio.exec.store.ischema.InfoSchemaFilter.FieldExprNode;
-import com.dremio.exec.store.ischema.InfoSchemaFilter.FunctionExprNode;
-import com.dremio.exec.store.ischema.InfoSchemaTableType;
-import com.dremio.exec.store.ischema.Records.Catalog;
-import com.dremio.exec.store.ischema.Records.Column;
-import com.dremio.exec.store.ischema.Records.Schema;
-import com.dremio.exec.store.ischema.Records.Table;
-import com.dremio.exec.store.pojo.PojoRecordReader;
+import com.dremio.exec.store.ischema.tables.CatalogsTable.Catalog;
+import com.dremio.exec.store.ischema.tables.ColumnsTable.Column;
+import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
+import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
+import com.dremio.exec.store.ischema.tables.TablesTable.Table;
 import com.dremio.exec.work.protector.ResponseSenderHandler;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Ordering;
 
 /**
@@ -84,23 +63,27 @@ import com.google.common.collect.Ordering;
 public class MetadataProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataProvider.class);
 
-  private static final String IN_FUNCTION = "in";
-  private static final String LIKE_FUNCTION = "like";
-  private static final String AND_FUNCTION = "booleanand";
-  private static final String OR_FUNCTION = "booleanor";
-
   /**
    * Super class for all metadata provider runnable classes.
    */
   public abstract static class MetadataCommand<R> implements CommandRunner<R> {
     protected final UserSession session;
     protected final SabotContext dContext;
+    protected final NamespaceService namespace;
+    protected final String catalogName;
+    protected final InfoSchemaTable table;
+    protected final MetadataProviderConditionBuilder builder;
 
     protected MetadataCommand(
         final UserSession session,
-        final SabotContext dContext) {
+        final SabotContext dContext,
+        final InfoSchemaTable table) {
       this.session = Preconditions.checkNotNull(session);
       this.dContext = Preconditions.checkNotNull(dContext);
+      this.namespace = dContext.getNamespaceService(session.getCredentials().getUserName());
+      this.catalogName = session.getCatalogName();
+      this.table = table;
+      this.builder = new MetadataProviderConditionBuilder();
     }
 
     @Override
@@ -153,7 +136,7 @@ public class MetadataProvider {
         final UserSession session,
         final SabotContext dContext,
         final GetCatalogsReq req) {
-      super(session, dContext);
+      super(session, dContext, InfoSchemaTable.CATALOGS);
       this.req = Preconditions.checkNotNull(req);
       this.queryId = queryId;
     }
@@ -161,10 +144,13 @@ public class MetadataProvider {
     @Override
     public GetCatalogsResp execute() throws Exception {
       final GetCatalogsResp.Builder respBuilder = GetCatalogsResp.newBuilder();
-      final InfoSchemaFilter filter = createInfoSchemaFilter(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null, null, null, null, null);
 
-      final SchemaTreeProvider schemaTreeProvider = new SchemaTreeProvider(dContext);
-      final PojoRecordReader<Catalog> records = getPojoRecordReader(CATALOGS, filter, schemaTreeProvider, session);
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
+      final Iterable<Catalog> records = FluentIterable.<Catalog>from(table.<Catalog>asIterable(catalogName, namespace, null)).filter(new Predicate<Catalog>() {
+        @Override
+        public boolean apply(Catalog input) {
+          return catalogNamePred.apply(input.CATALOG_NAME);
+        }});
 
       List<CatalogMetadata> metadata = new ArrayList<>();
       for(Catalog c : records) {
@@ -172,7 +158,6 @@ public class MetadataProvider {
         catBuilder.setCatalogName(c.CATALOG_NAME);
         catBuilder.setDescription(c.CATALOG_DESCRIPTION);
         catBuilder.setConnect(c.CATALOG_CONNECT);
-
         metadata.add(catBuilder.build());
       }
 
@@ -224,7 +209,7 @@ public class MetadataProvider {
         final UserSession session,
         final SabotContext dContext,
         final GetSchemasReq req) {
-      super(session, dContext);
+      super(session, dContext, InfoSchemaTable.SCHEMATA);
       this.req = Preconditions.checkNotNull(req);
       this.queryId = queryId;
     }
@@ -233,13 +218,14 @@ public class MetadataProvider {
     public GetSchemasResp execute() throws Exception {
       final GetSchemasResp.Builder respBuilder = GetSchemasResp.newBuilder();
 
-      final InfoSchemaFilter filter = createInfoSchemaFilter(
-          req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null,
-          req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null,
-          null, null, null);
+      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
 
-      final SchemaTreeProvider schemaTreeProvider = new SchemaTreeProvider(dContext);
-      final PojoRecordReader<Schema> records = getPojoRecordReader(SCHEMATA, filter, schemaTreeProvider, session);
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
+      final Iterable<Schema> records = FluentIterable.<Schema>from(table.<Schema>asIterable(catalogName, namespace, filter)).filter(new Predicate<Schema>() {
+        @Override
+        public boolean apply(Schema input) {
+          return catalogNamePred.apply(input.CATALOG_NAME);
+        }});
 
       List<SchemaMetadata> metadata = new ArrayList<>();
       for(Schema s : records) {
@@ -303,7 +289,7 @@ public class MetadataProvider {
         final UserSession session,
         final SabotContext dContext,
         final GetTablesReq req) {
-      super(session, dContext);
+      super(session, dContext, InfoSchemaTable.TABLES);
       this.req = Preconditions.checkNotNull(req);
       this.queryId = queryId;
     }
@@ -312,17 +298,15 @@ public class MetadataProvider {
     public GetTablesResp execute() throws Exception {
       final GetTablesResp.Builder respBuilder = GetTablesResp.newBuilder();
 
-      final InfoSchemaFilter filter = createInfoSchemaFilter(
-          req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null,
-          req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null,
-          req.hasTableNameFilter() ? req.getTableNameFilter() : null,
-          req.getTableTypeFilterCount() != 0 ? req.getTableTypeFilterList() : null,
-          null
-      );
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
+      final Predicate<String> tableTypeFilter = req.getTableTypeFilterCount() > 0 ? builder.getTableTypePredicate(req.getTableTypeFilterList()) : Predicates.<String>alwaysTrue();
+      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      final SchemaTreeProvider schemaTreeProvider = new SchemaTreeProvider(dContext);
-      final PojoRecordReader<Table> records =
-          getPojoRecordReader(TABLES, filter, schemaTreeProvider, session);
+      final Iterable<Table> records = FluentIterable.<Table>from(table.<Table>asIterable(catalogName, namespace, filter)).filter(new Predicate<Table>() {
+        @Override
+        public boolean apply(Table input) {
+          return catalogNamePred.apply(input.TABLE_CATALOG) && tableTypeFilter.apply(input.TABLE_TYPE);
+        }});
 
       List<TableMetadata> metadata = new ArrayList<>();
       for (Table t : records) {
@@ -385,7 +369,7 @@ public class MetadataProvider {
         final UserSession session,
         final SabotContext dContext,
         final GetColumnsReq req) {
-      super(session, dContext);
+      super(session, dContext, InfoSchemaTable.COLUMNS);
       this.req = Preconditions.checkNotNull(req);
       this.queryId = queryId;
     }
@@ -394,17 +378,15 @@ public class MetadataProvider {
     public GetColumnsResp execute() throws Exception {
       final GetColumnsResp.Builder respBuilder = GetColumnsResp.newBuilder();
 
-      final InfoSchemaFilter filter = createInfoSchemaFilter(
-          req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null,
-          req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null,
-          req.hasTableNameFilter() ? req.getTableNameFilter() : null,
-          null,
-          req.hasColumnNameFilter() ? req.getColumnNameFilter() : null
-      );
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
+      final Predicate<String> columnNameFilter = req.hasColumnNameFilter() ? builder.getLikePredicate(req.getColumnNameFilter()) : Predicates.<String>alwaysTrue();
+      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      final SchemaTreeProvider schemaTreeProvider = new SchemaTreeProvider(dContext);
-      final PojoRecordReader<Column> records =
-          getPojoRecordReader(COLUMNS, filter, schemaTreeProvider, session);
+      final Iterable<Column> records = FluentIterable.<Column>from(table.<Column>asIterable(catalogName, namespace, filter)).filter(new Predicate<Column>() {
+        @Override
+        public boolean apply(Column input) {
+          return catalogNamePred.apply(input.TABLE_CATALOG) && columnNameFilter.apply(input.COLUMN_NAME);
+        }});
 
       List<ColumnMetadata> metadata = new ArrayList<>();
       for (Column c : records) {
@@ -471,146 +453,6 @@ public class MetadataProvider {
       respBuilder.setStatus(RequestStatus.OK);
       return respBuilder.build();
     }
-  }
-
-  /**
-   * Helper method to create a {@link InfoSchemaFilter} that combines the given filters with an AND.
-   * @param catalogNameFilter Optional filter on <code>catalog name</code>
-   * @param schemaNameFilter Optional filter on <code>schema name</code>
-   * @param tableNameFilter Optional filter on <code>table name</code>
-   * @param tableTypeFilter Optional filter on <code>table type</code>
-   * @param columnNameFilter Optional filter on <code>column name</code>
-   * @return
-   */
-  private static InfoSchemaFilter createInfoSchemaFilter(final LikeFilter catalogNameFilter,
-      final LikeFilter schemaNameFilter, final LikeFilter tableNameFilter, List<String> tableTypeFilter, final LikeFilter columnNameFilter) {
-
-    FunctionExprNode exprNode = createLikeFunctionExprNode(CATS_COL_CATALOG_NAME,  catalogNameFilter);
-
-    exprNode = combineFunctions(AND_FUNCTION,
-        exprNode,
-        combineFunctions(OR_FUNCTION,
-            createLikeFunctionExprNode(SHRD_COL_TABLE_SCHEMA, schemaNameFilter),
-            createLikeFunctionExprNode(SCHS_COL_SCHEMA_NAME, schemaNameFilter)
-        )
-    );
-
-    exprNode = combineFunctions(AND_FUNCTION,
-        exprNode,
-        createLikeFunctionExprNode(SHRD_COL_TABLE_NAME, tableNameFilter)
-    );
-
-    exprNode = combineFunctions(AND_FUNCTION,
-        exprNode,
-        createInFunctionExprNode(TBLS_COL_TABLE_TYPE, tableTypeFilter)
-        );
-
-    exprNode = combineFunctions(AND_FUNCTION,
-        exprNode,
-        createLikeFunctionExprNode(COLS_COL_COLUMN_NAME, columnNameFilter)
-    );
-
-    return exprNode != null ? new InfoSchemaFilter(exprNode) : null;
-  }
-
-  /**
-   * Helper method to create {@link FunctionExprNode} from {@link LikeFilter}.
-   * @param fieldName Name of the filed on which the like expression is applied.
-   * @param likeFilter
-   * @return {@link FunctionExprNode} for given arguments. Null if the <code>likeFilter</code> is null.
-   */
-  private static FunctionExprNode createLikeFunctionExprNode(String fieldName, LikeFilter likeFilter) {
-    if (likeFilter == null) {
-      return null;
-    }
-
-    return new FunctionExprNode(LIKE_FUNCTION,
-        likeFilter.hasEscape() ?
-            ImmutableList.of(
-                new FieldExprNode(fieldName),
-                new ConstantExprNode(likeFilter.getPattern()),
-                new ConstantExprNode(likeFilter.getEscape())) :
-            ImmutableList.of(
-                new FieldExprNode(fieldName),
-                new ConstantExprNode(likeFilter.getPattern()),
-                new ConstantExprNode("\\"))
-    );
-  }
-
-  /**
-   * Helper method to create {@link FunctionExprNode} from {@code List<String>}.
-   * @param fieldName Name of the filed on which the like expression is applied.
-   * @param valuesFilter a list of values
-   * @return {@link FunctionExprNode} for given arguments. Null if the <code>valuesFilter</code> is null.
-   */
-  private static FunctionExprNode createInFunctionExprNode(String fieldName, List<String> valuesFilter) {
-    if (valuesFilter == null) {
-      return null;
-    }
-
-    ImmutableList.Builder<ExprNode> nodes = ImmutableList.builder();
-    nodes.add(new FieldExprNode(fieldName));
-    for(String type: valuesFilter) {
-      nodes.add(new ConstantExprNode(type));
-    }
-
-    return new FunctionExprNode(IN_FUNCTION, nodes.build());
-  }
-
-  /** Helper method to combine two {@link FunctionExprNode}s with a given <code>functionName</code>. If one of them is
-   * null, other one is returned as it is.
-   */
-  private static FunctionExprNode combineFunctions(final String functionName,
-      final FunctionExprNode func1, final FunctionExprNode func2) {
-    if (func1 == null) {
-      return func2;
-    }
-
-    if (func2 == null) {
-      return func1;
-    }
-
-    return new FunctionExprNode(functionName, ImmutableList.<ExprNode>of(func1, func2));
-  }
-
-  /**
-   * Helper method to create a {@link PojoRecordReader} for given arguments.
-   * @param tableType
-   * @param filter
-   * @param provider
-   * @param userSession
-   * @return
-   */
-  private static <S> PojoRecordReader<S> getPojoRecordReader(final InfoSchemaTableType tableType, final InfoSchemaFilter filter,
-      final SchemaTreeProvider provider, final UserSession userSession) {
-    final SchemaConfig schemaConfig = SchemaConfig.newBuilder(userSession.getCredentials().getUserName())
-        .setProvider(newSchemaConfigInfoProvider(userSession, provider))
-        .setIgnoreAuthErrors(true)
-        .exposeSubSchemasAsTopLevelSchemas(true)
-        .build();
-    final SchemaPlus rootSchema = provider.getRootSchema(schemaConfig);
-    return tableType.getRecordReader(userSession.getCatalogName(), rootSchema, filter);
-  }
-
-  /**
-   * Helper method to create a {@link SchemaInfoProvider} instance for metadata purposes.
-   * @param session
-   * @return
-   */
-  private static SchemaInfoProvider newSchemaConfigInfoProvider(final UserSession session, final SchemaTreeProvider schemaTreeProvider) {
-    return new SchemaInfoProvider() {
-      private final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(this, schemaTreeProvider, session.getCredentials().getUserName());
-
-      @Override
-      public ViewExpansionContext getViewExpansionContext() {
-        return viewExpansionContext;
-      }
-
-      @Override
-      public OptionValue getOption(String optionKey) {
-        return session.getOptions().getOption(optionKey);
-      }
-    };
   }
 
   /**

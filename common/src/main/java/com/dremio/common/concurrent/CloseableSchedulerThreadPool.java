@@ -15,18 +15,24 @@
  */
 package com.dremio.common.concurrent;
 
-import com.dremio.common.AutoCloseables;
-
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+
+import com.google.common.base.Preconditions;
 
 /**
  * AutoCloseable implementation of {@link ScheduledThreadPoolExecutor}
  */
 public class CloseableSchedulerThreadPool extends ScheduledThreadPoolExecutor implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CloseableSchedulerThreadPool.class);
+  private final String name;
 
   public CloseableSchedulerThreadPool(String name, int corePoolSize) {
     super(corePoolSize, new NamedThreadFactory(name));
+    this.name = name;
   }
 
   @Override
@@ -39,6 +45,53 @@ public class CloseableSchedulerThreadPool extends ScheduledThreadPoolExecutor im
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(this, logger);
+    close(this, logger);
+  }
+
+  /**
+   * Close a thread pool executor
+   *
+   * @param executor
+   * @param logger
+   */
+  public static void close(ExecutorService executor, Logger logger) {
+    executor.shutdown(); // Disable new tasks from being submitted
+    try {
+      // Wait a while for existing tasks to terminate
+      if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+        executor.shutdownNow(); // Cancel currently executing tasks
+        // Wait a while for tasks to respond to being cancelled
+        if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+          logger.error("Pool did not terminate");
+        }
+      }
+    } catch (InterruptedException ie) {
+      logger.warn("Executor interrupted while awaiting termination");
+
+      // (Re-)Cancel if current thread also interrupted
+      executor.shutdownNow();
+      // Preserve interrupt status
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  /**
+   * Wrap an {@code ExecutorService instance} into a {@code AutoCloseable}
+   *
+   * @param executor
+   * @param logger
+   * @return a {@code AutoCloseable} instance
+   * @throws NullPointerException if executor or logger are {@code null}
+   */
+  public static AutoCloseable of(final ExecutorService executor, final Logger logger) {
+    Preconditions.checkNotNull(executor);
+    Preconditions.checkNotNull(logger);
+
+    return new AutoCloseable() {
+      @Override
+      public void close() throws Exception {
+        CloseableSchedulerThreadPool.close(executor, logger);
+      }
+    };
   }
 }

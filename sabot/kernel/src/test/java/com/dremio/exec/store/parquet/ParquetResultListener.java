@@ -87,7 +87,7 @@ public class ParquetResultListener implements UserResultsListener {
 
     final T val;
     try {
-      val = (T) valueVector.getAccessor().getObject(index);
+      val = (T) valueVector.getObject(index);
     } catch (Throwable ex) {
       throw ex;
     }
@@ -134,17 +134,17 @@ public class ParquetResultListener implements UserResultsListener {
       printColumnMajor(vv);
 
       if (testValues) {
-        for (int j = 0; j < vv.getAccessor().getValueCount(); j++) {
+        for (int j = 0; j < vv.getValueCount(); j++) {
           assertField(vv, j, currentField.type,
               currentField.values[columnValCounter % 3], currentField.name + "/");
           columnValCounter++;
         }
       } else {
-        columnValCounter += vv.getAccessor().getValueCount();
+        columnValCounter += vv.getValueCount();
       }
 
       valuesChecked.remove(vv.getField().getName());
-      assertEquals("Mismatched value count for vectors in the same batch.", valueCount, vv.getAccessor().getValueCount());
+      assertEquals("Mismatched value count for vectors in the same batch.", valueCount, vv.getValueCount());
       valuesChecked.put(vv.getField().getName(), columnValCounter);
     }
 
@@ -184,9 +184,9 @@ public class ParquetResultListener implements UserResultsListener {
     if (ParquetRecordReaderTest.VERBOSE_DEBUG){
       System.out.println("\n" + vv.getField().getName());
     }
-    for (int j = 0; j < vv.getAccessor().getValueCount(); j++) {
+    for (int j = 0; j < vv.getValueCount(); j++) {
       if (ParquetRecordReaderTest.VERBOSE_DEBUG){
-        Object o = vv.getAccessor().getObject(j);
+        Object o = vv.getObject(j);
         if (o instanceof byte[]) {
           try {
             o = new String((byte[])o, "UTF-8");
@@ -199,7 +199,7 @@ public class ParquetResultListener implements UserResultsListener {
       }
     }
     if (ParquetRecordReaderTest.VERBOSE_DEBUG) {
-      System.out.println("\n" + vv.getAccessor().getValueCount());
+      System.out.println("\n" + vv.getValueCount());
     }
   }
 
@@ -218,7 +218,7 @@ public class ParquetResultListener implements UserResultsListener {
 
       for (final VectorWrapper vw : batchLoader) {
         final ValueVector v = vw.getValueVector();
-        Object o = v.getAccessor().getObject(i);
+        Object o = v.getObject(i);
         if (o instanceof byte[]) {
           try {
             // TODO - in the dictionary read error test there is some data that does not look correct

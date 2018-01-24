@@ -72,14 +72,14 @@ public class TableStatsCalculator {
    * @param config
    * @throws IOException
    */
-  public TableStatsCalculator(Connection conn, HBaseScanSpec hbaseScanSpec, SabotConfig config, HBaseStoragePluginConfig storageConfig) throws IOException {
-    TableName tableName = TableName.valueOf(hbaseScanSpec.getTableName());
+  public TableStatsCalculator(Connection conn, TableName tableName, SabotConfig config, boolean enabled) throws IOException {
+
     try (Admin admin = conn.getAdmin();
          Table table = conn.getTable(tableName);
          RegionLocator locator = conn.getRegionLocator(tableName)) {
       int rowsToSample = rowsToSample(config);
       if (rowsToSample > 0) {
-        Scan scan = new Scan(hbaseScanSpec.getStartRow(), hbaseScanSpec.getStopRow());
+        Scan scan = new Scan();
         scan.setCaching(rowsToSample < DEFAULT_SAMPLE_SIZE ? rowsToSample : DEFAULT_SAMPLE_SIZE);
         scan.setMaxVersions(1);
         ResultScanner scanner = table.getScanner(scan);
@@ -105,7 +105,7 @@ public class TableStatsCalculator {
         scanner.close();
       }
 
-      if (!enabled(storageConfig)) {
+      if (!enabled) {
         logger.info("Region size calculation disabled.");
         return;
       }
@@ -152,10 +152,6 @@ public class TableStatsCalculator {
       logger.debug("Region sizes calculated");
     }
 
-  }
-
-  private boolean enabled(HBaseStoragePluginConfig config) {
-    return config.isSizeCalculatorEnabled();
   }
 
   private int rowsToSample(SabotConfig config) {

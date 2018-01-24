@@ -22,6 +22,7 @@ import org.apache.calcite.rel.RelNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.acceleration.LogicalPlanSerializer;
 import com.dremio.exec.store.Views;
@@ -67,7 +68,7 @@ public class AnalysisStage implements Stage {
     final DatasetConfig config = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
     final NamespaceKey path = new NamespaceKey(config.getFullPathList());
 
-    final AccelerationAnalyzer analyzer = new AccelerationAnalyzer(context.getJobsService());
+    final AccelerationAnalyzer analyzer = new AccelerationAnalyzer(context.getJobsService(), context.getOptionManager().getOption(ExecConstants.ACCELERATION_USE_ALTERNATE_SUGGESTION_ANALYSIS));
     final AccelerationContext accelerationContext = acceleration.getContext();
     final AccelerationAnalysis analysis = analyzer.analyze(path);
 

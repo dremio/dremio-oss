@@ -25,6 +25,7 @@ import { showQlikError, showQlikModal, showQlikProgress, hideQlikError } from 'a
 import { showConfirmationDialog } from 'actions/confirmation';
 
 import { getUserName } from 'selectors/account';
+import { getLocation } from 'selectors/routing';
 
 import { constructFullPath, constructFullPathAndEncode, getUniqueName } from 'utils/pathUtils';
 import { getLocationChangePredicate } from './utils';
@@ -166,6 +167,7 @@ export function* requestPassword() {
   });
   yield put(action);
 
+  const location = yield select(getLocation);
   try {
     const {password} = yield race({
       password: passwordPromise,

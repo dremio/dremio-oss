@@ -24,12 +24,15 @@
 
 package com.dremio.exec.expr.fn.impl;
 
+import javax.inject.Inject;
+
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 import org.apache.arrow.vector.holders.*;
 
@@ -45,13 +48,14 @@ public class GTo${type} {
     @Param VarCharHolder right;
     @Workspace org.joda.time.format.DateTimeFormatter format;
     @Output ${type}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
   public void setup(){
     // Get the desired output format
     byte[]buf=new byte[right.end-right.start];
     right.buffer.getBytes(right.start,buf,0,right.end-right.start);
     String formatString=new String(buf,java.nio.charset.StandardCharsets.UTF_8);
-    format=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString);
+    format=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString, errCtx);
   }
 
   public void eval(){
@@ -60,7 +64,7 @@ public class GTo${type} {
     left.buffer.getBytes(left.start,buf1,0,left.end-left.start);
     String input=new String(buf1,java.nio.charset.StandardCharsets.UTF_8);
 
-    out.value=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input,format);
+    out.value=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input, format, errCtx);
   }
   }
 
@@ -75,6 +79,7 @@ public class GTo${type} {
     @Workspace org.joda.time.MutableDateTime mutableDateTime;
 </#if>
     @Output ${type}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
     public void setup() {
 <#if numerics.startsWith("Decimal")>
@@ -100,12 +105,24 @@ public class GTo${type} {
       inputMillis = (long) (left.value * 1000l);
 </#if>
 <#if type=="DateMilli">
-      mutableDateTime.setMillis(inputMillis);
+      try {
+        mutableDateTime.setMillis(inputMillis);
+      } catch (IllegalArgumentException e) {
+        errCtx.error()
+          .message("argument '%s' is not a valid milliseconds value", inputMillis)
+          .build();
+      }
       out.value = mutableDateTime.getMillis() - mutableDateTime.getMillisOfDay();
 <#elseif type=="TimeStampMilli">
       out.value = inputMillis;
 <#elseif type=="TimeMilli">
-      mutableDateTime.setMillis(inputMillis);
+      try {
+        mutableDateTime.setMillis(inputMillis);
+      } catch (IllegalArgumentException e) {
+        errCtx.error()
+          .message("argument '%s' is not a valid milliseconds value", inputMillis)
+          .build();
+      }
       out.value = mutableDateTime.getMillisOfDay();
 </#if>
     }
@@ -119,6 +136,7 @@ public class GTo${type} {
     @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
     @Workspace org.joda.time.format.DateTimeFormatter format;
     @Output Nullable${type}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
     public void setup() {
       // Get the desired output format
@@ -127,7 +145,7 @@ public class GTo${type} {
 
       // if the format string is invalid we want to fail, so don't handle the exception
       String formatString = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
-      format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString);
+      format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString, errCtx);
     }
 
     public void eval() {
@@ -143,18 +161,17 @@ public class GTo${type} {
       try {
         out.value = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input, format);
         out.isSet = 1;
-      } catch (com.dremio.common.exceptions.UserException e) {
-        // we only want to handle FUNCTION UserExceptions which DateFunctionsUtils throws
-        if (e.getErrorType() != com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.FUNCTION) {
-          throw e;
-        }
-
+      } catch (IllegalArgumentException e) {
         if (replaceWithNullHolder.value == 1) {
           out.isSet = 0;
         } else {
           // if replaceWithNullHolder is not set, we throw the exception to be consistent with to_${dremioMinorType}
           // calls without the replaceWithNullHolder argument
-          throw e;
+          throw errCtx.error()
+            .message("Input text cannot be formatted to date")
+            .addContext("Details", e.getMessage())
+            .addContext("Input text", input)
+            .build();
         }
       }
     }

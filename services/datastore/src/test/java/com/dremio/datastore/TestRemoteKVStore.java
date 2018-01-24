@@ -23,6 +23,7 @@ import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
@@ -56,7 +57,11 @@ public class TestRemoteKVStore extends AbstractTestKVStore {
 
     localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, DirectProvider.<FabricService>wrap(localFabricService), allocator, "localhost", tmpFolder.getRoot().toString(), true, true, true, false);
     localKVStoreProvider.start();
-    remoteKVStoreProvider = new RemoteKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, DirectProvider.<FabricService>wrap(remoteFabricService), allocator, "localhost", "localhost", localFabricService.getPort());
+
+    remoteKVStoreProvider = new RemoteKVStoreProvider(
+        DremioTest.CLASSPATH_SCAN_RESULT,
+        DirectProvider.wrap(NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(localFabricService.getPort()).build()),
+        DirectProvider.<FabricService>wrap(remoteFabricService), allocator, "localhost");
     remoteKVStoreProvider.start();
   }
 

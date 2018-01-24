@@ -16,10 +16,13 @@
 package com.dremio.exec.store.sys;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.UUID;
 
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordDataType;
@@ -30,6 +33,18 @@ import com.dremio.exec.store.sys.accel.LayoutInfo;
 import com.dremio.exec.store.sys.accel.MaterializationInfo;
 import com.dremio.exec.work.WorkStats.FragmentInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.dataset.proto.ScanStats;
+import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableList;
 
 /**
  * An enumeration of all tables in Dremio's system ("sys") schema.
@@ -43,22 +58,22 @@ public enum SystemTable {
 
   OPTION("options", false, OptionValueWrapper.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new OptionIterator(dbContext, context, OptionIterator.Mode.SYS_SESS);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new OptionIterator(sContext, context, OptionIterator.Mode.SYS_SESS);
     }
   },
 
   BOOT("boot", false, OptionValueWrapper.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new OptionIterator(dbContext, context, OptionIterator.Mode.BOOT);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new OptionIterator(sContext, context, OptionIterator.Mode.BOOT);
     }
   },
 
   NODES("nodes", true, NodeIterator.NodeInstance.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new NodeIterator(dbContext, context);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new NodeIterator(sContext, context);
     }
   },
 
@@ -66,79 +81,62 @@ public enum SystemTable {
   // users have inconsistent versions installed across their cluster?
   VERSION("version", false, VersionIterator.VersionInfo.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new VersionIterator();
     }
   },
 
-  /*
-
-   TODO - DRILL-4258: fill in these system tables
-    cpu: SabotNode, # Cores, CPU consumption (with different windows?)
-    queries: Foreman, QueryId, User, SQL, Start Time, rows processed, query plan, # nodes involved, number of running fragments, memory consumed
-    fragments: SabotNode, queryid, major fragmentid, minorfragmentid, coordinate, memory usage, rows processed, start time
-    threads: name, priority, state, id, thread-level cpu stats
-    threadtraces: threads, stack trace
-    connections: client, server, type, establishedDate, messagesSent, bytesSent
-   */
-
   MEMORY("memory", true, MemoryIterator.MemoryInfo.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new MemoryIterator(dbContext, context);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new MemoryIterator(sContext, context);
     }
   },
 
   THREADS("threads", true, ThreadsIterator.ThreadSummary.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new ThreadsIterator(dbContext, context);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new ThreadsIterator(sContext, context);
     }
   },
 
   QUERIES("queries", true, QueryIterator.QueryInfo.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new QueryIterator(dbContext, context);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new QueryIterator(sContext, context);
     }
   },
 
   FRAGMENTS("fragments", true, FragmentInfo.class) {
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return new FragmentIterator(dbContext, context);
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new FragmentIterator(sContext, context);
     }
   },
 
   ACCELERATIONS("accelerations", false, AccelerationInfo.class){
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) dbContext.getAccelerationListManager().getAccelerations().iterator();
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getAccelerations().iterator();
     }
   },
 
   LAYOUTS("layouts", false, LayoutInfo.class){
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) dbContext.getAccelerationListManager().getLayouts().iterator();
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getLayouts().iterator();
     }
   },
 
   MATERIALIZATIONS("materializations", false, MaterializationInfo.class){
     @Override
-    public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) dbContext.getAccelerationListManager().getMaterializations().iterator();
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getMaterializations().iterator();
     }
   }
-
-
-
   ;
 
-
-
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemTable.class);
-
+  private final NamespaceKey key;
   private final String tableName;
   private final boolean distributed;
   private final Class<?> pojoClass;
@@ -147,9 +145,10 @@ public enum SystemTable {
     this.tableName = tableName;
     this.distributed = distributed;
     this.pojoClass = pojoClass;
+    this.key = new NamespaceKey(ImmutableList.<String>of("sys", tableName));
   }
 
-  public Iterator<Object> getIterator(final SabotContext dbContext, final OperatorContext context) {
+  public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
     throw new UnsupportedOperationException(tableName + " must override this method.");
   }
 
@@ -171,4 +170,48 @@ public enum SystemTable {
     return BatchSchema.fromCalciteRowType(type);
   }
 
+  public SourceTableDefinition asTableDefinition() {
+    return new SourceTableDefinition() {
+
+      @Override
+      public NamespaceKey getName() {
+        return key;
+      }
+
+      @Override
+      public DatasetConfig getDataset() throws Exception {
+        return new DatasetConfig()
+            .setFullPathList(key.getPathComponents())
+            .setId(new EntityId(UUID.randomUUID().toString()))
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setName(key.getName())
+            .setReadDefinition(new ReadDefinition()
+                .setScanStats(new ScanStats().setRecordCount(100l)
+                    .setScanFactor(ScanCostFactor.OTHER.getFactor())))
+            .setOwner(SystemUser.SYSTEM_USERNAME)
+            .setPhysicalDataset(new PhysicalDataset())
+            .setRecordSchema(getSchema().toByteString())
+            .setSchemaVersion(DatasetHelper.CURRENT_VERSION);
+      }
+
+      @Override
+      public List<DatasetSplit> getSplits() throws Exception {
+        // The split calculation is dynamic based on nodes at the time of execution, create a single split for the purposes here
+        DatasetSplit split = new DatasetSplit();
+        split.setSize(1l);
+        split.setSplitKey("1");
+        return ImmutableList.of(split);
+      }
+
+      @Override
+      public boolean isSaveable() {
+        return true;
+      }
+
+      @Override
+      public DatasetType getType() {
+        return DatasetType.PHYSICAL_DATASET;
+      }};
+
+  }
 }

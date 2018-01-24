@@ -20,16 +20,10 @@ import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.OldScanPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
 public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> implements PrelVisitor<RETURN, EXTRA, EXCEP> {
-
-  @Override
-  public RETURN visitOldScan(OldScanPrel prel, EXTRA value) throws EXCEP {
-    return visitPrel(prel, value);
-  }
 
   @Override
   public RETURN visitExchange(ExchangePrel prel, EXTRA value) throws EXCEP {

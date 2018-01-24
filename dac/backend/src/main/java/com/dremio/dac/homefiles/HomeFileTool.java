@@ -54,8 +54,8 @@ public class HomeFileTool {
     this.config = config;
     StoragePlugin plugin = registry.getPlugin(HomeFileConfig.HOME_PLUGIN_NAME);
     Preconditions.checkNotNull(plugin, "Plugin [%s] not found.", HomeFileConfig.HOME_PLUGIN_NAME);
-    HomeFileSystemPlugin homePlugin = (HomeFileSystemPlugin) plugin;
-    this.fs = homePlugin.getProccessFs();
+    HomeFileSystemStoragePlugin homePlugin = (HomeFileSystemStoragePlugin) plugin;
+    this.fs = homePlugin.getProcessFs();
   }
 
   @VisibleForTesting

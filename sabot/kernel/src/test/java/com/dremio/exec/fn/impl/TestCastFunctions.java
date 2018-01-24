@@ -20,6 +20,8 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionMatcher;
 
 public class TestCastFunctions extends BaseTestQuery {
 
@@ -72,5 +74,13 @@ public class TestCastFunctions extends BaseTestQuery {
         .baselineValues(new LocalDateTime(1969, 12, 31, 0, 0))
         .build()
         .run();
+  }
+
+  @Test
+  public void testFailedCast() throws Exception {
+    final String query = "select cast('trueX' as boolean) from (values(1))";
+
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION));
+    test(query);
   }
 }

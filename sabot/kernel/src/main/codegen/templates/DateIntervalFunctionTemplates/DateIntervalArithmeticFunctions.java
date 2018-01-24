@@ -34,18 +34,20 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.*;
 import org.joda.time.MutableDateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateMidnight;
 import org.apache.arrow.vector.util.DateUtility;
+import javax.inject.Inject;
 
 /**
  * generated from ${.template_name}
  */
 public class ${datetype}${intervaltype}Functions {
 
-<#macro dateIntervalArithmeticBlock left right temp op output intervaltype datetype>
+<#macro dateIntervalArithmeticBlock left right temp op output intervaltype datetype errctx>
 
     <#-- Throw exception if we are adding integer to a TIMESTAMP -->
     <#if (datetype == "TimeStampMilli") && (intervaltype == "Int" || intervaltype == "BigInt")>
@@ -54,7 +56,9 @@ public class ${datetype}${intervaltype}Functions {
          * if the exception is raised without a condition, we will hit compilation issues while compiling run time code
          * with the error: unreachable code.
          */
-        throw new UnsupportedOperationException("Cannot add integer to TIMESTAMP, cast it to specific interval");
+        throw ${errctx}.error()
+          .message("Cannot add integer to TIMESTAMP, cast it to specific interval")
+          .build();
     }
     <#else>
     ${temp}.setMillis(${left}.value);
@@ -87,12 +91,13 @@ public class ${datetype}${intervaltype}Functions {
     <#else>
     @Output ${datetype}Holder out;
     </#if>
+    @Inject FunctionErrorContext errCtx;
         public void setup() {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
         }
 
         public void eval() {
-            <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out" intervaltype=intervaltype datetype = datetype/>
+            <@dateIntervalArithmeticBlock left="left" right="right" temp="temp" op="+" output="out" intervaltype=intervaltype datetype=datetype errctx="errCtx" />
         }
     }
 
@@ -109,13 +114,14 @@ public class ${datetype}${intervaltype}Functions {
     <#else>
     @Output ${datetype}Holder out;
     </#if>
+    @Inject FunctionErrorContext errCtx;
         public void setup() {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
         }
 
         public void eval() {
 
-            <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out" intervaltype=intervaltype datetype = datetype/>
+            <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out" intervaltype=intervaltype datetype = datetype errctx="errCtx"/>
         }
     }
 
@@ -130,13 +136,14 @@ public class ${datetype}${intervaltype}Functions {
     <#else>
     @Output ${datetype}Holder out;
     </#if>
+    @Inject FunctionErrorContext errCtx;
 
         public void setup() {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
         }
 
         public void eval() {
-            <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "-" output="out" intervaltype=intervaltype datetype = datetype/>
+            <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "-" output="out" intervaltype=intervaltype datetype = datetype errctx="errCtx"/>
         }
     }
 }
@@ -155,20 +162,24 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.*;
 import org.joda.time.MutableDateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateMidnight;
 import org.apache.arrow.vector.util.DateUtility;
+import javax.inject.Inject;
 
 /**
  * generated from ${.template_name} ${datetype} ${intervaltype}
  */
 public class ${datetype}${intervaltype}Functions {
-<#macro timeIntervalArithmeticBlock left right temp op output intervaltype>
+<#macro timeIntervalArithmeticBlock left right temp op output intervaltype errctx>
     <#if intervaltype == "Int" || intervaltype == "BigInt">
     if (1 == 1) {
-        throw new UnsupportedOperationException("Cannot add integer to TIME, cast it to specific interval");
+        throw ${errctx}.error()
+          .message("Cannot add integer to TIME, cast it to specific interval")
+          .build();
     }
     <#elseif intervaltype == "IntervalYear">
     // Needn't add anything to time from interval year data type. Output is same as input
@@ -186,12 +197,13 @@ public class ${datetype}${intervaltype}Functions {
     @Param ${datetype}Holder left;
     @Param ${intervaltype}Holder right;
     @Output ${datetype}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
         public void setup() {
         }
 
         public void eval() {
-            <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out.value" intervaltype=intervaltype />
+            <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out.value" intervaltype=intervaltype errctx="errCtx"/>
         }
     }
 
@@ -201,11 +213,12 @@ public class ${datetype}${intervaltype}Functions {
     @Param ${intervaltype}Holder right;
     @Param ${datetype}Holder left;
     @Output ${datetype}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
         public void setup() {
         }
         public void eval() {
-            <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out.value" intervaltype=intervaltype />
+            <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out.value" intervaltype=intervaltype errctx="errCtx" />
         }
     }
 
@@ -215,12 +228,13 @@ public class ${datetype}${intervaltype}Functions {
     @Param ${datetype}Holder left;
     @Param ${intervaltype}Holder right;
     @Output ${datetype}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
         public void setup() {
         }
 
         public void eval() {
-            <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "-" output="out.value" intervaltype=intervaltype />
+            <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "-" output="out.value" intervaltype=intervaltype errctx="errCtx" />
         }
     }
 }

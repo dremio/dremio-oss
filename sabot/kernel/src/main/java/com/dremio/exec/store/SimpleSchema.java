@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import static com.dremio.exec.store.StoragePluginRegistryImpl.isInternal;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -30,7 +31,6 @@ import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -41,10 +41,10 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
 import com.dremio.exec.store.SchemaTreeProvider.MetadataStatsCollector;
+import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
@@ -59,15 +59,11 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.TableInstance;
-import com.dremio.service.namespace.TableInstance.TableParamDef;
-import com.dremio.service.namespace.TableInstance.TableSignature;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
-import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -103,7 +99,6 @@ public class SimpleSchema extends AbstractSchema {
 
   private static final long MAXIMUM_CACHE_SIZE = 10_000L;
 
-  private static final CharMatcher PATH_SEPARATOR_MATCHER = CharMatcher.is(Path.SEPARATOR_CHAR);
   private static final PermissionCheckCache permissionsCache = new PermissionCheckCache(MAXIMUM_CACHE_SIZE);
   // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset was locally updated
   private static final Cache<NamespaceKey, Long> localUpdateTime =
@@ -149,10 +144,6 @@ public class SimpleSchema extends AbstractSchema {
     this.schemaMutability = Preconditions.checkNotNull(schemaMutability);
   }
 
-  public static String removeLeadingSlash(String path) {
-    return PATH_SEPARATOR_MATCHER.trimLeadingFrom(path);
-  }
-
   @Override
   public Schema getSubSchema(String name) {
     Schema subSchema = null;
@@ -170,16 +161,9 @@ public class SimpleSchema extends AbstractSchema {
 
     try {
       if (type == SchemaType.SOURCE){
-        StoragePlugin<?> plugin = dContext.getStorage().getPlugin(schemaPath.get(0));
-        StoragePlugin2 plugin2 = plugin.getStoragePlugin2();
-        if(plugin2 != null){
-          if(plugin2.containerExists(new NamespaceKey(getChildPath(name)))){
-            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataParam, schemaMutability);
-          }
-        }else{
-          if(plugin.folderExists(schemaConfig, getChildPath(name))){
-            return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataParam, schemaMutability);
-          }
+        StoragePlugin plugin2 = dContext.getStorage().getPlugin(schemaPath.get(0));
+        if(plugin2 != null && plugin2.containerExists(new NamespaceKey(getChildPath(name)))){
+          return new SimpleSchema(dContext, ns, metadataStatsCollector, schemaPath, name, schemaConfig, type, metadataParam, schemaMutability);
         }
       }
     } catch (Exception e) {
@@ -271,7 +255,10 @@ public class SimpleSchema extends AbstractSchema {
   ) throws PartitionNotFoundException {
     if (type == SchemaType.SOURCE) {
       try {
-        return dContext.getStorage().getPlugin(schemaPath.get(0)).getSubPartitions(
+
+        FileSystemPlugin plugin2 = (FileSystemPlugin) dContext.getStorage().getPlugin(schemaPath.get(0));
+
+        return plugin2.getSubPartitions(
             getChildPath(table),
             partitionColumns,
             partitionValues,
@@ -289,7 +276,7 @@ public class SimpleSchema extends AbstractSchema {
     return DatasetHelper.getSchemaBytes(config) == null || config.getReadDefinition() == null;
   }
 
-  private Table getTableWithRegistry(StoragePlugin2 registry, NamespaceKey key) {
+  private Table getTableWithRegistry(StoragePlugin registry, NamespaceKey key) {
     final DatasetConfig datasetConfig = getDataset(ns, key, metadataParam);
     if (datasetConfig != null) {
       return getTableFromDataset(registry, datasetConfig);
@@ -297,7 +284,7 @@ public class SimpleSchema extends AbstractSchema {
     return getTableFromSource(registry, key);
   }
 
-  private Table getTableFromDataset(StoragePlugin2 registry, DatasetConfig datasetConfig) {
+  private Table getTableFromDataset(StoragePlugin registry, DatasetConfig datasetConfig) {
     Stopwatch stopwatch = Stopwatch.createStarted();
 
     // we assume for now that the passed dataset was retrieved from the namespace, so it must have
@@ -332,7 +319,9 @@ public class SimpleSchema extends AbstractSchema {
       final DatasetConfig newDatasetConfig = datasetAccessor.getDataset();
       NamespaceUtils.copyFromOldConfig(datasetConfig, newDatasetConfig);
       List<DatasetSplit> splits = datasetAccessor.getSplits();
-      setDataset(ns, datasetAccessor.getName(), newDatasetConfig, splits);
+      // Update the dataset using the system user. The current user may not have permissions
+      // to update datasets.
+      setDataset(dContext.getNamespaceService(SYSTEM_USERNAME), datasetAccessor.getName(), newDatasetConfig, splits);
       // check permission again.
       if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey,
           newDatasetConfig, metadataParam == null ? null : metadataParam.getMetadataPolicy(), metadataStatsCollector)) {
@@ -348,7 +337,7 @@ public class SimpleSchema extends AbstractSchema {
     }
   }
 
-  private Table getTableFromSource(StoragePlugin2 registry, NamespaceKey key) {
+  private Table getTableFromSource(StoragePlugin registry, NamespaceKey key) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       // TODO: move views to namespace and out of filesystem.
@@ -382,7 +371,9 @@ public class SimpleSchema extends AbstractSchema {
             DatasetConfig origConfig = ns.getDataset(canonicalKey);
             NamespaceUtils.copyFromOldConfig(origConfig, config);
           }
-          setDataset(ns, canonicalKey, config, splits);
+          // Update the dataset using the system user. The current user may not have permissions
+          // to update datasets.
+          setDataset(dContext.getNamespaceService(SYSTEM_USERNAME), canonicalKey, config, splits);
         } catch (ConcurrentModificationException cme) {
           return getTableWithRegistry(registry, canonicalKey);
         } catch (UserException ue) {
@@ -410,7 +401,7 @@ public class SimpleSchema extends AbstractSchema {
   public Table getTable(String name){
     final List<String> fullPathList = getChildPath(name);
     final NamespaceKey key = new NamespaceKey(fullPathList);
-    final StoragePlugin2 registry = dContext.getCatalogService().getStoragePlugin(fullPathList.get(0));
+    final StoragePlugin registry = dContext.getCatalogService().getStoragePlugin(fullPathList.get(0));
     if(registry != null){
       return getTableWithRegistry(registry, key);
     }
@@ -433,7 +424,7 @@ public class SimpleSchema extends AbstractSchema {
           case PHYSICAL_DATASET_HOME_FILE:
           case PHYSICAL_DATASET_HOME_FOLDER:
             try {
-              return getTableFromDataset(getHomeFilesPlugin().getStoragePlugin2(), datasetConfig);
+              return getTableFromDataset(getHomeFilesPlugin(), datasetConfig);
             } catch (ExecutionSetupException e) {
               throw new RuntimeException(e);
             }
@@ -450,36 +441,17 @@ public class SimpleSchema extends AbstractSchema {
         break;
     }
     if (plugin != null && (datasetConfig == null || DatasetHelper.getSchemaBytes(datasetConfig) == null)) {
-      try {
-        if (type == SchemaType.SOURCE) {
-          // first check for view
-          ViewTable viewTable = plugin.getView(fullPathList, schemaConfig);
-          if (viewTable != null) {
-            return viewTable;
-          }
+      if (type == SchemaType.SOURCE) {
+        // first check for view
+        ViewTable viewTable = plugin.getView(fullPathList, schemaConfig);
+        if (viewTable != null) {
+          return viewTable;
         }
-        datasetConfig = plugin.getDataset(fullPathList, new TableInstance(new TableSignature(name, Collections.<TableParamDef>emptyList()), Collections.emptyList()), schemaConfig);
-        if (datasetConfig == null) {
-          return null;
-        }
-        if (type == SchemaType.SOURCE) {
-          BatchSchema schema = BatchSchema.fromDataset(datasetConfig);
-          if (schema.isUnknownSchema()) {
-            // Don't store faked schemas
-            logger.debug("Dataset, " + fullPathList + ", has unknown schema.  The dataset does not have any data to sample.");
-          } else {
-            ns.tryCreatePhysicalDataset(key, datasetConfig);
-          }
-        }
-      } catch (NamespaceException e) {
-        logger.warn("Exception", e);
       }
+
     }
-    try {
-      return new OldNamespaceTable(dContext.getStorage().getPlugin(schemaPath.get(0)), schemaConfig, datasetConfig);
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
+
+    return null;
   }
 
   private FileSystemPlugin getHomeFilesPlugin() throws ExecutionSetupException {
@@ -505,12 +477,14 @@ public class SimpleSchema extends AbstractSchema {
   public Collection<Function> getFunctions(String name) {
     switch (type) {
       case SOURCE:
-        try {
-          return dContext.getStorage().getPlugin(schemaPath.get(0)).getFunctions(getChildPath(name), schemaConfig);
-        } catch (ExecutionSetupException e) {
-          throw new RuntimeException(e);
+        FileSystemPlugin plugin = asFSn();
+        if(plugin == null) {
+          return ImmutableList.of();
         }
+        return plugin.getFunctions(getChildPath(name), schemaConfig);
+
       case HOME:
+
         try {
           return getHomeFilesPlugin().getFunctions(getChildPath(name), schemaConfig);
         } catch (ExecutionSetupException e) {
@@ -531,12 +505,7 @@ public class SimpleSchema extends AbstractSchema {
   public boolean createView(View view) throws IOException {
     switch(type) {
     case SOURCE:
-    try {
-      final StoragePlugin storagePlugin = dContext.getStorage().getPlugin(schemaPath.get(0));
-      return storagePlugin.createView(getChildPath(view.getName()), view, schemaConfig);
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
+      return asFS("dow not support create view").createView(getChildPath(view.getName()), view, schemaConfig);
     case SPACE:
     case HOME:
       String userName = schemaConfig.getAuthContext().getUsername();
@@ -551,12 +520,8 @@ public class SimpleSchema extends AbstractSchema {
   public void dropView(String viewName) throws IOException {
     switch (type) {
     case SOURCE:
-    try {
-      dContext.getStorage().getPlugin(schemaPath.get(0)).dropView(schemaConfig, getChildPath(viewName));
+      asFS(" does not support view operations.").dropView(schemaConfig, getChildPath(viewName));
       return;
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
     case SPACE:
     case HOME:
       String userName = schemaConfig.getAuthContext().getUsername();
@@ -573,17 +538,7 @@ public class SimpleSchema extends AbstractSchema {
       final WriterOptions options,
       final Map<String, Object> storageOptions) {
     Preconditions.checkState(type == SchemaType.SOURCE);
-    FileSystemPlugin fsPlugin;
-    try {
-      StoragePlugin storagePlugin = dContext.getStorage().getPlugin(schemaPath.get(0));
-      if (storagePlugin instanceof FileSystemPlugin) {
-        fsPlugin = (FileSystemPlugin) storagePlugin;
-      } else {
-        throw new UnsupportedOperationException("CTAS not supported for " + storagePlugin.getClass().getName());
-      }
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
+    final FileSystemPlugin fsPlugin = asFS("does not support CTAS.");
 
     final FormatPlugin formatPlugin;
     if (storageOptions == null || storageOptions.isEmpty()) {
@@ -596,63 +551,55 @@ public class SimpleSchema extends AbstractSchema {
             ));
       }
     } else {
-      final FormatPluginConfig formatConfig =
-          fsPlugin.createConfigForTable(tableName, storageOptions);
+      final FormatPluginConfig formatConfig = fsPlugin.createConfigForTable(tableName, storageOptions);
       formatPlugin = fsPlugin.getFormatPlugin(formatConfig);
     }
 
-    String userName = fsPlugin.getConfig().isImpersonationEnabled() ? schemaConfig.getUserName() : ImpersonationUtil.getProcessUserName();
+    String userName = fsPlugin.getId().<FileSystemConfig>getConfig().isImpersonationEnabled() ? schemaConfig.getUserName() : ImpersonationUtil.getProcessUserName();
     return new FileSystemCreateTableEntry(
         userName,
         fsPlugin,
         formatPlugin,
-        new Path(fsPlugin.getConfig().getPath(), removeLeadingSlash(tableName)).toString(),
+        fsPlugin.resolveTablePathToValidPath(tableName).toString(),
         options);
   }
 
   public FileSystemWrapper getFileSystem() {
-    StoragePlugin plugin = null;
-    try {
-      plugin = dContext.getStorage().getPlugin(schemaPath.get(0));
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
-    FileSystemPlugin fsPlugin;
-    if (plugin instanceof FileSystemPlugin) {
-      fsPlugin = (FileSystemPlugin) plugin;
-    } else {
-      throw new UnsupportedOperationException(plugin.getClass().getName() + " does not support FileSystem operations");
-    }
-    return fsPlugin.getFS(schemaConfig.getUserName());
+    return asFS("does not support FileSystem operations").getFS(schemaConfig.getUserName());
   }
 
-  public String getDefaultLocation() {
-    StoragePlugin plugin = null;
-    try {
-      plugin = dContext.getStorage().getPlugin(schemaPath.get(0));
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
-    FileSystemPlugin fsPlugin;
-    if (plugin instanceof FileSystemPlugin) {
-      fsPlugin = (FileSystemPlugin) plugin;
-    } else {
-      throw new UnsupportedOperationException(plugin.getClass().getName() + " does not support FileSystem operations");
-    }
-    return fsPlugin.getConfig().getPath();
+  public String resolveLocation(String location) {
+    return asFS("does not support FileSystem operations").resolveTablePathToValidPath(location).toString();
   }
 
   @Override
   public void dropTable(String tableName) {
+    asFS("does not support dropping tables").dropTable(getChildPath(tableName), schemaConfig);
+  }
+
+  private FileSystemPlugin asFSn() {
+    try {
+      final StoragePlugin plugin = dContext.getStorage().getPlugin(schemaPath.get(0));
+      if (plugin instanceof FileSystemPlugin) {
+        return (FileSystemPlugin) plugin;
+      } else {
+        return null;
+      }
+    } catch (ExecutionSetupException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private FileSystemPlugin asFS(String error) {
     try {
       StoragePlugin plugin = dContext.getStorage().getPlugin(schemaPath.get(0));
       FileSystemPlugin fsPlugin;
       if (plugin instanceof FileSystemPlugin) {
         fsPlugin = (FileSystemPlugin) plugin;
       } else {
-        throw new UnsupportedOperationException(plugin.getClass().getName() + " does not support dropping tables");
+        throw new UnsupportedOperationException(plugin.getClass().getName() + " " + error);
       }
-      fsPlugin.dropTable(getChildPath(tableName), schemaConfig);
+      return fsPlugin;
     } catch (ExecutionSetupException e) {
       throw new RuntimeException(e);
     }

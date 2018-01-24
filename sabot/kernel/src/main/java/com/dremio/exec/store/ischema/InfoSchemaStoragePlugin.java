@@ -15,196 +15,126 @@
  */
 package com.dremio.exec.store.ischema;
 
-import static com.dremio.exec.store.ischema.InfoSchemaConstants.IS_SCHEMA_NAME;
-
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
-import org.apache.calcite.schema.Table;
-import org.apache.calcite.schema.TranslatableTable;
-
-import com.dremio.common.JSONOptions;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
-import com.dremio.exec.calcite.logical.OldScanCrel;
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.physical.base.OldAbstractGroupScan;
-import com.dremio.exec.physical.base.GroupScan;
-import com.dremio.exec.planner.common.OldScanRelBase;
-import com.dremio.exec.planner.logical.ConvertibleScan;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.AbstractSchema;
-import com.dremio.exec.store.AbstractStoragePlugin;
-import com.dremio.exec.store.ConversionContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
-import com.dremio.exec.util.ImpersonationUtil;
-import com.google.common.collect.ImmutableList;
+import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
+import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.StoragePluginType;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 
-public class InfoSchemaStoragePlugin extends AbstractStoragePlugin<InfoSchemaStoragePlugin.InfoSchemaConversionContext> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InfoSchemaStoragePlugin.class);
+import io.protostuff.ByteString;
 
-  private final InfoSchemaConfig config;
+public class InfoSchemaStoragePlugin implements StoragePlugin {
+
+  static StoragePluginType TYPE = new StoragePluginType("ischema", InfoSchemaRulesFactory.class);
+  static StoragePluginId ID = new StoragePluginId("ischema", InfoSchemaConfig.INSTANCE, TYPE);
+
+  static final ImmutableSet<String> TABLES = FluentIterable.of(InfoSchemaTable.values()).transform(new Function<InfoSchemaTable, String>(){
+    @Override
+    public String apply(InfoSchemaTable input) {
+      return input.name().toLowerCase();
+    }}).toSet();
+
+  static final ImmutableMap<String, InfoSchemaTable> TABLE_MAP = FluentIterable.<InfoSchemaTable>of(InfoSchemaTable.values()).uniqueIndex(new Function<InfoSchemaTable, String>(){
+    @Override
+    public String apply(InfoSchemaTable input) {
+      return input.name().toLowerCase();
+    }});
+
   private final SabotContext context;
-  private final String name;
 
-  public InfoSchemaStoragePlugin(InfoSchemaConfig config, SabotContext context, String name){
-    this.config = config;
+  public InfoSchemaStoragePlugin(InfoSchemaConfig config, SabotContext context, String name) {
+    Preconditions.checkArgument("INFORMATION_SCHEMA".equals(name));
     this.context = context;
-    this.name = name;
+  }
+
+  SabotContext getSabotContext() {
+    return context;
   }
 
   @Override
-  public boolean supportsRead() {
-    return true;
+  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+    return FluentIterable.of(InfoSchemaTable.values()).transform(new Function<InfoSchemaTable, SourceTableDefinition>(){
+      @Override
+      public SourceTableDefinition apply(InfoSchemaTable input) {
+        return input.asTableDefinition();
+      }});
   }
 
   @Override
-  public InfoSchemaGroupScan getPhysicalScan(String userName, JSONOptions selection, List<String> tableSchemaPath, List<SchemaPath> columns)
-      throws IOException {
-    InfoSchemaTableType table = selection.getWith(context.getLpPersistence(),  InfoSchemaTableType.class);
-    return new InfoSchemaGroupScan(table, null, context);
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+    if(datasetPath.size() != 2) {
+      return null;
+    }
+
+    InfoSchemaTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
+    if(table != null) {
+      return table.asTableDefinition();
+    }
+
+    return null;
   }
 
   @Override
-  public boolean folderExists(SchemaConfig schemaConfig, List folderPath) throws IOException {
+  public boolean containerExists(NamespaceKey key) {
     return false;
   }
 
   @Override
-  public StoragePluginConfig getConfig() {
-    return this.config;
-  }
-
-  public SabotContext getContext(){
-    return context;
-  }
-
-  public void registerSchemas(SchemaConfig schemaConfig, SchemaPlus parent) throws IOException {
-    ISchema s = new ISchema(parent, this);
-    parent.add(s.getName(), s);
+  public boolean datasetExists(NamespaceKey key) {
+    return key.size() == 2 && TABLES.contains(key.getName().toLowerCase());
   }
 
   @Override
-  public RelNode getRel(final RelOptCluster cluster, final RelOptTable relOptTable, final InfoSchemaConversionContext relContext) {
-    try {
-      final String username = ImpersonationUtil.getProcessUserName();
-      final GroupScan scan = getPhysicalScan(username, new JSONOptions(relContext.getSelection()),
-          relContext.getFullPath(), OldAbstractGroupScan.ALL_COLUMNS);
-      return new OldScanCrel(cluster, relOptTable, cluster.traitSetOf(Convention.NONE), relContext.getDataType(), scan, null, OldScanRelBase.DEFAULT_ROW_COUNT_DISCOUNT);
-    } catch (IOException e) {
-      throw new RuntimeException("unable to create group scan", e);
-    }
+  public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
+    return true;
   }
-
-  /**
-   * Representation of the INFORMATION_SCHEMA schema.
-   */
-  private class ISchema extends AbstractSchema{
-    private final Map<String, InfoSchemaTable> tables;
-
-    public ISchema(SchemaPlus parent, InfoSchemaStoragePlugin plugin){
-      super(ImmutableList.<String>of(), IS_SCHEMA_NAME);
-      Map<String, InfoSchemaTable> tbls = Maps.newHashMap();
-      for(InfoSchemaTableType tbl : InfoSchemaTableType.values()){
-        tbls.put(tbl.name(), new InfoSchemaTable(plugin, tbl));
-      }
-      this.tables = ImmutableMap.copyOf(tbls);
-    }
-
-    @Override
-    public Table getTable(String name) {
-      return tables.get(name);
-    }
-
-    @Override
-    public Set<String> getTableNames() {
-      return tables.keySet();
-    }
-
-    @Override
-    public String getTypeName() {
-      return InfoSchemaConfig.NAME;
-    }
-  }
-
-  public static class InfoSchemaTable implements TranslatableTable {
-    private final InfoSchemaStoragePlugin plugin;
-    private final InfoSchemaTableType tableType;
-
-    public InfoSchemaTable(final InfoSchemaStoragePlugin plugin, final InfoSchemaTableType tableType) {
-      this.plugin = plugin;
-      this.tableType = tableType;
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return tableType.getRowType(typeFactory);
-    }
-
-    @Override
-    public RelNode toRel(final RelOptTable.ToRelContext context, final RelOptTable relOptTable) {
-      final List<String> fullPath = ImmutableList.of(plugin.name, tableType.name());
-      final RelDataType dataType = getRowType(context.getCluster().getTypeFactory());
-      final InfoSchemaConversionContext relContext = new InfoSchemaConversionContext(tableType, fullPath, dataType);
-      return new ConvertibleScan(context.getCluster(), context.getCluster().traitSet(), relOptTable, plugin, relContext);
-    }
-
-    @Override
-    public Statistic getStatistic() {
-      return Statistics.UNKNOWN;
-    }
-
-    @Override
-    public Schema.TableType getJdbcTableType() {
-      return Schema.TableType.SYSTEM_TABLE;
-    }
-  }
-
-  public static class InfoSchemaConversionContext extends ConversionContext {
-    private final InfoSchemaTableType selection;
-    private final List<String> fullPath;
-    private final RelDataType dataType;
-
-    public InfoSchemaConversionContext(final InfoSchemaTableType selection, final List<String> fullPath, final RelDataType dataType) {
-      this.selection = selection;
-      this.fullPath = fullPath;
-      this.dataType = dataType;
-    }
-
-    public InfoSchemaTableType getSelection() {
-      return selection;
-    }
-
-    public List<String> getFullPath() {
-      return fullPath;
-    }
-
-    public RelDataType getDataType() {
-      return dataType;
-    }
-  }
-
 
   @Override
-  public Set<StoragePluginOptimizerRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-    return ImmutableSet.of(
-        InfoSchemaPushFilterIntoRecordGenerator.IS_FILTER_ON_PROJECT,
-        InfoSchemaPushFilterIntoRecordGenerator.IS_FILTER_ON_SCAN);
+  public SourceState getState() {
+    return SourceState.GOOD;
   }
+
+  @Override
+  public StoragePluginId getId() {
+    return ID;
+  }
+
+  @Override
+  public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
+    return null;
+  }
+
+  @Override
+  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
+    return null;
+  }
+
+  @Override
+  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
+    return CheckResult.UNCHANGED;
+  }
+
+  @Override
+  public void close(){
+  }
+
+  @Override
+  public void start() {
+  }
+
+
 }

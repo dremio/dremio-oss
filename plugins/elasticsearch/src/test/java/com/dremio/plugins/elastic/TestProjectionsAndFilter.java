@@ -288,17 +288,32 @@ public class TestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestNotLike() throws Exception {
     String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where city NOT LIKE 'San%'";
     verifyJsonInPlan(sqlQuery, new String[] {
-        "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : { }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [ \"city\" ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : {\n" +
+        "        \"exists\" : {\n" +
+        "          \"field\" : \"city\"\n" +
+        "        }\n" +
+        "      },\n" +
+        "      \"must_not\" : {\n" +
+        "        \"regexp\" : {\n" +
+        "          \"city\" : {\n" +
+        "            \"value\" : \"San.*\",\n" +
+        "            \"flags_value\" : 65535\n" +
+        "          }\n" +
+        "        }\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [ \"city\" ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
+
     });
     testBuilder()
         .sqlQuery(sqlQuery)

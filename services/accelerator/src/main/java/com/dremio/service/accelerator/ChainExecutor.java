@@ -204,7 +204,7 @@ public class ChainExecutor implements Runnable, AutoCloseable, Iterable<Layout> 
   private boolean shouldRebuild(Acceleration acceleration, Layout layout, JobAttempt jobAttempt, RelNode logicalPlan) {
 
     final Set<DependencyNode> dependencies = Sets.newHashSet(Graphs.predecessorListOf(graph, new DependencyNode(layout)));
-    final String accelerationStorageName = context.getAccelerationStoragePlugin().getStorageName();
+    final String accelerationStorageName = context.getAccelerationStoragePlugin().getName();
     List<DependencyNode> actualDependencies = MaterializationPlanningTask.constructDependencies(
       jobAttempt,
       logicalPlan,

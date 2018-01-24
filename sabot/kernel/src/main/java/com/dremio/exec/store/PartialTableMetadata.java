@@ -31,6 +31,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Objects;
+import com.google.common.base.Predicate;
 
 /**
  * A lazy TableMetadata which is not fully materialized.
@@ -116,6 +117,12 @@ public class PartialTableMetadata implements TableMetadata {
   public TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException {
     loadIfNecessary();
     return datasetPointer.prune(partitionFilterQuery);
+  }
+
+  @Override
+  public TableMetadata prune(Predicate<DatasetSplit> splitPredicate) throws NamespaceException {
+    loadIfNecessary();
+    return datasetPointer.prune(splitPredicate);
   }
 
   @Override

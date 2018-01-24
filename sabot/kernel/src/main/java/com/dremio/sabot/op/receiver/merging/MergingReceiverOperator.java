@@ -184,7 +184,7 @@ public class MergingReceiverOperator implements ProducerOperator {
 
     // set the value counts in the outgoing vectors
     for (final VectorWrapper<?> vw : outgoingContainer) {
-      vw.getValueVector().getMutator().setValueCount(outgoingPosition);
+      vw.getValueVector().setValueCount(outgoingPosition);
     }
     outgoingContainer.setRecordCount(outgoingPosition);
 

@@ -493,9 +493,13 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   Action toAction(Cluster storedCluster, final Cluster modifiedCluster) throws
     ProvisioningHandlingException {
 
-    if (storedCluster.getClusterConfig().getVersion() != modifiedCluster.getClusterConfig().getVersion()) {
+    Preconditions.checkNotNull(modifiedCluster.getClusterConfig().getVersion(), "Version in modified cluster has to be set");
+
+    final long storedVersion = storedCluster.getClusterConfig().getVersion().longValue();
+    final long incomingVersion = modifiedCluster.getClusterConfig().getVersion().longValue();
+    if (storedVersion != incomingVersion) {
       throw new ConcurrentModificationException(String.format("Version of submitted Cluster does not match stored. " +
-        "Stored Version: %d . Provided Version: %d . Please refetch", storedCluster.getClusterConfig().getVersion(), modifiedCluster.getClusterConfig().getVersion()));
+        "Stored Version: %d . Provided Version: %d . Please refetch", storedVersion, incomingVersion));
     }
     if (ClusterState.DELETED == storedCluster.getDesiredState()) {
       throw new IllegalStateException("Cluster in the process of deletion. No modification is allowed");

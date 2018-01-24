@@ -15,20 +15,13 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.calcite.plan.Convention;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
@@ -83,104 +76,4 @@ public interface GroupScan<T extends CompleteWork> extends Scan {
   @JsonIgnore
   DistributionAffinity getDistributionAffinity();
 
-  @Deprecated
-  @JsonIgnore
-  StoragePlugin<?> getPlugin();
-
-  /**
-   * Returns a signature of the {@link GroupScan} which should usually be composed of
-   * all its attributes which could describe it uniquely.
-   */
-  @Deprecated
-  String getDigest();
-
-  /**
-   * Returns a signature of the {@link GroupScan} which should usually be composed of
-   * all its attributes which could describe it uniquely.
-   */
-  @Deprecated
-  ScanCostFactor getScanCostFactor();
-
-  @Deprecated
-  @JsonIgnore
-  Convention getStoragePluginConvention();
-
-  @Deprecated
-  ScanStats getScanStats(PlannerSettings settings);
-
-  /**
-   * Returns a clone of GroupScan instance, except that the new GroupScan will use the provided list of columns .
-   */
-  @Deprecated
-  GroupScan<T> clone(List<SchemaPath> columns);
-
-  /**
-   * GroupScan should check the list of columns, and see if it could support all the columns in the list.
-   */
-  @Deprecated
-  public boolean canPushdownProjects(List<SchemaPath> columns);
-
-  /**
-   * Return the number of non-null value in the specified column. Raise exception, if groupscan does not
-   * have exact column row count.
-   */
-  @Deprecated
-  public long getColumnValueCount(SchemaPath column);
-
-  /**
-   * Whether or not this GroupScan supports pushdown of partition filters (directories for filesystems)
-   */
-  @Deprecated
-  public boolean supportsPartitionFilterPushdown();
-
-  /**
-   * Returns a list of columns that can be used for partition pruning
-   *
-   */
-  @JsonIgnore
-  @Deprecated
-  public List<SchemaPath> getPartitionColumns();
-
-
-  /**
-   * Whether or not this GroupScan supports limit pushdown
-   */
-  @Deprecated
-  public boolean supportsLimitPushdown();
-
-  /**
-   * Apply rowcount based prune for "LIMIT n" query.
-   * @param maxRecords : the number of rows requested from group scan.
-   * @return  a new instance of group scan if the prune is successful.
-   *          null when either if row-based prune is not supported, or if prune is not successful.
-   */
-  @Deprecated
-  public GroupScan<T> applyLimit(long maxRecords);
-
-  /**
-   * Return true if this GroupScan can return its selection as a list of file names (retrieved by getFiles()).
-   */
-  @JsonIgnore
-  @Deprecated
-  public boolean hasFiles();
-
-  /**
-   * Returns a collection of file names associated with this GroupScan. This should be called after checking
-   * hasFiles().  If this GroupScan cannot provide file names, it returns null.
-   */
-  @Deprecated
-  public Collection<String> getFiles();
-
-  @JsonIgnore
-  @Deprecated
-  List<String> getSortColumns();
-
-  @Deprecated
-  GroupScan<T> cloneWithFilter(List<FilterCondition> condition);
-
-  @Deprecated
-  boolean hasConditions();
-
-  @Deprecated
-  boolean supportsFilterPushdown();
 }

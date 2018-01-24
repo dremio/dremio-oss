@@ -78,13 +78,13 @@ public class HiveClient implements AutoCloseable {
           // client transport for proxy users only when the authentication mechanims is DIGEST (through use of
           // delegation tokens).
           hiveConfForClient = new HiveConf(hiveConf);
-          getAndSetDelegationToken(hiveConfForClient, ugiForRpc, userName, processUserMetaStoreClient);
+          getAndSetDelegationToken(hiveConfForClient, ugiForRpc, processUserMetaStoreClient);
           needDelegationToken = true;
         }
       }
 
-      final HiveClient client = new HiveClientWithAuthz(hiveConfForClient, ugiForRpc, userName,
-          processUserMetaStoreClient, needDelegationToken);
+      final HiveClient client = new HiveClientWithAuthz(hiveConfForClient, ugiForRpc,
+          ImpersonationUtil.resolveUserName(userName), processUserMetaStoreClient, needDelegationToken);
       client.connect();
       return client;
     } catch (final Exception e) {
@@ -97,18 +97,17 @@ public class HiveClient implements AutoCloseable {
    * and sets it in proxy user UserGroupInformation and proxy user HiveConf.
    */
   protected static void getAndSetDelegationToken(final HiveConf proxyUserHiveConf, final UserGroupInformation proxyUGI,
-      final String proxyUserName, final HiveClient processHiveClient) {
+      final HiveClient processHiveClient) {
     checkNotNull(processHiveClient, "process user Hive client required");
     checkNotNull(proxyUserHiveConf, "Proxy user HiveConf required");
     checkNotNull(proxyUGI, "Proxy user UserGroupInformation required");
-    checkArgument(!Strings.isNullOrEmpty(proxyUserName), "valid proxy username required");
 
     try {
-      final String delegationToken = processHiveClient.getDelegationToken(proxyUserName);
+      final String delegationToken = processHiveClient.getDelegationToken(proxyUGI.getUserName());
       Utils.setTokenStr(proxyUGI, delegationToken, "DremioDelegationTokenForHiveMetaStoreServer");
       proxyUserHiveConf.set("hive.metastore.token.signature", "DremioDelegationTokenForHiveMetaStoreServer");
     } catch (Exception e) {
-      throw new RuntimeException("Couldn't generate Hive metastore delegation token for user " + proxyUserName);
+      throw new RuntimeException("Couldn't generate Hive metastore delegation token for user " + proxyUGI.getUserName());
     }
   }
 

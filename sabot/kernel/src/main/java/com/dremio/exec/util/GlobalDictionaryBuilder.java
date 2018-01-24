@@ -397,15 +397,15 @@ public class GlobalDictionaryBuilder {
     if (existingDict != null) {
       final NullableIntVector existingDictValues = existingDict.getValueAccessorById(NullableIntVector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
-        values.add(existingDictValues.getAccessor().get(i));
+        values.add(existingDictValues.get(i));
       }
     }
     final Iterator<Integer> iter = values.iterator();
     int recordCount = 0;
     while (iter.hasNext()) {
-      intVector.getMutator().setSafe(recordCount++, iter.next());
+      intVector.setSafe(recordCount++, iter.next());
     }
-    intVector.getMutator().setValueCount(recordCount);
+    intVector.setValueCount(recordCount);
     input.setRecordCount(recordCount);
     input.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     return input;
@@ -425,15 +425,15 @@ public class GlobalDictionaryBuilder {
     if (existingDict != null) {
       final NullableBigIntVector existingDictValues = existingDict.getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
-        values.add(existingDictValues.getAccessor().get(i));
+        values.add(existingDictValues.get(i));
       }
     }
     final Iterator<Long> iter = values.iterator();
     int recordCount = 0;
     while (iter.hasNext()) {
-      longVector.getMutator().setSafe(recordCount++, iter.next());
+      longVector.setSafe(recordCount++, iter.next());
     }
-    longVector.getMutator().setValueCount(recordCount);
+    longVector.setValueCount(recordCount);
     input.setRecordCount(recordCount);
     input.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     return input;
@@ -453,15 +453,15 @@ public class GlobalDictionaryBuilder {
     if (existingDict != null) {
       final NullableFloat8Vector existingDictValues = existingDict.getValueAccessorById(NullableFloat8Vector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
-        values.add(existingDictValues.getAccessor().get(i));
+        values.add(existingDictValues.get(i));
       }
     }
     final Iterator<Double> iter = values.iterator();
     int recordCount = 0;
     while (iter.hasNext()) {
-      doubleVector.getMutator().setSafe(recordCount++, iter.next());
+      doubleVector.setSafe(recordCount++, iter.next());
     }
-    doubleVector.getMutator().setValueCount(recordCount);
+    doubleVector.setValueCount(recordCount);
     input.setRecordCount(recordCount);
     input.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     return input;
@@ -481,15 +481,15 @@ public class GlobalDictionaryBuilder {
     if (existingDict != null) {
       final NullableFloat4Vector existingDictValues = existingDict.getValueAccessorById(NullableFloat4Vector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
-        values.add(existingDictValues.getAccessor().get(i));
+        values.add(existingDictValues.get(i));
       }
     }
     final Iterator<Float> iter = values.iterator();
     int recordCount = 0;
     while (iter.hasNext()) {
-      floatVector.getMutator().setSafe(recordCount++, iter.next());
+      floatVector.setSafe(recordCount++, iter.next());
     }
-    floatVector.getMutator().setValueCount(recordCount);
+    floatVector.setValueCount(recordCount);
     input.setRecordCount(recordCount);
     input.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     return input;
@@ -509,16 +509,16 @@ public class GlobalDictionaryBuilder {
     if (existingDict != null) {
       final NullableVarBinaryVector existingDictValues = existingDict.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
-        values.add(Binary.fromConstantByteArray(existingDictValues.getAccessor().get(i)));
+        values.add(Binary.fromConstantByteArray(existingDictValues.get(i)));
       }
     }
     final Iterator<Binary> iter = values.iterator();
     int recordCount = 0;
     while (iter.hasNext()) {
       final byte[] data = iter.next().getBytes();
-      binaryVector.getMutator().setSafe(recordCount++, data, 0, data.length);
+      binaryVector.setSafe(recordCount++, data, 0, data.length);
     }
-    binaryVector.getMutator().setValueCount(recordCount);
+    binaryVector.setValueCount(recordCount);
     input.setRecordCount(recordCount);
     input.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     return input;

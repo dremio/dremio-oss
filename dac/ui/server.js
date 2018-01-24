@@ -28,6 +28,7 @@ const testConfig = require('./webpack.tests.config');
 const userConfig = require('./webpackUtils/userConfig');
 const isProductionBuild = process.env.NODE_ENV === 'production';
 
+const ENABLE_TESTS = false; // not quite yet ready
 
 const port = 3005;
 const compiler = webpack(config);
@@ -43,7 +44,7 @@ const devMiddleware = webpackDevMiddleware(compiler, {
 app.use(devMiddleware);
 
 let testMiddleware;
-if (!isProductionBuild) {
+if (ENABLE_TESTS && !isProductionBuild) {
   const testCompiler = webpack(config);
   testMiddleware = webpackDevMiddleware(testCompiler, config);
   app.use(testMiddleware);
@@ -73,7 +74,7 @@ app.use(['/api*', '/static/*'], function() {
 
 // todo: this doesn't show dyn-loader tests
 app.use(function(req, res, next) {
-  if (req.url.indexOf('/unit-tests') !== -1 && testMiddleware) {
+  if (ENABLE_TESTS && req.url.indexOf('/unit-tests') !== -1 && testMiddleware) {
     req.url = testConfig.output.publicPath;
     testMiddleware(req, res, next);
   } else {

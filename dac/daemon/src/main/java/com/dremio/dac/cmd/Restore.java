@@ -17,8 +17,6 @@ package com.dremio.dac.cmd;
 
 import static java.lang.String.format;
 
-import java.net.InetAddress;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -68,9 +66,8 @@ public class Restore {
     final BackupManagerOptions options = BackupManagerOptions.parse(args);
     String action = "";
     try {
-      final String hostName = InetAddress.getLocalHost().getCanonicalHostName();
-      if (!dacConfig.getMasterNode().equals(hostName)) {
-        throw new UnsupportedOperationException("Restore should be run on master node " + dacConfig.getMasterNode());
+      if (!dacConfig.isMaster) {
+        throw new UnsupportedOperationException("Restore should be run on master node ");
       }
       Path backupDir = new Path(options.backupDir);
       FileSystem fs = backupDir.getFileSystem(new Configuration());
@@ -89,7 +86,7 @@ public class Restore {
     } catch (Exception e) {
       e.printStackTrace();
       System.err.println(action + " failed " + e);
-      System.exit(-1);
+      System.exit(1);
     }
   }
 }

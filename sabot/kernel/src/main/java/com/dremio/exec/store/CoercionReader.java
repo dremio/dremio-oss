@@ -224,8 +224,7 @@ public class CoercionReader extends AbstractRecordReader {
     if (projector != null) {
       projector.projectRecords(recordCount);
       for (final ValueVector v : allocationVectors) {
-        final ValueVector.Mutator m = v.getMutator();
-        m.setValueCount(recordCount);
+        v.setValueCount(recordCount);
       }
     }
     return recordCount;

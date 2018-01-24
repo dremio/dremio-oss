@@ -19,9 +19,9 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.Pair;
@@ -61,7 +61,7 @@ public class ProjectAllowDupPrel extends ProjectPrel {
   protected List<NamedExpression> getProjectExpressions(ParseContext context) {
     List<NamedExpression> expressions = Lists.newArrayList();
     for (Pair<RexNode, String> pair : Pair.zip(exps, getRowType().getFieldNames())) {
-      LogicalExpression expr = RexToExpr.toExpr(context, getInput(), pair.left);
+      LogicalExpression expr = RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), pair.left);
       expressions.add(new NamedExpression(expr, FieldReference.getWithQuotedRef(pair.right)));
     }
     return expressions;

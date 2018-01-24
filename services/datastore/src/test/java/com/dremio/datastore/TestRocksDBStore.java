@@ -17,11 +17,15 @@ package com.dremio.datastore;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeThat;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map.Entry;
 import java.util.Random;
@@ -44,6 +48,7 @@ import org.junit.runners.model.Statement;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 
 /**
  * Some robustness tests for {@code RocksDBStore}
@@ -53,11 +58,13 @@ public class TestRocksDBStore {
 
   private final class RocksDBResource extends ExternalResource {
     private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private String dbPath;
     private RocksDB db;
 
     @Override
     protected void before() throws Throwable {
-      db = RocksDB.open(temporaryFolder.newFolder().getPath());
+      dbPath = temporaryFolder.newFolder().getPath();
+      db = RocksDB.open(dbPath);
     }
 
     @Override
@@ -67,6 +74,10 @@ public class TestRocksDBStore {
 
     public RocksDB get() {
       return db;
+    }
+
+    public String getDbDir() {
+      return dbPath;
     }
 
     @Override
@@ -100,6 +111,57 @@ public class TestRocksDBStore {
     store.close();
   }
 
+  @Test()
+  public void testFlush() throws IOException, RocksDBException {
+    try {
+      // Setup a new RocksDBStore with a new column family.
+      String testColumnFamName = "testColumnFamName";
+      ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(testColumnFamName.getBytes(UTF_8));
+      ColumnFamilyHandle handle = rocksDBResource.get().createColumnFamily(columnFamilyDescriptor);
+      RocksDBStore newStore = new RocksDBStore(testColumnFamName, columnFamilyDescriptor, handle, rocksDBResource.get(), 4);
+      File rocksDbDir = new File(rocksDBResource.getDbDir());
+
+      // Add KV pair to ensure newStore is working.
+      byte[] testKey = "testKey".getBytes();
+      byte[] testValue = "testValue".getBytes();
+      newStore.put(testKey, testValue);
+      assertArrayEquals(testValue, newStore.get(testKey));
+
+      // Confirm no sst exists yet.
+      for (int i = 0; i < rocksDbDir.listFiles().length; i++) {
+        if (rocksDbDir.listFiles()[i].getName().endsWith(".sst")) {
+          fail("SST file exists prior to shutdown - Prior flush has occurred.");
+        }
+      }
+
+      // Close both RocksDBStores.
+      store.close();
+      newStore.close();
+
+      // Confirm that there is at least one sst file & that there is at most one log file of size 0.
+      int sstCounter = 0;
+      int logCounter = 0;
+      File logFile = null;
+
+      for (int i = 0; i < rocksDbDir.listFiles().length; i++) {
+        if (rocksDbDir.listFiles()[i].getName().endsWith(".sst")) {
+          ++sstCounter;
+        }
+        if (rocksDbDir.listFiles()[i].getName().endsWith(".log")) {
+          ++logCounter;
+          logFile = rocksDbDir.listFiles()[i].getAbsoluteFile();
+        }
+      }
+
+      assertTrue(sstCounter >= 1);
+      assertTrue(logCounter <= 1);
+      assertEquals(0L, logFile.length());
+    } finally {
+      // Reset the RocksDBStore for other tests.
+      ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
+      store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4);
+    }
+  }
 
   @Test()
   public void testNotClosed() throws InterruptedException, ExecutionException {

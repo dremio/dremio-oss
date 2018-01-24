@@ -16,8 +16,8 @@
 package com.dremio.exec.store.hbase;
 
 import java.util.Arrays;
-
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.ByteArrayComparable;
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
@@ -37,31 +37,29 @@ import com.google.common.collect.ImmutableList;
 
 public class HBaseFilterBuilder extends AbstractExprVisitor<HBaseScanSpec, Void, RuntimeException> implements HBaseConstants {
 
-  final private HBaseGroupScan groupScan;
-
-  final private LogicalExpression le;
+  private final LogicalExpression le;
+  private final HBaseScanSpec oldSpec;
 
   private boolean allExpressionsConverted = true;
 
-  private static Boolean nullComparatorSupported = null;
-
-  HBaseFilterBuilder(HBaseGroupScan groupScan, LogicalExpression le) {
-    this.groupScan = groupScan;
+  HBaseFilterBuilder(TableName tableName, byte[] startRow, byte[] stopRow, byte[] serializedFilter, LogicalExpression le) {
     this.le = le;
+
+    this.oldSpec = new HBaseScanSpec(tableName, startRow, stopRow, serializedFilter);
   }
 
-  public HBaseScanSpec parseTree() {
+  public HBaseScanSpec parseTree()  {
     HBaseScanSpec parsedSpec = le.accept(this, null);
     if (parsedSpec != null) {
-      parsedSpec = mergeScanSpecs("booleanAnd", this.groupScan.getHBaseScanSpec(), parsedSpec);
+
+      parsedSpec = mergeScanSpecs("booleanAnd", oldSpec, parsedSpec);
       /*
        * If RowFilter is THE filter attached to the scan specification,
        * remove it since its effect is also achieved through startRow and stopRow.
        */
-      Filter parsedFilter = HBaseUtils.deserializeFilter(parsedSpec.filter);
-      if (parsedFilter instanceof RowFilter &&
-          ((RowFilter)parsedFilter).getComparator() instanceof BinaryComparator) {
-        parsedSpec.filter = null;
+      Filter parsedFilter = HBaseUtils.deserializeFilter(parsedSpec.getSerializedFilter());
+      if (parsedFilter instanceof RowFilter && ((RowFilter)parsedFilter).getComparator() instanceof BinaryComparator) {
+        return new HBaseScanSpec(parsedSpec.getTableName(), parsedSpec.getStartRow(), parsedSpec.getStopRow(), (byte[]) null);
       }
     }
     return parsedSpec;
@@ -72,33 +70,24 @@ public class HBaseFilterBuilder extends AbstractExprVisitor<HBaseScanSpec, Void,
   }
 
   @Override
-  public HBaseScanSpec visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
+  public HBaseScanSpec visitUnknown(LogicalExpression e, Void value)  {
     allExpressionsConverted = false;
     return null;
   }
 
   @Override
-  public HBaseScanSpec visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
+  public HBaseScanSpec visitBooleanOperator(BooleanOperator op, Void value)  {
     return visitFunctionCall(op, value);
   }
 
   @Override
-  public HBaseScanSpec visitFunctionCall(FunctionCall call, Void value) throws RuntimeException {
+  public HBaseScanSpec visitFunctionCall(FunctionCall call, Void value)  {
     HBaseScanSpec nodeScanSpec = null;
     String functionName = call.getName();
     ImmutableList<LogicalExpression> args = call.args;
 
     if (CompareFunctionsProcessor.isCompareFunction(functionName)) {
-      /*
-       * HBASE-10848: Bug in HBase versions (0.94.[0-18], 0.96.[0-2], 0.98.[0-1])
-       * causes a filter with NullComparator to fail. Enable only if specified in
-       * the configuration (after ensuring that the HBase cluster has the fix).
-       */
-      if (nullComparatorSupported == null) {
-        nullComparatorSupported = groupScan.getHBaseConf().getBoolean("dremio.hbase.supports.null.comparator", false);
-      }
-
-      CompareFunctionsProcessor processor = CompareFunctionsProcessor.process(call, nullComparatorSupported);
+      CompareFunctionsProcessor processor = CompareFunctionsProcessor.process(call);
       if (processor.isSuccess()) {
         nodeScanSpec = createHBaseScanSpec(call, processor);
       }
@@ -130,7 +119,7 @@ public class HBaseFilterBuilder extends AbstractExprVisitor<HBaseScanSpec, Void,
     return nodeScanSpec;
   }
 
-  private HBaseScanSpec mergeScanSpecs(String functionName, HBaseScanSpec leftScanSpec, HBaseScanSpec rightScanSpec) {
+  private HBaseScanSpec mergeScanSpecs(String functionName, HBaseScanSpec leftScanSpec, HBaseScanSpec rightScanSpec)  {
     Filter newFilter = null;
     byte[] startRow = HConstants.EMPTY_START_ROW;
     byte[] stopRow = HConstants.EMPTY_END_ROW;
@@ -138,24 +127,28 @@ public class HBaseFilterBuilder extends AbstractExprVisitor<HBaseScanSpec, Void,
     switch (functionName) {
     case "booleanAnd":
       newFilter = HBaseUtils.andFilterAtIndex(
-          HBaseUtils.deserializeFilter(leftScanSpec.filter),
+          HBaseUtils.deserializeFilter(leftScanSpec.getSerializedFilter()),
           HBaseUtils.LAST_FILTER,
-          HBaseUtils.deserializeFilter(rightScanSpec.filter));
-      startRow = HBaseUtils.maxOfStartRows(leftScanSpec.startRow, rightScanSpec.startRow);
-      stopRow = HBaseUtils.minOfStopRows(leftScanSpec.stopRow, rightScanSpec.stopRow);
+          HBaseUtils.deserializeFilter(rightScanSpec.getSerializedFilter()));
+      startRow = HBaseUtils.maxOfStartRows(leftScanSpec.getStartRow(), rightScanSpec.getStartRow());
+      stopRow = HBaseUtils.minOfStopRows(leftScanSpec.getStopRow(), rightScanSpec.getStopRow());
+      if (!HBaseUtils.isRowKeyEmpty(startRow) && !HBaseUtils.isRowKeyEmpty(stopRow) && HBaseUtils.compareRowKeys(startRow, stopRow) > 0) {
+        // The result is an empty range: a start point that follows the stop point. Collapse into a single point (arbitrarily chosen to be the min of the two)
+        startRow = stopRow;
+      }
       break;
     case "booleanOr":
       newFilter = HBaseUtils.orFilterAtIndex(
-          HBaseUtils.deserializeFilter(leftScanSpec.filter),
+          HBaseUtils.deserializeFilter(leftScanSpec.getSerializedFilter()),
           HBaseUtils.LAST_FILTER,
-          HBaseUtils.deserializeFilter(rightScanSpec.filter));
-      startRow = HBaseUtils.minOfStartRows(leftScanSpec.startRow, rightScanSpec.startRow);
-      stopRow = HBaseUtils.maxOfStopRows(leftScanSpec.stopRow, rightScanSpec.stopRow);
+          HBaseUtils.deserializeFilter(rightScanSpec.getSerializedFilter()));
+      startRow = HBaseUtils.minOfStartRows(leftScanSpec.getStartRow(), rightScanSpec.getStartRow());
+      stopRow = HBaseUtils.maxOfStopRows(leftScanSpec.getStopRow(), rightScanSpec.getStopRow());
     }
-    return new HBaseScanSpec(groupScan.getTableName(), startRow, stopRow, newFilter);
+    return new HBaseScanSpec(leftScanSpec.getTableName(), startRow, stopRow, newFilter);
   }
 
-  private HBaseScanSpec createHBaseScanSpec(FunctionCall call, CompareFunctionsProcessor processor) {
+  private HBaseScanSpec createHBaseScanSpec(FunctionCall call, CompareFunctionsProcessor processor)  {
     String functionName = processor.getFunctionName();
     SchemaPath field = processor.getPath();
     byte[] fieldValue = processor.getValue();
@@ -330,13 +323,13 @@ public class HBaseFilterBuilder extends AbstractExprVisitor<HBaseScanSpec, Void,
           ((SingleColumnValueFilter)filter).setFilterIfMissing(true);
         }
       }
-      return new HBaseScanSpec(groupScan.getTableName(), startRow, stopRow, filter);
+      return new HBaseScanSpec(oldSpec.getTableName(), startRow, stopRow, filter);
     }
     // else
     return null;
   }
 
-  private HBaseScanSpec createRowKeyPrefixScanSpec(FunctionCall call, CompareFunctionsProcessor processor) {
+  private HBaseScanSpec createRowKeyPrefixScanSpec(FunctionCall call, CompareFunctionsProcessor processor)  {
     byte[] startRow = processor.getRowKeyPrefixStartRow();
     byte[] stopRow  = processor.getRowKeyPrefixStopRow();
     Filter filter   = processor.getRowKeyPrefixFilter();
@@ -344,7 +337,7 @@ public class HBaseFilterBuilder extends AbstractExprVisitor<HBaseScanSpec, Void,
     if (startRow != HConstants.EMPTY_START_ROW ||
         stopRow != HConstants.EMPTY_END_ROW ||
         filter != null) {
-      return new HBaseScanSpec(groupScan.getTableName(), startRow, stopRow, filter);
+      return new HBaseScanSpec(oldSpec.getTableName(), startRow, stopRow, filter);
     }
 
     // else

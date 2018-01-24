@@ -59,10 +59,6 @@ public class FieldAnnotation {
     return normalized;
   }
 
-  public boolean isAnalyzedOrNormalized() {
-    return normalized || analyzed;
-  }
-
   public boolean isUnknown() {
     return specialType == ElasticSpecialType.UNKNOWN;
   }

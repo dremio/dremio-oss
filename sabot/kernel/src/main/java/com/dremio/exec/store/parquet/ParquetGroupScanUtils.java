@@ -335,7 +335,7 @@ public class ParquetGroupScanUtils {
       parquetTableMetadata = Metadata.getParquetTableMetadata(entries, formatPlugin.getConfig(), plugin.getFsConf());
     }
 
-    ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getExecutors())
+    ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getContext().getExecutors())
       .index(new Function<NodeEndpoint, String>() {
         @Override
         public String apply(NodeEndpoint endpoint) {

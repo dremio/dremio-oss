@@ -56,7 +56,7 @@ export default class SelectFrequentValuesOption extends Component {
     const { option, maxPercent, checked } = this.props;
 
     return (
-      <tr>
+      <tr className='field'>
         <td>
           <Checkbox
             data-qa={`checkbox${option.value}`}

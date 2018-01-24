@@ -17,12 +17,14 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.NullableVectorDefinitionSetter;
 import org.apache.arrow.vector.NullableDateMilliVector;
 import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableVectorDefinitionSetter;
-import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.BaseNullableVariableWidthVector;
 import org.apache.arrow.vector.util.DecimalUtility;
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -59,7 +61,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
     // vectorData is assigned by the superclass read loop method
     writeData();
     for (int i = 0; i < recordsToReadInThisPass; i++) {
-      ((NullableVectorDefinitionSetter) valueVec.getMutator()).setIndexDefined(i);
+      ((NullableVectorDefinitionSetter) valueVec).setIndexDefined(i);
     }
   }
 
@@ -85,7 +87,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
       // now we need to write the lengths of each value
       int byteLength = dataTypeLengthInBits / 8;
       for (int i = 0; i < recordsToReadInThisPass; i++) {
-        castedVector.getMutator().setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
+        ((BaseNullableVariableWidthVector)castedVector).setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
       }
     }
 
@@ -118,12 +120,12 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
 
   public static class DateReader extends ConvertedReader<NullableDateMilliVector> {
 
-    private final NullableDateMilliVector.Mutator mutator;
+    private final NullableDateMilliVector vector;
 
     DateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
                     boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
-      mutator = v.getMutator();
+      vector = v;
     }
 
     @Override
@@ -135,7 +137,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
         intValue = readIntLittleEndian(bytebuf, start);
       }
 
-      mutator.set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
+      vector.set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
     }
   }
 
@@ -144,12 +146,12 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
    */
   public static class CorruptDateReader extends ConvertedReader<NullableDateMilliVector> {
 
-    private final NullableDateMilliVector.Mutator mutator;
+    private final NullableDateMilliVector vector;
 
     CorruptDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
                       boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
-      mutator = v.getMutator();
+      vector = v;
     }
 
     @Override
@@ -161,7 +163,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
         intValue = readIntLittleEndian(bytebuf, start);
       }
 
-      mutator.set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
+      vector.set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
     }
 
   }
@@ -174,12 +176,12 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
    */
   public static class CorruptionDetectingDateReader extends ConvertedReader<NullableDateMilliVector> {
 
-    private final NullableDateMilliVector.Mutator mutator;
+    private final NullableDateMilliVector vector;
 
     CorruptionDetectingDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
                                   boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
-      mutator = v.getMutator();
+      vector = v;
     }
 
     @Override
@@ -192,9 +194,9 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
       }
 
       if (intValue > ParquetReaderUtility.DATE_CORRUPTION_THRESHOLD) {
-        mutator.set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
+        vector.set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
       } else {
-        mutator.set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
+        vector.set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
       }
     }
 
@@ -209,9 +211,15 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
 
     @Override
     void addNext(int start, int index) {
-      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start, schemaElement.getScale());
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getBuffer(), index);
-      valueVec.getMutator().setIndexDefined(index);
+      /* data read from Parquet into the bytebuf is already in BE format, no need
+       * swap bytes to construct BigDecimal. only when we write BigDecimal to
+       * data buffer of decimal vector, we need to swap bytes which the DecimalUtility
+       * function already does.
+       */
+      BigDecimal intermediate = DecimalHelper.getBigDecimalFromBEArrowBuf(bytebuf, index, schemaElement.getScale());
+      /* this will swap bytes as we are writing to the buffer of DecimalVector */
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getDataBuffer(), index);
+      valueVec.setIndexDefined(index);
     }
   }
 

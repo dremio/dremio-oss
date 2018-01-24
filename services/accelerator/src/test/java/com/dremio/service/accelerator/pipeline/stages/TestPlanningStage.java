@@ -475,7 +475,7 @@ public class TestPlanningStage {
       }
 
       @Override
-      AccelerationAnalyzer createAnalyzer(final JobsService jobsService) {
+      AccelerationAnalyzer createAnalyzer(final JobsService jobsService, final boolean useAlternateAnalysis) {
         return pojo.getAnalyzer();
       }
 

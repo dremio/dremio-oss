@@ -30,9 +30,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
@@ -50,6 +52,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * Values implemented in Dremio.
@@ -66,6 +69,10 @@ public class ValuesRel extends AbstractRelNode implements Rel {
   protected ValuesRel(RelOptCluster cluster, RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples, RelTraitSet traits) {
     super(cluster, traits);
     assert getConvention() == LOGICAL;
+
+    // Remove the ANY type and derive the literal type.
+    rowType = adjustRowType(cluster.getTypeFactory(), rowType, tuples);
+
     verifyRowType(tuples, rowType);
 
     this.rowType = rowType;
@@ -84,6 +91,69 @@ public class ValuesRel extends AbstractRelNode implements Rel {
     this.options = options;
     this.rowCount = rowCount;
     this.rowType = rowType;
+  }
+
+  /**
+   * Adjust the row type to remove ANY types - derive type from the literals
+   *
+   * @param typeFactory       RelDataTypeFactory used to create the RelDataType
+   * @param rowType           Row type
+   * @param tuples            RexLiterals for the Values Rel
+   *
+   * @return the derived RelDataType from literal.
+   */
+  private static RelDataType adjustRowType(final RelDataTypeFactory typeFactory, final RelDataType rowType,
+                                           final ImmutableList<ImmutableList<RexLiteral>> tuples) {
+    final int inFieldCount = rowType.getFieldCount();
+    List<RelDataType> fieldTypes = Lists.newArrayListWithExpectedSize(inFieldCount);
+    List<String> fieldNames = Lists.newArrayListWithExpectedSize(inFieldCount);
+
+    boolean changed = false;
+    int i = 0;
+    for (final RelDataTypeField field : rowType.getFieldList()) {
+      final SqlTypeName sqlTypeName = field.getValue().getSqlTypeName();
+      if (sqlTypeName == SqlTypeName.ANY) {
+        fieldTypes.add(getFieldTypeFromInput(typeFactory, i, tuples));
+        changed = true;
+      } else {
+        fieldTypes.add(field.getType());
+      }
+      fieldNames.add(field.getName());
+    }
+
+    if (!changed) {
+      return rowType;
+    }
+
+    return typeFactory.createStructType(fieldTypes, fieldNames);
+  }
+
+  /**
+   * Helper method that gets the type from tuples for given fieldIndex.
+   * An IN list is represented by a single iteration through the tuples at fieldIndex.
+   *
+   * @param fieldIndex        Field index used to retrieve the relevant RexLiteral.
+   * @param tuples            RexLiterals for the Values Rel
+   *
+   * @return the derived RelDataType from literal.
+   */
+  private static RelDataType getFieldTypeFromInput(RelDataTypeFactory typeFactory, final int fieldIndex,
+                                                   final ImmutableList<ImmutableList<RexLiteral>> tuples) {
+    // Search for a non-NULL, non-ANY type.
+    List<RelDataType> literalTypes = Lists.newArrayListWithExpectedSize(tuples.size());
+
+    for(ImmutableList<RexLiteral> literals : tuples) {
+      final RexLiteral literal = literals.get(fieldIndex);
+      if (literal != null
+        && literal.getType().getSqlTypeName() != SqlTypeName.NULL
+        && literal.getType().getSqlTypeName() != SqlTypeName.ANY) {
+        literalTypes.add(literal.getType());
+      }
+    }
+
+    // Return the least restrictive type unless it is null, in which case return the first non-null, non-ANY type.
+    RelDataType leastRestrictiveType = typeFactory.leastRestrictive(literalTypes);
+    return (leastRestrictiveType != null) ? leastRestrictiveType : literalTypes.get(0);
   }
 
   private static void verifyRowType(final ImmutableList<ImmutableList<RexLiteral>> tuples, RelDataType rowType){

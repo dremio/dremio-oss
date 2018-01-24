@@ -112,6 +112,7 @@ public class NLJOperator implements DualInputOperator {
     @SuppressWarnings("resource")
     final RecordBatchData batchCopy = new RecordBatchData(right, context.getAllocator());
 
+    logger.debug("Adding batch on right. {} records", right.getRecordCount());
     rightCounts.addLast(right.getRecordCount());
     allRight.addBatch(batchCopy.getContainer());
   }
@@ -121,9 +122,11 @@ public class NLJOperator implements DualInputOperator {
     state.is(State.CAN_CONSUME_R);
 
     if (rightCounts.isEmpty()) {
+      logger.debug("No more to consume on right. Right is empty. Done");
       state = State.DONE;
     } else {
       setupWorker();
+      logger.debug("No more to consume on right. Can consume left");
       state = State.CAN_CONSUME_L;
     }
   }
@@ -140,8 +143,10 @@ public class NLJOperator implements DualInputOperator {
     state.is(State.CAN_CONSUME_L);
     Preconditions.checkState(leftState != LeftState.COMPLETED);
     if (leftState == LeftState.INIT) {
+      logger.debug("No more to consume on left. Left is empty. Done");
       state = State.DONE;
     } else {
+      logger.debug("No more to consume on left. Can produce");
       state = State.CAN_PRODUCE;
     }
     leftState = LeftState.COMPLETED;
@@ -151,7 +156,9 @@ public class NLJOperator implements DualInputOperator {
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
 
-    if (leftState == LeftState.COMPLETED && currentOutputPosition > 0) {
+    logger.debug("LeftState: {}, currentOutputPosition: {}", leftState, currentOutputPosition);
+
+    if (leftState == LeftState.COMPLETED && currentOutputPosition >= 0) {
       // the left is completed and we have pending output.
       state = State.DONE;
       return outgoing.setAllCount(currentOutputPosition);
@@ -163,10 +170,12 @@ public class NLJOperator implements DualInputOperator {
 
     final int outputIndex = nljWorker.emitRecords(currentOutputPosition, context.getTargetBatchSize());
 
+    logger.debug("outputIndex: {}", outputIndex);
+
     if (outputIndex < 0) {
       // ran out of room.
       currentOutputPosition = 0;
-      // System.out.println("ran out of room " + (-outputIndex));
+      logger.debug("ran out of room {}", -outputIndex);
       return outgoing.setAllCount(-outputIndex);
 
     } else if (outputIndex > 0) {
@@ -174,14 +183,14 @@ public class NLJOperator implements DualInputOperator {
 
       if (leftState == LeftState.COMPLETED) {
         state = State.DONE;
-        // System.out.println("finished " + (outputIndex));
+        logger.debug("finished {}", outputIndex);
         outgoing.setAllCount(outputIndex);
         return outputIndex;
       } else {
         // need more input, (emitted zero records or less than max).
         currentOutputPosition = outputIndex;
         state = State.CAN_CONSUME_L;
-        // System.out.println("not finished " + (outputIndex));
+        logger.debug("not finished {}", outputIndex);
         // this batch isn't ready, we won't return the records.
         return 0;
       }

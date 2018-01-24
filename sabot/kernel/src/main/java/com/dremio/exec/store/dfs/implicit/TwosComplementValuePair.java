@@ -16,6 +16,7 @@
 package com.dremio.exec.store.dfs.implicit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.NullableDecimalVector;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -40,6 +41,11 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     precision = type.getPrecision();
     if (value != null) {
       buf = allocator.buffer(16);
+      /* set the bytes in LE format in the buffer of decimal vector. since we
+       * are populating the decimal vector multiple times with the same buffer, it
+       * is fine to swap the bytes once here as opposed to swapping while writing.
+       */
+      DecimalHelper.swapBytes(value);
       buf.setBytes(0, value);
     }
   }
@@ -50,7 +56,6 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
   }
 
   private final class BigDecimalPopulator implements Populator, AutoCloseable {
-    private NullableDecimalVector.Mutator mutator;
     private NullableDecimalVector vector;
 
     public void setup(OutputMutator output){
@@ -58,7 +63,6 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
       if (vector == null) {
         vector = output.addField(new Field(name, true, new Decimal(precision, scale), null), NullableDecimalVector.class);
       }
-      mutator = vector.getMutator();
     }
 
     public void populate(final int count){
@@ -66,10 +70,11 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
 
       if(value != null) {
         for (int i = 0; i < count; i++) {
-          mutator.setSafe(i, buf);
+          /* bytes are already set in buf in LE byte order, populate the decimal vector now */
+          vector.setSafe(i, buf);
         }
       }
-      mutator.setValueCount(count);
+      vector.setValueCount(count);
     }
 
     public void allocate(){

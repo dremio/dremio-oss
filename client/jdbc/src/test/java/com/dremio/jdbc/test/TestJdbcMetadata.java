@@ -59,9 +59,9 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
     this.testAction(new JdbcAction(){
       @Override
       public ResultSet getResult(Connection c) throws SQLException {
-        return c.getMetaData().getSchemas("DREMIO", "%fs%");
+        return c.getMetaData().getSchemas("DREMIO", "%sys%");
       }
-    }, 4);
+    }, 1);
   }
 
   @Test
@@ -109,6 +109,7 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
     this.testAction(new JdbcAction(){
       @Override
       public ResultSet getResult(Connection c) throws SQLException {
+        print(c.getMetaData().getColumns("DREMIO", "sys", "opt%", "%ame"));
         return c.getMetaData().getColumns("DREMIO", "sys", "opt%", "%ame");
       }
     }, 1);

@@ -165,6 +165,46 @@ public class TestAPI {
   }
 
   @Test
+  public void testVersionNotMismatch() throws Exception {
+    long [] versions = new long [] {127,128,129};
+    for (long version : versions) {
+      Cluster storedCluster = clusterCreateHelper();
+      storedCluster.getClusterConfig().setVersion(version);
+      // test version mismatch
+      ClusterModifyRequest request = new ClusterModifyRequest();
+      request.setId(storedCluster.getId().getId());
+      request.setVersion(version);
+
+      ClusterConfig config = resource.toClusterConfig(request);
+      try {
+        final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
+        service.toAction(storedCluster, modifiedCluster);
+      } catch (ConcurrentModificationException e) {
+        fail("Version mismatch - request Version: " + request.getVersion() +
+          ", storedVersion: " + storedCluster.getClusterConfig().getVersion());
+      }
+    }
+  }
+
+  @Test
+  public void testVersionNull() throws Exception {
+    Cluster storedCluster = clusterCreateHelper();
+    storedCluster.getClusterConfig().setVersion(12L);
+    // test version not set
+    ClusterModifyRequest request = new ClusterModifyRequest();
+    request.setId(storedCluster.getId().getId());
+
+    ClusterConfig config = resource.toClusterConfig(request);
+    try {
+      final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
+      service.toAction(storedCluster, modifiedCluster);
+      fail();
+    } catch (NullPointerException e) {
+      // OK
+    }
+  }
+
+  @Test
   public void testDeletedState() throws Exception {
     Cluster storedCluster = clusterCreateHelper();
 

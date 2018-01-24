@@ -20,6 +20,8 @@ import com.dremio.common.store.StoragePluginConfig;
 public class InfoSchemaConfig extends StoragePluginConfig {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InfoSchemaConfig.class);
 
+  public static final InfoSchemaConfig INSTANCE = new InfoSchemaConfig();
+
   public static final String NAME = "ischema";
 
   @Override

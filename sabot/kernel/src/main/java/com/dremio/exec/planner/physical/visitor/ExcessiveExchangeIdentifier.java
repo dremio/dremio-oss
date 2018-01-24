@@ -25,7 +25,6 @@ import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.OldScanPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.google.common.collect.Lists;
 
@@ -64,12 +63,6 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     s.addScreen(prel);
     RelNode child = ((Prel)prel.getInput()).accept(this, s);
     return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList(child));
-  }
-
-  @Override
-  public Prel visitOldScan(OldScanPrel prel, MajorFragmentStat s) throws RuntimeException {
-    s.addScan(prel);
-    return prel;
   }
 
   @Override
@@ -114,13 +107,6 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     public void addScreen(ScreenPrel screenPrel) {
       maxWidth = 1;
       distributionAffinity = screenPrel.getDistributionAffinity();
-    }
-
-    public void addScan(OldScanPrel prel) {
-      maxWidth = Math.min(maxWidth, prel.getGroupScan().getMaxParallelizationWidth());
-      isMultiSubScan = prel.getGroupScan().getMinParallelizationWidth() > 1;
-      distributionAffinity = prel.getDistributionAffinity();
-      add(prel);
     }
 
     public void addScan(ScanPrelBase prel) {

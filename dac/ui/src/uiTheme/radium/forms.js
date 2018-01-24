@@ -41,7 +41,7 @@ export const modalForm = {
 };
 
 export const section = {
-  marginBottom: 25
+  marginBottom: 20
 };
 
 export const sectionTitle = {

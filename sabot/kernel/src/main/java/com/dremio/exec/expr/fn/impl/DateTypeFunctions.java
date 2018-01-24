@@ -37,6 +37,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.sabot.exec.context.ContextInformation;
 
 import io.netty.buffer.ArrowBuf;
@@ -130,6 +131,7 @@ public class DateTypeFunctions {
         @Param  BigIntHolder inputMonths;
         @Param  BigIntHolder inputDays;
         @Output DateMilliHolder   out;
+        @Inject FunctionErrorContext errCtx;
 
         @Override
         public void setup() {
@@ -137,14 +139,20 @@ public class DateTypeFunctions {
 
         @Override
         public void eval() {
+          try {
             out.value = DateTimes.toMillis(new org.joda.time.LocalDateTime((int) inputYears.value,
-                                                            (int) inputMonths.value,
-                                                            (int)inputDays.value,
-                                                            0,
-                                                            0,
-                                                            0,
-                                                            0,
-                                                            ISOChronology.getInstance(org.joda.time.DateTimeZone.UTC)));
+              (int) inputMonths.value,
+              (int) inputDays.value,
+              0,
+              0,
+              0,
+              0,
+              ISOChronology.getInstance(org.joda.time.DateTimeZone.UTC)));
+          } catch (IllegalArgumentException e) {
+            throw errCtx.error()
+              .message(String.format("Unable to convert year=%d month=%d day=%d into a date", inputYears.value, inputMonths.value, inputDays.value))
+              .build();
+          }
         }
     }
 
@@ -159,6 +167,7 @@ public class DateTypeFunctions {
         @Param  BigIntHolder inputSeconds;
         @Param  BigIntHolder inputMilliSeconds;
         @Output TimeStampMilliHolder out;
+        @Inject FunctionErrorContext errCtx;
 
         @Override
         public void setup() {
@@ -166,6 +175,7 @@ public class DateTypeFunctions {
 
         @Override
         public void eval() {
+          try {
             out.value = DateTimes.toMillis(new org.joda.time.LocalDateTime((int)inputYears.value,
                                                             (int)inputMonths.value,
                                                             (int)inputDays.value,
@@ -173,6 +183,12 @@ public class DateTypeFunctions {
                                                             (int)inputMinutes.value,
                                                             (int)inputSeconds.value,
                                                             (int)inputMilliSeconds.value));
+          } catch (IllegalArgumentException e) {
+            throw errCtx.error()
+              .message(String.format("Unable to convert year=%d month=%d day=%d hour=%d min=%d sec=%d ms=%d into a datetime",
+                inputYears.value, inputMonths.value, inputDays.value, inputHours.value, inputMinutes.value, inputSeconds.value, inputMilliSeconds.value))
+              .build();
+          }
         }
     }
 

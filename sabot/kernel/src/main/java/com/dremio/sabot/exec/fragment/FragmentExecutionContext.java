@@ -18,7 +18,6 @@ package com.dremio.sabot.exec.fragment;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePlugin2;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
 import com.dremio.service.namespace.StoragePluginId;
@@ -54,17 +53,12 @@ public class FragmentExecutionContext {
     return cancelled;
   }
 
-  @Deprecated
-  public StoragePlugin getOldStoragePlugin(StoragePluginId pluginId) throws ExecutionSetupException {
-    StoragePlugin<?> plugin = registry.getPlugin(pluginId);
-    return plugin;
-  }
-
-  public StoragePlugin2 getStoragePlugin(StoragePluginId pluginId) throws ExecutionSetupException {
-    StoragePlugin<?> plugin = registry.getPlugin(pluginId);
+  @SuppressWarnings("unchecked")
+  public <T extends StoragePlugin> T getStoragePlugin(StoragePluginId pluginId) throws ExecutionSetupException {
+    StoragePlugin plugin = registry.getPlugin(pluginId);
     if(plugin == null){
       return null;
     }
-    return plugin.getStoragePlugin2();
+    return (T) plugin;
   }
 }

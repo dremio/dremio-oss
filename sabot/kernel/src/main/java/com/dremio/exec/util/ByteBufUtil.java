@@ -19,6 +19,7 @@ package com.dremio.exec.util;
 import java.io.DataInput;
 
 import com.dremio.common.util.DremioStringUtils;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -28,11 +29,16 @@ public class ByteBufUtil {
    * Verifies that the the space provided in the buffer is of specified size.
    * @throws IllegalArgumentException if the specified boundaries do not describe the expected size.
    */
-  public static void checkBufferLength(ArrowBuf buffer, int start, int end, int requiredLen) {
+  public static void checkBufferLength(FunctionErrorContext errorContext,
+      ArrowBuf buffer, int start, int end, int requiredLen) {
     int actualLen = (end - start);
     if (actualLen != requiredLen) {
-      throw new IllegalArgumentException(String.format("Wrong length %d(%d-%d) in the buffer '%s', expected %d.",
-          actualLen, end, start, DremioStringUtils.toBinaryString(buffer, start, end), requiredLen));
+      throw errorContext.error()
+          .message("Input buffer segment is of invalid length")
+          .addContext("Expected length %d", requiredLen)
+          .addContext("Given %d(%d-%d)", actualLen, end, start)
+          .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer, start, end))
+          .build();
     }
   }
 
@@ -55,8 +61,8 @@ public class ByteBufUtil {
      * @param buffer ArrowBuf to read from
      * @param i Integer to be serialized
      */
-    public static void writeVInt(ArrowBuf buffer,  int start, int end, int i) {
-      writeVLong(buffer, start, end, i);
+    public static void writeVInt(FunctionErrorContext errorContext, ArrowBuf buffer,  int start, int end, int i) {
+      writeVLong(errorContext, buffer, start, end, i);
     }
 
     /**
@@ -73,12 +79,15 @@ public class ByteBufUtil {
      * @param buffer ArrowBuf to write to
      * @param i Long to be serialized
      */
-    public static void writeVLong(ArrowBuf buffer, int start, int end, long i) {
+    public static void writeVLong(FunctionErrorContext context, ArrowBuf buffer, int start, int end, long i) {
       int availableBytes = (end-start);
       if (availableBytes < getVIntSize(i)) {
-        throw new NumberFormatException("Expected " + getVIntSize(i) + " bytes but the buffer '"
-            + DremioStringUtils.toBinaryString(buffer, start, end) + "' has only "
-            + availableBytes + " bytes.");
+        throw context.error()
+            .message("Invalid number of bytes in input buffer")
+            .addContext("Expected %s", getVIntSize(i))
+            .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer, start, end))
+            .addContext("Available bytes %s", availableBytes)
+            .build();
       }
       buffer.writerIndex(start);
 
@@ -115,10 +124,13 @@ public class ByteBufUtil {
      * @param buffer ArrowBuf to read from
      * @return deserialized integer from stream.
      */
-    public static int readVInt(ArrowBuf buffer, int start, int end) {
-      long n = readVLong(buffer, start, end);
+    public static int readVInt(FunctionErrorContext context, ArrowBuf buffer, int start, int end) {
+      long n = readVLong(context, buffer, start, end);
       if ((n > Integer.MAX_VALUE) || (n < Integer.MIN_VALUE)) {
-        throw new NumberFormatException("Value " + n + " too long to fit in integer");
+        throw context.error()
+            .message("Value too long to fit in integer")
+            .addContext("Value %s", n)
+            .build();
       }
       return (int)n;
     }
@@ -128,7 +140,7 @@ public class ByteBufUtil {
      * @param buffer ArrowBuf to read from
      * @return deserialized long from stream.
      */
-    public static long readVLong(ArrowBuf buffer, int start, int end) {
+    public static long readVLong(FunctionErrorContext errorContext, ArrowBuf buffer, int start, int end) {
       buffer.readerIndex(start);
       byte firstByte = buffer.readByte();
       int len = decodeVIntSize(firstByte);
@@ -136,9 +148,12 @@ public class ByteBufUtil {
       if (len == 1) {
         return firstByte;
       } else if (availableBytes < len) {
-        throw new NumberFormatException("Expected " + len + " bytes but the buffer '"
-            + DremioStringUtils.toBinaryString(buffer, start, end) + "' has  "
-            + availableBytes + " bytes.");
+        throw errorContext.error()
+            .message("Invalid number of bytes in input buffer")
+            .addContext("Expected %s", len)
+            .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer, start, end))
+            .addContext("Available bytes %s", availableBytes)
+            .build();
       }
 
       long longValue = 0;

@@ -61,7 +61,7 @@ export default class TimePicker extends Component {
   render() {
     const { value } = this.state;
     return (
-      <div style={styles.picker}>
+      <div className='field' style={styles.picker}>
         <input
           type='text'
           style={styles.input}

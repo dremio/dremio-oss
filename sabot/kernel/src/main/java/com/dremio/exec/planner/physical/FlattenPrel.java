@@ -15,6 +15,17 @@
  */
 package com.dremio.exec.planner.physical;
 
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexNode;
+
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -22,17 +33,6 @@ import com.dremio.exec.physical.config.FlattenPOP;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.record.BatchSchema;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rex.RexNode;
-
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
 public class FlattenPrel extends SinglePrel implements Prel {
 
@@ -67,6 +67,7 @@ public class FlattenPrel extends SinglePrel implements Prel {
     return creator.addMetadata(this, f);
   }
 
+  @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw).item("flattenField", this.toFlatten);
   }
@@ -77,6 +78,6 @@ public class FlattenPrel extends SinglePrel implements Prel {
   }
 
   protected LogicalExpression getFlattenExpression(ParseContext context){
-    return RexToExpr.toExpr(context, getInput(), toFlatten);
+    return RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), toFlatten);
   }
 }

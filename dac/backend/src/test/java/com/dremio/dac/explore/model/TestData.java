@@ -308,11 +308,11 @@ public class TestData {
   private static Pair<NullableBitVector, ResultVerifier> testBitVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableBitVector colBitV = new NullableBitVector("colBit", allocator);
     colBitV.allocateNew(5);
-    colBitV.getMutator().set(0, 1);
-    colBitV.getMutator().set(1, 0);
-    colBitV.getMutator().setNull(2);
-    colBitV.getMutator().set(3, 1);
-    colBitV.getMutator().set(4, 1);
+    colBitV.set(0, 1);
+    colBitV.set(1, 0);
+    colBitV.setNull(2);
+    colBitV.set(3, 1);
+    colBitV.set(4, 1);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -332,11 +332,11 @@ public class TestData {
   private static Pair<NullableTinyIntVector, ResultVerifier> testTinyIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableTinyIntVector colTinyIntV = new NullableTinyIntVector("colTinyInt", allocator);
     colTinyIntV.allocateNew(5);
-    colTinyIntV.getMutator().set(0, 0);
-    colTinyIntV.getMutator().set(1, -1);
-    colTinyIntV.getMutator().set(2, 1);
-    colTinyIntV.getMutator().setNull(3);
-    colTinyIntV.getMutator().set(4, -54);
+    colTinyIntV.set(0, 0);
+    colTinyIntV.set(1, -1);
+    colTinyIntV.set(2, 1);
+    colTinyIntV.setNull(3);
+    colTinyIntV.set(4, -54);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -356,11 +356,11 @@ public class TestData {
   private static Pair<NullableSmallIntVector, ResultVerifier> testSmallIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableSmallIntVector colSmallIntV = new NullableSmallIntVector("colSmallInt", allocator);
     colSmallIntV.allocateNew(5);
-    colSmallIntV.getMutator().set(0, 20);
-    colSmallIntV.getMutator().setNull(1);
-    colSmallIntV.getMutator().set(2, -2000);
-    colSmallIntV.getMutator().set(3, 32700);
-    colSmallIntV.getMutator().set(4, 0);
+    colSmallIntV.set(0, 20);
+    colSmallIntV.setNull(1);
+    colSmallIntV.set(2, -2000);
+    colSmallIntV.set(3, 32700);
+    colSmallIntV.set(4, 0);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -380,11 +380,11 @@ public class TestData {
   private static Pair<NullableIntVector, ResultVerifier> testIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableIntVector colIntV = new NullableIntVector("colInt", allocator);
     colIntV.allocateNew(5);
-    colIntV.getMutator().set(0, 20);
-    colIntV.getMutator().set(1, 50);
-    colIntV.getMutator().set(2, -2000);
-    colIntV.getMutator().set(3, 327345);
-    colIntV.getMutator().setNull(4);
+    colIntV.set(0, 20);
+    colIntV.set(1, 50);
+    colIntV.set(2, -2000);
+    colIntV.set(3, 327345);
+    colIntV.setNull(4);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -404,11 +404,11 @@ public class TestData {
   private static Pair<NullableBigIntVector, ResultVerifier> testBigIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableBigIntVector colBigIntV = new NullableBigIntVector("colBigInt", allocator);
     colBigIntV.allocateNew(5);
-    colBigIntV.getMutator().setNull(0);
-    colBigIntV.getMutator().set(1, 50);
-    colBigIntV.getMutator().set(2, -2000);
-    colBigIntV.getMutator().set(3, 327345234234L);
-    colBigIntV.getMutator().set(4, 0);
+    colBigIntV.setNull(0);
+    colBigIntV.set(1, 50);
+    colBigIntV.set(2, -2000);
+    colBigIntV.set(3, 327345234234L);
+    colBigIntV.set(4, 0);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -428,11 +428,11 @@ public class TestData {
   private static Pair<NullableFloat4Vector, ResultVerifier> testFloat4Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableFloat4Vector colFloat4V = new NullableFloat4Vector("colFloat4", allocator);
     colFloat4V.allocateNew(5);
-    colFloat4V.getMutator().set(0, 20.0f);
-    colFloat4V.getMutator().set(1, 50.023f);
-    colFloat4V.getMutator().set(2, -238423f);
-    colFloat4V.getMutator().setNull(3);
-    colFloat4V.getMutator().set(4, 0f);
+    colFloat4V.set(0, 20.0f);
+    colFloat4V.set(1, 50.023f);
+    colFloat4V.set(2, -238423f);
+    colFloat4V.setNull(3);
+    colFloat4V.set(4, 0f);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -452,11 +452,11 @@ public class TestData {
   private static Pair<NullableFloat8Vector, ResultVerifier> testFloat8Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableFloat8Vector colFloat8V = new NullableFloat8Vector("colFloat8", allocator);
     colFloat8V.allocateNew(5);
-    colFloat8V.getMutator().set(0, 20.2345234d);
-    colFloat8V.getMutator().set(1, 503453.023d);
-    colFloat8V.getMutator().set(2, -238423.3453453d);
-    colFloat8V.getMutator().set(3, 3273452.345324563245d);
-    colFloat8V.getMutator().setNull(4);
+    colFloat8V.set(0, 20.2345234d);
+    colFloat8V.set(1, 503453.023d);
+    colFloat8V.set(2, -238423.3453453d);
+    colFloat8V.set(3, 3273452.345324563245d);
+    colFloat8V.setNull(4);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -476,11 +476,11 @@ public class TestData {
   private static Pair<NullableDateMilliVector, ResultVerifier> testDateMilliVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableDateMilliVector colDateV = new NullableDateMilliVector("colDate", allocator);
     colDateV.allocateNew(5);
-    colDateV.getMutator().set(0, 234);
-    colDateV.getMutator().set(1, -2342);
-    colDateV.getMutator().setNull(2);
-    colDateV.getMutator().set(3, 384928359245L);
-    colDateV.getMutator().set(4, 2342893433L);
+    colDateV.set(0, 234);
+    colDateV.set(1, -2342);
+    colDateV.setNull(2);
+    colDateV.set(3, 384928359245L);
+    colDateV.set(4, 2342893433L);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -500,11 +500,11 @@ public class TestData {
   private static Pair<NullableTimeMilliVector, ResultVerifier> testTimeVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableTimeMilliVector colTimeV = new NullableTimeMilliVector("colTime", allocator);
     colTimeV.allocateNew(5);
-    colTimeV.getMutator().set(0, 23423234);
-    colTimeV.getMutator().set(1, -234223);
-    colTimeV.getMutator().set(2, 34534345);
-    colTimeV.getMutator().setNull(3);
-    colTimeV.getMutator().set(4, 23434);
+    colTimeV.set(0, 23423234);
+    colTimeV.set(1, -234223);
+    colTimeV.set(2, 34534345);
+    colTimeV.setNull(3);
+    colTimeV.set(4, 23434);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -524,11 +524,11 @@ public class TestData {
   private static Pair<NullableTimeStampMilliVector, ResultVerifier> testTimeStampVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableTimeStampMilliVector colTimeStampV = new NullableTimeStampMilliVector("colTimeStamp", allocator);
     colTimeStampV.allocateNew(5);
-    colTimeStampV.getMutator().set(0, 23423234);
-    colTimeStampV.getMutator().set(1, -234223);
-    colTimeStampV.getMutator().setNull(2);
-    colTimeStampV.getMutator().set(3, 384928359237L);
-    colTimeStampV.getMutator().set(4, 234289342983294234L);
+    colTimeStampV.set(0, 23423234);
+    colTimeStampV.set(1, -234223);
+    colTimeStampV.setNull(2);
+    colTimeStampV.set(3, 384928359237L);
+    colTimeStampV.set(4, 234289342983294234L);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -548,11 +548,11 @@ public class TestData {
   private static Pair<NullableIntervalYearVector, ResultVerifier> testIntervalYearVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableIntervalYearVector colIntervalYearV = new NullableIntervalYearVector("colIntervalYear", allocator);
     colIntervalYearV.allocateNew(5);
-    colIntervalYearV.getMutator().set(0, 2342);
-    colIntervalYearV.getMutator().set(1, -234);
-    colIntervalYearV.getMutator().set(2, 34545);
-    colIntervalYearV.getMutator().set(3, 38);
-    colIntervalYearV.getMutator().setNull(4);
+    colIntervalYearV.set(0, 2342);
+    colIntervalYearV.set(1, -234);
+    colIntervalYearV.set(2, 34545);
+    colIntervalYearV.set(3, 38);
+    colIntervalYearV.setNull(4);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -572,11 +572,11 @@ public class TestData {
   private static Pair<NullableIntervalDayVector, ResultVerifier> testIntervalDayVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableIntervalDayVector colIntervalDayV = new NullableIntervalDayVector("colIntervalDay", allocator);
     colIntervalDayV.allocateNew(5);
-    colIntervalDayV.getMutator().setNull(0);
-    colIntervalDayV.getMutator().set(1, 1, -300, 23423);
-    colIntervalDayV.getMutator().set(2, 1, 23424, 234234);
-    colIntervalDayV.getMutator().set(3, 1, 234, 2323);
-    colIntervalDayV.getMutator().set(4, 1, 987, 343);
+    colIntervalDayV.setNull(0);
+    colIntervalDayV.set(1, 1, -300, 23423);
+    colIntervalDayV.set(2, 1, 23424, 234234);
+    colIntervalDayV.set(3, 1, 234, 2323);
+    colIntervalDayV.set(4, 1, 987, 343);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -597,14 +597,14 @@ public class TestData {
     NullableDecimalVector colDecimalV = new NullableDecimalVector("colDecimal", allocator, 10, 10);
     colDecimalV.allocateNew(5);
     DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(25.03).setScale(5, RoundingMode.HALF_UP), tempBuf, 0);
-    colDecimalV.getMutator().set(0, tempBuf);
+    colDecimalV.set(0, tempBuf);
     DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(2524324.034534), tempBuf, 0);
-    colDecimalV.getMutator().set(1, tempBuf);
-    colDecimalV.getMutator().setNull(2);
+    colDecimalV.set(1, tempBuf);
+    colDecimalV.setNull(2);
     DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(2523423423424234243234.235), tempBuf, 0);
-    colDecimalV.getMutator().set(3, tempBuf);
+    colDecimalV.set(3, tempBuf);
     DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(2523423423424234243234.23524324234234), tempBuf, 0);
-    colDecimalV.getMutator().set(4, tempBuf);
+    colDecimalV.set(4, tempBuf);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -624,13 +624,13 @@ public class TestData {
   private static Pair<NullableVarCharVector, ResultVerifier> testVarCharVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableVarCharVector colVarCharV = new NullableVarCharVector("colVarChar", allocator);
     colVarCharV.allocateNew(500, 5);
-    colVarCharV.getMutator().set(0, "value1".getBytes());
-    colVarCharV.getMutator().set(1,
+    colVarCharV.set(0, "value1".getBytes());
+    colVarCharV.set(1,
         "long long long long long long long long long long long long long long long long value".getBytes()
     );
-    colVarCharV.getMutator().set(2, "long long long long value".getBytes());
-    colVarCharV.getMutator().setNull(3);
-    colVarCharV.getMutator().set(4, "l".getBytes());
+    colVarCharV.set(2, "long long long long value".getBytes());
+    colVarCharV.setNull(3);
+    colVarCharV.set(4, "l".getBytes());
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -661,13 +661,13 @@ public class TestData {
   private static Pair<NullableVarBinaryVector, ResultVerifier> testVarBinaryVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     NullableVarBinaryVector colVarBinaryV = new NullableVarBinaryVector("colVarBinary", allocator);
     colVarBinaryV.allocateNew(500, 5);
-    colVarBinaryV.getMutator().set(0, "value1".getBytes());
-    colVarBinaryV.getMutator().set(1,
+    colVarBinaryV.set(0, "value1".getBytes());
+    colVarBinaryV.set(1,
         "long long long long long long long long long long long long long long long value".getBytes()
     );
-    colVarBinaryV.getMutator().set(2, "long long long long value".getBytes());
-    colVarBinaryV.getMutator().setNull(3);
-    colVarBinaryV.getMutator().set(4, "l".getBytes());
+    colVarBinaryV.set(2, "long long long long value".getBytes());
+    colVarBinaryV.setNull(3);
+    colVarBinaryV.set(4, "l".getBytes());
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -840,7 +840,7 @@ public class TestData {
     tempBuf.setBytes(0, varCharVal);
     unionWriter.writeVarChar(0, varCharVal.length, tempBuf);
 
-    colUnionV.getMutator().setValueCount(5);
+    colUnionV.setValueCount(5);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override

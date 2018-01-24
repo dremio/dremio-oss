@@ -30,6 +30,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import javax.inject.Inject;
 
 @FunctionTemplate(name = "convert_toDOUBLE_BE", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@SuppressWarnings("unused") // found through classpath search
 public class DoubleBEConvertTo implements SimpleFunction {
 
   @Param Float8Holder in;

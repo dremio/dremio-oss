@@ -56,7 +56,7 @@ export default class ExtractTextCard extends Component {
       return ExtractPattern.validate(values);
     }
     return {
-      type: 'Type is required'
+      type: 'Type is required.'
     };
   }
 

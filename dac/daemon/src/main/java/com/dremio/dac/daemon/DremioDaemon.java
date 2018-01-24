@@ -21,7 +21,6 @@ import static com.dremio.dac.cmd.upgrade.Upgrade.UPGRADE_VERSION_ORDERING;
 import static com.dremio.dac.util.ClusterVersionUtils.fromClusterVersion;
 
 import java.io.File;
-import java.net.UnknownHostException;
 import java.util.logging.LogManager;
 
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -40,6 +39,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.NASSourceConfigurator;
 import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
+import com.dremio.dac.sources.AzureDataLakeConfigurator;
 import com.dremio.dac.sources.DB2SourceConfigurator;
 import com.dremio.dac.sources.ElasticSourceConfigurator;
 import com.dremio.dac.sources.HBaseSourceConfigurator;
@@ -86,15 +86,6 @@ public class DremioDaemon {
   }
 
   public static final String DAEMON_MODULE_CLASS = "dremio.daemon.module.class";
-
-
-  private static boolean isMaster(DACConfig config) {
-    try {
-      return !config.isRemote && NetworkUtil.addressResolvesToThisNode(config.masterNode);
-    } catch (UnknownHostException e) {
-      return false;
-    }
-  }
 
   private static void checkVersion(DACConfig config) throws Exception {
     final String dbDir = config.getConfig().getString(DremioConfig.DB_PATH_STRING);
@@ -146,7 +137,7 @@ public class DremioDaemon {
     try (TimedBlock b = Timer.time("main")) {
       DACConfig config = DACConfig.newConfig();
 
-      if (isMaster(config)) {
+      if (config.isMaster) {
         // Check version before starting daemon
         checkVersion(config);
       }
@@ -167,7 +158,8 @@ public class DremioDaemon {
           new PostgresSourceConfigurator(),
           new S3SourceConfigurator(),
           new DB2SourceConfigurator(),
-          new RedshiftSourceConfigurator());
+          new RedshiftSourceConfigurator(),
+          new AzureDataLakeConfigurator());
       final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module, sourceConfig);
       daemon.init();
       daemon.closeOnJVMShutDown();

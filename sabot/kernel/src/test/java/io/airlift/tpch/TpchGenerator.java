@@ -104,7 +104,7 @@ public abstract class TpchGenerator implements Generator {
 
     returned.setRecordCount(recordsGenerated);
     for(VectorWrapper<?> w : returned){
-      w.getValueVector().getMutator().setValueCount(recordsGenerated);
+      w.getValueVector().setValueCount(recordsGenerated);
     }
 
     return recordsGenerated;
@@ -124,21 +124,21 @@ public abstract class TpchGenerator implements Generator {
     return vector;
   }
 
-  protected NullableBigIntVector.Mutator int8(String name){
-    return addOrGet(name, Types.optional(MinorType.BIGINT), NullableBigIntVector.class).getMutator();
+  protected NullableBigIntVector int8(String name){
+    return addOrGet(name, Types.optional(MinorType.BIGINT), NullableBigIntVector.class);
   }
 
-  protected NullableIntVector.Mutator int4(String name){
-    return addOrGet(name, Types.optional(MinorType.INT), NullableIntVector.class).getMutator();
+  protected NullableIntVector int4(String name){
+    return addOrGet(name, Types.optional(MinorType.INT), NullableIntVector.class);
   }
 
-  protected NullableVarCharVector.Mutator varChar(String name){
-    return addOrGet(name, Types.optional(MinorType.VARCHAR), NullableVarCharVector.class).getMutator();
+  protected NullableVarCharVector varChar(String name){
+    return addOrGet(name, Types.optional(MinorType.VARCHAR), NullableVarCharVector.class);
   }
 
-  protected void set(int index, NullableVarCharVector.Mutator mutator, String value){
+  protected void set(int index, NullableVarCharVector v, String value){
     byte[] bytesValue = value.getBytes(Charsets.UTF_8);
-    mutator.setSafe(index, bytesValue, 0, bytesValue.length);
+    v.setSafe(index, bytesValue, 0, bytesValue.length);
   }
 
   protected RandomBoundedInt randomBoundedInt(long seed, int lowValue, int highValue){

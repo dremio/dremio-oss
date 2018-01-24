@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -104,7 +103,7 @@ public class HiveTestDataGenerator {
           "Hive test storage plugin doesn't exist. Add a plugin using addHiveTestPlugin()");
     }
 
-    Map<String, String> newConfig = Maps.newHashMap(storagePlugin.getConfig().config);
+    Map<String, String> newConfig = Maps.newHashMap(storagePlugin.getId().<HiveStoragePluginConfig>getConfig().config);
     for(Entry<String, String> prop : configOverride.entrySet()) {
       newConfig.put(prop.getKey(), prop.getValue());
     }

@@ -125,13 +125,13 @@ public class SequenceFileRecordReader extends AbstractRecordReader {
     int batchSize = 0;
     try {
       while (recordCount < numRowsPerBatch && batchSize < numBytesPerBatch && reader.next(key, value)) {
-        keyVector.getMutator().setSafe(recordCount, key.getBytes(), 0, key.getLength());
-        valueVector.getMutator().setSafe(recordCount, value.getBytes(), 0, value.getLength());
+        keyVector.setSafe(recordCount, key.getBytes(), 0, key.getLength());
+        valueVector.setSafe(recordCount, value.getBytes(), 0, value.getLength());
         batchSize += (key.getLength() + value.getLength());
         ++recordCount;
       }
-      keyVector.getMutator().setValueCount(recordCount);
-      valueVector.getMutator().setValueCount(recordCount);
+      keyVector.setValueCount(recordCount);
+      valueVector.setValueCount(recordCount);
       logger.debug("Read {} records in {} ms", recordCount, watch.elapsed(TimeUnit.MILLISECONDS));
       return recordCount;
     } catch (IOException ioe) {

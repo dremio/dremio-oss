@@ -34,8 +34,9 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.ExecTest;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.sys.SystemTablePluginProvider;
+import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.DirectProvider;
@@ -72,16 +73,12 @@ public class TestCatalogServiceImpl {
     when(sabotContext.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence()).thenReturn(new LogicalPlanPersistence(SabotConfig.create(), CLASSPATH_SCAN_RESULT));
     when(sabotContext.getStoreProvider()).thenReturn(pStoreProvider);
+    when(sabotContext.getConfig()).thenReturn(ExecTest.DEFAULT_SABOT_CONFIG);
 
-    final SystemTablePluginProvider sysPlugin = new SystemTablePluginProvider(new Provider<SabotContext>() {
+    final SystemTablePluginConfigProvider sysPlugin = new SystemTablePluginConfigProvider();
+    final Provider<SystemTablePluginConfigProvider> sysPluginProvider = new Provider<SystemTablePluginConfigProvider>() {
       @Override
-      public SabotContext get() {
-        return sabotContext;
-      }
-    });
-    final Provider<SystemTablePluginProvider> sysPluginProvider = new Provider<SystemTablePluginProvider>() {
-      @Override
-      public SystemTablePluginProvider get() {
+      public SystemTablePluginConfigProvider get() {
         return sysPlugin;
       }
     };
@@ -101,7 +98,7 @@ public class TestCatalogServiceImpl {
   @Test
   public void testCatalogKvStore() throws Exception {
     final NamespaceKey sourceKey = new NamespaceKey("test");
-    StoragePlugin2 mockStoragePlugin = mock(StoragePlugin2.class);
+    StoragePlugin mockStoragePlugin = mock(StoragePlugin.class);
     when(mockStoragePlugin.getDatasets(anyString(), anyBoolean())).thenReturn(Collections.<SourceTableDefinition>emptyList());
 
     assertEquals(null, catalogServiceImpl.getSourceLastFullRefreshDate(sourceKey));

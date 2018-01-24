@@ -42,6 +42,7 @@ import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenManagerImpl;
 import com.dremio.dac.service.datasets.DACViewCreatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.exec.MasterElectionService;
 import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.support.SupportService;
@@ -63,7 +64,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PDFSService;
 import com.dremio.exec.store.dfs.PDFSService.PDFSMode;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
-import com.dremio.exec.store.sys.SystemTablePluginProvider;
+import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
@@ -77,6 +78,7 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.provision.service.ProvisioningService;
 import com.dremio.provision.service.ProvisioningServiceImpl;
 import com.dremio.sabot.exec.FragmentWorkManager;
+import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.rpc.CoordExecService;
 import com.dremio.sabot.rpc.CoordToExecHandler;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
@@ -116,7 +118,7 @@ public class DACDaemonModule implements DACModule {
   }
 
   @Override
-  public void bootstrap(final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, String masterNode, boolean isMaster) {
+  public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
     final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
 
@@ -128,22 +130,24 @@ public class DACDaemonModule implements DACModule {
     } else {
       // ClusterCoordinator has a runtime dependency on ZooKeeper. If no ZooKeeper server
       // is present, ClusterCoordinator won't start, so this service should be initialized first.
+      final Provider<Integer> portProvider;
       if (isMaster && embeddedZookeeper) {
         ZkServer zkServer = new ZkServer(
             config.getString(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING),
             config.getInt(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT),
             dacConfig.autoPort);
         bootstrapRegistry.bindSelf(zkServer);
+
+        portProvider = dacConfig.autoPort ? new Provider<Integer>(){
+          @Override
+          public Integer get() {
+            return bootstrapRegistry.lookup(ZkServer.class).getPort();
+          }} : null;
+      } else {
+        portProvider = null;
       }
 
-      final Provider<Integer> portProvider = isMaster && embeddedZookeeper && dacConfig.autoPort ? new Provider<Integer>(){
-        @Override
-        public Integer get() {
-          return bootstrapRegistry.lookup(ZkServer.class).getPort();
-        }} : null;
-
-
-      ZKClusterCoordinator coord;
+      final ZKClusterCoordinator coord;
       try {
         coord = new ZKClusterCoordinator(config.getSabotConfig(), portProvider);
       } catch (IOException e) {
@@ -152,27 +156,36 @@ public class DACDaemonModule implements DACModule {
       bootstrapRegistry.bind(ClusterCoordinator.class, coord);
     }
 
+    // Start master election
+    if (isMaster && !config.getBoolean(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL)) {
+      bootstrapRegistry.bindSelf(new MasterElectionService(bootstrapRegistry.provider(ClusterCoordinator.class)));
+    }
+
     // start master status listener
-    bootstrapRegistry.bindSelf(new MasterStatusListener(bootstrapRegistry.provider(ClusterCoordinator.class), masterNode, dacConfig.masterPort, isMaster));
+    bootstrapRegistry.bindSelf(new MasterStatusListener(bootstrapRegistry.provider(ClusterCoordinator.class), isMaster));
   }
 
   @Override
   public void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, String masterNode, boolean isMaster, SourceToStoragePluginConfig configurator) {
+      DACConfig dacConfig, boolean isMaster, SourceToStoragePluginConfig configurator) {
     final DremioConfig config = dacConfig.getConfig();
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
 
+
+    boolean isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
+    boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
+
     EnumSet<ClusterCoordinator.Role> roles = EnumSet.noneOf(ClusterCoordinator.Role.class);
-    if (config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL)) {
+    if (isMaster) {
+      roles.add(ClusterCoordinator.Role.MASTER);
+    }
+    if (isCoordinator) {
       roles.add(ClusterCoordinator.Role.COORDINATOR);
     }
-    if (config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL)) {
+    if (isExecutor) {
       roles.add(ClusterCoordinator.Role.EXECUTOR);
     }
-
-    boolean isCoordinator = roles.contains(ClusterCoordinator.Role.COORDINATOR);
-    boolean isExecutor = roles.contains(ClusterCoordinator.Role.EXECUTOR);
 
     registry.bindSelf(config);
 
@@ -222,7 +235,7 @@ public class DACDaemonModule implements DACModule {
             bootstrap.getClasspathScan(),
             registry.provider(FabricService.class),
             bootstrap.getAllocator(),
-            masterNode,
+            config.getThisNode(),
             config.getString(DremioConfig.DB_PATH_STRING),
             dacConfig.inMemoryStorage,
             true,
@@ -230,13 +243,19 @@ public class DACDaemonModule implements DACModule {
             false);
 
       } else {
+        final Provider<NodeEndpoint> masterNodeProvider = new Provider<NodeEndpoint>() {
+          private final Provider<MasterStatusListener> masterStatusListener = registry.provider(MasterStatusListener.class);
+          @Override
+          public NodeEndpoint get() {
+            return masterStatusListener.get().getMasterNode();
+          }
+        };
         provider = new RemoteKVStoreProvider(
             bootstrap.getClasspathScan(),
+            masterNodeProvider,
             registry.provider(FabricService.class),
             bootstrap.getAllocator(),
-            fabricAddress,
-            masterNode,
-            dacConfig.masterPort);
+            fabricAddress);
       }
       registry.bind(KVStoreProvider.class, provider);
     }
@@ -297,9 +316,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(UserService.class),
         registry.provider(CatalogService.class),
         registry.provider(ViewCreatorFactory.class),
-        true,
-        roles,
-        isMaster
+        roles
         ));
 
     // PDFS depends on fabric.
@@ -312,7 +329,7 @@ public class DACDaemonModule implements DACModule {
         ));
 
     registry.bind(SchedulerService.class, new LocalSchedulerService(isCoordinator ? config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT) : 1));
-    registry.bindSelf(new SystemTablePluginProvider(registry.provider(SabotContext.class)));
+    registry.bindSelf(new SystemTablePluginConfigProvider());
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
@@ -321,7 +338,7 @@ public class DACDaemonModule implements DACModule {
         registry.getBindingCreator(),
         isMaster,
         isCoordinator,
-        registry.provider(SystemTablePluginProvider.class)));
+        registry.provider(SystemTablePluginConfigProvider.class)));
 
 
     registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
@@ -366,6 +383,7 @@ public class DACDaemonModule implements DACModule {
     }
 
     if(isExecutor){
+      registry.bindSelf(new ContextInformationFactory());
       registry.bindSelf(
           new FragmentWorkManager(bootstrap,
               config,
@@ -373,6 +391,7 @@ public class DACDaemonModule implements DACModule {
               registry.provider(SabotContext.class),
               registry.provider(FabricService.class),
               registry.provider(StoragePluginRegistry.class),
+              registry.provider(ContextInformationFactory.class),
               registry.getBindingCreator()));
     } else {
       registry.bind(WorkStats.class, WorkStats.NO_OP);

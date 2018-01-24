@@ -45,10 +45,10 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
 
       for(int i = 0; i < count; i++){
         if(i % 5 == 0){
-          in.getMutator().setSafe(i, i);
+          in.setSafe(i, i);
         }
       }
-      in.getMutator().setValueCount(count);
+      in.setValueCount(count);
 
       final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
       try(
@@ -60,7 +60,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         Unpivots.unpivot(pivot, fbv, vbv, count);
 
         for(int i =0; i < count; i++){
-          assertEquals(in.getAccessor().getObject(i), out.getAccessor().getObject(i));
+          assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }
@@ -84,10 +84,10 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         out[x] = outv;
         for(int i = 0; i < count; i++){
           if(i % 5 == 0){
-            inv.getMutator().setSafe(i, Integer.MAX_VALUE - i);
+            inv.setSafe(i, Integer.MAX_VALUE - i);
           }
         }
-        inv.getMutator().setValueCount(count);
+        inv.setValueCount(count);
         pairs.add(new FieldVectorPair(inv, outv));
       }
 
@@ -108,7 +108,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           NullableIntVector inv = in[x];
           NullableIntVector outv = out[x];
           for(int i =0; i < count; i++){
-            assertEquals("Field: " + x, inv.getAccessor().getObject(i), outv.getAccessor().getObject(i));
+            assertEquals("Field: " + x, inv.getObject(i), outv.getObject(i));
           }
         }
       }
@@ -132,10 +132,10 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
 
       for(int i = 0; i < count; i++){
         if(i % 5 == 0){
-          in.getMutator().setSafe(i, i);
+          in.setSafe(i, i);
         }
       }
-      in.getMutator().setValueCount(count);
+      in.setValueCount(count);
 
       final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
       try(
@@ -148,7 +148,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         Unpivots.unpivot(pivot, fbv, vbv, count);
 
         for(int i =0; i < count; i++){
-          assertEquals(in.getAccessor().getObject(i), out.getAccessor().getObject(i));
+          assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }
@@ -168,10 +168,10 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       for(int i = 0; i < count; i++){
         if(i % 5 == 0){
           byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
-          in.getMutator().setSafe(i, data, 0, data.length);
+          in.setSafe(i, data, 0, data.length);
         }
       }
-      in.getMutator().setValueCount(count);
+      in.setValueCount(count);
 
       final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
       try(
@@ -183,7 +183,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         Unpivots.unpivot(pivot, fbv, vbv, count);
 
         for(int i =0; i < count; i++){
-          assertEquals(in.getAccessor().getObject(i), out.getAccessor().getObject(i));
+          assertEquals(in.getObject(i), out.getObject(i));
         }
       }
     }

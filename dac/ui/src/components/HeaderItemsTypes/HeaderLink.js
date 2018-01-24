@@ -34,30 +34,43 @@ export default class HeaderLink extends Component {
 
   static contextTypes = {
     location: PropTypes.object,
-    routeParams: PropTypes.object
+    routeParams: PropTypes.object,
+    router: PropTypes.object
   }
 
-  constructor(props) {
-    super(props);
+  shouldLinkBeActive() { // NOTE: RadiumLink can still override this with `false`
+    // small hack to prevent case when we have several active items in header for a root link
+    const { tableId } = this.context.routeParams;
+    if (this.props.to !== '/') return true;
+    if (this.context.location.pathname === '/') return true;
+
+    return this.context.location.pathname.match(/^\/(home|spaces?|sources?)(\/.*)?$/) && !tableId;
   }
 
-  shouldLinkBeNotActive() {
-    // small hack to prevent case when we have several active items in header
-    const { spaceId, resourceId } = this.context.routeParams;
-    return this.props.to === '/' && this.context.location.pathname !== '/' && !spaceId && !resourceId;
+  handleClick = (evt) => {
+    if (isModifiedEvent(evt) || !isLeftClickEvent(evt)) return;
+
+    const { router } = this.context;
+    if (this.shouldLinkBeActive() && router.isActive(this.props.to)) {
+      evt.preventDefault();
+      router.replace({pathname: '/reload', state: {to: router.location}});
+    }
   }
 
   render() {
+    const {children, ...props} = this.props;
+
     const RadiumLink = Radium(Link);
     return (
       <div className='HeaderLink' style={styles.item}>
         <RadiumLink
-          {...this.props}
+          {...props}
+          onClick={this.handleClick}
           style={styles.link}
-          activeClassName={!this.shouldLinkBeNotActive() ? 'active-link' : ''}
-          activeStyle={!this.shouldLinkBeNotActive() ? styles.activeLink : {}}
+          activeClassName={this.shouldLinkBeActive() ? 'active-link' : ''}
+          activeStyle={this.shouldLinkBeActive() ? styles.activeLink : {}}
         >
-          {this.props.children}
+          {children}
           <div className='header-link-underline'></div>
         </RadiumLink>
       </div>
@@ -84,3 +97,12 @@ const styles = {
     borderBottom: '2px solid rgba(255, 255, 255, 0.4)'
   }
 };
+
+
+function isLeftClickEvent(event) {
+  return event.button === 0;
+}
+
+function isModifiedEvent(event) {
+  return !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
+}

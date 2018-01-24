@@ -78,6 +78,26 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
     }
   }
 
+  @Override
+  public synchronized void seek(long desired) throws IOException {
+    operatorStats.startWait();
+    try {
+      super.seek(desired);
+    } finally {
+      operatorStats.stopWait();
+    }
+  }
+
+  @Override
+  public long skip(long n) throws IOException {
+    operatorStats.startWait();
+    try {
+      return super.skip(n);
+    } finally {
+      operatorStats.stopWait();
+    }
+  }
+
   /**
    * We need to wrap the FSDataInputStream inside a InputStream, because read() method in InputStream is
    * overridden in FilterInputStream (super class of FSDataInputStream) as final, so we can not override in

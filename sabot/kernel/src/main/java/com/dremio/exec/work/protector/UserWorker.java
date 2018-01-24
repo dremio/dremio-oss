@@ -27,6 +27,8 @@ public interface UserWorker {
 
   Ack cancelQuery(ExternalId query);
 
+  Ack resumeQuery(ExternalId query);
+
   OptionManager getSystemOptions();
 
 }

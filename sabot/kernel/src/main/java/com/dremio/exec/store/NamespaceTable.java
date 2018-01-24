@@ -77,6 +77,10 @@ public class NamespaceTable implements TranslatableTable {
 
   @Override
   public TableType getJdbcTableType() {
+    // ugly way to return correct table type for the system tables and information schema.
+    if(dataset.getName().getRoot().equals("sys") || dataset.getName().getRoot().equals("INFORMATION_SCHEMA") ) {
+      return TableType.SYSTEM_TABLE;
+    }
     return TableType.TABLE;
   }
 

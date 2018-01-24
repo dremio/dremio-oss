@@ -24,9 +24,15 @@ import java.sql.SQLException;
 public class SqlTimeoutException
     extends SQLException
 {
-  SqlTimeoutException() {
+  private static final long serialVersionUID = -1;
+
+  public SqlTimeoutException() {
+    this("timeout", null);
+  }
+
+  public SqlTimeoutException(String message, Throwable cause) {
     // SQLException(reason, SQLState, vendorCode)
     // REVIEW mb 19-Jul-05 Is there a standard SQLState?
-    super("timeout", null, 0);
+    super(message, null, 0, cause);
   }
 }

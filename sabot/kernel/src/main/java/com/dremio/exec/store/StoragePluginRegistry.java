@@ -26,7 +26,7 @@ import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
-public interface StoragePluginRegistry extends Iterable<Map.Entry<String, StoragePlugin<?>>> {
+public interface StoragePluginRegistry extends Iterable<Map.Entry<String, StoragePlugin>> {
   public static final String SYS_PLUGIN = "sys";
   public static final String INFORMATION_SCHEMA_PLUGIN = "INFORMATION_SCHEMA";
   final String PSTORE_NAME = "sys.storage_plugins";
@@ -49,9 +49,9 @@ public interface StoragePluginRegistry extends Iterable<Map.Entry<String, Storag
    * @return The StoragePlugin instance.
    * @throws ExecutionSetupException
    */
-  StoragePlugin<?> createOrUpdate(String name, StoragePluginConfig config, boolean persist) throws ExecutionSetupException;
+  StoragePlugin createOrUpdate(String name, StoragePluginConfig config, boolean persist) throws ExecutionSetupException;
 
-  StoragePlugin<?> createOrUpdate(String name, StoragePluginConfig config, SourceConfig sourceConfig, boolean persist) throws ExecutionSetupException;
+  StoragePlugin createOrUpdate(String name, StoragePluginConfig config, SourceConfig sourceConfig, boolean persist) throws ExecutionSetupException;
 
   /**
    * Get a plugin by name. Create it based on the PStore saved definition if it doesn't exist.
@@ -60,7 +60,7 @@ public interface StoragePluginRegistry extends Iterable<Map.Entry<String, Storag
    * @return The StoragePlugin instance.
    * @throws ExecutionSetupException
    */
-  StoragePlugin<?> getPlugin(String name) throws ExecutionSetupException;
+  StoragePlugin getPlugin(String name) throws ExecutionSetupException;
 
   /**
    * Get a plugin by configuration. If it doesn't exist, create it.
@@ -69,10 +69,10 @@ public interface StoragePluginRegistry extends Iterable<Map.Entry<String, Storag
    * @return The StoragePlugin instance.
    * @throws ExecutionSetupException
    */
-  StoragePlugin<?> getPlugin(StoragePluginConfig config) throws ExecutionSetupException;
+  StoragePlugin getPlugin(StoragePluginConfig config) throws ExecutionSetupException;
 
 
-  StoragePlugin<?> getPlugin(StoragePluginId pluginId) throws ExecutionSetupException;
+  StoragePlugin getPlugin(StoragePluginId pluginId) throws ExecutionSetupException;
 
   /**
    * Add a plugin to the registry using the provided name.
@@ -80,7 +80,7 @@ public interface StoragePluginRegistry extends Iterable<Map.Entry<String, Storag
    * @param name
    * @param plugin
    */
-  void addPlugin(String name, StoragePlugin<?> plugin);
+  void addPlugin(String name, StoragePlugin plugin);
 
   /**
    * Get the Format plugin for the FileSystemPlugin associated with the provided storage config and format config.

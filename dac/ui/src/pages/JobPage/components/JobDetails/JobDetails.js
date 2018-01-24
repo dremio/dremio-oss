@@ -136,7 +136,6 @@ export class JobDetails extends Component {
           { haveDetails &&
             <div style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
               <HeaderDetails
-                jobState={jobDetails.get('state')}
                 cancelJob={this.cancelJob}
                 jobId={jobId}
                 style={styles.header}

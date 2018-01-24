@@ -34,7 +34,7 @@ export default class General extends Component {
   static validate(values) {
     const errors = {};
     if (!values.name) {
-      errors.name = 'Name is required';
+      errors.name = 'Name is required.';
     }
     return errors;
   }

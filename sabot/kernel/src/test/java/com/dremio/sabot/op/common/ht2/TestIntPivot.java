@@ -54,17 +54,16 @@ public class TestIntPivot extends BaseTestWithAllocator {
   static void populate(NullableIntVector vector, Integer[] values){
     vector.allocateNew();
     Random r = new Random();
-    NullableIntVector.Mutator mutator1 = vector.getMutator();
     for(int i =0; i < values.length; i++){
       Integer val = values[i];
       if(val != null){
-        mutator1.setSafe(i, val);
+        vector.setSafe(i, val);
       } else {
         // add noise so we make sure not to read/see noise.
-        mutator1.setSafe(i, 0, r.nextInt());
+        vector.setSafe(i, 0, r.nextInt());
       }
     }
-    mutator1.setValueCount(values.length);
+    vector.setValueCount(values.length);
   }
 
 

@@ -32,7 +32,7 @@ export default class Home extends Component {
   }
 
   render() {
-    return <HomePage style={this.props.style} location={location}>
+    return <HomePage style={this.props.style} location={this.props.location}>
       <HomeContents location={this.props.location}/>
     </HomePage>;
   }

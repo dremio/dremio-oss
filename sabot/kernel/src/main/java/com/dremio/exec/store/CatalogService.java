@@ -17,7 +17,7 @@ package com.dremio.exec.store;
 
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.store.StoragePlugin2.UpdateStatus;
+import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -36,6 +36,7 @@ public interface CatalogService extends AutoCloseable, Service {
 
   long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
   long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);
+  long DEFAULT_AUTHTTLS_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS);
   long CENTURY_MILLIS = TimeUnit.DAYS.toMillis(365*100);
 
   MetadataPolicy REFRESH_EVERYTHING_NOW = new MetadataPolicy()
@@ -46,7 +47,7 @@ public interface CatalogService extends AutoCloseable, Service {
       .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
   MetadataPolicy DEFAULT_METADATA_POLICY = new MetadataPolicy()
-      .setAuthTtlMs(DEFAULT_EXPIRE_MILLIS)
+      .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
       .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
       .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
       .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
@@ -64,7 +65,7 @@ public interface CatalogService extends AutoCloseable, Service {
    * @param source source name
    * @param sourceRegistry source registry for given source
    */
-  void registerSource(NamespaceKey source, StoragePlugin2 sourceRegistry);
+  void registerSource(NamespaceKey source, StoragePlugin sourceRegistry);
 
   /**
    * Unregister a source from a catalog service
@@ -111,7 +112,7 @@ public interface CatalogService extends AutoCloseable, Service {
    * @param name source name
    * @return new storage plugin, null if source does not support new storage plugin.
    */
-  StoragePlugin2 getStoragePlugin(String name);
+  StoragePlugin getStoragePlugin(String name);
 
   /**
    * Create or update a physical dataset along with its read definitions and splits.

@@ -20,65 +20,30 @@ import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ROOT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.inject.Provider;
 
-import org.apache.curator.CuratorZookeeperClient;
-import org.apache.curator.retry.RetryOneTime;
-import org.apache.curator.test.TestingServer;
-import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExternalResource;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ElectionListener;
+import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.dremio.test.DremioTest;
-import com.google.common.base.Throwables;
 import com.typesafe.config.ConfigValueFactory;
 
 /**
  * Test for {@code TestZKClusterClient}
  */
 public class TestZKClusterClient extends DremioTest {
-
-  private static final class ZooKeeperServerResource extends ExternalResource {
-    private TestingServer testingServer;
-    private CuratorZookeeperClient zkClient;
-
-    @Override
-    protected void before() throws Throwable {
-      testingServer = new TestingServer(true);
-      zkClient = new CuratorZookeeperClient(testingServer.getConnectString(), 5000, 5000, null, new RetryOneTime(1000));
-      zkClient.start();
-      zkClient.blockUntilConnectedOrTimedOut();
-    }
-
-    @Override
-    protected void after() {
-      try {
-        zkClient.close();
-        testingServer.close();
-      } catch (IOException e) {
-        throw Throwables.propagate(e);
-      }
-    }
-
-    public ZooKeeper getZKClient() throws Exception {
-      return zkClient.getZooKeeper();
-    }
-
-    public int getPort() {
-      return testingServer.getPort();
-    }
-
-    public String getConnectString() {
-      return testingServer.getConnectString();
-    }
-  }
 
   @Rule
   public final ZooKeeperServerResource zooKeeperServer = new ZooKeeperServerResource();
@@ -166,4 +131,146 @@ public class TestZKClusterClient extends DremioTest {
     }
   }
 
+  @Test
+  public void testElection() throws Exception {
+    final CountDownLatch firstElection = new CountDownLatch(1);
+    final CountDownLatch secondElection = new CountDownLatch(1);
+    final AtomicBoolean join1 = new AtomicBoolean(false);
+    final AtomicBoolean join2 = new AtomicBoolean(false);
+
+
+    try(ZKClusterClient client = new ZKClusterClient(
+        DEFAULT_SABOT_CONFIG,
+        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+    ) {
+      client.start();
+      RegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
+
+        @Override
+        public void onElected() {
+          join1.set(true);
+          if (firstElection.getCount() == 0) {
+            secondElection.countDown();
+          } else {
+            firstElection.countDown();
+          }
+        }
+
+        @Override
+        public void onCancelled() {
+        }
+      });
+
+      RegistrationHandle node2 = client.joinElection("test-election", new ElectionListener() {
+        @Override
+        public void onElected() {
+          join2.set(true);
+          if (firstElection.getCount() == 0) {
+            secondElection.countDown();
+          } else {
+            firstElection.countDown();
+          }
+        }
+
+        @Override
+        public void onCancelled() {
+        }
+      });
+
+      assertTrue(firstElection.await(5, TimeUnit.SECONDS));
+      assertTrue("Both nodes were elected master (or no election happened)", join1.get() ^ join2.get());
+
+      // Confirming that the second node is taking over when the first node leaves the election
+      if (join1.get()) {
+        node1.close();
+      } else {
+        node2.close();
+      }
+
+      assertTrue(secondElection.await(5, TimeUnit.SECONDS));
+      assertTrue("Second node didn't get elected", join1.get() && join2.get());
+    }
+  }
+
+  @Test
+  public void testElectionDisconnection() throws Exception {
+    final CountDownLatch elected = new CountDownLatch(1);
+    final CountDownLatch cancelled = new CountDownLatch(1);
+
+    try(ZKClusterClient client = new ZKClusterClient(
+        DEFAULT_SABOT_CONFIG
+        .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("20ms"))
+        .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100ms")),
+        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+    ) {
+      client.start();
+      RegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
+
+        @Override
+        public void onElected() {
+          elected.countDown();
+        }
+
+        @Override
+        public void onCancelled() {
+          cancelled.countDown();
+        }
+      });
+
+      assertTrue("No election happened", elected.await(5, TimeUnit.SECONDS));
+
+      // Kill the server to force disconnection
+      zooKeeperServer.closeServer();
+
+      assertTrue("Node was not notified about cancellation", cancelled.await(5, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
+  public void testElectionSuspended() throws Exception {
+    final CountDownLatch elected = new CountDownLatch(1);
+    final CountDownLatch cancelled = new CountDownLatch(1);
+    final CountDownLatch loss = new CountDownLatch(1);
+    final CountDownLatch reconnected = new CountDownLatch(1);
+
+    try(ZKClusterClient client = new ZKClusterClient(
+        DEFAULT_SABOT_CONFIG
+        .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
+        .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("5s")),
+        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+        ) {
+      client.start();
+      RegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
+
+        @Override
+        public void onElected() {
+          elected.countDown();
+        }
+
+        @Override
+        public void onCancelled() {
+          cancelled.countDown();
+        }
+
+        @Override
+        public void onConnectionLoss() {
+          loss.countDown();
+        }
+
+        @Override
+        public void onReconnection() {
+          reconnected.countDown();
+        }
+      });
+
+      assertTrue("No election happened", elected.await(5, TimeUnit.SECONDS));
+
+      // Restart the server
+      zooKeeperServer.restartServer();
+
+      assertTrue("Node was not disconnected", loss.await(5, TimeUnit.SECONDS));
+      assertTrue("Node was not reconnected", reconnected.await(5, TimeUnit.SECONDS));
+      assertEquals("Node was cancelled", 1L, cancelled.getCount());
+    }
+  }
 }

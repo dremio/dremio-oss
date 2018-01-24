@@ -123,7 +123,17 @@ public class ScanOperator implements ProducerOperator {
     this.tableSchemaPath = config.getTableSchemaPath() == null ? null : ImmutableList.copyOf(config.getTableSchemaPath());
     this.selectedColumns = config.getColumns() == null ? null : ImmutableList.copyOf(config.getColumns());
     this.schemaUpdater = schemaUpdater;
-    this.currentReader = this.readers.next();
+
+    final OperatorStats stats = context.getStats();
+    try {
+      // be in the processing state as the fetching the next reader could trigger wait which expects the current state
+      // to be processing.
+      stats.startProcessing();
+      this.currentReader = this.readers.next();
+    } finally {
+      stats.stopProcessing();
+    }
+
     this.outgoing = new VectorContainer(context.getAllocator());
 
     final String readerUserName = StringUtils.isEmpty(config.getUserName()) ? ImpersonationUtil.getProcessUserName() : config.getUserName();

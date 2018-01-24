@@ -15,10 +15,14 @@
  */
 package com.dremio.dac.server;
 
+import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.container.DynamicFeature;
+import javax.ws.rs.container.ResourceInfo;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.FeatureContext;
 
+import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.resource.BootstrapResource;
 import com.dremio.dac.server.test.NoUserTestFilter;
 
@@ -43,11 +47,21 @@ public class FirstTimeFeature implements Feature {
     // this is handled separately from firstTimeApi because we may enable the api only on master
     // but still register the filer on all nodes
     context.register(BootstrapResource.class);
-    if (allowTestApis) {
-      context.register(NoUserTestFilter.class);
-    } else {
-      context.register(NoUserFilter.class);
-    }
+
+    // Registering a dynamic feature to only add filter to resources not annotated with
+    // @Bootstrap
+    final Class<? extends ContainerRequestFilter> filter = allowTestApis ? NoUserTestFilter.class : NoUserFilter.class;
+    context.register(new DynamicFeature() {
+      @Override
+      public void configure(ResourceInfo resourceInfo, FeatureContext context) {
+        if (resourceInfo.getResourceClass().isAnnotationPresent(Bootstrap.class) ||
+            resourceInfo.getResourceMethod().isAnnotationPresent(Bootstrap.class)) {
+          return;
+        }
+        context.register(filter);
+      }
+    });
+
 
     return true;
   }

@@ -16,17 +16,21 @@
 import React, { Component } from 'react';
 import spring from 'react-motion/lib/spring';
 import Radium from 'radium';
+import { injectIntl } from 'react-intl';
 
 import PropTypes from 'prop-types';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
+import { formatMessage } from '../../utils/locale';
 
+@injectIntl
 @Radium
 export class AddButton extends Component {
   static propTypes = {
     addItem: PropTypes.func,
     style: PropTypes.object,
-    children: PropTypes.node
+    children: PropTypes.node,
+    intl: PropTypes.object.isRequired
   };
 
   render() {
@@ -34,7 +38,10 @@ export class AddButton extends Component {
     const isHovered = Radium.getState(this.state, 'addItem', ':hover');
     const combinedStyle = {':hover': {}, ...styles.addButton, ...style}; // need Radium fakeout
     return <a key='addItem' className='add-item' onClick={addItem} style={combinedStyle}>
-      <FontIcon type={isHovered ? 'AddHover' : 'Add'} theme={styles.addIcon}/>
+      <Art
+        src={`${isHovered ? 'AddHover' : 'Add'}.svg`}
+        alt={this.props.intl.formatMessage({id: 'Common.Add'})}
+        style={styles.addIcon} />
       {children}
     </a>;
   }
@@ -46,7 +53,12 @@ RemoveButton.propTypes = {
 };
 
 export function RemoveButton({onClick, style}) {
-  return <FontIcon type='XSmall' onClick={onClick} style={{...styles.removeButton, ...style}}/>;
+  return <Art
+    src={'XSmall.svg'}
+    alt={formatMessage('Common.Close')}
+    style={{...styles.removeButton, ...style}}
+    onClick={onClick}
+  />;
 }
 
 export default class FieldList extends Component {
@@ -129,7 +141,7 @@ export default class FieldList extends Component {
     }
 
     return (
-      <div style={this.props.style} className={this.props.className}>
+      <div style={this.props.style} className={`field ${this.props.className}`}>
         {(!this.props.items || this.props.items.length === 0) &&
           <div className='largerFontSize' style={styles.empty}>
             {emptyLabel}
@@ -151,17 +163,16 @@ const styles = {
     color: '#46B4D5'
   },
   addIcon: {
-    marginRight: '1em',
-    Icon: {
-      marginBottom: -6,
-      width: 24,
-      height: 24
-    }
+    marginBottom: -6,
+    width: 24,
+    height: 24
   },
   removeButton: {
     color: '#999',
     fontSize: '10px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    width: 24,
+    height: 24
   },
   empty: {
     color: '#ccc'

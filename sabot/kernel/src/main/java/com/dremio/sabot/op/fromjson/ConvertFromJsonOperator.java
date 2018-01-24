@@ -137,7 +137,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
     for(TransferPair transfer : transfers){
       transfer.transfer();
-      transfer.getTo().getMutator().setValueCount(records);
+      transfer.getTo().setValueCount(records);
     }
 
     outgoing.setRecordCount(records);
@@ -169,39 +169,33 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
   private class BinaryConverter extends JsonConverter<NullableVarBinaryVector> {
 
-    private final NullableVarBinaryVector.Accessor accessor;
-
     BinaryConverter(ConversionColumn column, NullableVarBinaryVector vector, ValueVector outgoingVector) {
       super(column, vector, outgoingVector);
-      this.accessor = vector.getAccessor();
     }
 
     @Override
     byte[] getBytes(int inputIndex) {
-      if(accessor.isNull(inputIndex)){
+      if(vector.isNull(inputIndex)){
         return null;
       }
-      return accessor.get(inputIndex);
+      return vector.get(inputIndex);
     }
 
   }
 
   private class CharConverter extends JsonConverter<NullableVarCharVector> {
 
-    private final NullableVarCharVector.Accessor accessor;
-
     CharConverter(ConversionColumn column, NullableVarCharVector vector, ValueVector outgoingVector) {
       super(column, vector, outgoingVector);
-      this.accessor = vector.getAccessor();
     }
 
     @Override
     byte[] getBytes(int inputIndex) {
-      if(accessor.isNull(inputIndex)){
+      if(vector.isNull(inputIndex)){
         return null;
       }
 
-      return accessor.get(inputIndex);
+      return vector.get(inputIndex);
     }
 
   }

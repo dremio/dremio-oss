@@ -394,7 +394,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     private final int columns;
     private final int rows;
     private final VectorContainer result;
-    private final List<NullableIntVector.Mutator> mutators;
+    private final List<NullableIntVector> vectors;
 
     private int offset = 0;
 
@@ -403,12 +403,12 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       this.rows = rows;
       result = new VectorContainer(allocator);
 
-      ImmutableList.Builder<NullableIntVector.Mutator> mutatorsBuilder = ImmutableList.builder();
+      ImmutableList.Builder<NullableIntVector> vectorsBuilder = ImmutableList.builder();
       for(int i = 0; i<columns; i++) {
         NullableIntVector vector = result.addOrGet(String.format("%s_%d", prefix, i + 1), Types.optional(MinorType.INT), NullableIntVector.class);
-        mutatorsBuilder.add(vector.getMutator());
+        vectorsBuilder.add(vector);
       }
-      this.mutators = mutatorsBuilder.build();
+      this.vectors = vectorsBuilder.build();
 
       result.buildSchema(SelectionVectorMode.NONE);
     }
@@ -423,8 +423,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       result.allocateNew();
       for(int i = 0; i<count; i++) {
         int col = 0;
-        for(NullableIntVector.Mutator mutator: mutators) {
-          mutator.setSafe(i, (offset + i) * columns + col);
+        for(NullableIntVector vector: vectors) {
+          vector.setSafe(i, (offset + i) * columns + col);
           col++;
         }
       }

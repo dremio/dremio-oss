@@ -75,14 +75,10 @@ public class TestSimpleTopN extends PopUnitTestBase {
         loader.load(b.getHeader().getDef(),b.getData());
         NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
-
-        NullableBigIntVector.Accessor a1 = c1.getAccessor();
-//        IntVector.Accessor a2 = c2.getAccessor();
-
-        for (int i =0; i < c1.getAccessor().getValueCount(); i++) {
+        for (int i =0; i < c1.getValueCount(); i++) {
           recordCount++;
-          assertTrue(previousBigInt <= a1.get(i));
-          previousBigInt = a1.get(i);
+          assertTrue(previousBigInt <= c1.get(i));
+          previousBigInt = c1.get(i);
         }
         loader.clear();
         b.release();

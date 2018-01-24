@@ -65,7 +65,7 @@ public class FunctionRegistry {
 
       // Dummy functions
       .put("CONVERT_TO", Pair.of(2, 2))
-      .put("CONVERT_FROM", Pair.of(2, 2))
+      .put("CONVERT_FROM", Pair.of(2, 3))
       .put("FLATTEN", Pair.of(1, 1)).build();
 
   // Function for E()
@@ -141,6 +141,7 @@ public class FunctionRegistry {
       final ArrayListMultimap<Integer, BaseFunctionHolder> aggregateFunctions = ArrayListMultimap.create();
       final String name = function.getKey().toUpperCase();
       boolean isDeterministic = true;
+      boolean isDynamic = false;
       FunctionSyntax syntax = FunctionSyntax.FUNCTION;
       for (BaseFunctionHolder func : function.getValue()) {
         final int paramCount = func.getParamCount();
@@ -158,6 +159,9 @@ public class FunctionRegistry {
 
         if(!func.isDeterministic()) {
           isDeterministic = false;
+        }
+        if (func.isDynamic()) {
+          isDynamic = true;
         }
 
         // All the functions are assumed to share the same syntax
@@ -188,6 +192,7 @@ public class FunctionRegistry {
             min,
             max,
             isDeterministic,
+            isDynamic,
             TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue())),
             sqlSyntax);
         operatorTable.add(name, sqlOperator);

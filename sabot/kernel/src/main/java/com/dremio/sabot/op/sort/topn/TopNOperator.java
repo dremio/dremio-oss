@@ -185,8 +185,7 @@ public class TopNOperator implements SingleInputOperator {
           throw UserException.memoryError().message("Ran out of memory while trying to sort records.").build(logger);
         }
         for (VectorWrapper<?> v : target) {
-          ValueVector.Mutator m = v.getValueVector().getMutator();
-          m.setValueCount(count);
+          v.getValueVector().setValueCount(count);
         }
         target.buildSchema(BatchSchema.SelectionVectorMode.NONE);
         target.setRecordCount(count);

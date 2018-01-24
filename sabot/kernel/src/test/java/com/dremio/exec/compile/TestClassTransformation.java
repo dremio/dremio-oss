@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.compile;
 
+import static org.mockito.Mockito.mock;
+
 import java.io.IOException;
 
 import org.codehaus.commons.compiler.CompileException;
@@ -32,6 +34,7 @@ import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SessionOptionManager;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 
 public class TestClassTransformation extends BaseTestQuery {
@@ -119,8 +122,10 @@ public class TestClassTransformation extends BaseTestQuery {
   }
 
   private <T, X extends T> CodeGenerator<T> newCodeGenerator(Class<T> iface, Class<X> impl) {
+    FunctionContext mockFunctionContext = mock(FunctionContext.class);
+
     final TemplateClassDefinition<T> template = new TemplateClassDefinition<>(iface, impl);
-    CodeGenerator<T> cg = CodeGenerator.get(template, getSabotContext().getCompiler());
+    CodeGenerator<T> cg = CodeGenerator.get(template, getSabotContext().getCompiler(), mockFunctionContext);
 
     ClassGenerator<T> root = cg.getRoot();
     root.setMappingSet(new MappingSet(new GeneratorMapping("doOutside", null, null, null)));

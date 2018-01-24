@@ -65,6 +65,8 @@
     <property name="format" value="\s+$"/>
   </module>
 
+  <module name="SuppressWarningsFilter" />
+
   <module name="SuppressionCommentFilter">
     <property name="offCommentFormat" value="CHECKSTYLE\:OFF ([\w\|]+)" />
     <property name="onCommentFormat" value="CHECKSTYLE\:ON ([\w\|*])" />
@@ -170,6 +172,7 @@
     <module name="TodoComment"/>
     <module name="UpperEll"/>
 
+    <module name="SuppressWarningsHolder"/>
   </module>
 
 </module>

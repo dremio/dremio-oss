@@ -66,29 +66,29 @@ public class TestHiveUDFs extends BaseTestQuery {
       NullableVarCharVector upperNullableStr1V = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 6).getValueVector();
 
       for (int i=0; i<batchLoader.getRecordCount(); i++) {
-        if (str1V.getAccessor().isNull(i)) {
+        if (str1V.isNull(i)) {
           continue;
         }
-        String in = new String(str1V.getAccessor().get(i), Charsets.UTF_8);
-        String upper = new String(upperStr1V.getAccessor().get(i), Charsets.UTF_8);
+        String in = new String(str1V.get(i), Charsets.UTF_8);
+        String upper = new String(upperStr1V.get(i), Charsets.UTF_8);
         assertTrue(in.toUpperCase().equals(upper));
 
 
-        String concat = new String(concatV.getAccessor().get(i), Charsets.UTF_8);
+        String concat = new String(concatV.get(i), Charsets.UTF_8);
         assertTrue(concat.equals(in+"-"+in));
 
-        float flt1 = flt1V.getAccessor().get(i);
-        String format_number = new String(format_numberV.getAccessor().get(i), Charsets.UTF_8);
+        float flt1 = flt1V.get(i);
+        String format_number = new String(format_numberV.get(i), Charsets.UTF_8);
 
 
         String nullableStr1 = null;
-        if (!nullableStr1V.getAccessor().isNull(i)) {
-          nullableStr1 = new String(nullableStr1V.getAccessor().get(i), Charsets.UTF_8);
+        if (!nullableStr1V.isNull(i)) {
+          nullableStr1 = new String(nullableStr1V.get(i), Charsets.UTF_8);
         }
 
         String upperNullableStr1 = null;
-        if (!upperNullableStr1V.getAccessor().isNull(i)) {
-          upperNullableStr1 = new String(upperNullableStr1V.getAccessor().get(i), Charsets.UTF_8);
+        if (!upperNullableStr1V.isNull(i)) {
+          upperNullableStr1 = new String(upperNullableStr1V.get(i), Charsets.UTF_8);
         }
 
         assertEquals(nullableStr1 != null, upperNullableStr1 != null);
@@ -132,20 +132,20 @@ public class TestHiveUDFs extends BaseTestQuery {
       NullableFloat8Vector powV = (NullableFloat8Vector) batchLoader.getValueAccessorById(NullableFloat8Vector.class, 4).getValueVector();
 
       for (int i=0; i<batchLoader.getRecordCount(); i++) {
-        if (str1V.getAccessor().isNull(i)) {
+        if (str1V.isNull(i)) {
           continue;
         }
-        String str1 = new String(str1V.getAccessor().get(i), Charsets.UTF_8);
-        long str1Length = str1LengthV.getAccessor().get(i);
+        String str1 = new String(str1V.get(i), Charsets.UTF_8);
+        long str1Length = str1LengthV.get(i);
         assertTrue(str1.length() == str1Length);
 
-        int str1Ascii = str1AsciiV.getAccessor().get(i);
+        int str1Ascii = str1AsciiV.get(i);
 
-        float flt1 = flt1V.getAccessor().get(i);
+        float flt1 = flt1V.get(i);
 
         double pow = 0;
-        if (!powV.getAccessor().isNull(i)) {
-          pow = powV.getAccessor().get(i);
+        if (!powV.isNull(i)) {
+          pow = powV.get(i);
           assertTrue(Math.pow(flt1, 2.0) == pow);
         }
         numRecords++;

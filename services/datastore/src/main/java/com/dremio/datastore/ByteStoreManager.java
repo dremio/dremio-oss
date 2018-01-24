@@ -19,12 +19,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -32,6 +34,7 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Status;
 
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
@@ -44,15 +47,16 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 
 /**
  * Manages the underlying byte storage supporting a kvstore.
  */
 class ByteStoreManager implements AutoCloseable {
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ByteStoreManager.class);
 
   private static final int STRIPE_COUNT = 16;
-  private static final String CATALOG_STORE_NAME = "catalog";
+  private static final long ROCKSDB_OPEN_SLEEP_MILLIS = 100L;
+  static final String CATALOG_STORE_NAME = "catalog";
 
   private final boolean inMemory;
   private final int stripeCount;
@@ -72,8 +76,7 @@ class ByteStoreManager implements AutoCloseable {
             closeException.addException(ex);
           }
         }
-      })
-      .build(new CacheLoader<String, ByteStore>() {
+      }).build(new CacheLoader<String, ByteStore>() {
         @Override
         public ByteStore load(String name) throws RocksDBException {
           return newDB(name);
@@ -87,9 +90,9 @@ class ByteStoreManager implements AutoCloseable {
   }
 
   private ByteStore newDB(String name) throws RocksDBException {
-    if(inMemory){
+    if (inMemory) {
       return new MapStore(name);
-    }else{
+    } else {
       final ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(name.getBytes(UTF_8));
       ColumnFamilyHandle handle = db.createColumnFamily(columnFamilyDescriptor);
       return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
@@ -97,13 +100,13 @@ class ByteStoreManager implements AutoCloseable {
   }
 
   public void start() throws Exception {
-    if(inMemory){
+    if (inMemory) {
       return;
     }
 
-    final String baseDirectory =
-        CoreStoreProviderImpl.MODE == ForcedMemoryMode.DISK && this.baseDirectory == null
-        ? Files.createTempDir().toString() : this.baseDirectory.toString();
+    final String baseDirectory = CoreStoreProviderImpl.MODE == ForcedMemoryMode.DISK && this.baseDirectory == null
+        ? Files.createTempDirectory(null).toString()
+        : this.baseDirectory.toString();
 
     final File dbDirectory = new File(baseDirectory, CATALOG_STORE_NAME);
     if (dbDirectory.exists()) {
@@ -118,20 +121,21 @@ class ByteStoreManager implements AutoCloseable {
       }
     }
 
-    RocksDB.loadLibrary();
     final String path = dbDirectory.toString();
 
     final List<byte[]> families;
-    try(final Options options = new Options()) {
+    try (final Options options = new Options()) {
       options.setCreateIfMissing(true);
       // get a list of existing families.
       families = new ArrayList<>(RocksDB.listColumnFamilies(options, path));
     }
 
 
-    // add the default family (we don't use this)
-    families.add(RocksDB.DEFAULT_COLUMN_FAMILY);
-    final Function<byte[], ColumnFamilyDescriptor> func = new Function<byte[], ColumnFamilyDescriptor>(){
+    // if empty, add the default family (we don't use this)
+    if (families.isEmpty()) {
+      families.add(RocksDB.DEFAULT_COLUMN_FAMILY);
+    }
+    final Function<byte[], ColumnFamilyDescriptor> func = new Function<byte[], ColumnFamilyDescriptor>() {
       @Override
       public ColumnFamilyDescriptor apply(byte[] input) {
         return new ColumnFamilyDescriptor(input);
@@ -139,35 +143,65 @@ class ByteStoreManager implements AutoCloseable {
     };
 
     List<ColumnFamilyHandle> familyHandles = new ArrayList<>();
-    try(final DBOptions dboptions = new DBOptions()) {
+    try (final DBOptions dboptions = new DBOptions()) {
       dboptions.setCreateIfMissing(true);
-      db = RocksDB.open(dboptions, path.toString(), Lists.transform(families, func), familyHandles);
+      db = openDB(dboptions, path, Lists.transform(families, func), familyHandles);
     }
     // create an output list to be populated when we open the db.
 
     // populate the local cache with the existing tables.
-    for(int i =0; i < families.size(); i++){
+    for (int i = 0; i < families.size(); i++) {
       byte[] family = families.get(i);
-      if(Arrays.equals(family, RocksDB.DEFAULT_COLUMN_FAMILY)){
+      if (Arrays.equals(family, RocksDB.DEFAULT_COLUMN_FAMILY)) {
         // we don't allow use of the default handle.
         defaultHandle = familyHandles.get(i);
       } else {
         String name = new String(family, UTF_8);
-        RocksDBStore store = new RocksDBStore(name, new ColumnFamilyDescriptor(family), familyHandles.get(i), db, stripeCount);
+        RocksDBStore store = new RocksDBStore(name, new ColumnFamilyDescriptor(family), familyHandles.get(i), db,
+            stripeCount);
         maps.put(name, store);
       }
     }
   }
 
-  void deleteEverything(Set<String> skipNames) throws IOException{
-    for(Entry<String, ByteStore> entry : maps.asMap().entrySet()){
+  public RocksDB openDB(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
+      List<ColumnFamilyHandle> familyHandles) throws RocksDBException {
+    boolean printLockMessage = true;
+
+    while (true) {
+      try {
+        return RocksDB.open(dboptions, path, columnNames, familyHandles);
+      } catch (RocksDBException e) {
+        // Check env/env_posix.cc for actual error message
+        if (e.getStatus().getCode() != Status.Code.IOError || !e.getStatus().getState().startsWith("lock ")) {
+          throw e;
+        }
+
+        if (printLockMessage) {
+          LOGGER.info("Lock file to RocksDB is currently hold by another process. Will wait until lock is freed.");
+          System.out.println("Lock file to RocksDB is currently hold by another process. Will wait until lock is freed.");
+          printLockMessage = false;
+        }
+      }
+
+      // Add some wait until the next attempt
+      try {
+        TimeUnit.MILLISECONDS.sleep(ROCKSDB_OPEN_SLEEP_MILLIS);
+      } catch (InterruptedException e) {
+        throw new RocksDBException(new Status(Status.Code.TryAgain, Status.SubCode.None, "While open db"));
+      }
+    }
+  }
+
+  void deleteEverything(Set<String> skipNames) throws IOException {
+    for (Entry<String, ByteStore> entry : maps.asMap().entrySet()) {
       if (!skipNames.contains(entry.getKey())) {
         entry.getValue().deleteAllValues();
       }
     }
   }
 
-  public ByteStore getStore(String name){
+  public ByteStore getStore(String name) {
     Preconditions.checkNotNull(name);
     Preconditions.checkArgument(!"default".equals(name), "The store name 'default' is reserved and cannot be used.");
     try {

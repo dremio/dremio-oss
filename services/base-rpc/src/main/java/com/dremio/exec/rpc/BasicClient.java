@@ -51,6 +51,8 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
   // seconds, the idle state handler will send a ping message.
   private static final double PERCENT_TIMEOUT_BEFORE_SENDING_PING = 0.5;
 
+  protected static final String PROTOCOL_DECODER = "protocol-decoder";
+
   private final Bootstrap b;
   protected R connection;
   private final T handshakeType;
@@ -90,7 +92,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
             final ChannelPipeline pipe = ch.pipeline();
 
             pipe.addLast("protocol-encoder", new RpcEncoder("c-" + rpcConfig.getName()));
-            pipe.addLast("protocol-decoder", getDecoder(connection.getAllocator()));
+            pipe.addLast(PROTOCOL_DECODER, getDecoder(connection.getAllocator()));
             pipe.addLast("handshake-handler", new ClientHandshakeHandler(connection));
 
             if(pingHandler != null){
@@ -98,7 +100,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
             }
 
             pipe.addLast("message-handler", new InboundHandler(connection));
-            pipe.addLast("exception-handler", new RpcExceptionHandler<R>(connection));
+            pipe.addLast("exception-handler", new RpcExceptionHandler<>(connection));
           }
         }); //
 

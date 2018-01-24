@@ -36,7 +36,7 @@ export default class TextArea extends Component {
 
   render() {
     return (
-      <textarea {...this.props}
+      <textarea {...this.props} className='field'
         style={[
           forms.textArea,
           this.props.error && forms.textInputError,

@@ -23,6 +23,7 @@ import static java.sql.Types.INTEGER;
 import static java.sql.Types.TIMESTAMP;
 import static java.sql.Types.VARCHAR;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -49,8 +50,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
+import com.dremio.exec.testing.Controls;
+import com.dremio.exec.work.foreman.AttemptManager;
 import com.google.common.collect.ImmutableList;
 
 
@@ -58,6 +63,7 @@ import com.google.common.collect.ImmutableList;
  * Test for Dremio's implementation of PreparedStatement's methods.
  */
 public class PreparedStatementTest extends JdbcTestBase {
+  private static final String SYS_VERSION_SQL = "select * from sys.version";
 
   /** Fuzzy matcher for parameters-not-supported message assertions.  (Based on
    *  current "Prepared-statement dynamic parameters are not supported.") */
@@ -287,4 +293,99 @@ public class PreparedStatementTest extends JdbcTestBase {
     }
   }
 
+////////////////////////////////////////
+  // Query timeout methods:
+
+  //////////
+  // getQueryTimeout():
+
+  /** Tests that getQueryTimeout() indicates no timeout set. */
+  @Test
+  public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
+    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+      assertThat( statement.getQueryTimeout(), equalTo( 0 ) );
+    }
+  }
+
+  //////////
+  // setQueryTimeout(...):
+
+  /** Tests that setQueryTimeout(...) accepts (redundantly) setting to
+   *  no-timeout mode. */
+  @Test
+  public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
+    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+      statement.setQueryTimeout( 0 );
+    }
+  }
+
+
+  public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
+    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+      statement.setQueryTimeout( -2 );
+    }
+    catch ( SQLException e ) {
+      // Check exception for some mention of parameter name or semantics:
+      assertThat( e.getMessage(), anyOf( containsString( "seconds" ),
+                                         containsString( "timeout" ),
+                                         containsString( "Timeout" ) ) );
+      throw e;
+    }
+  }
+
+  /**
+   * Test setting a valid timeout
+   */
+  @Test
+  public void testValidSetQueryTimeout() throws SQLException {
+    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+      // Setting positive value
+      statement.setQueryTimeout(1_000);
+      assertThat( statement.getQueryTimeout(), equalTo( 1_000 ) );
+    };
+  }
+
+  /**
+   * Test setting timeout for a query that actually times out
+   */
+  @Test ( expected = SqlTimeoutException.class )
+  public void testTriggeredQueryTimeout() throws SQLException {
+    String queryId = null;
+    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+      // Prevent the server to complete the query to trigger a timeout
+      // For prepared statement, two queries are made: one to create the plan and one to
+      // execute. We only pause the execution one.
+
+      try(Statement controlStatement = connection.createStatement()) {
+        final String controls = Controls.newBuilder()
+            .addPause(AttemptManager.class, "foreman-cleanup", 0)
+            .build();
+        assertThat(
+            controlStatement.execute(String.format(
+                "ALTER session SET `%s` = '%s'",
+                ExecConstants.NODE_CONTROL_INJECTIONS,
+                controls)),
+            equalTo(true));
+      }
+      int timeoutDuration = 3;
+      //Setting to a very low value (3sec)
+      statement.setQueryTimeout(timeoutDuration);
+      ResultSet rs = statement.executeQuery();
+      queryId = ((DremioResultSet) rs).getQueryId();
+      //Fetch rows
+      while (rs.next()) {
+        rs.getBytes(1);
+      }
+    } catch (SQLException sqlEx) {
+      if (sqlEx instanceof SqlTimeoutException) {
+        throw (SqlTimeoutException) sqlEx;
+      }
+    } finally {
+      // Do not forget to unpause to avoid memory leak.
+      if (queryId != null) {
+        DremioClient client = ((DremioConnection) connection).getClient();
+        client.resumeQuery(QueryIdHelper.getQueryIdFromString(queryId));
+      }
+    }
+  }
 }

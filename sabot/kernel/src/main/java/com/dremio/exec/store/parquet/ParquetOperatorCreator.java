@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.CodecFactory;
 
@@ -29,7 +28,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemStoragePlugin2;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
@@ -55,21 +53,10 @@ import com.google.common.collect.Maps;
 public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetOperatorCreator.class);
 
-  public static final String ENABLE_BYTES_READ_COUNTER = "parquet.benchmark.bytes.read";
-  public static final String ENABLE_BYTES_TOTAL_COUNTER = "parquet.benchmark.bytes.total";
-  public static final String ENABLE_TIME_READ_COUNTER = "parquet.benchmark.time.read";
-
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
-    final FileSystemStoragePlugin2 registry = (FileSystemStoragePlugin2) fragmentExecContext.getStoragePlugin(config.getPluginId());
-    final FileSystemPlugin fsPlugin = registry.getFsPlugin();
-
-    final FileSystemWrapper fs = registry.getFs();
-
-    final Configuration conf = fsPlugin.getFsConf();
-    conf.setBoolean(ENABLE_BYTES_READ_COUNTER, false);
-    conf.setBoolean(ENABLE_BYTES_TOTAL_COUNTER, false);
-    conf.setBoolean(ENABLE_TIME_READ_COUNTER, false);
+    final FileSystemPlugin plguin = fragmentExecContext.getStoragePlugin(config.getPluginId());
+    final FileSystemWrapper fs = plguin.getFs(config.getUserName(), context.getStats());
 
     final Stopwatch watch = Stopwatch.createStarted();
 

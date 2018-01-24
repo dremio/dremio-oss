@@ -15,9 +15,8 @@
  */
 package com.dremio.dac.service.exec;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import javax.inject.Provider;
@@ -26,7 +25,9 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
-import com.google.common.base.Objects;
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Iterables;
 
 /**
  * Maintains status of master node using zookeeper.
@@ -34,18 +35,14 @@ import com.google.common.base.Objects;
 public class MasterStatusListener implements NodeStatusListener, Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MasterStatusListener.class);
   private final Provider<ClusterCoordinator> clusterCoordinator;
-  private final String masterNode;
   private final Object masterLock = new Object();
+  private volatile NodeEndpoint masterNode = null;
   private volatile boolean masterUp;
   private volatile boolean shutdown = false;
-  private final int masterPort;
 
-  public MasterStatusListener(Provider<ClusterCoordinator> clusterCoordinator,
-                              String masterNode, int masterPort, boolean isMaster) {
+  public MasterStatusListener(Provider<ClusterCoordinator> clusterCoordinator, boolean isMaster) {
     this.clusterCoordinator = clusterCoordinator;
-    this.masterNode = masterNode;
     this.masterUp = isMaster;
-    this.masterPort = masterPort;
   }
 
   public boolean isMasterUp() {
@@ -54,11 +51,11 @@ public class MasterStatusListener implements NodeStatusListener, Service {
 
   @Override
   public void start() throws Exception {
-    logger.info("Starting MasterStatusListener with master node {}:{}", masterNode, masterPort);
-    clusterCoordinator.get().getServiceSet(ClusterCoordinator.Role.COORDINATOR).addNodeStatusListener(this);
-    nodesRegistered(new HashSet<>(clusterCoordinator.get().getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+    logger.info("Starting MasterStatusListener");
+    clusterCoordinator.get().getServiceSet(ClusterCoordinator.Role.MASTER).addNodeStatusListener(this);
+    nodesRegistered(new HashSet<>(clusterCoordinator.get().getServiceSet(ClusterCoordinator.Role.MASTER)
         .getAvailableEndpoints()));
-    logger.info("MasterStatusListener is up {}:{}", masterNode, masterPort);
+    logger.info("MasterStatusListener is up");
   }
 
   @Override
@@ -73,54 +70,57 @@ public class MasterStatusListener implements NodeStatusListener, Service {
 
   @Override
   public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
-    nodeChanged(unregisteredNodes, false);
+    synchronized(masterLock) {
+      if (masterNode == null) {
+        logger.warn("Receiving unregistration notice for {}, but no master was registered", Joiner.on(",").join(Iterables.transform(unregisteredNodes, new Function<NodeEndpoint, String>() {
+          @Override
+          public String apply(NodeEndpoint input) {
+            return String.format("%s:%d", input.getAddress(), input.getFabricPort());
+          }
+        })));
+        return;
+      }
 
+      if (unregisteredNodes.contains(masterNode)) {
+        masterNode = null;
+        masterUp = false;
+        masterLock.notifyAll();
+      }
+    }
+  }
+
+  public NodeEndpoint getMasterNode() {
+    return masterNode;
   }
 
   @Override
   public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-    nodeChanged(registeredNodes, true);
-  }
-
-  public void nodeChanged(Set<NodeEndpoint> unregisteredNodes, boolean isUp) {
-    InetAddress masterAddress;
-    try {
-      // Java has an internal cache for DNS entries, but at some point
-      // it should detect if master node address changed.
-      masterAddress = InetAddress.getByName(masterNode);
-      logger.debug("Master node {} resolves to {}.", masterNode, masterAddress);
-    } catch(UnknownHostException e) {
-      logger.warn("Not able to resolve master node {}.");
-      masterAddress = null;
+    Iterator<NodeEndpoint> iterator = registeredNodes.iterator();
+    if (!iterator.hasNext()) {
+      logger.warn("Received empty node registration");
+      return;
     }
 
-    for (NodeEndpoint endpoint : unregisteredNodes) {
-      InetAddress endpointAddress;
-      try {
-        endpointAddress = InetAddress.getByName(endpoint.getAddress());
-        logger.debug("Remote node {} resolves to {}.", endpoint, endpointAddress);
-      } catch(UnknownHostException e) {
-        endpointAddress = null;
+    NodeEndpoint endpoint = iterator.next();
+    synchronized(masterLock) {
+      if (masterNode != null && !masterNode.equals(endpoint)) {
+        logger.info("Master node changed. Previous was {}:{}, new is {}:{}", masterNode.getAddress(), masterNode.getFabricPort(), endpoint.getAddress(), endpoint.getFabricPort());
+      } else {
+        logger.info("New master node {}:{} registered itself.", endpoint.getAddress(), endpoint.getFabricPort());
       }
-      if ((Objects.equal(masterAddress, endpointAddress) || masterNode.equals(endpoint.getAddress()))
-          && masterPort == endpoint.getFabricPort()) {
-        logger.info("master node {} is {}", endpoint, isUp ? "up" : "down");
-        synchronized (masterLock) {
-          masterUp = isUp;
-          masterLock.notifyAll();
-        }
-        break;
-      }
+      masterNode = endpoint;
+      masterUp = true;
+      masterLock.notifyAll();
+
     }
   }
-
 
 
   public void waitForMaster() throws InterruptedException {
     long waitTimeInSecs = 0;
     while (!shutdown && !isMasterUp()) {
       if (waitTimeInSecs % 60 == 0) { // log once every minute
-        logger.info("Waiting for master {}:{}", masterNode, masterPort);
+        logger.info("Waiting for master");
       }
       waitTimeInSecs += 5;
       synchronized (masterLock) {

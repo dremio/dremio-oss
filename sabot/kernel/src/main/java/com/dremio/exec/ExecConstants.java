@@ -180,6 +180,8 @@ public interface ExecConstants {
   BooleanValidator ELASTIC_RULES_EDGE_PROJECT = new BooleanValidator("store.elastic.enable_edge_project_rule", false);
   BooleanValidator ELASTIC_RULES_SAMPLE = new BooleanValidator("store.elastic.enable_sample_rule", true);
 
+  BooleanValidator ELASTIC_ENABLE_MAPPING_CHECKSUM = new BooleanValidator("store.elastic.enable_mapping_checksum", true);
+
   BooleanValidator ENABLE_UNION_TYPE = new BooleanValidator("exec.enable_union_type", true);
 
   BooleanValidator ACCELERATION_VERBOSE_LOGGING = new BooleanValidator("accelerator.system.verbose.logging", true);
@@ -190,6 +192,7 @@ public interface ExecConstants {
   BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
   BooleanValidator ACCELERATION_ENABLE_MIN_MAX = new BooleanValidator("accelerator.enable_min_max", true);
   BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
+  BooleanValidator ACCELERATION_USE_ALTERNATE_SUGGESTION_ANALYSIS = new BooleanValidator("accelerator.analysis.alternate_functions", false);
   LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   // TODO: We need to add a feature that enables storage plugins to add their own options. Currently we have to declare

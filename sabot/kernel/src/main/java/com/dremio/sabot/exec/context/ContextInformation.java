@@ -15,50 +15,29 @@
  */
 package com.dremio.sabot.exec.context;
 
-import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
-import com.dremio.exec.proto.UserBitShared.UserCredentials;
-
 /**
  * Provides query context information (such as query start time, query user, default schema etc.) for UDFs.
  */
-public class ContextInformation {
-  private final String queryUser;
-  private final String currentDefaultSchema;
-  private final long queryStartTime;
-  private final int rootFragmentTimeZone;
-
-  public ContextInformation(final UserCredentials userCredentials, final QueryContextInformation queryContextInfo) {
-    this.queryUser = userCredentials.getUserName();
-    this.currentDefaultSchema = queryContextInfo.getDefaultSchemaName();
-    this.queryStartTime = queryContextInfo.getQueryStartTime();
-    this.rootFragmentTimeZone = queryContextInfo.getTimeZone();
-  }
+public interface ContextInformation {
 
   /**
    * @return userName of the user who issued the current query.
    */
-  public String getQueryUser() {
-    return queryUser;
-  }
+  String getQueryUser();
 
   /**
    * @return Get the current default schema in user session at the time of this particular query submission.
    */
-  public String getCurrentDefaultSchema() {
-    return currentDefaultSchema;
-  }
+  String getCurrentDefaultSchema();
 
   /**
    * @return Query start time in milliseconds
    */
-  public long getQueryStartTime() {
-    return queryStartTime;
-  }
+  long getQueryStartTime();
 
   /**
    * @return Time zone.
    */
-  public int getRootFragmentTimeZone() {
-    return rootFragmentTimeZone;
-  }
+  int getRootFragmentTimeZone();
+
 }

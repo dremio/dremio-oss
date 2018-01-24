@@ -125,7 +125,7 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
 
   private void setValueCount(int count) {
     for (VectorWrapper<?> w: outgoing) {
-      w.getValueVector().getMutator().setValueCount(count);
+      w.getValueVector().setValueCount(count);
     }
   }
 

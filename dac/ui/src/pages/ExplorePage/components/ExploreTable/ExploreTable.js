@@ -35,6 +35,7 @@ import './ExploreTable.less';
 
 const TIME_BEFORE_SPINNER = 1500;
 export const RIGHT_TREE_OFFSET = 251;
+const SCROLL_BAR_WIDTH = 16;
 
 @injectIntl
 @Radium
@@ -89,7 +90,7 @@ export default class ExploreTable extends PureComponent {
     const size = columns.length || 1;
     const numberOfColumnsWithNonDefaultWidth = columns.filter(col => col.width).length;
     const widthReservedByUserActions = columns.map(col => col.width || 0).reduce((prev, cur) => prev + cur, 0);
-    const defaultColumnWidth = (widthThatWillBeSet - widthReservedByUserActions) /
+    const defaultColumnWidth = (widthThatWillBeSet - widthReservedByUserActions - SCROLL_BAR_WIDTH) /
       ((size - numberOfColumnsWithNonDefaultWidth) || 1);
     return defaultColumnWidth > MIN_COLUMN_WIDTH ? defaultColumnWidth : MIN_COLUMN_WIDTH;
   }

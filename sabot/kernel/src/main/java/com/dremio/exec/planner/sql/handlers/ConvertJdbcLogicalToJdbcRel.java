@@ -30,7 +30,7 @@ class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
     if (other instanceof JdbcCrel) {
       JdbcCrel logical = (JdbcCrel) other;
       // Eliminate subsets to enforce that all nodes in the Jdbc subtree are JdbcRelImpl nodes.
-      // TODO: When we implement more of the StoragePlugin2 design, it should be easier to just get the StoragePluginId.
+      // TODO: When we implement more of the StoragePlugin design, it should be easier to just get the StoragePluginId.
       final RelNode subsetRemoved = logical.getInput().accept(new MoreRelOptUtil.SubsetRemover());
       logical.replaceInput(0, subsetRemoved);
       return new JdbcRel(logical.getCluster(), logical.getTraitSet().replace(Rel.LOGICAL), logical.getInput());

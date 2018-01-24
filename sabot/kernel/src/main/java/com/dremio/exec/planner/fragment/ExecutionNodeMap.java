@@ -21,6 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ListMultimap;
 
 /**
@@ -30,8 +31,10 @@ public class ExecutionNodeMap {
 
   // We use multimap because more than one node can run in the same cluster.
   private final ListMultimap<String, NodeEndpoint> nodeMap = ArrayListMultimap.create();
+  private final List<NodeEndpoint> endpoints;
 
   public ExecutionNodeMap(Iterable<NodeEndpoint> endpoints){
+    this.endpoints = FluentIterable.from(endpoints).toList();
     for(NodeEndpoint ep : endpoints){
       nodeMap.put(ep.getAddress(), ep);
     }
@@ -52,5 +55,9 @@ public class ExecutionNodeMap {
 
   public Collection<String> getHosts() {
     return nodeMap.keySet();
+  }
+
+  public List<NodeEndpoint> getExecutors(){
+    return endpoints;
   }
 }

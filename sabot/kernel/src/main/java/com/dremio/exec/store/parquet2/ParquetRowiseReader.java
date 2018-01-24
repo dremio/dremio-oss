@@ -339,7 +339,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
       if (nullFilledVectors != null) {
         for (ValueVector vv : nullFilledVectors) {
-          vv.getMutator().setValueCount((int) recordsToRead);
+          vv.setValueCount((int) recordsToRead);
         }
       }
       mockRecordsRead += recordsToRead;
@@ -363,7 +363,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     // (by simply setting the value counts inside of them, as they start null filled)
     if (nullFilledVectors != null) {
       for (final ValueVector vv : nullFilledVectors) {
-        vv.getMutator().setValueCount(count);
+        vv.setValueCount(count);
       }
     }
     return count;

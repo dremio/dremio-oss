@@ -27,7 +27,6 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemStoragePlugin2;
 import com.dremio.exec.store.dfs.FileSystemWriter;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -109,6 +108,6 @@ public class ParquetWriter extends FileSystemWriter {
   @Override
   @JsonIgnore
   public boolean isPdfs() {
-    return ((FileSystemStoragePlugin2)plugin.getStoragePlugin2()).getFs().isPdfs();
+    return plugin.getFs().isPdfs();
   }
 }

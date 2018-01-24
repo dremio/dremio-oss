@@ -28,6 +28,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -97,6 +98,21 @@ public class ImpersonationUtil {
 
 
   }
+
+  /**
+   * If the given user is {@link SystemUser#SYSTEM_USERNAME}, return the current process user name. System user is
+   * an internal user, when communicating with external entities we use the process username.
+   *
+   * @param username
+   */
+  public static String resolveUserName(String username) {
+    if (SYSTEM_USERNAME.equals(username)) {
+      return getProcessUserName();
+    }
+
+    return username;
+  }
+
   /**
    * Create and return proxy user {@link org.apache.hadoop.security.UserGroupInformation} of operator owner if operator
    * owner is valid. Otherwise create and return proxy user {@link org.apache.hadoop.security.UserGroupInformation} for
@@ -148,18 +164,6 @@ public class ImpersonationUtil {
   }
 
   /**
-   * If the given user name is empty, return the current process user name. This is a temporary change to avoid
-   * modifying long list of tests files which have GroupScan operator with no user name property.
-   * @param userName User name found in GroupScan POP definition.
-   */
-  public static String resolveUserName(String userName) {
-    if (!Strings.isNullOrEmpty(userName)) {
-      return userName;
-    }
-    return getProcessUserName();
-  }
-
-  /**
    * Return the name of the user who is running the SabotNode.
    *
    * @return SabotNode process user.
@@ -195,7 +199,7 @@ public class ImpersonationUtil {
   }
 
   /** Helper method to create FileSystemWrapper */
-  private static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
+  public static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
       final OperatorStats stats) {
     FileSystemWrapper fs;
     try {

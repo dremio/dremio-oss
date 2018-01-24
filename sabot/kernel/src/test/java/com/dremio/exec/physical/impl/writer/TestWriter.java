@@ -124,7 +124,7 @@ public class TestWriter extends BaseTestQuery {
         NullableBigIntVector recordWrittenV = (NullableBigIntVector) batchLoader.getValueAccessorById(NullableBigIntVector.class, 1).getValueVector();
 
         for (int i = 0; i < batchLoader.getRecordCount(); i++) {
-          recordsWritten += recordWrittenV.getAccessor().get(i);
+          recordsWritten += recordWrittenV.get(i);
         }
 
         batchLoader.clear();

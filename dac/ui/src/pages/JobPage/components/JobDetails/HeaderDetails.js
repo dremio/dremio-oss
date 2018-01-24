@@ -20,28 +20,30 @@ import Immutable from 'immutable';
 import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
+import { injectIntl } from 'react-intl';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
 import SimpleButton from 'components/Buttons/SimpleButton';
-import FontIcon from 'components/Icon/FontIcon';
-import StateIconTypes from 'constants/jobPage/StateIconType.json';
-import StateLabels from 'constants/jobPage/StateLabels.json';
+import Art from 'components/Art';
 import datasetPathUtils from 'utils/resourcePathUtils/dataset';
 import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
 import { getViewState } from 'selectors/resources';
 
+import JobStateIcon from '../JobStateIcon';
+
+@injectIntl
 @PureRender
 @Radium
 class HeaderDetails extends Component {
   static propTypes = {
-    jobState: PropTypes.string.isRequired,
     cancelJob: PropTypes.func,
     style: PropTypes.object,
     jobId: PropTypes.string.isRequired,
     jobDetails: PropTypes.instanceOf(Immutable.Map).isRequired,
     downloadViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    downloadFile: PropTypes.func
+    downloadFile: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   static contextTypes = {
@@ -54,15 +56,15 @@ class HeaderDetails extends Component {
     this.openJobResults = this.openJobResults.bind(this);
   }
 
-  getButton(jobState) {
-    const { jobDetails, jobId } = this.props;
+  getButton() {
+    const { jobDetails, jobId, intl } = this.props;
 
     // if the query is running or pending, expose the cancel button.
-    if (jobState === 'RUNNING' || jobState === 'PENDING') {
+    if (jobDetails.get('state') === 'RUNNING' || jobDetails.get('state') === 'PENDING') {
       return (
         <Button
           type={ButtonTypes.CUSTOM}
-          text={la('Cancel')}
+          text={intl.formatMessage({id: 'Common.Cancel'})}
           onClick={this.cancelJob}
           styles={[styles.button]}/>);
     }
@@ -70,7 +72,7 @@ class HeaderDetails extends Component {
     const queryType = jobDetails.get('queryType');
     // don't show the open results link if there are no results available or if not a completed UI query.
     // TODO: show a message if the results are not available (DX-7459)
-    if (!jobDetails.get('resultsAvailable') || jobState !== 'COMPLETED'
+    if (!jobDetails.get('resultsAvailable') || jobDetails.get('state') !== 'COMPLETED'
         || (queryType !== 'UI_PREVIEW' && queryType !== 'UI_RUN' && queryType !== 'UI_EXPORT')) {
       return null;
     }
@@ -83,7 +85,7 @@ class HeaderDetails extends Component {
           onClick={this.downloadDatasetFile}
           buttonStyle='primary'
           disabled={!isCanDownloaded}
-          children={la('Download')}
+          children={intl.formatMessage({id: 'Download.Download'})}
           submitting={this.props.downloadViewState.get('isInProgress')}
           style={[styles.button, {marginLeft: 10}]}
           type='button'/>);
@@ -109,9 +111,12 @@ class HeaderDetails extends Component {
 
     return (
       <span style={styles.openResults}>
-        <FontIcon type='VirtualDataset' />
+        <Art
+          src={'VirtualDataset.svg'}
+          alt={intl.formatMessage({id: 'Dataset.VirtualDataset'})}
+          style={styles.virtualDatasetIcon} />
         <Link data-qa='open-results-link' to={nextLocation}>
-          {la('Open Results')} »
+          {intl.formatMessage({id: 'Job.OpenResults'})} »
         </Link>
       </span>
     );
@@ -129,24 +134,27 @@ class HeaderDetails extends Component {
   }
 
   render() {
-    const { jobState, style, jobDetails } = this.props;
-    const label = StateLabels[jobState];
+    const { style, jobDetails, intl } = this.props;
 
-    if (!jobState) {
+    if (!jobDetails.get('state')) {
       return null;
     }
 
     return (
       <header className='details-header' style={[styles.detailsHeader, style]}>
         <div style={styles.stateHolder}>
-          <FontIcon theme={styles.stateIcon} type={StateIconTypes[jobState]}/>
+          <JobStateIcon state={jobDetails.get('state')} />
           <div className='state'>
-            {label} <span className='h4' style={[styles.state]}>{jobState.toLowerCase()}</span>
+            <span className='h4' style={[styles.state]}>
+              {intl.formatMessage({id: 'Job.State.' + jobDetails.get('state')})}
+            </span>
           </div>
-          {jobDetails.get('accelerated') && <FontIcon type='Flame' style={{ marginLeft: 5 }} />}
+          {jobDetails.get('accelerated')
+            &&
+            <Art src='Flame.svg' alt={intl.formatMessage({id: 'Dataset.Accelerated'})} style={styles.flameIcon} />}
         </div>
         <div style={[styles.rightPart]}>
-          {this.getButton(jobState)}
+          {this.getButton()}
         </div>
       </header>
     );
@@ -161,7 +169,6 @@ const styles = {
     'height': 28
   },
   state: {
-    textTransform: 'capitalize',
     marginBottom: '0'
   },
   openResults: {
@@ -186,9 +193,19 @@ const styles = {
     padding: '0 10px 0 5px'
   },
   stateIcon: {
-    Container: {
-      margin: '3px 0 0'
-    }
+    width: 24,
+    height: 24
+  },
+  virtualDatasetIcon: {
+    width: 24,
+    height: 24,
+    marginTop: -4
+  },
+  flameIcon: {
+    width: 13,
+    height: 20,
+    marginLeft: 5,
+    marginTop: -2
   }
 };
 

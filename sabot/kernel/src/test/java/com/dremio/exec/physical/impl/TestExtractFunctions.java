@@ -70,7 +70,6 @@ public class TestExtractFunctions extends BaseTestFunction {
 
   }
 
-  @Ignore("DX-4147")
   @Test
   public void testFromTime() throws Exception {
     testFunctions(new Object[][]{

@@ -25,7 +25,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.vector.complex.fn.WorkingBuffer;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
-import com.dremio.plugins.elastic.ElasticsearchStoragePlugin2;
+import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.ElasticsearchScanSpec;
 import com.dremio.plugins.elastic.planning.ElasticsearchSubScan;
@@ -49,7 +49,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, ElasticsearchSubScan subScan) throws ExecutionSetupException {
     try {
 
-      final ElasticsearchStoragePlugin2 plugin = (ElasticsearchStoragePlugin2) fec.getStoragePlugin(subScan.getPluginId());
+      final ElasticsearchStoragePlugin plugin = (ElasticsearchStoragePlugin) fec.getStoragePlugin(subScan.getPluginId());
       List<RecordReader> readers = new ArrayList<>();
       ElasticsearchScanSpec spec = subScan.getSpec();
       ElasticTableXattr tableAttributes = ElasticTableXattr.parseFrom(subScan.getExtendedProperty().toByteArray());

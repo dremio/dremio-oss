@@ -17,10 +17,12 @@ package com.dremio.dac.model.sources;
 
 import java.util.Map;
 
-import com.dremio.dac.proto.model.source.AzureBlobStoreConfig;
+import com.dremio.dac.proto.model.source.ADLConfig;
+import com.dremio.dac.proto.model.source.AZBConfig;
 import com.dremio.dac.proto.model.source.ClassPathConfig;
 import com.dremio.dac.proto.model.source.DB2Config;
 import com.dremio.dac.proto.model.source.ElasticConfig;
+import com.dremio.dac.proto.model.source.GCSConfig;
 import com.dremio.dac.proto.model.source.HBaseConfig;
 import com.dremio.dac.proto.model.source.HdfsConfig;
 import com.dremio.dac.proto.model.source.HiveConfig;
@@ -47,7 +49,7 @@ import io.protostuff.Schema;
 /**
  * Kept externally of Sources otherwise we have static initialization ordering problems.
  */
-class SourceDefinitions {
+public class SourceDefinitions {
   /**
    * To clear private fields of Source Configurations
    */
@@ -56,6 +58,9 @@ class SourceDefinitions {
     void clear(final T source);
   }
 
+  /**
+   * SourceDefinition
+   */
   public static final class SourceDefinition<S extends Source> {
     private final SourceType type;
     private final Class<S> sourceClass;
@@ -111,6 +116,25 @@ class SourceDefinitions {
           source.setAccessSecret(null);
         }
       }))
+      .put(SourceDefinition.of(SourceType.AZB, AZBConfig.class, AZBConfig.getSchema(), new FieldClearer<AZBConfig>() {
+        @Override
+        public void clear(AZBConfig source) {
+          source.setAccessKey(null);
+        }
+      }))
+      .put(SourceDefinition.of(SourceType.ADL, ADLConfig.class, ADLConfig.getSchema(), new FieldClearer<ADLConfig>() {
+        @Override
+        public void clear(ADLConfig source) {
+          source.setRefreshTokenSecret(null);
+          source.setClientKeyPassword(null);
+        }
+      }))
+      .put(SourceDefinition.of(SourceType.GCS, GCSConfig.class, GCSConfig.getSchema(), new FieldClearer<GCSConfig>() {
+        @Override
+        public void clear(GCSConfig source) {
+          source.setClientKeySecret(null);
+        }
+      }))
       .put(SourceDefinition.of(SourceType.MONGO, MongoConfig.class, MongoConfig.getSchema(), new FieldClearer<MongoConfig>() {
         @Override
         public void clear(MongoConfig source) {
@@ -155,12 +179,6 @@ class SourceDefinitions {
       }))
       .put(SourceDefinition.of(SourceType.KUDU, KuduConfig.class, KuduConfig.getSchema()))
       .put(SourceDefinition.of(SourceType.HBASE, HBaseConfig.class, HBaseConfig.getSchema()))
-      .put(SourceDefinition.of(SourceType.AZURE, AzureBlobStoreConfig.class, AzureBlobStoreConfig.getSchema(), new FieldClearer<AzureBlobStoreConfig>() {
-        @Override
-        public void clear(AzureBlobStoreConfig source) {
-          source.setAccessKey(null);
-        }
-      }))
       .put(SourceDefinition.of(SourceType.HIVE, HiveConfig.class, HiveConfig.getSchema()))
       .put(SourceDefinition.of(SourceType.PDFS, PDFSConfig.class, PDFSConfig.getSchema()))
       .put(SourceDefinition.of(SourceType.DB2, DB2Config.class, DB2Config.getSchema(), new FieldClearer<DB2Config>() {

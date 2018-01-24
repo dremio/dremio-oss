@@ -56,8 +56,8 @@ public class MaterializedDatasetTable implements TranslatableTable {
     return new ScanCrel(
         context.getCluster(),
         context.getCluster().traitSetOf(Convention.NONE),
-        plugin.getStoragePlugin2().getId(),
-        new MaterializedTableMetadata(plugin.getStoragePlugin2().getId(), datasetAccessor.getDataset(), user, datasetAccessor.getSplits()),
+        plugin.getId(),
+        new MaterializedTableMetadata(plugin.getId(), datasetAccessor.getDataset(), user, datasetAccessor.getSplits()),
         null,
         1.0d,
         true);

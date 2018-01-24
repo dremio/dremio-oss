@@ -22,50 +22,13 @@ import com.dremio.common.util.FileUtils;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.Options;
-import com.dremio.exec.server.options.TypeValidators.EnumeratedStringValidator;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 @Options
 public class ClassTransformer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassTransformer.class);
 
-  private static final int MAX_SCALAR_REPLACE_CODE_SIZE = 2*1024*1024; // 2meg
-
-  private final ByteCodeLoader byteCodeLoader = new ByteCodeLoader();
   private final OptionManager optionManager;
-
-  public final static String SCALAR_REPLACEMENT_OPTION =
-      "com.dremio.exec.compile.ClassTransformer.scalar_replacement";
-  public final static EnumeratedStringValidator SCALAR_REPLACEMENT_VALIDATOR = new EnumeratedStringValidator(
-      SCALAR_REPLACEMENT_OPTION, "off", "off", "try", "on");
-
-  @VisibleForTesting // although we need it even if it weren't used in testing
-  public enum ScalarReplacementOption {
-    OFF, // scalar replacement will not ever be used
-    TRY, // scalar replacement will be attempted, and if there is an error, we fall back to not using it
-    ON; // scalar replacement will always be used, and any errors cause user visible errors
-
-    /**
-     * Convert a string to an enum value.
-     *
-     * @param s the string
-     * @return an enum value
-     * @throws IllegalArgumentException if the string doesn't match any of the enum values
-     */
-    public static ScalarReplacementOption fromString(final String s) {
-      switch(s) {
-      case "off":
-        return OFF;
-      case "try":
-        return TRY;
-      case "on":
-        return ON;
-      }
-
-      throw new IllegalArgumentException("Invalid ScalarReplacementOption \"" + s + "\"");
-    }
-  }
 
   public ClassTransformer(final OptionManager optionManager) {
     this.optionManager = optionManager;

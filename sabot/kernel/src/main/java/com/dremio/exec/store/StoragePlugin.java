@@ -16,100 +16,172 @@
 package com.dremio.exec.store;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.schema.Function;
-
-import com.dremio.common.JSONOptions;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
-import com.dremio.exec.dotfile.View;
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.physical.base.OldAbstractGroupScan;
 import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.service.namespace.TableInstance;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.Service;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
-/** Interface for all implementations of the storage plugins. Different implementations of the storage
- * formats will implement methods that indicate if Dremio can write or read its tables from that format,
- * if there are optimizer rules specific for the format, getting a storage config. etc.
+import io.protostuff.ByteString;
+
+/**
+ * Registry that's used to register a source with catalog service.
  */
-public interface StoragePlugin<C extends ConversionContext> extends AutoCloseable {
-
-  /** Indicates if Dremio can read the table from this format.
-  */
-  public boolean supportsRead();
-
-  /** Indicates if Dremio can write a table to this format (e.g. as JSON, csv, etc.).
-   */
-  public boolean supportsWrite();
-
-  /** An implementation of this method will return one or more specialized rules that Dremio query
-   *  optimizer can leverage in <i>physical</i> space. Otherwise, it should return an empty set.
-   * @return an empty set or a set of plugin specific physical optimizer rules.
-   */
-  @Deprecated
-  public Set<? extends RelOptRule> getOptimizerRules(OptimizerRulesContext optimizerContext);
+public interface StoragePlugin extends Service {
 
   /**
-   * Get the physical scan operator for the particular GroupScan (read) node.
+   * Lists datasets under this source. Used to pull in datasets for the first
+   * time and by routine namespace check (for now).
    *
-   * @param userName User whom to impersonate when when reading the contents as part of Scan.
-   * @param selection The configured storage engine specific selection.
-   * @param tableSchemaPath the key for the NamespaceService
-   * @param columns (optional) The list of column names to scan from the data source.
-   * @return
-   * @throws IOException
-  */
-  OldAbstractGroupScan getPhysicalScan(String userName, JSONOptions selection, List<String> tableSchemaPath, List<SchemaPath> columns)
-      throws IOException;
-
-  /** Method returns a jackson serializable object that extends a StoragePluginConfig
-  * @return an extension of StoragePluginConfig
-  */
-  StoragePluginConfig getConfig();
+   * @return List of shallow datasets. Expected to be a set of lazy-loaded
+   *         datasets so namespace can determine when to retrieve and save
+   *         properties.
+   */
+  Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception;
 
   /**
-   * Initialize the storage plugin. The storage plugin will not be used until this method is called.
+   * Get dataset for given path and user.
+   * @param datasetPath
+   * @param oldDataset dataset information (currently used for format settings)
+   * @param ignoreAuthErrors
+   * @return The Source table definition associated with this key. If doesn't exist, return null.
    */
-  void start() throws IOException;
+  SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception;
 
-  SchemaMutability getMutability();
+  /**
+   * Whether an entity exists at the given path. This should be done using system user permissions.
+   * @param key The path to check
+   * @return True if an entity (folder/database) exists at this location.
+   */
+  boolean containerExists(NamespaceKey key);
 
-  DatasetConfig getDataset(List<String> tableSchemaPath, TableInstance tableInstance, SchemaConfig schemaConfig);
+  /**
+   * Whether an entity exists at the given path. This should be done using system user permissions.
+   * @param key The path to check
+   * @return True if an entity (table) exists at this location.
+   */
+  boolean datasetExists(NamespaceKey key);
 
-  RelNode getRel(RelOptCluster cluster, RelOptTable relOptTable, C relContext);
+  /**
+   * Whether the given user can access the entity at the given location
+   * according to the underlying source. This will always return true for
+   * non-impersonated sources. For impersonated sources this will consult the
+   * underlying source. No caching should be done in the plugin.
+   * If dataset config doesn't have complete information needed to check access permission
+   * always return true.
+   *
+   * @param user
+   *          username to validate.
+   * @param key
+   *          path to validate.
+   * @param datasetConfig
+   *          dataset properties
+   * @return True if user has access.
+   */
+  boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig);
 
-  List<DatasetConfig> listDatasets();
-
-  Collection<Function> getFunctions(List<String> tableSchemaPath, SchemaConfig schemaConfig);
-
-  Iterable<String> getSubPartitions(List<String> table, List<String> partitionColumns, List<String> partitionValues, SchemaConfig schemaConfig) throws PartitionNotFoundException;
-
-  boolean createView(List<String> tableSchemaPath, View view, SchemaConfig schemaConfig) throws IOException;
-
-  ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig);
-
-  void dropView(SchemaConfig schemaConfig, List<String> tableSchemaPath) throws IOException;
-
-  boolean folderExists(SchemaConfig schemaConfig, List<String> folderPath) throws IOException;
-
-  boolean supportsContains();
-
+  /**
+   * Get current state for source.
+   * @return
+   */
   SourceState getState();
 
-  boolean refreshState();
+  /**
+   * Get the convention for this source instance. This allows the source's rules to choose to match only this source's convention.
+   * @return
+   */
+  StoragePluginId getId();
 
-  StoragePlugin2 getStoragePlugin2();
+  @Deprecated // Remove this method as the namespace should keep track of views.
+  ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig);
 
-  Convention getStoragePluginConvention();
+  /**
+   * Get the factory class for rules for this source registry. Is designed to
+   * ensure that rules don't have reference access to their underlying storage
+   * plugin. Rules are created for each plugin instance
+   *
+   * @return A class that has a zero-arg constructor for generating rules.
+   */
+  Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass();
+
+  /**
+   * The status of the dataset that has been cheked
+   */
+  enum UpdateStatus {
+    /**
+     * Metadata hasn't changed.
+     */
+    UNCHANGED,
+
+
+    /**
+     * Metadata has changed.
+     */
+    CHANGED,
+
+    /**
+     * Dataset has been deleted.
+     */
+    DELETED
+  }
+
+  /**
+   * Describes the result of checking the existing read signature for changes.
+   */
+  public interface CheckResult {
+
+    /**
+     * The type of result for the check.
+     */
+    UpdateStatus getStatus();
+
+    /**
+     * Returns an updated dataset iff the UpdateStatus is CHANGED.
+     */
+    SourceTableDefinition getDataset();
+
+    public CheckResult UNCHANGED = new CheckResult(){
+
+      @Override
+      public UpdateStatus getStatus() {
+        return UpdateStatus.UNCHANGED;
+      }
+
+      @Override
+      public SourceTableDefinition getDataset() {
+        throw new UnsupportedOperationException("Dataset is unchanged.");
+      }};
+
+    public CheckResult DELETED = new CheckResult(){
+
+      @Override
+      public UpdateStatus getStatus() {
+        return UpdateStatus.DELETED;
+      }
+
+      @Override
+      public SourceTableDefinition getDataset() {
+        throw new UnsupportedOperationException("Dataset is deleted.");
+      }};
+  }
+
+  /**
+   * Check to see if the read signature for a dataset has changed. If so,
+   * refresh the dataset config and return in the result.
+   *
+   * @param key
+   * @param datasetConfig
+   * @return
+   * @throws Exception
+   */
+  CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception;
+
+  @Override
+  void start() throws IOException;
+
+
 }

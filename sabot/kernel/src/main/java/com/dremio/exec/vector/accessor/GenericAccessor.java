@@ -39,12 +39,12 @@ public class GenericAccessor extends AbstractSqlAccessor {
 
   @Override
   public boolean isNull(int index) {
-    return v.getAccessor().isNull(index);
+    return v.isNull(index);
   }
 
   @Override
   public Object getObject(int index) throws InvalidAccessException {
-    return v.getAccessor().getObject(index);
+    return v.getObject(index);
   }
 
   @Override

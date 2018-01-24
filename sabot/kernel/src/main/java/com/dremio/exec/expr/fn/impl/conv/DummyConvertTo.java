@@ -28,6 +28,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
  * allows 'convert_to()' and 'convert_from()' functions in SQL.
  */
 @FunctionTemplate(name = "convert_to", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@SuppressWarnings("unused") // found through classpath search
 public class DummyConvertTo implements SimpleFunction {
 
   @Output VarBinaryHolder out;

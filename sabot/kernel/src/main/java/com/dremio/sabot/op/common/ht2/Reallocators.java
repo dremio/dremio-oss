@@ -35,25 +35,23 @@ public class Reallocators {
   }
 
   private static class VarBinaryReallocator implements Reallocator {
-    private final NullableVarBinaryVector.Mutator mutator;
-    private final VarBinaryVector varbinary;
+    private final NullableVarBinaryVector varbinary;
 
     public VarBinaryReallocator(NullableVarBinaryVector vector) {
-      this.mutator = vector.getMutator();
-      this.varbinary = vector.getValuesVector();
+      this.varbinary = vector;
     }
 
     @Override
     public long ensure(int size) {
       while(varbinary.getByteCapacity() < size){
-        varbinary.reAlloc();
+        varbinary.reallocDataBuffer();
       }
       return addr();
     }
 
     @Override
     public long addr() {
-      return varbinary.getBuffer().memoryAddress();
+      return varbinary.getDataBufferAddress();
     }
 
     @Override
@@ -63,31 +61,29 @@ public class Reallocators {
 
     @Override
     public void setCount(int count) {
-      mutator.setLastSet(count);
+      varbinary.setLastSet(count);
     }
 
   }
 
   private static class VarCharReallocator implements Reallocator {
-    private final NullableVarCharVector.Mutator mutator;
-    private final VarCharVector varchar;
+    private final NullableVarCharVector varchar;
 
     public VarCharReallocator(NullableVarCharVector vector) {
-      this.varchar = vector.getValuesVector();
-      this.mutator = vector.getMutator();
+      this.varchar = vector;
     }
 
     @Override
     public long ensure(int size) {
       while(varchar.getByteCapacity() < size){
-        varchar.reAlloc();
+        varchar.reallocDataBuffer();
       }
-      return varchar.getBuffer().memoryAddress();
+      return addr();
     }
 
     @Override
     public long addr() {
-      return varchar.getBuffer().memoryAddress();
+      return varchar.getDataBufferAddress();
     }
 
     @Override
@@ -98,7 +94,7 @@ public class Reallocators {
 
     @Override
     public void setCount(int count) {
-      mutator.setLastSet(count);
+      varchar.setLastSet(count);
     }
   }
 

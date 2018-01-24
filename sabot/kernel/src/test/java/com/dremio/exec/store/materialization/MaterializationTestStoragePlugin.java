@@ -16,12 +16,13 @@
 package com.dremio.exec.store.materialization;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
@@ -31,20 +32,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.ops.ViewExpansionContext;
+import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.acceleration.LogicalPlanDeserializer;
 import com.dremio.exec.planner.acceleration.LogicalPlanSerializer;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.AbstractStoragePlugin;
-import com.dremio.exec.store.ConversionContext;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
 import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.StoragePluginTypeRulesFactory;
 import com.dremio.exec.store.Views;
-import com.dremio.service.namespace.TableInstance;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.base.MoreObjects;
@@ -52,18 +59,23 @@ import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+
+import io.protostuff.ByteString;
 
 /**
  * A plugin that exposes existing materializations as materialized view tables for testing.
  *
  * Materialized view table serializes and deserializes the given logical plan.
  */
-public class MaterializationTestStoragePlugin extends AbstractStoragePlugin<ConversionContext.NamespaceConversionContext> {
+public class MaterializationTestStoragePlugin implements StoragePlugin {
 
   private static final Logger logger = LoggerFactory.getLogger(MaterializationTestStoragePlugin.class);
 
-  private final MaterializationTestStoragePluginConfig config;
-  private final String pluginName;
+  private final static StoragePluginType TYPE = new StoragePluginType("materialization-test", Factory.class);
+
+  private final String name;
+  private final StoragePluginId pluginId;
   private final StoragePluginRegistry registry;
   private final Cache<String, RelNode> plans = CacheBuilder.newBuilder()
       .expireAfterWrite(30, TimeUnit.SECONDS)
@@ -75,21 +87,13 @@ public class MaterializationTestStoragePlugin extends AbstractStoragePlugin<Conv
    * @param context
    * @param name
    */
-  public MaterializationTestStoragePlugin(final MaterializationTestStoragePluginConfig config, final SabotContext context,
-                                          final String name) throws ExecutionSetupException {
-    this.config = config;
-    this.pluginName = name;
+  public MaterializationTestStoragePlugin(
+      final MaterializationTestStoragePluginConfig config,
+      final SabotContext context,
+      final String name) throws ExecutionSetupException {
+    this.name = name;
     this.registry = context.getStorage();
-  }
-
-  @Override
-  public StoragePluginConfig getConfig() {
-    return config;
-  }
-
-  @Override
-  public RelNode getRel(final RelOptCluster cluster, final RelOptTable relOptTable, final ConversionContext.NamespaceConversionContext relContext) {
-    throw new UnsupportedOperationException();
+    this.pluginId = new StoragePluginId(name, config, TYPE);
   }
 
   @Override
@@ -106,26 +110,6 @@ public class MaterializationTestStoragePlugin extends AbstractStoragePlugin<Conv
       return null;
     }
     return new MaterializedTestViewTable(layout.get(), schemaConfig.getUserName(), schemaConfig.getViewExpansionContext());
-  }
-
-  @Override
-  public List<DatasetConfig> listDatasets() {
-    return Collections.emptyList();
-  }
-
-  @Override
-  public boolean folderExists(final SchemaConfig schemaConfig, final List<String> folderPath) throws IOException {
-    return false;
-  }
-
-  @Override
-  public DatasetConfig getDataset(final List<String> tableSchemaPath, final TableInstance tableInstance, final SchemaConfig schemaConfig) {
-    return null;
-  }
-
-  @Override
-  public boolean supportsRead() {
-    return true;
   }
 
   public void put(final String layoutId, final RelNode plan) {
@@ -172,6 +156,68 @@ public class MaterializationTestStoragePlugin extends AbstractStoragePlugin<Conv
     public String getViewSql() {
       throw new UnsupportedOperationException();
     }
+  }
+
+  @Override
+  public void close() throws Exception {
+  }
+
+  @Override
+  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+    return null;
+  }
+
+  @Override
+  public boolean containerExists(NamespaceKey key) {
+    return false;
+  }
+
+  @Override
+  public boolean datasetExists(NamespaceKey key) {
+    return false;
+  }
+
+  @Override
+  public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
+    return false;
+  }
+
+  @Override
+  public SourceState getState() {
+    return SourceState.GOOD;
+  }
+
+  @Override
+  public StoragePluginId getId() {
+    return pluginId;
+  }
+
+  @Override
+  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
+    return null;
+  }
+
+  @Override
+  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
+    return CheckResult.UNCHANGED;
+  }
+
+  @Override
+  public void start() throws IOException {
+  }
+
+  public static final class Factory implements StoragePluginTypeRulesFactory {
+
+    @Override
+    public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, StoragePluginType pluginType) {
+      return ImmutableSet.of();
+    }
+
   }
 
 }

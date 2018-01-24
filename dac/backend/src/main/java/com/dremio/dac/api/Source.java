@@ -15,8 +15,11 @@
  */
 package com.dremio.dac.api;
 
+import com.dremio.dac.proto.model.source.ADLConfig;
+import com.dremio.dac.proto.model.source.AZBConfig;
 import com.dremio.dac.proto.model.source.DB2Config;
 import com.dremio.dac.proto.model.source.ElasticConfig;
+import com.dremio.dac.proto.model.source.GCSConfig;
 import com.dremio.dac.proto.model.source.HBaseConfig;
 import com.dremio.dac.proto.model.source.HdfsConfig;
 import com.dremio.dac.proto.model.source.HiveConfig;
@@ -61,7 +64,10 @@ public class Source {
     @JsonSubTypes.Type(value = HBaseConfig.class, name = "HBASE"),
     @JsonSubTypes.Type(value = HiveConfig.class, name = "HIVE"),
     @JsonSubTypes.Type(value = DB2Config.class, name = "DB2"),
-    @JsonSubTypes.Type(value = UnknownConfig.class, name = "UNKNOWN")
+    @JsonSubTypes.Type(value = UnknownConfig.class, name = "UNKNOWN"),
+    @JsonSubTypes.Type(value = GCSConfig.class, name = "GCS"),
+    @JsonSubTypes.Type(value = AZBConfig.class, name = "AZB"),
+    @JsonSubTypes.Type(value = ADLConfig.class, name = "ADL")
   })
   private com.dremio.dac.model.sources.Source config;
   private SourceState state;

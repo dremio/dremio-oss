@@ -9,13 +9,13 @@ notices and/or trademarks:
 
 # List of contributors  Red Hat Inc. Akira Kawauchi Davide D'Alto Dhanji R. Prasanna Emmanuel Bernard Gavin King Gerhard Petracek Guillaume Smet Gunnar Morling Hardy Ferentschik Hendrik Ebbers Kevin Pollet Sebastian Thomschke
 
-* Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos
-
 AWS SDK for Java Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
 
 Adam Stawicki Alaa Nassef Andrey Derevyanko Andrey Rodionov Benson Margulies Brent Douglas Carlos Vara Dag Hovland Davide Marchignoli Carlo de Wolf Chris Beckey Christian Ivan Denis Tiago Doug Lea Emmanuel Bernard Efthymis Sarbanis Federico Federico Mancini Gavin King George Gastaldi Gerhard Petracek Guillaume Husta Guillaume Smet Gunnar Morling Hardy Ferentschik Henno Vermeulen Jan-Willem Willebrands Jason T. Greene Julien May Julien Furgerot Juraci Krohling Justin Nauman Kathryn Killebrew Kevin Pollet Khalid Alqinyah Lee KyoungIl Leonardo Loch Zanivan Lucas Pouzac Lukas Niemeier Mark Hobson Marko Bekhta Mert Çalişkan Paolo Perrotta Pete Muir Sanne Grinovero Sebastian Bayerl Shane Bryzak Shelly McGowan Steve Ebersole Strong Liu Victor Rezende dos Santos Willi Schönborn Yoann Rodière
 
 Aggregate Designer  Copyright 2006 - 2013 Pentaho Corporation.  All rights reserved. Copyright 2000-2005, 2014-2016 Julian Hyde
+
+Amazon Ion Java      Copyright 2007-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Apache Arrow Copyright 2016 The Apache Software Foundation
 
@@ -35,7 +35,7 @@ Apache Commons Pool Copyright 2001-2016 The Apache Software Foundation
 
 Apache Curator Copyright 2013-2014 The Apache Software Foundation
 
-Apache Derby Copyright 2004-2015 The Apache Software Foundation  This product includes software developed by The Apache Software Foundation (http://www.apache.org/).   =========================================================================  Portions of Derby were originally developed by International Business Machines Corporation and are licensed to the Apache Software Foundation under the Software Grant and Corporate Contribution License Agreement, informally known as the Derby CLA. The following copyright notice(s) were affixed to portions of the code with which this file is now or was at one time distributed and are placed here unaltered.  (C) Copyright 1997,2004 International Business Machines Corporation.  All rights reserved.  (C) Copyright IBM Corp. 2003.    =========================================================================   The portion of the functionTests under 'nist' was originally  developed by the National Institute of Standards and Technology (NIST),  an agency of the United States Department of Commerce, and adapted by International Business Machines Corporation in accordance with the NIST Software Acknowledgment and Redistribution document at http://www.itl.nist.gov/div897/ctg/sql_form.htm
+Apache Derby Copyright 2004-2015 The Apache Software Foundation  This product includes software developed by The Apache Software Foundation (http://www.apache.org/).   =========================================================================  Portions of Derby were originally developed by International Business Machines Corporation and are licensed to the Apache Software Foundation under the Software Grant and Corporate Contribution License Agreement, informally known as the Derby CLA. The following copyright notice(s) were affixed to portions of the code with which this file is now or was at one time distributed and are placed here unaltered.  (C) Copyright 1997,2004 International Business Machines Corporation.  All rights reserved.  (C) Copyright IBM Corp. 2003.    =========================================================================   The portion of the functionTests under 'nist' was originally developed by the National Institute of Standards and Technology (NIST), an agency of the United States Department of Commerce, and adapted by International Business Machines Corporation in accordance with the NIST Software Acknowledgment and Redistribution document at http://www.itl.nist.gov/div897/ctg/sql_form.htm
 
 Apache Directory Studio Copyright 2007-2016 The Apache Software Foundation
 
@@ -77,6 +77,8 @@ Apache ZooKeeper Copyright 2009-2014 The Apache Software Foundation
 
 ApacheDS Copyright 2003-2017 The Apache Software Foundation
 
+Azure Data Lake Store Java SDK        Copyright (c) Microsoft Corporation All rights reserved.  The MIT License (MIT)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 Copyright	Neil Mitchell 2006-2017
 
 Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
@@ -93,6 +95,8 @@ Copyright (c) 2000-2015 www.hamcrest.org
 
 Copyright (c) 2001-2016, Arno Unkrig Copyright (c) 2015-2016  TIBCO Software Inc.
 
+Copyright (c) 2002 JSON.org        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:         The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.        The Software shall be used for Good, not Evil.        THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 Copyright (c) 2002-2015 Atsuhiko Yamanaka, JCraft,Inc. All rights reserved.
 
 Copyright (c) 2002-2017 EPFL Copyright (c) 2011-2017 Lightbend, Inc.
@@ -108,6 +112,8 @@ Copyright (c) 2005, Graph Builder All rights reserved.
 Copyright (c) 2006 Paul Hammant & ThoughtWorks Inc  All rights reserved.
 
 Copyright (c) 2007 Mockito contributors
+
+Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos
 
 Copyright (c) 2008, Nathan Sweet All rights reserved.
 
@@ -150,6 +156,8 @@ Copyright (c) 2013 Braveg1rl
 Copyright (c) 2013 Masayuki Tanaka
 
 Copyright (c) 2013 Meryn Stol
+
+Copyright (c) 2013 Mikola Lysenko
 
 Copyright (c) 2013-2015 Oracle and/or its affiliates. All rights reserved.
 
@@ -205,6 +213,8 @@ Copyright (c) 2015 Alexander Karlsson
 
 Copyright (c) 2015 Alexander Kuznetsov
 
+Copyright (c) 2015 Alexei Boronine
+
 Copyright (c) 2015 Andres Suarez <zertosh@gmail.com>
 
 Copyright (c) 2015 Andrey Okonetchnikov
@@ -238,6 +248,8 @@ Copyright (c) 2015 Nick Williams Copyright (c) 2011 Heather Arthur <fayearthur@g
 Copyright (c) 2015 React Motion authors
 
 Copyright (c) 2015 Robin Frischmann
+
+Copyright (c) 2015 Shusaku Uesugi
 
 Copyright (c) 2015 Shusaku Uesugi, (c) 2016-present Alexander Kuznetsov
 
@@ -335,9 +347,13 @@ Copyright 2014 Yahoo Inc. All rights reserved.
 
 Copyright 2014 Yahoo! Inc. All rights reserved.
 
+Copyright 2014, Google Inc. All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:            * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.            * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.            * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/> Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
 
 Copyright 2015, Dustin Diaz (the Original Author) All rights reserved.
+
+Copyright 2016, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:     * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the  distribution.     * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Copyright JS Foundation and other contributors <https://js.foundation/>
 
@@ -371,21 +387,21 @@ Jetty Web Container Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
 
 Logback: the reliable, generic, fast and flexible logging framework. Copyright (C) 1999-2017, QOS.ch. All rights reserved.
 
-NOTICE file corresponding to section 4d of the Apache License Version 2.0 = ============================================================================= This product includes software developed by Joda.org (http://www.joda.org/).
+Nimbus JOSE + JWT  Copyright 2012 - 2018, Connect2id Ltd.
 
-Notices and attributions required by libraries that the project depends on   ==    ===================================================================================   The JUnit depends on Java Hamcrest (http://hamcrest.org/JavaHamcrest/).
+The JUnit depends on Java Hamcrest (http://hamcrest.org/JavaHamcrest/).
 
 The MIT License (MIT) Copyright (c) 2015-2016 Adphorus
 
-The Xerces-J 2.11.0 release is available in source code and precompiled binary (JAR files) form. Both Xerces-J packages are made available under the Apache Software License.
+The Xerces-J 2.11.0 release is available in source code and precompiled  binary (JAR files) form. Both Xerces-J packages are made available under  the Apache Software License.
 
 The code for the t-digest was originally authored by Ted Dunning  A number of small but very helpful changes have been contributed by Adrien Grand (https://github.com/jpountz)
 
 The code released under the CDDL shall be governed by the laws of the State of California (excluding conflict-of-law provisions). Any litigation relating to this License shall be subject to the jurisdiction of the Federal Courts of the Northern District of California and the state courts of the State of California, with venue lying in Santa Clara County, California.
 
-This product includes software developed by    The Apache Software Foundation (http://www.apache.org/).
-
 This product includes software developed by Google  Snappy: http://code.google.com/p/snappy/ (New BSD License)  This product includes software developed by Apache  PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/  (Apache 2.0 license)  This library containd statically linked libstdc++. This inclusion is allowed by  GCC RUntime Library Exception  http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html  == Contributors ==   * Tatu Saloranta       * Providing benchmark suite   * Alec Wysoker     * Performance and memory usage improvement
+
+This product includes software developed by Joda.org (http://www.joda.org/).
 
 This product includes software developed by The Apache Software Foundation (http://www.apache.org/).
 

@@ -22,16 +22,14 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.GenerateSampleData;
 import org.apache.arrow.vector.NullableIntVector;
 import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.junit.Test;
 
-import com.dremio.common.types.Types;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
@@ -57,7 +55,7 @@ public class TestLoad extends ExecTest {
     final List<ValueVector> vectors = Lists.newArrayList(fixedV, varlenV, nullableVarlenV);
     for (final ValueVector v : vectors) {
       AllocationHelper.allocate(v, 100, 50);
-      v.getMutator().generateTestData(100);
+      GenerateSampleData.generateTestData(v, 100);
     }
 
     final WritableBatch writableBatch = WritableBatch.getBatchNoHV(100, vectors, false);
@@ -100,16 +98,16 @@ public class TestLoad extends ExecTest {
         } else {
           log("\t");
         }
-        final ValueVector.Accessor accessor = v.getValueVector().getAccessor();
+        final ValueVector vv = v.getValueVector();
         if (getMinorTypeForArrowType(v.getField().getType()) == MinorType.VARCHAR) {
-          final Object obj = accessor.getObject(r);
+          final Object obj = vv.getObject(r);
           if (obj != null) {
-            log(accessor.getObject(r));
+            log(vv.getObject(r));
           } else {
             log("NULL");
           }
         } else {
-          log(accessor.getObject(r));
+          log(vv.getObject(r));
         }
       }
       if (!first) {

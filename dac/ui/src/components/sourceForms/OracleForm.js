@@ -61,9 +61,9 @@ export class OracleForm extends Component {
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
-            <SingleHost fields={fields} title='Host' style={{marginBottom: 15}}/>
+            <SingleHost fields={fields} title='Host' style={{marginBottom: 10}}/>
             <div style={section}>
-              <FieldWithError label='SID' errorPlacement='right' {...fields.config.instance}>
+              <FieldWithError label={la('Service Name')} errorPlacement='right' {...fields.config.instance}>
                 <TextField {...fields.config.instance}/>
               </FieldWithError>
             </div>

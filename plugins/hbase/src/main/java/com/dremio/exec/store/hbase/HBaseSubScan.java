@@ -17,24 +17,16 @@ package com.dremio.exec.store.hbase;
 
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.util.Bytes;
-
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.fasterxml.jackson.annotation.JacksonInject;
+import com.dremio.service.namespace.StoragePluginId;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -44,54 +36,29 @@ import com.google.common.base.Preconditions;
 public class HBaseSubScan extends SubScanWithProjection {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HBaseSubScan.class);
 
-  @JsonProperty
-  public final HBaseStoragePluginConfig storage;
-  @JsonIgnore
-  private final HBaseStoragePlugin hbaseStoragePlugin;
-  private final List<HBaseSubScanSpec> regionScanSpecList;
-  private final List<SchemaPath> columns;
+  private final StoragePluginId pluginId;
+  private final List<HBaseSubScanSpec> scans;
 
   @JsonCreator
-  public HBaseSubScan(@JacksonInject StoragePluginRegistry registry,
-                      @JsonProperty("userName") String userName,
-                      @JsonProperty("storage") StoragePluginConfig storage,
-                      @JsonProperty("regionScanSpecList") LinkedList<HBaseSubScanSpec> regionScanSpecList,
-                      @JsonProperty("columns") List<SchemaPath> columns,
-                      @JsonProperty("schema") BatchSchema schema,
-                      @JsonProperty("tableSchemaPath") List<String> tableSchemaPath
-      ) throws ExecutionSetupException {
+  public HBaseSubScan(
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("userName") String userName,
+      @JsonProperty("scans") List<HBaseSubScanSpec> scans,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("tableSchemaPath") List<String> tableSchemaPath
+      ) {
     super(userName, schema, tableSchemaPath, columns);
-    hbaseStoragePlugin = (HBaseStoragePlugin) registry.getPlugin(storage);
-    this.regionScanSpecList = regionScanSpecList;
-    this.storage = (HBaseStoragePluginConfig) storage;
-    this.columns = columns;
+    this.scans = scans;
+    this.pluginId = pluginId;
   }
 
-  public HBaseSubScan(String userName, HBaseStoragePlugin plugin, HBaseStoragePluginConfig config,
-      List<HBaseSubScanSpec> regionInfoList, List<SchemaPath> columns, BatchSchema schema, List<String> tablePath) {
-    super(userName, schema, tablePath, columns);
-    hbaseStoragePlugin = plugin;
-    storage = config;
-    this.regionScanSpecList = regionInfoList;
-    this.columns = columns;
+  public StoragePluginId getPluginId() {
+    return pluginId;
   }
 
-  public List<HBaseSubScanSpec> getRegionScanSpecList() {
-    return regionScanSpecList;
-  }
-
-  @JsonIgnore
-  public HBaseStoragePluginConfig getStorageConfig() {
-    return storage;
-  }
-
-  public List<SchemaPath> getColumns() {
-    return columns;
-  }
-
-  @JsonIgnore
-  public HBaseStoragePlugin getStorageEngine(){
-    return hbaseStoragePlugin;
+  public List<HBaseSubScanSpec> getScans() {
+    return scans;
   }
 
   @Override
@@ -102,116 +69,12 @@ public class HBaseSubScan extends SubScanWithProjection {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
-    return new HBaseSubScan(getUserName(), hbaseStoragePlugin, storage, regionScanSpecList, columns, getSchema(), getTableSchemaPath());
+    return new HBaseSubScan(getPluginId(), getUserName(), getScans(), getColumns(), getSchema(), getTableSchemaPath());
   }
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
     return Collections.emptyIterator();
-  }
-
-  @Override
-  public List<String> getTableSchemaPath() {
-    return null;
-  }
-
-  public static class HBaseSubScanSpec {
-
-    protected String tableName;
-    protected String regionServer;
-    protected byte[] startRow;
-    protected byte[] stopRow;
-    protected byte[] serializedFilter;
-
-    @JsonCreator
-    public HBaseSubScanSpec(@JsonProperty("tableName") String tableName,
-                            @JsonProperty("regionServer") String regionServer,
-                            @JsonProperty("startRow") byte[] startRow,
-                            @JsonProperty("stopRow") byte[] stopRow,
-                            @JsonProperty("serializedFilter") byte[] serializedFilter,
-                            @JsonProperty("filterString") String filterString) {
-      if (serializedFilter != null && filterString != null) {
-        throw new IllegalArgumentException("The parameters 'serializedFilter' or 'filterString' cannot be specified at the same time.");
-      }
-      this.tableName = tableName;
-      this.regionServer = regionServer;
-      this.startRow = startRow;
-      this.stopRow = stopRow;
-      if (serializedFilter != null) {
-        this.serializedFilter = serializedFilter;
-      } else {
-        this.serializedFilter = HBaseUtils.serializeFilter(HBaseUtils.parseFilterString(filterString));
-      }
-    }
-
-    /* package */ HBaseSubScanSpec() {
-      // empty constructor, to be used with builder pattern;
-    }
-
-    @JsonIgnore
-    private Filter scanFilter;
-    public Filter getScanFilter() {
-      if (scanFilter == null &&  serializedFilter != null) {
-          scanFilter = HBaseUtils.deserializeFilter(serializedFilter);
-      }
-      return scanFilter;
-    }
-
-    public String getTableName() {
-      return tableName;
-    }
-
-    public HBaseSubScanSpec setTableName(String tableName) {
-      this.tableName = tableName;
-      return this;
-    }
-
-    public String getRegionServer() {
-      return regionServer;
-    }
-
-    public HBaseSubScanSpec setRegionServer(String regionServer) {
-      this.regionServer = regionServer;
-      return this;
-    }
-
-    public byte[] getStartRow() {
-      return startRow;
-    }
-
-    public HBaseSubScanSpec setStartRow(byte[] startRow) {
-      this.startRow = startRow;
-      return this;
-    }
-
-    public byte[] getStopRow() {
-      return stopRow;
-    }
-
-    public HBaseSubScanSpec setStopRow(byte[] stopRow) {
-      this.stopRow = stopRow;
-      return this;
-    }
-
-    public byte[] getSerializedFilter() {
-      return serializedFilter;
-    }
-
-    public HBaseSubScanSpec setSerializedFilter(byte[] serializedFilter) {
-      this.serializedFilter = serializedFilter;
-      this.scanFilter = null;
-      return this;
-    }
-
-    @Override
-    public String toString() {
-      return "HBaseScanSpec [tableName=" + tableName
-          + ", startRow=" + (startRow == null ? null : Bytes.toStringBinary(startRow))
-          + ", stopRow=" + (stopRow == null ? null : Bytes.toStringBinary(stopRow))
-          + ", filter=" + (getScanFilter() == null ? null : getScanFilter().toString())
-          + ", regionServer=" + regionServer + "]";
-    }
-
   }
 
   @Override

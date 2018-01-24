@@ -35,7 +35,7 @@ public class StoragePluginSerializer extends Serializer<StoragePlugin> {
 
   @Override
   public void write(final Kryo kryo, final Output output, final StoragePlugin plugin) {
-    kryo.writeClassAndObject(output, plugin.getConfig());
+    kryo.writeClassAndObject(output, plugin.getId().getConfig());
   }
 
   @Override

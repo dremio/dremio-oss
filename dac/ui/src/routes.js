@@ -23,6 +23,8 @@ import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
 
 import App from './containers/App';
 
+import ReloadPage from './pages/ReloadPage';
+
 import HomePage from './pages/HomePage/HomePage';
 import HomeModals from './pages/HomePage/HomeModals';
 import Home from './pages/HomePage/subpages/Home';
@@ -79,6 +81,7 @@ export default (
     {/* TODO conflict with (/:resources), need to change resources for all components */}
     <Redirect from='/home' to='/'/>
     <Redirect from='/*/**/' to='/*/**'/>
+    <Route path='/reload' component={ReloadPage} />
     <Route component={UserIsAuthenticated(JobModals)}>
       <Route component={Page}>
         <Route path='/jobs(/:queryId)' component={JobPage} />

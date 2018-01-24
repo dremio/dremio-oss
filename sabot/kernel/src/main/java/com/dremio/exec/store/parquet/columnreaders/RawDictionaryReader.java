@@ -57,7 +57,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
         final Map<Integer, Integer> valueLookup = Maps.newHashMap();
         final NullableIntVector intVector = vectorContainer.getValueAccessorById(NullableIntVector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
-          valueLookup.put(intVector.getAccessor().get(i), i);
+          valueLookup.put(intVector.get(i), i);
         }
         for (int i = 0; i <= pageReader.dictionary.getMaxId(); ++i) {
           localIdToGlobalId[i] = valueLookup.get(pageReader.dictionary.decodeToInt(i));
@@ -69,7 +69,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
         final Map<Long, Integer> valueLookup = Maps.newHashMap();
         final NullableBigIntVector longVector = vectorContainer.getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
-          valueLookup.put(longVector.getAccessor().get(i), i);
+          valueLookup.put(longVector.get(i), i);
         }
         for (int i = 0; i <= pageReader.dictionary.getMaxId(); ++i) {
           localIdToGlobalId[i] = valueLookup.get(pageReader.dictionary.decodeToLong(i));
@@ -83,7 +83,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
         final Map<Binary, Integer> valueLookup = Maps.newHashMap();
         final NullableVarBinaryVector binaryVector = vectorContainer.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
-          valueLookup.put(Binary.fromConstantByteArray(binaryVector.getAccessor().get(i)), i);
+          valueLookup.put(Binary.fromConstantByteArray(binaryVector.get(i)), i);
         }
         for (int i = 0; i <= pageReader.dictionary.getMaxId(); ++i) {
           localIdToGlobalId[i] = valueLookup.get(pageReader.dictionary.decodeToBinary(i));
@@ -95,7 +95,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
         final Map<Float, Integer> valueLookup = Maps.newHashMap();
         final NullableFloat4Vector floarVector = vectorContainer.getValueAccessorById(NullableFloat4Vector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
-          valueLookup.put(floarVector.getAccessor().get(i), i);
+          valueLookup.put(floarVector.get(i), i);
         }
         for (int i = 0; i <= pageReader.dictionary.getMaxId(); ++i) {
           localIdToGlobalId[i] = valueLookup.get(pageReader.dictionary.decodeToFloat(i));
@@ -107,7 +107,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
         final Map<Double, Integer> valueLookup = Maps.newHashMap();
         final NullableFloat8Vector doubleVector = vectorContainer.getValueAccessorById(NullableFloat8Vector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
-          valueLookup.put(doubleVector.getAccessor().get(i), i);
+          valueLookup.put(doubleVector.get(i), i);
         }
         for (int i = 0; i <= pageReader.dictionary.getMaxId(); ++i) {
           localIdToGlobalId[i] = valueLookup.get(pageReader.dictionary.decodeToDouble(i));
@@ -204,7 +204,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
         readCount++;
         runLength++;
         definitionLevelsRead++;
-        castedVectorMutator.setIndexDefined(writeCount + runLength - 1); //set the nullable bit to indicate a non-null value
+        castedVector.setIndexDefined(writeCount + runLength - 1); //set the nullable bit to indicate a non-null value
         haveMoreData = readCount < recordsToReadInThisPass
           && (writeCount + runLength) < valueVec.getValueCapacity()
           && definitionLevelsRead < pageReader.currentPageCount;
@@ -248,7 +248,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
 
     }
 
-    valueVec.getMutator().setValueCount(valuesReadInCurrentPass);
+    valueVec.setValueCount(valuesReadInCurrentPass);
   }
 
   @Override
@@ -256,7 +256,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
     for (int i = 0; i < recordsToReadInThisPass; i++) {
       final int id = pageReader.dictionaryValueReader.readValueDictionaryId();
       assert id >=0 && id < localIdToGlobalId.length;
-      valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, localIdToGlobalId[id]);
+      valueVec.setSafe(valuesReadInCurrentPass + i, localIdToGlobalId[id]);
     }
   }
 

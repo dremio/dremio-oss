@@ -61,7 +61,7 @@ public class HyperVectorValueIterator implements Iterator<Object> {
 
   public void determineTotalSize() {
     for (ValueVector vv : hyperVector.getValueVectors()) {
-      this.totalValues += vv.getAccessor().getValueCount();
+      this.totalValues += vv.getValueCount();
     }
   }
 
@@ -72,7 +72,7 @@ public class HyperVectorValueIterator implements Iterator<Object> {
     }
     if (indexInVectorList < hyperVector.getValueVectors().length) {
       return true;
-    } else if ( indexInCurrentVector < currVec.getAccessor().getValueCount()) {
+    } else if ( indexInCurrentVector < currVec.getValueCount()) {
       return true;
     }
     return false;
@@ -80,12 +80,12 @@ public class HyperVectorValueIterator implements Iterator<Object> {
 
   @Override
   public Object next() {
-    if (currVec == null || indexInCurrentVector == currVec.getAccessor().getValueCount()) {
+    if (currVec == null || indexInCurrentVector == currVec.getValueCount()) {
       currVec = hyperVector.getValueVectors()[indexInVectorList];
       indexInVectorList++;
       indexInCurrentVector = 0;
     }
-    Object obj = currVec.getAccessor().getObject(indexInCurrentVector);
+    Object obj = currVec.getObject(indexInCurrentVector);
     indexInCurrentVector++;
     totalValuesRead++;
     return obj;

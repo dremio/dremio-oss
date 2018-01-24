@@ -58,6 +58,10 @@ class OverviewContent extends Component {
     intl: PropTypes.object.isRequired
   };
 
+  static contextTypes = {
+    location: PropTypes.object.isRequired
+  };
+
   static codeMirrorOptions = {
     readOnly: true,
     lineWrapping: true
@@ -225,7 +229,7 @@ class OverviewContent extends Component {
             />
           </div>
           { materializationFor && <LinkButton to={{
-            ...location,
+            ...this.context.location,
             state: {
               modal: 'AccelerationModal',
               accelerationId: materializationFor.get('accelerationId'),

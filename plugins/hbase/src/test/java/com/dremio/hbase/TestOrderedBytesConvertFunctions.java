@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -67,21 +66,18 @@ public class TestOrderedBytesConvertFunctions extends BaseTestQuery {
   protected Object[] getRunResult(QueryType queryType, String planString) throws Exception {
     List<QueryDataBatch> resultList = testRunAndReturn(queryType, planString);
 
-    List<Object> res = new ArrayList<Object>();
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
-    for(QueryDataBatch result : resultList) {
-      if (result.getData() != null) {
-        loader.load(result.getHeader().getDef(), result.getData());
-        ValueVector v = loader.iterator().next().getValueVector();
-        for (int j = 0; j < v.getAccessor().getValueCount(); j++) {
-          if  (v instanceof VarCharVector) {
-            res.add(new String(((VarCharVector) v).getAccessor().get(j)));
-          } else {
-            res.add(v.getAccessor().getObject(j));
+    List<Object> res = new ArrayList<>();
+    try(RecordBatchLoader loader = new RecordBatchLoader(getAllocator())){;
+      for(QueryDataBatch result : resultList) {
+        if (result.getData() != null) {
+          loader.load(result.getHeader().getDef(), result.getData());
+          ValueVector v = loader.iterator().next().getValueVector();
+          for (int j = 0; j < v.getValueCount(); j++) {
+            res.add(v.getObject(j));
           }
+          loader.clear();
+          result.release();
         }
-        loader.clear();
-        result.release();
       }
     }
 

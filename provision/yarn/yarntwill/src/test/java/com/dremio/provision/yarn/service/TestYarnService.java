@@ -18,6 +18,8 @@ package com.dremio.provision.yarn.service;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.yarn.conf.YarnConfiguration.RM_HOSTNAME;
+import static org.apache.twill.api.Configs.Keys.HEAP_RESERVED_MIN_RATIO;
+import static org.apache.twill.api.Configs.Keys.JAVA_RESERVED_MEMORY_MB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -40,6 +42,7 @@ import java.util.concurrent.Future;
 
 import javax.inject.Provider;
 
+
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.twill.api.ResourceReport;
 import org.apache.twill.api.RunId;
@@ -50,6 +53,7 @@ import org.apache.twill.api.TwillRunnerService;
 import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.internal.DefaultTwillRunResources;
 import org.apache.twill.internal.RunIds;
+import org.apache.twill.internal.utils.Resources;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -82,6 +86,7 @@ import com.dremio.provision.yarn.YarnController;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 /**
  * Class to test YarnService
@@ -651,6 +656,51 @@ public class TestYarnService {
     yarnService.stopCluster(myCluster);
 
     assertEquals(ClusterState.STOPPED, myCluster.getState());
+  }
+
+  @Test
+  public void testMemoryOnOffHeapRatio() throws Exception {
+    assumeNonMaprProfile();
+
+    YarnController controller = Mockito.mock(YarnController.class);
+    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    Cluster cluster = new Cluster();
+    cluster.setState(ClusterState.CREATED);
+    cluster.setId(new ClusterId(UUID.randomUUID().toString()));
+    ClusterConfig clusterConfig = new ClusterConfig();
+    List<Property> propertyList = new ArrayList<>();
+    propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
+    propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
+    propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
+    propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
+    RunId runId = RunIds.generate();
+    clusterConfig.setSubPropertyList(propertyList);
+    cluster.setClusterConfig(clusterConfig);
+    cluster.setRunId(new com.dremio.provision.RunId(runId.toString()));
+    YarnConfiguration yarnConfig = new YarnConfiguration();
+
+    List<ClusterSpec> specs = Lists.asList(new ClusterSpec(2, 4096, 96000, 2),
+      new ClusterSpec[] {new ClusterSpec(2, 1234, 96023, 2),
+      new ClusterSpec(2, 4096, 8192, 2),
+      new ClusterSpec(2, 8192, 72000, 2)});
+
+    for (ClusterSpec spec : specs) {
+      clusterConfig.setClusterSpec(spec);
+      int onHeapMemory = spec.getMemoryMBOnHeap();
+      int offHeapMemory = spec.getMemoryMBOffHeap();
+      yarnService.updateYarnConfiguration(cluster, yarnConfig);
+      double ratio = ((double) onHeapMemory) / (offHeapMemory + onHeapMemory);
+      if (ratio < 0.1) {
+        assertEquals(ratio, yarnConfig.getDouble(HEAP_RESERVED_MIN_RATIO, 0), 10e-6);
+      } else {
+        assertEquals(0.1, yarnConfig.getDouble(HEAP_RESERVED_MIN_RATIO, 0), 10e-9);
+      }
+      assertEquals(onHeapMemory,
+        Resources.computeMaxHeapSize(offHeapMemory + onHeapMemory, offHeapMemory, yarnConfig.getDouble(HEAP_RESERVED_MIN_RATIO, 0)));
+      assertEquals(onHeapMemory, yarnConfig.getInt(DacDaemonYarnApplication.YARN_MEMORY_ON_HEAP, 0));
+      assertEquals(offHeapMemory, yarnConfig.getInt(DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, 0));
+      assertEquals(offHeapMemory, yarnConfig.getInt(JAVA_RESERVED_MEMORY_MB, 0));
+    }
   }
 
   @Test

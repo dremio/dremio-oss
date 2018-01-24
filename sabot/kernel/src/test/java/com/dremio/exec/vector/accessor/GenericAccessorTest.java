@@ -46,9 +46,8 @@ public class GenericAccessorTest {
 
   @Before
   public void setUp() throws Exception {
-    // Set up a mock accessor that has two columns, one non-null and one null
-    accessor = mock(ValueVector.Accessor.class);
-    when(accessor.getObject(anyInt())).thenAnswer(new Answer<Object>() {
+    valueVector = mock(ValueVector.class);
+    when(valueVector.getObject(anyInt())).thenAnswer(new Answer<Object>() {
 
       @Override
       public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -63,7 +62,7 @@ public class GenericAccessorTest {
         throw new IndexOutOfBoundsException("Index out of bounds");
       }
     });
-    when(accessor.isNull(anyInt())).thenAnswer(new Answer<Object>() {
+    when(valueVector.isNull(anyInt())).thenAnswer(new Answer<Object>() {
 
       @Override
       public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -77,8 +76,6 @@ public class GenericAccessorTest {
     });
 
     metadata = UserBitShared.SerializedField.getDefaultInstance();
-    valueVector = mock(ValueVector.class);
-    when(valueVector.getAccessor()).thenReturn(accessor);
     when(TypeHelper.getMetadata(valueVector)).thenReturn(metadata);
 
     genericAccessor = new GenericAccessor(valueVector);

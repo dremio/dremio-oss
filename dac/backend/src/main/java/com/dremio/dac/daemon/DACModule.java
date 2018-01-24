@@ -24,8 +24,8 @@ import com.dremio.service.SingletonRegistry;
  * Helper class to manage DAC registries
  */
 public interface DACModule {
-  void bootstrap(final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, String masterNode, boolean isMaster);
+  void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster);
 
   void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, String masterNode, boolean isMaster, SourceToStoragePluginConfig configurator);
+      DACConfig dacConfig, boolean isMaster, SourceToStoragePluginConfig configurator);
 }

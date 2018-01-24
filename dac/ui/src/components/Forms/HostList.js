@@ -61,7 +61,7 @@ export default class HostList extends Component {
   static validate(values) {
     const {config: {hostList}} = values;
     if (!hostList || hostList.length === 0) {
-      return {config: {hostList: 'At least one host is required'}};
+      return {config: {hostList: 'At least one host is required.'}};
     }
 
     return {config: {hostList: hostList.map((host) => {

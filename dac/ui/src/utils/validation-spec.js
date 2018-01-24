@@ -22,8 +22,8 @@ import {
 describe('validation', () => {
   describe('isRequired', () => {
     it('should fail if null or empty string', () => {
-      expect(isRequired('foo')({})).to.eql({foo: 'Foo is required'});
-      expect(isRequired('foo')({foo: ''})).to.eql({foo: 'Foo is required'});
+      expect(isRequired('foo')({})).to.eql({foo: 'Foo is required.'});
+      expect(isRequired('foo')({foo: ''})).to.eql({foo: 'Foo is required.'});
     });
 
     itShouldPassForGoodValues(isRequired, ['a', 0]);
@@ -44,8 +44,8 @@ describe('validation', () => {
 
     it('should fail when password and confirmation password don\'t match', () => {
       const validator = confirmPassword('password', 'passwordVerify');
-      expect(validator({password: 'p', passwordVerify: ''})).to.be.eql({passwordVerify: 'Passwords don\'t match'});
-      expect(validator({password: '', passwordVerify: 'p'})).to.be.eql({passwordVerify: 'Passwords don\'t match'});
+      expect(validator({password: 'p', passwordVerify: ''})).to.be.eql({passwordVerify: 'Passwords don\'t match.'});
+      expect(validator({password: '', passwordVerify: 'p'})).to.be.eql({passwordVerify: 'Passwords don\'t match.'});
     });
   });
 
@@ -82,11 +82,11 @@ describe('validation', () => {
 
   describe('isEmail', () => {
     it('should fail for don\'t correct email', () => {
-      expect(isEmail('email')({ email: 'dremio' })).to.eql({email: 'Not a valid email address'});
-      expect(isEmail('email')({ email: 'dremio@' })).to.eql({email: 'Not a valid email address'});
-      expect(isEmail('email')({ email: 'dremio@gmail' })).to.eql({email: 'Not a valid email address'});
-      expect(isEmail('email')({ email: 'dremio@gmail.' })).to.eql({email: 'Not a valid email address'});
-      expect(isEmail('email')({ email: 'dremio@gmail.c' })).to.eql({email: 'Not a valid email address'});
+      expect(isEmail('email')({ email: 'dremio' })).to.eql({email: 'Not a valid email address.'});
+      expect(isEmail('email')({ email: 'dremio@' })).to.eql({email: 'Not a valid email address.'});
+      expect(isEmail('email')({ email: 'dremio@gmail' })).to.eql({email: 'Not a valid email address.'});
+      expect(isEmail('email')({ email: 'dremio@gmail.' })).to.eql({email: 'Not a valid email address.'});
+      expect(isEmail('email')({ email: 'dremio@gmail.c' })).to.eql({email: 'Not a valid email address.'});
     });
 
     it('should success for correct email', () => {
@@ -99,7 +99,7 @@ describe('validation', () => {
       expect(applyValidators({}, [
         isRequired('foo.a'),
         isRequired('foo.b')]
-      )).to.eql({foo: {a: 'Foo.a is required', b: 'Foo.b is required'}});
+      )).to.eql({foo: {a: 'Foo.a is required.', b: 'Foo.b is required.'}});
     });
   });
 });

@@ -80,16 +80,16 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         vectorList.add(intVector);
         vectorList.add(binVector);
 
-        intVector.getMutator().setSafe(0, 0);
-        binVector.getMutator().setSafe(0, "ZERO".getBytes(), 0, "ZERO".getBytes().length);
-        intVector.getMutator().setSafe(1, 1);
-        binVector.getMutator().setSafe(1, "ONE".getBytes(), 0, "ONE".getBytes().length);
-        intVector.getMutator().setSafe(2, 2);
-        binVector.getMutator().setSafe(2, "TWO".getBytes(), 0, "TWO".getBytes().length);
-        intVector.getMutator().setSafe(3, 3);
-        binVector.getMutator().setSafe(3, "THREE".getBytes(), 0, "TWO".getBytes().length);
-        intVector.getMutator().setValueCount(4);
-        binVector.getMutator().setValueCount(4);
+        intVector.setSafe(0, 0);
+        binVector.setSafe(0, "ZERO".getBytes(), 0, "ZERO".getBytes().length);
+        intVector.setSafe(1, 1);
+        binVector.setSafe(1, "ONE".getBytes(), 0, "ONE".getBytes().length);
+        intVector.setSafe(2, 2);
+        binVector.setSafe(2, "TWO".getBytes(), 0, "TWO".getBytes().length);
+        intVector.setSafe(3, 3);
+        binVector.setSafe(3, "THREE".getBytes(), 0, "TWO".getBytes().length);
+        intVector.setValueCount(4);
+        binVector.setValueCount(4);
 
         VectorContainer container = new VectorContainer();
         container.addCollection(vectorList);
@@ -118,9 +118,9 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         final VectorAccessible newContainer = newWrap.get();
         for (VectorWrapper<?> w : newContainer) {
           try (ValueVector vv = w.getValueVector()) {
-            int values = vv.getAccessor().getValueCount();
+            int values = vv.getValueCount();
             for (int i = 0; i < values; i++) {
-              final Object o = vv.getAccessor().getObject(i);
+              final Object o = vv.getObject(i);
               if (o instanceof byte[]) {
                 System.out.println(new String((byte[]) o));
               } else {
@@ -161,25 +161,19 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         vectorList.add(intVector);
         vectorList.add(float8Vector);
 
-        NullableIntVector.Mutator intMutator = intVector.getMutator();
-        NullableFloat8Vector.Mutator floatMutator = float8Vector.getMutator();
-
         int intBaseValue = 100;
         double doubleBaseValue = 100.375;
         for (int i = 0; i < records; i++) {
-          intMutator.set(i, intBaseValue + i);
-          floatMutator.set(i, doubleBaseValue + (double)i);
+          intVector.set(i, intBaseValue + i);
+          float8Vector.set(i, doubleBaseValue + (double)i);
         }
 
-        intMutator.setValueCount(records);
-        floatMutator.setValueCount(records);
-
-        NullableIntVector.Accessor intAccessor = intVector.getAccessor();
-        NullableFloat8Vector.Accessor floatAccessor = float8Vector.getAccessor();
+        intVector.setValueCount(records);
+        float8Vector.setValueCount(records);
 
         for (int i = 0; i < records; i++) {
-          assertEquals(intBaseValue + i, intAccessor.get(i));
-          assertEquals(doubleBaseValue + (double)i, floatAccessor.get(i), 0);
+          assertEquals(intBaseValue + i, intVector.get(i));
+          assertEquals(doubleBaseValue + (double)i, float8Vector.get(i), 0);
         }
 
         SerDe(vectorList, true, records, context, 100, 100.375);
@@ -217,9 +211,9 @@ public class TestVectorAccessibleSerializable extends ExecTest {
     final VectorAccessible newContainer = newWrap.get();
     for (VectorWrapper<?> w : newContainer) {
       try (ValueVector vv = w.getValueVector()) {
-        int values = vv.getAccessor().getValueCount();
+        int values = vv.getValueCount();
         for (int i = 0; i < values; i++) {
-          final Object o = vv.getAccessor().getObject(i);
+          final Object o = vv.getObject(i);
           if (o instanceof Integer) {
             assertEquals(intBaseValue + i, ((Integer) o).intValue());
           } else {

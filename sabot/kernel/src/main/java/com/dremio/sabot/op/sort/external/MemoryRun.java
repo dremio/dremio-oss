@@ -59,7 +59,7 @@ import io.netty.buffer.ArrowBuf;
  */
 class MemoryRun implements AutoCloseable {
 
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryRun.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryRun.class);
 
   private static final int BATCH_SIZE_MULTIPLIER = 2;
 
@@ -81,12 +81,14 @@ class MemoryRun implements AutoCloseable {
 
   private BufferAllocator copyTargetAllocator;
   private long copyTargetSize;
+  private final ExternalSortTracer tracer;
 
   public MemoryRun(
       ExternalSort sortConfig,
       ClassProducer classProducer,
       BufferAllocator allocator,
-      Schema schema
+      Schema schema,
+      ExternalSortTracer tracer
       ) {
     this.schema = schema;
     this.sortConfig = sortConfig;
@@ -94,13 +96,14 @@ class MemoryRun implements AutoCloseable {
     this.classProducer = classProducer;
     this.splayTreeBuffer = allocator.buffer(4096 * SplayTree.NODE_SIZE);
     splayTreeBuffer.setZero(0, splayTreeBuffer.capacity());
+    this.tracer = tracer;
     updateProtectedSize(1 << 16);
   }
 
   private boolean updateProtectedSize(long needed) {
     Preconditions.checkArgument(needed > 0);
     BufferAllocator oldAllocator = copyTargetAllocator;
-
+    logger.debug("Memory Run: attempting to update resserved memory for spill copy with new size as: " + needed);
     try {
       copyTargetAllocator = allocator.newChildAllocator("sort-copy-target", needed, needed);
       copyTargetSize = needed;
@@ -108,6 +111,8 @@ class MemoryRun implements AutoCloseable {
         oldAllocator.close();
       }
     } catch (OutOfMemoryException ex) {
+      tracer.reserveMemoryForSpillOOMEvent(needed, needed, oldAllocator);
+      logger.debug("Memory Run: failed to reserve memory for spill copy");
       return false;
     }
 
@@ -129,12 +134,15 @@ class MemoryRun implements AutoCloseable {
     // if after adding incoming we end up with less than 20% of memory available for the sort allocator we should spill instead
     double headroom = allocator.getHeadroom() - batchSize;
     double total = allocator.getAllocatedMemory() + headroom;
+
     if (headroom/total < 0.2) {
+      logger.debug("Memory Run: less than 20% of memory available after adding, failed to add batch");
       return false;
     }
 
     // make sure we have room for an expanded tree before adding record batch.
     if (!expandTreeIfNecessary(incoming.getRecordCount())) {
+      logger.debug("Memory Run: no room for expanding the tree, failed to add batch");
       return false;
     }
 
@@ -144,7 +152,9 @@ class MemoryRun implements AutoCloseable {
     // (but not allocate so we always guarantee that we can allocate later.
     final long needed = batchSize * BATCH_SIZE_MULTIPLIER + nextPowerOfTwo((recordLength + incoming.getRecordCount()) * 4);
     if (copyTargetSize < needed) {
+      logger.debug("Memory Run: new size needed to reserve for spill: " + needed + " current target copy size: " + copyTargetSize);
       if (!updateProtectedSize(needed)) {
+        logger.debug("Memory Run: failed to reserve space");
         return false;
       }
     }

@@ -18,6 +18,7 @@ package com.dremio.exec.planner.logical;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window;
+import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -27,7 +28,7 @@ public class WindowRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new WindowRule();
 
   private WindowRule() {
-    super(RelOptHelper.some(Window.class, Convention.NONE, RelOptHelper.any(RelNode.class)), "WindowRule");
+    super(RelOptHelper.some(LogicalWindow.class, Convention.NONE, RelOptHelper.any(RelNode.class)), "WindowRule");
   }
 
   @Override

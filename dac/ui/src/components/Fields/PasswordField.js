@@ -48,7 +48,7 @@ export default class PasswordField extends Component {
   render() {
     const type = this.state.showPass ? 'text' : 'password';
     return (
-      <div style={{ marginRight: 10 }}>
+      <div className='field' style={{ marginRight: 10 }}>
         <TextField {...this.props} type={type} style={{ marginRight: 0 }}/>
         {this.props.value && <FontIcon
           type='fa-eye'

@@ -90,7 +90,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
     // Create a HDFS based storage plugin based on local storage plugin and add it to plugin registry (connection string
     // for mini dfs is varies for each run).
     final StoragePluginRegistry pluginRegistry = getSabotContext().getStorage();
-    final FileSystemConfig lfsPluginConfig = (FileSystemConfig) pluginRegistry.getPlugin("dfs_test").getConfig();
+    final FileSystemConfig lfsPluginConfig = pluginRegistry.getPlugin("dfs_test").getId().getConfig();
 
     final Path dirPath = new Path("/");
     FileSystem.mkdirs(fs, dirPath, new FsPermission((short)0777));

@@ -16,6 +16,9 @@
 package com.dremio.plugins.elastic.planning.rules;
 
 import static java.lang.String.format;
+import static org.apache.calcite.plan.RelOptUtil.conjunctions;
+import static org.apache.calcite.rex.RexUtil.composeConjunction;
+import static org.apache.calcite.rex.RexUtil.toCnf;
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.existsQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
@@ -29,6 +32,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -41,12 +45,15 @@ import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexRangeRef;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlLikeOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -58,6 +65,7 @@ import org.elasticsearch.script.ScriptService.ScriptType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
@@ -65,11 +73,15 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.dremio.exec.expr.fn.impl.RegexpUtil;
 import com.dremio.lucene.queryparser.classic.QueryConverter;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
-import com.dremio.plugins.elastic.ElasticsearchStoragePlugin2;
+import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
 import com.dremio.service.namespace.StoragePluginId;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -91,6 +103,74 @@ public class PredicateAnalyzer {
   }
   private static final Logger logger = LoggerFactory.getLogger(PredicateAnalyzer.class);
 
+  public static final class Residue {
+    public static final Residue NONE = new Residue(ImmutableBitSet.of());
+
+    private final ImmutableBitSet residue;
+
+    private Residue(ImmutableBitSet residue) {
+      this.residue = residue;
+    }
+
+    public boolean none() {
+      return residue.cardinality() == 0;
+    }
+
+    public int count() {
+      return residue.cardinality();
+    }
+
+    public RexNode getNewPredicate(RexNode originalCondition, RexBuilder builder) {
+      return composeConjunction(builder, FluentIterable.from(Ord.zip(conjunctions(originalCondition)))
+        .filter(new Predicate<Ord<RexNode>>() {
+          @Override
+          public boolean apply(Ord<RexNode> ord) {
+            return !residue.get(ord.i);
+          }
+        })
+        .transform(new Function<Ord<RexNode>, RexNode>() {
+          @Override
+          public RexNode apply(Ord<RexNode> ord) {
+            return ord.e;
+          }
+        })
+        .toList(), false);
+    }
+
+    public RexNode getResidue(RexNode originalCondition, RexBuilder builder) {
+      return composeConjunction(builder, FluentIterable.from(Ord.zip(conjunctions(originalCondition)))
+        .filter(new Predicate<Ord<RexNode>>() {
+          @Override
+          public boolean apply(Ord<RexNode> ord) {
+            return residue.get(ord.i);
+          }
+        })
+        .transform(new Function<Ord<RexNode>, RexNode>() {
+          @Override
+          public RexNode apply(Ord<RexNode> ord) {
+            return ord.e;
+          }
+        })
+        .toList(), false);
+    }
+  }
+
+  public static Residue analyzeConjunctions(ElasticIntermediateScanPrel scan, RexNode originalExpression) {
+    List<RexNode> conditions = conjunctions(originalExpression);
+
+    ImmutableBitSet.Builder residue = ImmutableBitSet.builder();
+
+    for (Ord<RexNode> condition : Ord.zip(conditions)) {
+      try {
+        analyze(scan, condition.e);
+      } catch (ExpressionNotAnalyzableException e) {
+        logger.debug("Failed to pushdown condition: ", condition);
+        residue.set(condition.i);
+      }
+    }
+    return new Residue(residue.build());
+  }
+
   /**
    * Walks the expression tree, attempting to convert the entire tree into
    * an equivalent Elasticsearch query filter. If an error occurs, or if it
@@ -102,7 +182,11 @@ public class PredicateAnalyzer {
   public static QueryBuilder analyze(ElasticIntermediateScanPrel scan, RexNode originalExpression) throws ExpressionNotAnalyzableException {
     try { // guard SchemaField conversion.
 
-      final RexNode expression = SchemaField.convert(originalExpression, scan, ImmutableSet.of(ElasticSpecialType.GEO_POINT, ElasticSpecialType.GEO_SHAPE));
+      final RexNode expression = SchemaField.convert(originalExpression,
+        scan,
+        ImmutableSet.of(ElasticSpecialType.GEO_POINT, ElasticSpecialType.GEO_SHAPE)
+      ).accept(new NotLikeConverter(scan.getCluster().getRexBuilder()));
+
       try {
         QueryExpression e = (QueryExpression) expression.accept(new Visitor(scan.getCluster().getRexBuilder()));
 
@@ -124,10 +208,39 @@ public class PredicateAnalyzer {
     }
   }
 
+
+  /**
+   * Converts expressions of the form NOT(LIKE(...)) into NOT_LIKE(...)
+   */
+  private static class NotLikeConverter extends RexShuttle {
+    final RexBuilder rexBuilder;
+
+    NotLikeConverter(RexBuilder rexBuilder) {
+      this.rexBuilder = rexBuilder;
+    }
+
+    @Override
+    public RexNode visitCall(RexCall call) {
+      if (call.getOperator().getKind() == SqlKind.NOT) {
+        RexNode child = call.getOperands().get(0);
+        if (child.getKind() == SqlKind.LIKE) {
+          List<RexNode> operands = FluentIterable.from(((RexCall) child).getOperands()).transform(new Function<RexNode, RexNode>() {
+            @Override
+            public RexNode apply(RexNode rexNode) {
+              return rexNode.accept(NotLikeConverter.this);
+            }
+          }).toList();
+          return rexBuilder.makeCall(SqlStdOperatorTable.NOT_LIKE, operands);
+        }
+      }
+      return super.visitCall(call);
+    }
+  }
+
   private static QueryBuilder genScriptFilter(RexNode expression, StoragePluginId pluginId, Throwable cause)
       throws ExpressionNotAnalyzableException {
     try {
-      final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin2.ENABLE_V5_FEATURES);
+      final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
       final ElasticsearchStoragePluginConfig config = pluginId.getConfig();
       final Script script = ProjectAnalyzer.getScript(
           expression,
@@ -142,7 +255,7 @@ public class PredicateAnalyzer {
   }
 
   public static Script getScript(String script, StoragePluginId pluginId) {
-    if (pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin2.ENABLE_V5_FEATURES)) {
+    if (pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES)) {
       // when returning a painless script, let's make sure we cast to a valid output type.
       return new Script(String.format("(def) (%s)", script), ScriptType.INLINE, "painless", null);
     } else {
@@ -264,11 +377,7 @@ public class PredicateAnalyzer {
             case CAST:
               return cast(call);
             case LIKE:
-              SqlLikeOperator likeOperator = (SqlLikeOperator) call.getOperator();
-              if (!likeOperator.isNegated()) {
-                return binary(call);
-              }
-              throw new PredicateAnalyzerException(format("Unsupported call: [%s]", call));
+              return binary(call);
             default:
               throw new PredicateAnalyzerException(format("Unsupported call: [%s]", call));
           }
@@ -394,7 +503,12 @@ public class PredicateAnalyzer {
           String sqlRegex = RegexpUtil.sqlToRegexLike(pair.getValue().stringValue());
           RexLiteral sqlRegexLiteral = rexBuilder.makeLiteral(sqlRegex);
           LiteralExpression sqlRegexExpression = new LiteralExpression(sqlRegexLiteral);
-          return QueryExpression.create(pair.getKey()).like(sqlRegexExpression);
+          SqlLikeOperator likeOperator = (SqlLikeOperator) call.getOperator();
+          if (likeOperator.isNegated()) {
+            return QueryExpression.create(pair.getKey()).notLike(sqlRegexExpression);
+          } else {
+            return QueryExpression.create(pair.getKey()).like(sqlRegexExpression);
+          }
         case EQUALS:
           return QueryExpression.create(pair.getKey()).equals(pair.getValue());
         case NOT_EQUALS:
@@ -431,7 +545,15 @@ public class PredicateAnalyzer {
       boolean partial = false;
       for (int i = 0; i < call.getOperands().size(); i++) {
         try {
-          expressions[i] = (QueryExpression) call.getOperands().get(i).accept(this);
+          Expression expr = call.getOperands().get(i).accept(this);
+          if (expr instanceof NamedFieldExpression) {
+            NamedFieldExpression namedFieldExpression = (NamedFieldExpression) expr;
+            if (namedFieldExpression.getType().isBoolean()) {
+              expressions[i] = QueryExpression.create((NamedFieldExpression) expr).isTrue();
+            }
+          } else {
+            expressions[i] = (QueryExpression) call.getOperands().get(i).accept(this);
+          }
           partial |= expressions[i].isPartial();
         } catch (PredicateAnalyzerException e) {
           if (firstError == null) {
@@ -585,6 +707,8 @@ public class PredicateAnalyzer {
 
     public abstract QueryExpression like(LiteralExpression literal);
 
+    public abstract QueryExpression notLike(LiteralExpression literal);
+
     public abstract QueryExpression equals(LiteralExpression literal);
 
     public abstract QueryExpression notEquals(LiteralExpression literal);
@@ -598,6 +722,8 @@ public class PredicateAnalyzer {
     public abstract QueryExpression lte(LiteralExpression literal);
 
     public abstract QueryExpression queryString(String query);
+
+    public abstract QueryExpression isTrue();
 
     public static QueryExpression create(TerminalExpression expression) {
 
@@ -681,6 +807,11 @@ public class PredicateAnalyzer {
     }
 
     @Override
+    public QueryExpression notLike(LiteralExpression literal) {
+      throw new PredicateAnalyzerException("SqlOperatorImpl ['notLike'] cannot be applied to a compound expression");
+    }
+
+    @Override
     public QueryExpression equals(LiteralExpression literal) {
       throw new PredicateAnalyzerException("SqlOperatorImpl ['='] cannot be applied to a compound expression");
     }
@@ -713,6 +844,11 @@ public class PredicateAnalyzer {
     @Override
     public QueryExpression queryString(String query) {
       throw new PredicateAnalyzerException("QueryString cannot be applied to a compound expression");
+    }
+
+    @Override
+    public QueryExpression isTrue() {
+      throw new PredicateAnalyzerException("isTrue cannot be applied to a compound expression");
     }
   }
 
@@ -749,6 +885,14 @@ public class PredicateAnalyzer {
     @Override
     public QueryExpression like(LiteralExpression literal) {
       builder = regexpQuery(getFieldReference(), literal.stringValue());
+      return this;
+    }
+
+    @Override
+    public QueryExpression notLike(LiteralExpression literal) {
+      builder = boolQuery().must(
+        existsQuery(getFieldReference())) // NOT LIKE should return false when field is NULL
+        .mustNot(regexpQuery(getFieldReference(), literal.stringValue()));
       return this;
     }
 
@@ -811,6 +955,15 @@ public class PredicateAnalyzer {
       builder = queryStringQuery(query);
       return this;
     }
+
+    @Override
+    public QueryExpression isTrue() {
+      if (!rel.getType().isBoolean()) {
+        throw new PredicateAnalyzerException(String.format("%s is not a boolean type", rel.getReference()));
+      }
+      builder = matchQuery(getFieldReference(), true);
+      return this;
+    }
   }
 
 
@@ -852,6 +1005,10 @@ public class PredicateAnalyzer {
 
     public String getReference(){
       return schemaField.getPath().getAsUnescapedPath();
+    }
+
+    public CompleteType getType() {
+      return schemaField.getCompleteType();
     }
   }
 

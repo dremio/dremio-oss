@@ -267,21 +267,22 @@ public class YarnService implements ProvisioningServiceDelegate {
       yarnConfiguration.set(DacDaemonYarnApplication.YARN_QUEUE_NAME, queue);
     }
     Integer memoryOnHeap = cluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap();
-    if (memoryOnHeap != null) {
-      yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_MEMORY_ON_HEAP, memoryOnHeap.intValue());
-    }
     Integer memoryOffHeap = cluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap();
-    if (memoryOffHeap != null) {
-      yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, memoryOffHeap.intValue());
-      yarnConfiguration.setInt(JAVA_RESERVED_MEMORY_MB, memoryOffHeap.intValue());
-      if (yarnConfiguration.get(HEAP_RESERVED_MIN_RATIO) == null) {
-        // ratio between onheap and total memory. Since we need more direct memory
-        // trying to make this ratio small, so heap would be as specified
-        // until it is < 10% of the total memory
-        // Can be overidden by yarn configuration
-        yarnConfiguration.setDouble(HEAP_RESERVED_MIN_RATIO, 0.1D);
-      }
-    }
+    Preconditions.checkNotNull(memoryOnHeap, "Heap Memory is not specified");
+    Preconditions.checkNotNull(memoryOffHeap, "Direct Memory is not specified");
+
+    final int totalMemory = memoryOnHeap.intValue() + memoryOffHeap.intValue();
+    // ratio between onheap and total memory. Since we need more direct memory
+    // trying to make this ratio small, so heap would be as specified
+    // setting this ratio based on onheap and offheap memory
+    // so it will never go over the limit
+    final double heapToDirectMemRatio = (double) (memoryOnHeap.intValue()) / totalMemory;
+
+    yarnConfiguration.setDouble(HEAP_RESERVED_MIN_RATIO, Math.min(heapToDirectMemRatio, 0.1D));
+    yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_MEMORY_ON_HEAP, memoryOnHeap.intValue());
+    yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP, memoryOffHeap.intValue());
+    yarnConfiguration.setInt(JAVA_RESERVED_MEMORY_MB, memoryOffHeap.intValue());
+
     Integer cpu = cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount();
     if (cpu != null) {
       yarnConfiguration.setInt(DacDaemonYarnApplication.YARN_CPU, cpu.intValue());

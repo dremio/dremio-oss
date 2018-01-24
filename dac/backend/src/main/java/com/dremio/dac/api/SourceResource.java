@@ -37,11 +37,13 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.model.sources.SourceDefinitions;
 import com.dremio.dac.service.errors.ServerErrorException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Resource for information about sources.
@@ -137,7 +139,13 @@ public class SourceResource {
     }
   }
 
+  @VisibleForTesting
   protected Source fromSourceConfig(SourceConfig sourceConfig) {
-    return new Source(sourceConfig);
+    Source source = new Source(sourceConfig);
+
+    // we should not set fields that expose passwords and other private parts of the source
+    SourceDefinitions.clearSource(source.getConfig());
+
+    return source;
   }
 }

@@ -104,7 +104,6 @@ public class ConstantColumnPopulators {
   private static final class ${minor.class}Populator implements Populator, AutoCloseable {
     private NameValuePair pair;
     private Nullable${minor.class}Vector vector;
-    private Mutator mutator;
     <#if minor.class == "VarChar">
     private byte[] value;
     <#else>
@@ -129,7 +128,6 @@ public class ConstantColumnPopulators {
         vector = output.addField(CompleteType.${completeType}.toField(pair.name), Nullable${minor.class}Vector.class);
         </#if>
       }
-      mutator = vector.getMutator();
     }
 
     public void populate(final int count){
@@ -137,7 +135,7 @@ public class ConstantColumnPopulators {
         if(value != null) {
       <#switch minor.class>
       <#case "Bit">
-          ((Nullable${minor.class}Vector.Mutator) mutator).setSafe(i, value ? 1 : 0);
+          ((Nullable${minor.class}Vector) vector).setSafe(i, value ? 1 : 0);
       <#break>
       <#case "Int">
       <#case "BigInt">
@@ -146,19 +144,19 @@ public class ConstantColumnPopulators {
       <#case "DateMilli">
       <#case "TimeMilli">
       <#case "TimeStampMilli">
-          ((Nullable${minor.class}Vector.Mutator) mutator).setSafe(i, value);
+          ((Nullable${minor.class}Vector) vector).setSafe(i, value);
       <#break>
       <#case "Decimal">
-          ((NullableDecimalVector.Mutator) mutator).setSafe(i, value);
+          ((NullableDecimalVector) vector).setSafe(i, value);
       <#break>
       <#case "VarBinary">
       <#case "VarChar">
-          ((Nullable${minor.class}Vector.Mutator) mutator).setSafe(i, value, 0, value.length);
+          ((Nullable${minor.class}Vector) vector).setSafe(i, value, 0, value.length);
       <#break>
       </#switch>
         }
       }
-      mutator.setValueCount(count);
+      vector.setValueCount(count);
     }
 
     public void allocate(){

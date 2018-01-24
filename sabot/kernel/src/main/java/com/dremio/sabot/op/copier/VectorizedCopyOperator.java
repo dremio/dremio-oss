@@ -48,7 +48,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
   // random vector to determine if no copy is needed.
   // could be null if no columns are projected from incoming.
-  private ValueVector.Accessor indicator;
+  private ValueVector randomVector;
 
   public VectorizedCopyOperator(OperatorContext context, SelectionVectorRemover popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -68,7 +68,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     for(VectorWrapper<?> vv : incoming){
       TransferPair tp = vv.getValueVector().makeTransferPair(output.addOrGet(vv.getField()));
       transferPairs.add(tp);
-      indicator = vv.getValueVector().getAccessor();
+      randomVector = vv.getValueVector();
     }
 
     copiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(output));
@@ -98,9 +98,9 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   @Override
   public int outputData() {
     final int count = incoming.getRecordCount();
-    if (indicator == null) {
+    if (randomVector == null) {
       // if nothing is projected, just set the count and return
-    } else if (straightCopy || count == indicator.getValueCount()){
+    } else if (straightCopy || count == randomVector.getValueCount()){
       for(TransferPair tp : transferPairs){
         tp.transfer();
       }

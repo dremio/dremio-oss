@@ -167,13 +167,13 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
       long colA[] = {1, 1, 2, 2, 1, 1};
 
       // Check the output of decimal9
-      ValueVector.Accessor intAccessor1 = itr.next().getValueVector().getAccessor();
+      ValueVector intValueVector = itr.next().getValueVector();
 
 
-      for (int i = 0; i < intAccessor1.getValueCount(); i++) {
-        assertEquals(intAccessor1.getObject(i), colA[i]);
+      for (int i = 0; i < intValueVector.getValueCount(); i++) {
+        assertEquals(intValueVector.getObject(i), colA[i]);
       }
-      assertEquals(6, intAccessor1.getValueCount());
+      assertEquals(6, intValueVector.getValueCount());
     }
 
     for (QueryDataBatch result : results) {
@@ -204,14 +204,14 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
       final long colC[] = { 100, 200, 500 };
 
       // Check the output of decimal9
-      final ValueVector.Accessor intAccessor1 = itr.next().getValueVector().getAccessor();
-      final ValueVector.Accessor intAccessor2 = itr.next().getValueVector().getAccessor();
+      final ValueVector intValueVector1 = itr.next().getValueVector();
+      final ValueVector intValueVector2 = itr.next().getValueVector();
 
-      for (int i = 0; i < intAccessor1.getValueCount(); i++) {
-        assertEquals(intAccessor1.getObject(i), colA[i]);
-        assertEquals(intAccessor2.getObject(i), colC[i]);
+      for (int i = 0; i < intValueVector1.getValueCount(); i++) {
+        assertEquals(intValueVector1.getObject(i), colA[i]);
+        assertEquals(intValueVector2.getObject(i), colC[i]);
       }
-      assertEquals(3, intAccessor1.getValueCount());
+      assertEquals(3, intValueVector1.getValueCount());
     }
 
     for (final QueryDataBatch result : results) {

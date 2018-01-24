@@ -64,13 +64,16 @@ class HiveClientWithAuthz extends HiveClient {
         ugiForRpc,
         "Failed to connect to Hive metastore"
     );
+
+    // Hive authorization helper needs the query user
+    // (not the user from metastore client used to communicate with metastore)
     this.authorizer = new HiveAuthorizationHelper(client, hiveConf, userName);
   }
 
   @Override
   void reconnect() throws MetaException {
     if (needDelegationToken) {
-      getAndSetDelegationToken(hiveConf, ugiForRpc, userName, processUserClient);
+      getAndSetDelegationToken(hiveConf, ugiForRpc, processUserClient);
     }
     doAsCommand(
         new UGIDoAsCommand<Void>() {

@@ -20,12 +20,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import org.slf4j.Logger;
 
 /**
  * Utilities for AutoCloseable classes.
@@ -175,27 +172,6 @@ public class AutoCloseables {
       } catch(final Exception e) {
         throw new RuntimeException("Exception while closing: " + e.getMessage(), e);
       }
-    }
-  }
-
-  public static void close(ThreadPoolExecutor executor, Logger logger) {
-    executor.shutdown(); // Disable new tasks from being submitted
-    try {
-      // Wait a while for existing tasks to terminate
-      if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-        executor.shutdownNow(); // Cancel currently executing tasks
-        // Wait a while for tasks to respond to being cancelled
-        if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-          logger.error("Pool did not terminate");
-        }
-      }
-    } catch (InterruptedException ie) {
-      logger.warn("Executor interrupted while awaiting termination");
-
-      // (Re-)Cancel if current thread also interrupted
-      executor.shutdownNow();
-      // Preserve interrupt status
-      Thread.currentThread().interrupt();
     }
   }
 }

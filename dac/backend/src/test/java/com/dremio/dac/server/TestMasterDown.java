@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -113,7 +112,6 @@ public class TestMasterDown extends BaseClientUtils {
           .writePath(folder1.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
           .localPort(21515)
-          .masterPort(21515)
           .httpPort(21516)
           .with(DremioConfig.CLIENT_PORT_INT, 21517)
           .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, 21518),
@@ -123,6 +121,7 @@ public class TestMasterDown extends BaseClientUtils {
       currentDremioDaemon = DACDaemon.newDremioDaemon(
         DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+          .isMaster(false)
           .autoPort(false)
           .allowTestApis(true)
           .serveUI(false)
@@ -130,8 +129,6 @@ public class TestMasterDown extends BaseClientUtils {
           .writePath(folder2.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
           .localPort(21530)
-          .masterPort(21515)
-          .masterNode(InetAddress.getLocalHost().getCanonicalHostName())
           .httpPort(21531)
           .with(DremioConfig.CLIENT_PORT_INT, 21532)
           .zk("localhost:21518")
@@ -205,12 +202,6 @@ public class TestMasterDown extends BaseClientUtils {
   private void checkMasterOk() throws Exception {
     ServerStatus serverStatus = expectSuccess(masterApiV2.path("/server_status").request(JSON).buildGet(), ServerStatus.class);
     assertEquals(ServerStatus.OK, serverStatus);
-  }
-
-  private void checkMasterDown() throws Exception {
-    ServerStatus serverStatus = expectStatus(Response.Status.SERVICE_UNAVAILABLE,
-      masterApiV2.path("/server_status").request(JSON).buildGet(), ServerStatus.class);
-    assertEquals(ServerStatus.MASTER_DOWN, serverStatus);
   }
 
   private void checkNodeOk() throws Exception {

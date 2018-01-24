@@ -179,7 +179,7 @@ class StoragePluginStarter {
     @Override
     public void run() {
       StartResult result = null;
-      StoragePlugin<?> plugin = null;
+      StoragePlugin plugin = null;
       final Stopwatch watch = Stopwatch.createStarted();
       try {
 
@@ -269,8 +269,8 @@ class StoragePluginStarter {
 
   public static class Success extends StartResult {
 
-    private final StoragePlugin<?> plugin;
-    private Success(String name, long timeTakenMillis, StoragePlugin<?> plugin) {
+    private final StoragePlugin plugin;
+    private Success(String name, long timeTakenMillis, StoragePlugin plugin) {
       super(name, timeTakenMillis);
       this.plugin = plugin;
     }
@@ -279,7 +279,7 @@ class StoragePluginStarter {
       return true;
     }
 
-    public StoragePlugin<?> getPlugin() {
+    public StoragePlugin getPlugin() {
       return plugin;
     }
 
@@ -297,13 +297,13 @@ class StoragePluginStarter {
      * @return The plugin created.
      * @throws Exception
      */
-    StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig) throws Exception;
+    StoragePlugin create(String name, StoragePluginConfig pluginConfig) throws Exception;
 
     /**
      * Notify caller that a plugin was created after the deadline.
      * @param name Name of plugin.
      * @param plugin Plugin created.
      */
-    void informLateCreate(String name, StoragePlugin<?> plugin);
+    void informLateCreate(String name, StoragePlugin plugin);
   }
 }

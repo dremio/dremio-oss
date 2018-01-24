@@ -198,25 +198,6 @@ public class DremioStringUtils {
     return dstEnd;
   }
 
-  public static int parseBinaryStringNoFormat(ByteBuf str, int strStart, int strEnd, ByteBuf out) {
-    int dstEnd = 0;
-
-    if(((strStart - strEnd) % 2) != 0){
-      throw UserException.functionError().message("Failure parsing hex string, length was not a multiple of two.").build(logger);
-    }
-    for (int i = strStart; i < strEnd; i+=2) {
-      byte b1 = str.getByte(i);
-      byte b2 = str.getByte(i+1);
-      if(isHexDigit(b1) && isHexDigit(b2)){
-        byte finalByte = (byte) ((toBinaryFromHex(b1) << 4) + toBinaryFromHex(b2));
-        out.setByte(dstEnd++, finalByte);
-      }else{
-        throw UserException.functionError().message("Failure parsing hex string, one or more bytes was not a valid hex value.").build(logger);
-      }
-    }
-    return dstEnd;
-  }
-
   /**
    * Formats a period similar to Oracle INTERVAL YEAR TO MONTH data type<br>
    * For example, the string "+21-02" defines an interval of 21 years and 2 months
@@ -268,7 +249,7 @@ public class DremioStringUtils {
    * @param ch  The hex digit.
    * @return The converted hex value as a byte.
    */
-  private static byte toBinaryFromHex(byte ch) {
+  public static byte toBinaryFromHex(byte ch) {
     if ( ch >= 'A' && ch <= 'F' ) {
       return (byte) ((byte)10 + (byte) (ch - 'A'));
     } else if ( ch >= 'a' && ch <= 'f' ) {
@@ -277,7 +258,7 @@ public class DremioStringUtils {
     return (byte) (ch - '0');
   }
 
-  private static boolean isHexDigit(byte c) {
+  public static boolean isHexDigit(byte c) {
     return (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || (c >= '0' && c <= '9');
   }
 

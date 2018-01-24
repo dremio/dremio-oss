@@ -16,282 +16,173 @@
 package com.dremio.exec.store.hbase;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
-
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.ArrowType.Binary;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.RelNode;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 
-import com.dremio.common.JSONOptions;
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.calcite.logical.OldScanCrel;
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.physical.base.OldAbstractGroupScan;
-import com.dremio.exec.planner.common.OldScanRelBase;
-import com.dremio.exec.planner.logical.RelOptTableWrapper;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.AbstractStoragePlugin;
-import com.dremio.exec.store.ConversionContext;
-import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
-import com.dremio.exec.store.hbase.HBaseSubScan.HBaseSubScanSpec;
-import com.dremio.exec.util.ImpersonationUtil;
-import com.dremio.service.namespace.DatasetHelper;
-import com.dremio.service.namespace.NamespaceException;
+import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
+import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.TableInstance;
+import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
+import io.protostuff.ByteString;
 
-public class HBaseStoragePlugin extends AbstractStoragePlugin<ConversionContext.NamespaceConversionContext> {
+public class HBaseStoragePlugin implements StoragePlugin, Service {
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HBaseStoragePlugin.class);
-  private static final HBaseConnectionManager hbaseConnectionManager = HBaseConnectionManager.INSTANCE;
 
-  private final SabotContext context;
-  private final HBaseStoragePluginConfig storeConfig;
-  private final HBaseConnectionKey connectionKey;
+  static final StoragePluginType TYPE = new StoragePluginType("hbase", HBaseRulesFactory.class);
+  static final String HBASE_SYSTEM_NAMESPACE = "hbase";
 
   private final String name;
+  private final SabotContext context;
+  private final HBaseStoragePluginConfig storeConfig;
+  private final HBaseConnectionManager connection;
 
-  public HBaseStoragePlugin(HBaseStoragePluginConfig storeConfig, SabotContext context, String name)
-      throws IOException {
+  public HBaseStoragePlugin(HBaseStoragePluginConfig storeConfig, SabotContext context, String name) {
     this.context = context;
     this.storeConfig = storeConfig;
     this.name = name;
-    this.connectionKey = new HBaseConnectionKey();
-  }
-
-  public SabotContext getContext() {
-    return this.context;
+    this.connection = new HBaseConnectionManager(storeConfig.getHBaseConf());
   }
 
   @Override
-  public boolean supportsRead() {
-    return true;
-  }
-
-  @Override
-  public boolean folderExists(SchemaConfig schemaConfig, List folderPath) throws IOException {
-    // TODO: add validation of new namespaces.
-    return false;
-  }
-
-  @Override
-  public RelNode getRel(final RelOptCluster cluster, final RelOptTable relOptTable, final ConversionContext.NamespaceConversionContext relContext) {
-    final DatasetConfig datasetConfig = relContext.getDatasetConfig();
-    BatchSchema schema = BatchSchema.fromDataset(datasetConfig);
-    return new OldScanCrel(cluster, new RelOptTableWrapper(datasetConfig.getFullPathList(), relOptTable),
-            cluster.traitSetOf(Convention.NONE),
-            BatchSchema.fromDataset(datasetConfig).toCalciteRecordType(cluster.getTypeFactory()),
-            new HBaseGroupScan(
-                ImpersonationUtil.getProcessUserName()/*impersonation not supported for HBASE*/,
-                this,
-                new HBaseScanSpec(datasetConfig.getName()),
-                OldAbstractGroupScan.ALL_COLUMNS,
-                schema,
-                datasetConfig.getFullPathList()
-                ),
-            null,
-            OldScanRelBase.DEFAULT_ROW_COUNT_DISCOUNT
-    );
-  }
-
-  @Override
-  public DatasetConfig getDataset(List<String> tableSchemaPath, TableInstance tableInstance, SchemaConfig schemaConfig) {
-    if (tableSchemaPath.size() <= 1) {
-      // HBase schema path is incomplete
-      return null;
-    }
-    String tableName = tableSchemaPath.get(1);
-    BatchSchema batchSchema = sample(tableName);
-    DatasetConfig datasetConfig = new DatasetConfig()
-            .setFullPathList(tableSchemaPath)
-            .setType(DatasetType.PHYSICAL_DATASET)
-            .setName(tableName)
-            .setOwner(schemaConfig.getUserName())
-            .setRecordSchema(batchSchema.toByteString())
-            .setSchemaVersion(DatasetHelper.CURRENT_VERSION)
-            .setPhysicalDataset(new PhysicalDataset())
-            ;
-    try {
-      context.getNamespaceService(schemaConfig.getUserName()).tryCreatePhysicalDataset(new NamespaceKey(tableSchemaPath), datasetConfig);
-    } catch (NamespaceException e) {
-      logger.warn("Failed to create dataset", e);
-    }
-    return datasetConfig;
-  }
-
-  private Set<String> getTableNames() {
-    try(Admin admin = getConnection().getAdmin()) {
-      HTableDescriptor[] tables = admin.listTables();
-      Set<String> tableNames = Sets.newHashSet();
-      for (HTableDescriptor table : tables) {
-        tableNames.add(table.getNameAsString());
-      }
-      return tableNames;
-    } catch (Exception e) {
-      logger.warn("Failure while loading table names for database '{}'.", name, e.getCause());
-      return Collections.emptySet();
+  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+    try (Admin admin = connection.getConnection().getAdmin()) {
+      return FluentIterable.of(admin.listTableNames()).transform(new Function<TableName, SourceTableDefinition>(){
+        @Override
+        public SourceTableDefinition apply(TableName input) {
+          final NamespaceKey key = new NamespaceKey(ImmutableList.<String>of(name, input.getNamespaceAsString(), input.getNameAsString()));
+          return new HBaseTableBuilder(key, null, connection, storeConfig.isSizeCalculatorEnabled(), context);
+        }});
     }
   }
 
-  private BatchSchema sample(String tableName) {
-    try (SampleMutator mutator = new SampleMutator(context)) {
-      HBaseRecordReader reader = new HBaseRecordReader(
-        getConnection(),
-          new HBaseSubScanSpec(tableName, null, null, null, null, null),
-          OldAbstractGroupScan.ALL_COLUMNS,
-          null,
-          true);
-      reader.setNumRowsPerBatch(100);
-      reader.setup(mutator);
-      final int readCount = reader.next();
-      if (readCount == 0) {
-        // If the table is empty, then we just read the hbase column descriptors.
-        SchemaBuilder builder = BatchSchema.newBuilder();
-        try(Admin admin = getConnection().getAdmin()) {
-          for (HColumnDescriptor col : admin.getTableDescriptor(TableName.valueOf(tableName)).getFamilies()) {
-            String name = new String(col.getName());
-            builder.addField(new Field(name, true, new ArrowType.Struct(), null));
-          }
-          builder.addField(new Field(HBaseRecordReader.ROW_KEY, true, Binary.INSTANCE, null));
-          return builder.build();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-      mutator.getContainer().buildSchema(SelectionVectorMode.NONE);
-      return mutator.getContainer().getSchema();
-    } catch (ExecutionSetupException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  public List<DatasetConfig> listDatasets() {
-    List<DatasetConfig> datasetConfigs = new ArrayList<>();
-    for (String tableName : getTableNames()) {
-      datasetConfigs.add(new DatasetConfig()
-              .setFullPathList(ImmutableList.of(name, tableName))
-              .setName(tableName)
-              .setType(DatasetType.PHYSICAL_DATASET)
-              .setOwner(ImpersonationUtil.getProcessUserName())
-              .setPhysicalDataset(new PhysicalDataset())
-      );
-    }
-    return datasetConfigs;
-  }
-
-  @Override
-  public HBaseGroupScan getPhysicalScan(String userName, JSONOptions selection, List<String> tableSchemaPath, List<SchemaPath> columns) throws IOException {
-    throw new UnsupportedOperationException();
-    //    HBaseScanSpec scanSpec = selection.getListWith(new ObjectMapper(), new TypeReference<HBaseScanSpec>() {});
-    //    return new HBaseGroupScan(userName, this, scanSpec, columns, schema, tableSchemaPath);
-  }
-
-  @Override
   public HBaseStoragePluginConfig getConfig() {
     return storeConfig;
   }
 
+  public Connection getConnection() {
+    return connection.getConnection();
+  }
+
+  @VisibleForTesting
+  public void closeCurrentConnection() throws IOException {
+    connection.close();
+  }
+
   @Override
-  public Set<StoragePluginOptimizerRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-    return ImmutableSet.of(HBasePushFilterIntoScan.FILTER_ON_SCAN, HBasePushFilterIntoScan.FILTER_ON_PROJECT);
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+    if(!datasetExists(datasetPath)) {
+      return null;
+    }
+    return new HBaseTableBuilder(datasetPath, oldDataset, connection, storeConfig.isSizeCalculatorEnabled(), context);
+  }
+
+  @Override
+  public boolean containerExists(NamespaceKey key) {
+    if(key.size() != 2) {
+      return false;
+    }
+    if (key.getName().equals(HBASE_SYSTEM_NAMESPACE)) {
+      // DX-10110: do not allow access to the system namespace of HBase itself. Causes confusion when multiple 'use hbase' statements are processed
+      return false;
+    }
+    try(Admin admin = connection.getConnection().getAdmin()) {
+      NamespaceDescriptor descriptor = admin.getNamespaceDescriptor(key.getName());
+      return descriptor != null;
+    } catch (IOException e) {
+      logger.warn("Failure while checking for HBase Namespace {}.", key, e);
+    }
+    return false;
+  }
+
+  @Override
+  public boolean datasetExists(NamespaceKey key) {
+    if( !(key.size() == 3 || key.size() == 2) ) {
+      return false;
+    }
+
+    try(Admin admin = connection.getConnection().getAdmin()) {
+      HTableDescriptor descriptor = admin.getTableDescriptor(TableNameGetter.getTableName(key));
+      return descriptor != null;
+    } catch (IOException e) {
+      logger.warn("Failure while checking for HBase table {}.", key, e);
+    }
+    return false;
+  }
+
+  @Override
+  public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
+    return true;
+  }
+
+  @Override
+  public SourceState getState() {
+    try {
+      connection.validate();
+    } catch(Exception ex) {
+      return SourceState.badState(ex);
+    }
+    return SourceState.GOOD;
+  }
+
+  @Override
+  public StoragePluginId getId() {
+    return new StoragePluginId(name, storeConfig, TYPE);
+  }
+
+  @Override
+  public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
+    return null;
+  }
+
+  @Override
+  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
+    return null;
+  }
+
+  @Override
+  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig) throws Exception {
+    final NamespaceKey namespaceKey = new NamespaceKey(datasetConfig.getFullPathList());
+    if(!datasetExists(namespaceKey)) {
+      return CheckResult.DELETED;
+    }
+
+    return new CheckResult(){
+      @Override
+      public UpdateStatus getStatus() {
+        return UpdateStatus.CHANGED;
+      }
+
+      @Override
+      public SourceTableDefinition getDataset() {
+        return new HBaseTableBuilder(namespaceKey, datasetConfig, connection, storeConfig.isSizeCalculatorEnabled(), context);
+      }};
+  }
+
+  @Override
+  public void start() {
+    connection.validate();
   }
 
   @Override
   public void close() throws Exception {
-    hbaseConnectionManager.closeConnection(connectionKey);
+    connection.close();
   }
 
-  public Connection getConnection() {
-    return hbaseConnectionManager.getConnection(connectionKey);
-  }
-
-  /**
-   * An internal class which serves the key in a map of {@link HBaseStoragePlugin} => {@link Connection}.
-   */
-  class HBaseConnectionKey {
-
-    private final ReentrantLock lock = new ReentrantLock();
-
-    private HBaseConnectionKey() {}
-
-    public void lock() {
-      lock.lock();
-    }
-
-    public void unlock() {
-      lock.unlock();
-    }
-
-    public Configuration getHBaseConf() {
-      return storeConfig.getHBaseConf();
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((name == null) ? 0 : name.hashCode());
-      result = prime * result + ((storeConfig == null) ? 0 : storeConfig.hashCode());
-      return result;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (this == obj) {
-        return true;
-      } else if (obj == null) {
-        return false;
-      } else if (getClass() != obj.getClass()) {
-        return false;
-      }
-
-      HBaseStoragePlugin other = ((HBaseConnectionKey) obj).getHBaseStoragePlugin();
-      if (name == null) {
-        if (other.name != null) {
-          return false;
-        }
-      } else if (!name.equals(other.name)) {
-        return false;
-      }
-      if (storeConfig == null) {
-        if (other.storeConfig != null) {
-          return false;
-        }
-      } else if (!storeConfig.equals(other.storeConfig)) {
-        return false;
-      }
-      return true;
-    }
-
-    private HBaseStoragePlugin getHBaseStoragePlugin() {
-      return HBaseStoragePlugin.this;
-    }
-
-  }
 }

@@ -20,6 +20,7 @@ import java.util.Set;
 
 import com.dremio.exec.proto.CoordinationProtos.Roles;
 import com.dremio.service.Service;
+import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 
 /**
  * Pluggable interface built to manage cluster coordination. Allows SabotNode or DremioClient to register its capabilities
@@ -39,6 +40,8 @@ public abstract class ClusterCoordinator implements Service {
     public static final String ZK_ROOT = "dremio.exec.zk.root";
     public static final String ZK_TIMEOUT = "dremio.exec.zk.timeout";
     public static final String ZK_SESSION_TIMEOUT = "dremio.exec.zk.session.timeout";
+    public static final String ZK_ELECTION_TIMEOUT = "dremio.exec.zk.election.timeout";
+    public static final String ZK_ELECTION_POLLING = "dremio.exec.zk.election.polling";
 
   }
 
@@ -67,6 +70,18 @@ public abstract class ClusterCoordinator implements Service {
       @Override
       protected boolean contains(Roles roles) {
         return roles.getJavaExecutor();
+      }
+    },
+
+    MASTER {
+      @Override
+      protected void updateEndpointRoles(Roles.Builder roles, boolean enable) {
+        roles.setMaster(enable);
+      }
+
+      @Override
+      protected boolean contains(Roles roles) {
+        return roles.getMaster();
       }
     };
 
@@ -105,4 +120,12 @@ public abstract class ClusterCoordinator implements Service {
   public abstract ServiceSet getServiceSet(Role role);
 
   public abstract DistributedSemaphore getSemaphore(String name, int maximumLeases);
+
+  /**
+   * Join the election designated by {@code name}
+   *
+   * @param name the name of the election
+   * @return an handle to be closed when leaving the election
+   */
+  public abstract RegistrationHandle joinElection(String name, ElectionListener listener);
 }

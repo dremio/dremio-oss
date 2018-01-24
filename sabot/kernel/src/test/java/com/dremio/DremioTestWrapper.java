@@ -358,7 +358,7 @@ public class DremioTestWrapper {
             int complexIndex = sv4.get(j);
             int batchIndex = complexIndex >> 16;
             int recordIndexInBatch = complexIndex & 65535;
-            Object obj = vectors[batchIndex].getAccessor().getObject(recordIndexInBatch);
+            Object obj = vectors[batchIndex].getObject(recordIndexInBatch);
             if (obj != null) {
               if (obj instanceof Text) {
                 obj = obj.toString();
@@ -376,7 +376,7 @@ public class DremioTestWrapper {
               } else {
                 index = j;
               }
-              Object obj = vv.getAccessor().getObject(index);
+              Object obj = vv.getObject(index);
               if (obj != null) {
                 if (obj instanceof Text) {
                   obj = obj.toString();
@@ -627,7 +627,7 @@ public class DremioTestWrapper {
       for (int j = 0; j < loader.getRecordCount(); j++) {
         Map<String, Object> record = new LinkedHashMap<>();
         for (VectorWrapper<?> w : loader) {
-          Object obj = w.getValueVector().getAccessor().getObject(j);
+          Object obj = w.getValueVector().getObject(j);
           if (obj != null) {
             if (obj instanceof Text) {
               obj = obj.toString();

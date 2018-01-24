@@ -24,6 +24,7 @@ import com.dremio.dac.daemon.DACDaemon.ClusterMode;
  */
 public final class DACConfig {
 
+  public final String thisNode;
   public final boolean autoPort;
   public final boolean sendStackTraceToClient;
   public final boolean prettyPrintJSON;
@@ -37,8 +38,6 @@ public final class DACConfig {
 
   // private due to checkstyle.
   private final ClusterMode clusterMode;
-  public final String masterNode;
-  public final int masterPort;
   public final int localPort;
   public final boolean inMemoryStorage;
   public final boolean isMaster;
@@ -49,6 +48,7 @@ public final class DACConfig {
   public DACConfig(DremioConfig config) {
     // default values
     this(
+      config.getThisNode(),
       config.getBoolean(DremioConfig.DEBUG_AUTOPORT_BOOL),
       config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
       config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
@@ -58,11 +58,9 @@ public final class DACConfig {
       config.getBoolean(DremioConfig.WEB_SSL_ENABLED_BOOL),
       config.getBoolean(DremioConfig.DEBUG_PREPOPULATE_BOOL),
       config.getBoolean(DremioConfig.DEBUG_SINGLE_NODE_BOOL) ? ClusterMode.LOCAL : ClusterMode.DISTRIBUTED,
-      config.getString(DremioConfig.MASTER_NODE_STRING),
-      config.getInt(DremioConfig.MASTER_PORT_INT),
       config.getInt(DremioConfig.SERVER_PORT_INT),
       config.getBoolean(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
-      config.getBoolean(DremioConfig.DEBUG_FORCE_MASTER_BOOL),
+      config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL) && config.getBoolean(DremioConfig.ENABLE_MASTER_BOOL),
       config.getBoolean(DremioConfig.DEBUG_FORCE_REMOTE_BOOL),
       config.getBoolean(DremioConfig.DEBUG_ADD_DEFAULT_USER),
       config.getBoolean(DremioConfig.DEBUG_ALLOW_NEWER_KVSTORE),
@@ -71,6 +69,7 @@ public final class DACConfig {
   }
 
   private DACConfig(
+    String thisNode,
     boolean autoPort,
     boolean sendStackTraceToClient,
     boolean prettyPrintJSON,
@@ -80,17 +79,16 @@ public final class DACConfig {
     boolean webSSLEnabled,
     boolean prepopulate,
     ClusterMode clusterMode,
-    String masterNode,
-    int masterPort,
     int localPort,
     boolean inMemoryStorage,
-    boolean forceMaster,
+    boolean isMaster,
     boolean forceRemote,
     boolean addDefaultUser,
     boolean allowNewerKVStore,
     DremioConfig config
   ) {
     super();
+    this.thisNode = thisNode;
     this.autoPort = autoPort;
     this.sendStackTraceToClient = sendStackTraceToClient;
     this.prettyPrintJSON = prettyPrintJSON;
@@ -100,12 +98,10 @@ public final class DACConfig {
     this.webSSLEnabled = webSSLEnabled;
     this.prepopulate = prepopulate;
     this.clusterMode = clusterMode;
-    this.masterNode = masterNode;
     this.inMemoryStorage = inMemoryStorage;
-    this.masterPort = masterPort;
     this.localPort = localPort;
     this.config = config;
-    this.isMaster = forceMaster;
+    this.isMaster = isMaster;
     this.isRemote = forceRemote;
     this.addDefaultUser = addDefaultUser;
     this.allowNewerKVStore = allowNewerKVStore;
@@ -155,14 +151,6 @@ public final class DACConfig {
     return with(DremioConfig.DEBUG_SINGLE_NODE_BOOL, clusterMode == ClusterMode.LOCAL);
   }
 
-  public DACConfig masterNode(String masterNode) {
-    return with(DremioConfig.MASTER_NODE_STRING, masterNode);
-  }
-
-  public DACConfig masterPort(int port) {
-    return with(DremioConfig.MASTER_PORT_INT, port);
-  }
-
   public DACConfig localPort(int port) {
     return with(DremioConfig.SERVER_PORT_INT, port);
   }
@@ -179,6 +167,10 @@ public final class DACConfig {
     return with(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL, inMemoryStorage);
   }
 
+  public DACConfig isMaster(boolean isMaster) {
+    return with(DremioConfig.ENABLE_MASTER_BOOL, isMaster);
+  }
+
   public DACConfig isRemote(boolean isRemote) {
     return with(DremioConfig.DEBUG_FORCE_REMOTE_BOOL, isRemote);
   }
@@ -193,10 +185,6 @@ public final class DACConfig {
 
   public ClusterMode getClusterMode() {
     return this.clusterMode;
-  }
-
-  public String getMasterNode() {
-    return (this.clusterMode == ClusterMode.LOCAL) ? "localhost" : this.masterNode;
   }
 
   public DremioConfig getConfig(){

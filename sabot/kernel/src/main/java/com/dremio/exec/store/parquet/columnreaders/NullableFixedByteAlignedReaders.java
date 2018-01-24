@@ -31,6 +31,7 @@ import org.apache.arrow.vector.NullableTimeStampMilliVector;
 import org.apache.arrow.vector.NullableTimeMilliVector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
@@ -78,12 +79,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       this.bytebuf = pageReader.pageData;
       if (usingDictionary) {
-        NullableVarBinaryVector.Mutator mutator =  valueVec.getMutator();
         Binary currDictValToWrite;
         for (int i = 0; i < recordsReadInThisIteration; i++){
           currDictValToWrite = pageReader.dictionaryValueReader.readBytes();
           ByteBuffer buf = currDictValToWrite.toByteBuffer();
-          mutator.setSafe(valuesReadInCurrentPass + i, buf, buf.position(),
+          valueVec.setSafe(valuesReadInCurrentPass + i, buf, buf.position(),
               currDictValToWrite.length());
         }
         // Set the write Index. The next page that gets read might be a page that does not use dictionary encoding
@@ -97,7 +97,7 @@ public class NullableFixedByteAlignedReaders {
         // for now we need to write the lengths of each value
         int byteLength = dataTypeLengthInBits / 8;
         for (int i = 0; i < recordsToReadInThisPass; i++) {
-          valueVec.getMutator().setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
+          valueVec.setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
         }
       }
     }
@@ -124,12 +124,12 @@ public class NullableFixedByteAlignedReaders {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           Binary binaryTimeStampValue = pageReader.dictionaryValueReader.readBytes();
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, getDateTimeValueFromBinary(binaryTimeStampValue));
+          valueVec.setSafe(valuesReadInCurrentPass + i, getDateTimeValueFromBinary(binaryTimeStampValue));
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++) {
           Binary binaryTimeStampValue = pageReader.valueReader.readBytes();
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, getDateTimeValueFromBinary(binaryTimeStampValue));
+          valueVec.setSafe(valuesReadInCurrentPass + i, getDateTimeValueFromBinary(binaryTimeStampValue));
         }
       }
       // The nanos precision is cut to millis. Therefore the length of single timestamp value is 8 bytes(s)
@@ -151,11 +151,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readInteger());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readInteger());
         }
       }
     }
@@ -175,14 +175,16 @@ public class NullableFixedByteAlignedReaders {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readInteger()));
+          /* this will swap bytes as we are writing to the buffer of DecimalVector */
           DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
-          valueVec.getMutator().setIndexDefined(valuesReadInCurrentPass + i);
+          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.valueReader.readInteger()));
+          /* this will swap bytes as we are writing to the buffer of DecimalVector */
           DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
-          valueVec.getMutator().setIndexDefined(valuesReadInCurrentPass + i);
+          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       }
     }
@@ -201,11 +203,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readInteger());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readInteger());
         }
       }
     }
@@ -224,11 +226,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readLong());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readLong());
         }
       }
     }
@@ -247,11 +249,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readLong());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readLong());
         }
       }
     }
@@ -270,14 +272,16 @@ public class NullableFixedByteAlignedReaders {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readLong()));
+          /* this will swap bytes as we are writing to the buffer of DecimalVector */
           DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
-          valueVec.getMutator().setIndexDefined(valuesReadInCurrentPass + i);
+          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.valueReader.readLong()));
+          /* this will swap bytes as we are writing to the buffer of DecimalVector */
           DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
-          valueVec.getMutator().setIndexDefined(valuesReadInCurrentPass + i);
+          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       }
     }
@@ -295,11 +299,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readFloat());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readFloat());
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readFloat());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readFloat());
         }
       }
     }
@@ -318,11 +322,11 @@ public class NullableFixedByteAlignedReaders {
     protected void readField(long recordsToReadInThisPass) {
       if (usingDictionary) {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readDouble());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readDouble());
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readDouble());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readDouble());
         }
       }
     }
@@ -366,7 +370,7 @@ public class NullableFixedByteAlignedReaders {
         intValue = readIntLittleEndian(bytebuf, start);
       }
 
-      valueVec.getMutator().set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
+      valueVec.set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
     }
 
   }
@@ -390,7 +394,7 @@ public class NullableFixedByteAlignedReaders {
         intValue = readIntLittleEndian(bytebuf, start);
       }
 
-      valueVec.getMutator().set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
+      valueVec.set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
     }
 
   }
@@ -423,9 +427,9 @@ public class NullableFixedByteAlignedReaders {
       }
 
       if (intValue > ParquetReaderUtility.DATE_CORRUPTION_THRESHOLD) {
-        dateVector.getMutator().set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
+        dateVector.set(index, (intValue - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY);
       } else {
-        dateVector.getMutator().set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
+        dateVector.set(index, intValue * (long) DateTimeConstants.MILLIS_PER_DAY);
       }
     }
   }
@@ -438,9 +442,15 @@ public class NullableFixedByteAlignedReaders {
 
     @Override
     void addNext(int start, int index) {
-      BigDecimal intermediate = DecimalUtility.getBigDecimalFromArrowBuf(bytebuf, start, schemaElement.getScale());
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getBuffer(), index);
-      valueVec.getMutator().setIndexDefined(index);
+      /* data read from Parquet into the bytebuf is already in BE format, no need
+       * swap bytes to construct BigDecimal. only when we write BigDecimal to
+       * data buffer of decimal vector, we need to swap bytes which the DecimalUtility
+       * function already does.
+       */
+      BigDecimal intermediate = DecimalHelper.getBigDecimalFromBEArrowBuf(bytebuf, index, schemaElement.getScale());
+      /* this will swap bytes as we are writing to the buffer of DecimalVector */
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getDataBuffer(), index);
+      valueVec.setIndexDefined(index);
     }
   }
 

@@ -65,6 +65,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -167,6 +168,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   }
 
+  @Override
   public int deleteSplitOrphans() {
     final List<SplitRange> ranges = new ArrayList<>();
 
@@ -726,15 +728,19 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
   }
 
-  private NameSpaceContainer deleteEntity(final NamespaceKey path, final Type type, long version) throws NamespaceException {
+  @VisibleForTesting
+  NameSpaceContainer deleteEntity(final NamespaceKey path, final Type type, long version) throws NamespaceException {
     final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(path);
+    final NameSpaceContainer container = lastElement(entitiesOnPath);
+    if (container == null) {
+      throw new NamespaceNotFoundException(path, String.format("Entity %s not found", path));
+    }
     return doDeleteEntity(path, type, version, entitiesOnPath);
   }
 
   protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, long version, List<NameSpaceContainer> entitiesOnPath) throws NamespaceException {
     final NamespaceInternalKey key = new NamespaceInternalKey(path, keyNormalization);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
-
     traverseAndDeleteChildren(key, container);
     namespace.delete(key.getKey(), version);
     return container;
@@ -909,7 +915,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition) {
-    return Iterables.transform(namespace.find(condition), new Function<Map.Entry<byte[], NameSpaceContainer>, Map.Entry<NamespaceKey, NameSpaceContainer>>() {
+    return Iterables.transform(condition == null ? namespace.find() : namespace.find(condition), new Function<Map.Entry<byte[], NameSpaceContainer>, Map.Entry<NamespaceKey, NameSpaceContainer>>() {
       @Override
       public Map.Entry<NamespaceKey, NameSpaceContainer> apply(Map.Entry<byte[], NameSpaceContainer> input) {
         return new AbstractMap.SimpleEntry<>(new NamespaceKey(input.getValue().getFullPathList()), input.getValue());

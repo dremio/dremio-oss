@@ -64,7 +64,7 @@ export default class Checkbox extends Component {
     const finalDummyInputStyle = {...dummyInputStyle, ...focusStyle};
 
     return (
-      <label key='container' style={[styles.label, props.disabled && styles.labelDisabled, style]}>
+      <label className='field' key='container' style={[styles.label, props.disabled && styles.labelDisabled, style]}>
         {labelBefore && labelSpan}
         {this.props.renderDummyInput ?
           this.props.renderDummyInput(props.checked, finalDummyInputStyle) :

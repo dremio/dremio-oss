@@ -14,22 +14,24 @@
  * limitations under the License.
  */
 import PropTypes from 'prop-types';
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
+import { formatMessage } from '../utils/locale';
 
-const ARROW_DOWN = 'Arrow-Down-Small';
+const ARROW_DOWN = 'ArrowDownSmall';
+
 
 const ExpandIcon = ({ expanded }) => {
   const topArrowStyle = expanded ? {
     ...styles.transform,
-    bottom: 1
+    bottom: -4
   } : {};
   const bottomArrowStyle = !expanded ? {
-    bottom: -7
+    bottom: -4
   } : styles.transform;
   return (
-    <div style={styles.wrapper}>
-      <FontIcon type={ARROW_DOWN} style={{ ...styles.base, ...topArrowStyle }}/>
-      <FontIcon type={ARROW_DOWN} style={{ ...styles.base, ...bottomArrowStyle }}/>
+    <div style={styles.wrapper} role='img' aria-label={formatMessage(`Common.${expanded ? 'Collapse' : 'Expand'}`)}>
+      <Art src={`${ARROW_DOWN}.svg`} alt={''} style={{ ...styles.base, ...topArrowStyle }}/>
+      <Art src={`${ARROW_DOWN}.svg`} alt={''} style={{ ...styles.base, ...bottomArrowStyle }} />
     </div>
   );
 };
@@ -40,6 +42,7 @@ ExpandIcon.propTypes = {
 
 const styles = {
   wrapper: {
+    width: 24,
     height: 24,
     position: 'relative'
   },

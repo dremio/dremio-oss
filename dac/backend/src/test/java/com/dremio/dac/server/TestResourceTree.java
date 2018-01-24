@@ -75,7 +75,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showHomes", true)).buildGet(), ResourceList.class);
-    assertEquals(5, resourceList.count(ResourceType.SOURCE));
+    assertEquals(7, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
     assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
@@ -165,7 +165,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
-    assertEquals(5, resourceList.count(ResourceType.SOURCE));
+    assertEquals(7, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
     assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
@@ -227,7 +227,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", false)).buildGet(), ResourceList.class);
-    assertEquals(5, resourceList.count(ResourceType.SOURCE));
+    assertEquals(7, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
 
     // space2
@@ -251,7 +251,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
-    assertEquals(5, resourceList.count(ResourceType.SOURCE));
+    assertEquals(7, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
 
     // space1

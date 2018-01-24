@@ -16,7 +16,6 @@
 package com.dremio.jdbc;
 
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 
 
@@ -25,38 +24,6 @@ import java.sql.Statement;
  * @see #unwrap
  */
 public interface DremioStatement extends Statement {
-
-  /**
-   * <strong>Dremio</strong>:
-   * Returns zero, indicating that no timeout is set.
-   *
-   * @throws  AlreadyClosedSqlException
-   *            if connection is closed
-   */
-  @Override
-  int getQueryTimeout() throws AlreadyClosedSqlException, SQLException;
-
-  /**
-   * <strong>Dremio</strong>:
-   * Not supported (for non-zero timeout value).
-   * <p>
-   *   Normally, just throws {@link SQLFeatureNotSupportedException} unless
-   *   request is trivially for no timeout (zero {@code milliseconds} value).
-   * </p>
-   * @throws  AlreadyClosedSqlException
-   *            if connection is closed
-   * @throws  JdbcApiSqlException
-   *            if an invalid parameter value is detected (and not above case)
-   * @throws  SQLFeatureNotSupportedException
-   *            if timeout is non-zero (and not above case)
-   */
-  @Override
-  void setQueryTimeout( int milliseconds )
-      throws AlreadyClosedSqlException,
-             JdbcApiSqlException,
-             SQLFeatureNotSupportedException,
-             SQLException;
-
   /**
    * {@inheritDoc}
    * <p>

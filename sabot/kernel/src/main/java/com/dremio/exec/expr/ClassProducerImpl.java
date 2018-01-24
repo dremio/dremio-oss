@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.BufferManager;
@@ -28,6 +29,8 @@ import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.compile.TemplateClassDefinition;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.VectorAccessible;
@@ -35,6 +38,7 @@ import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ArrowBuf;
@@ -63,7 +67,7 @@ public class ClassProducerImpl implements ClassProducer {
 
   @Override
   public <T> CodeGenerator<T> createGenerator(TemplateClassDefinition<T> definition) {
-    return CodeGenerator.get(definition, compiler);
+    return CodeGenerator.get(definition, compiler, functionContext);
   }
 
   @Override
@@ -96,9 +100,14 @@ public class ClassProducerImpl implements ClassProducer {
   public class ProducerFunctionContext implements FunctionContext {
     /** Stores constants and their holders by type */
     private final Map<String, Map<MinorType, ValueHolder>> constantValueHolderCache;
+    /** Stores error contexts registered with this function context **/
+    int nextErrorContextId = 0;
+    private final List<FunctionErrorContext> errorContexts;
 
-    public ProducerFunctionContext() {
+    public ProducerFunctionContext()
+    {
       this.constantValueHolderCache = Maps.newHashMap();
+      this.errorContexts = Lists.newArrayList();
     }
 
     @Override
@@ -116,6 +125,30 @@ public class ClassProducerImpl implements ClassProducer {
       throw UserException.unsupportedError().message("The partition explorer interface can only be used " +
           "in functions that can be evaluated at planning time. Make sure that the %s configuration " +
           "option is set to true.", PlannerSettings.CONSTANT_FOLDING.getOptionName()).build(logger);
+    }
+
+    @Override
+    public int registerFunctionErrorContext(FunctionErrorContext errorContext) {
+      assert errorContexts.size() == nextErrorContextId;
+      errorContexts.add(errorContext);
+      errorContext.setId(nextErrorContextId);
+      nextErrorContextId++;
+      return errorContext.getId();
+    }
+
+    @Override
+    public FunctionErrorContext getFunctionErrorContext(int errorContextId) {
+      if (0 <= errorContextId && errorContextId <= errorContexts.size()) {
+        return errorContexts.get(errorContextId);
+      }
+      throw new IndexOutOfBoundsException(String.format("Attempted to access error context ID %d. Max = %d",
+        errorContextId, errorContexts.size()));
+    }
+
+    @Override
+    public FunctionErrorContext getFunctionErrorContext() {
+      // Dummy context. TODO (DX-9622): remove this method once we handle the function interpretation in the planning phase
+      return FunctionErrorContextBuilder.builder().build();
     }
 
     @Override

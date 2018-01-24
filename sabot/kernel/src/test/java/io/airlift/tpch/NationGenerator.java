@@ -40,10 +40,10 @@ public class NationGenerator extends TpchGenerator {
 
   private final Distribution nations;
 
-  private final NullableBigIntVector.Mutator nationKey;
-  private final NullableVarCharVector.Mutator name;
-  private final NullableBigIntVector.Mutator regionKey;
-  private final NullableVarCharVector.Mutator comment;
+  private final NullableBigIntVector nationKey;
+  private final NullableVarCharVector name;
+  private final NullableBigIntVector regionKey;
+  private final NullableVarCharVector comment;
 
   final RandomText commentRandom = randomText(606179079, TextPool.getDefaultTestPool(), COMMENT_AVERAGE_LENGTH);
 

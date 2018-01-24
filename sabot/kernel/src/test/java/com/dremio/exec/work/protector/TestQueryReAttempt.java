@@ -62,13 +62,13 @@ public class TestQueryReAttempt extends BaseTestQuery {
   private static NullableBitVector bitVector(String name) {
     NullableBitVector vec = new NullableBitVector(name, getAllocator());
     vec.allocateNew(COUNT);
-    vec.getMutator().set(0, 1);
-    vec.getMutator().set(1, 0);
-    vec.getMutator().setNull(2);
-    vec.getMutator().set(3, 1);
-    vec.getMutator().set(4, 1);
+    vec.set(0, 1);
+    vec.set(1, 0);
+    vec.setNull(2);
+    vec.set(3, 1);
+    vec.set(4, 1);
 
-    vec.getMutator().setValueCount(COUNT);
+    vec.setValueCount(COUNT);
     return vec;
   }
 
@@ -120,20 +120,20 @@ public class TestQueryReAttempt extends BaseTestQuery {
     mapWr.end();
 
     mapWriter.setValueCount(COUNT);
-    vector.getMutator().setValueCount(COUNT);
+    vector.setValueCount(COUNT);
     return vector;
   }
 
   private static NullableIntVector intVector(String name) {
     NullableIntVector vec = new NullableIntVector(name, allocator);
     vec.allocateNew(5);
-    vec.getMutator().set(0, 20);
-    vec.getMutator().set(1, 50);
-    vec.getMutator().set(2, -2000);
-    vec.getMutator().set(3, 327345);
-    vec.getMutator().setNull(4);
+    vec.set(0, 20);
+    vec.set(1, 50);
+    vec.set(2, -2000);
+    vec.set(3, 327345);
+    vec.setNull(4);
 
-    vec.getMutator().setValueCount(COUNT);
+    vec.setValueCount(COUNT);
     return vec;
   }
 

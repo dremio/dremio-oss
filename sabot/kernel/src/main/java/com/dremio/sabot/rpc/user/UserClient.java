@@ -41,18 +41,20 @@ import com.dremio.exec.proto.UserProtos.GetTablesResp;
 import com.dremio.exec.proto.UserProtos.HandshakeStatus;
 import com.dremio.exec.proto.UserProtos.QueryPlanFragments;
 import com.dremio.exec.proto.UserProtos.RecordBatchFormat;
+import com.dremio.exec.proto.UserProtos.RecordBatchType;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.proto.UserProtos.UserToBitHandshake;
 import com.dremio.exec.rpc.Acks;
+import com.dremio.exec.rpc.BasicClient;
 import com.dremio.exec.rpc.BasicClientWithConnection;
 import com.dremio.exec.rpc.ConnectionThrottle;
-import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.MessageDecoder;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.RpcFuture;
 import com.google.common.collect.Sets;
 import com.google.protobuf.MessageLite;
 
@@ -66,8 +68,8 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
   private final boolean supportComplexTypes;
 
   private final String clientName;
-  private RpcEndpointInfos serverInfos = null;
-  Set<RpcType> supportedMethods = null;
+  private volatile RpcEndpointInfos serverInfos = null;
+  private volatile Set<RpcType> supportedMethods = null;
 
   public UserClient(String clientName, SabotConfig config, boolean supportComplexTypes, BufferAllocator alloc,
       EventLoopGroup eventLoopGroup, Executor eventExecutor) {
@@ -103,7 +105,9 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
         .setSupportComplexTypes(supportComplexTypes)
         .setSupportTimeout(true)
         .setCredentials(credentials)
-        .setRecordBatchFormat(RecordBatchFormat.DREMIO_0_9)
+        .setRecordBatchType(RecordBatchType.DREMIO)
+        .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_1_4)
+        .addSupportedRecordBatchFormats(RecordBatchFormat.DREMIO_0_9)
         .setClientInfos(UserRpcUtils.getRpcEndpointInfos(clientName));
     if (props != null) {
       hsBuilder.setProperties(props);
@@ -161,16 +165,45 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
   @Override
   protected void validateHandshake(BitToUserHandshake inbound) throws RpcException {
 //    logger.debug("Handling handshake from bit to user. {}", inbound);
-    if (inbound.hasServerInfos()) {
-      serverInfos = inbound.getServerInfos();
-    }
-    supportedMethods = Sets.immutableEnumSet(inbound.getSupportedMethodsList());
-
     if (inbound.getStatus() != HandshakeStatus.SUCCESS) {
       final String errMsg = String.format("Status: %s, Error Id: %s, Error message: %s",
           inbound.getStatus(), inbound.getErrorId(), inbound.getErrorMessage());
       logger.error(errMsg);
       throw new RpcException(errMsg);
+    }
+
+    // Successful connection...
+    if (inbound.hasServerInfos()) {
+      serverInfos = inbound.getServerInfos();
+    }
+    supportedMethods = Sets.immutableEnumSet(inbound.getSupportedMethodsList());
+    // Older servers don't return record batch format: assume pre-1.4 servers
+    RecordBatchFormat recordBatchFormat = inbound.hasRecordBatchFormat() ? inbound.getRecordBatchFormat() : RecordBatchFormat.DREMIO_0_9;
+
+    switch(recordBatchFormat) {
+    case DREMIO_1_4:
+      break;
+
+    case DREMIO_0_9:
+    {
+      /*
+       * From Dremio 1.4 onwards we have moved to Little Endian Decimal format. We need to
+       * add a new decoder in the netty pipeline when talking to old (1.3 and less) Dremio
+       * servers.
+       */
+      final BufferAllocator bcAllocator = connection.getAllocator()
+          .newChildAllocator("dremio09-backward", 0, Long.MAX_VALUE);
+      logger.debug("Adding dremio 09 backwards compatibility decoder");
+      connection.getChannel()
+        .pipeline()
+        .addAfter(BasicClient.PROTOCOL_DECODER, "dremio09-backward",
+          new BackwardsCompatibilityDecoder(bcAllocator, new Dremio09BackwardCompatibilityHandler(bcAllocator)));
+      }
+      break;
+
+    case UNKNOWN:
+    default:
+      throw new RpcException("Unsupported record batch format: " + recordBatchFormat);
     }
   }
 

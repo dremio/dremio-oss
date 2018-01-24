@@ -21,6 +21,7 @@ export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     render() {
       const { source, closeMenu } = this.props;
+      const { location } = this.context;
       const name = source.get('name');
       return (
         <Menu>

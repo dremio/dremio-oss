@@ -41,7 +41,7 @@ import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
-import com.dremio.exec.store.hive.HiveStoragePlugin2;
+import com.dremio.exec.store.hive.HiveStoragePlugin;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
@@ -247,7 +247,7 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, HiveSubScan config) throws ExecutionSetupException {
     try{
-      HiveStoragePlugin2 storagePlugin = (HiveStoragePlugin2) fragmentExecContext.getStoragePlugin(config.getPluginId());
+      HiveStoragePlugin storagePlugin = (HiveStoragePlugin) fragmentExecContext.getStoragePlugin(config.getPluginId());
       HiveConf conf = storagePlugin.getHiveConf();
       final HiveTableXattr tableAttr = HiveTableXattr.parseFrom(config.getExtendedProperty().toByteArray());
       final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getPartitionColumns());

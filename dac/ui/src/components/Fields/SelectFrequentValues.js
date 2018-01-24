@@ -89,7 +89,7 @@ export default class SelectFrequentValues extends Component {
 
     const valueSet = new Set(field.value);
     return (
-      <div style={{...style}}>
+      <div className='field' style={{...style}}>
         <table>
           <tbody>
             {options && options.map((option) => this.renderOption(option, maxPercent, valueSet))}

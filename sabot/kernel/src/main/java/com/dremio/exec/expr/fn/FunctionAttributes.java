@@ -31,6 +31,7 @@ public class FunctionAttributes {
   private final NullHandling nullHandling;
   private final boolean isBinaryCommutative;
   private final boolean isDeterministic;
+  private final boolean isDynamic;
   private final FunctionSyntax syntax;
   private final String[] registeredNames;
   private final ValueReference[] parameters;
@@ -40,14 +41,15 @@ public class FunctionAttributes {
   private final OutputDerivation derivation;
 
   public FunctionAttributes(FunctionScope scope, NullHandling nullHandling, boolean isBinaryCommutative,
-      boolean isDeteministic, FunctionSyntax syntax, String[] registeredNames, ValueReference[] parameters,
-      ValueReference returnValue, WorkspaceReference[] workspaceVars, FunctionCostCategory costCategory,
-      OutputDerivation derivation) {
+      boolean isDeterministic, boolean isDynamic, FunctionSyntax syntax, String[] registeredNames,
+      ValueReference[] parameters, ValueReference returnValue, WorkspaceReference[] workspaceVars,
+      FunctionCostCategory costCategory, OutputDerivation derivation) {
     super();
     this.scope = scope;
     this.nullHandling = nullHandling;
     this.isBinaryCommutative = isBinaryCommutative;
-    this.isDeterministic = isDeteministic;
+    this.isDeterministic = isDeterministic;
+    this.isDynamic = isDynamic;
     this.syntax = syntax;
     this.registeredNames = registeredNames;
     this.parameters = parameters;
@@ -80,6 +82,10 @@ public class FunctionAttributes {
 
   public boolean isDeterministic() {
     return isDeterministic;
+  }
+
+  public boolean isDynamic() {
+    return isDynamic;
   }
 
   public FunctionSyntax getSyntax() {

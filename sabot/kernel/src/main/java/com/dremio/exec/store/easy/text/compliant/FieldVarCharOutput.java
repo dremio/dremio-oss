@@ -161,7 +161,7 @@ class FieldVarCharOutput extends TextOutput {
 
     if(collect) {
       assert currentVector != null;
-      currentVector.getMutator().setSafe(recordCount, fieldBytes, 0, currentDataPointer);
+      currentVector.setSafe(recordCount, fieldBytes, 0, currentDataPointer);
     }
 
     if (currentDataPointer > 0) {
@@ -191,7 +191,7 @@ class FieldVarCharOutput extends TextOutput {
 
     for (int i = 0; i <= maxField; i++) {
       if (this.vectors[i] != null) {
-        this.vectors[i].getMutator().setValueCount(recordCount);
+        this.vectors[i].setValueCount(recordCount);
       }
     }
 

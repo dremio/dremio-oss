@@ -236,8 +236,7 @@ public class ProjectOperator implements SingleInputOperator {
 
   private void setValueCount(final int count) {
     for (final ValueVector v : allocationVectors) {
-      final ValueVector.Mutator m = v.getMutator();
-      m.setValueCount(count);
+      v.setValueCount(count);
     }
 
     for (final ComplexWriter writer : complexWriters) {

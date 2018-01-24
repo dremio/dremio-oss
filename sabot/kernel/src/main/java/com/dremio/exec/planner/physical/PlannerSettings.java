@@ -97,6 +97,7 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator ENABLE_LEAF_LIMITS = new BooleanValidator("planner.leaf_limit_enable", false);
   public static final RangeLongValidator LEAF_LIMIT_SIZE  = new RangeLongValidator("planner.leaf_limit_size", 1, Long.MAX_VALUE, 10000);
+  public static final RangeLongValidator LEAF_LIMIT_MAX_WIDTH  = new RangeLongValidator("planner.leaf_limit_width", 1, Long.MAX_VALUE, 10);
 
   public static final OptionValidator STORE_QUERY_RESULTS = new QueryLevelOptionValidation(new BooleanValidator("planner.store_query_results", false));
   public static final OptionValidator QUERY_RESULTS_STORE_TABLE = new QueryLevelOptionValidation(new StringValidator("planner.query_results_store_path", "null"));
@@ -326,6 +327,10 @@ public class PlannerSettings implements Context{
 
   public boolean isTrivialSingularOptimized() {
     return options.getOption(ENABLE_TRIVIAL_SINGULAR);
+  }
+
+  public int getExecutorCount() {
+    return clusterInfo.getExecutorNodeCount();
   }
 
   @Override

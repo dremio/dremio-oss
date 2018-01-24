@@ -54,7 +54,7 @@ public class VectorUtil {
         boolean lastColumn = columnCounter == width - 1;
         Object o ;
         try{
-          o = vw.getValueVector().getAccessor().getObject(row);
+          o = vw.getValueVector().getObject(row);
         }catch(Exception e){
           throw new RuntimeException("failure while trying to read column " + vw.getField().getName(), e);
         }
@@ -95,7 +95,7 @@ public class VectorUtil {
     for (int row = 0; row < rows; row++) {
       List<String> rowValues = Lists.newArrayList();
       for (VectorWrapper<?> vw : va) {
-        Object o = vw.getValueVector().getAccessor().getObject(row);
+        Object o = vw.getValueVector().getObject(row);
         if (o == null) {
           rowValues.add("null");
         } else if (o instanceof byte[]) {
@@ -158,7 +158,7 @@ public class VectorUtil {
       columnIndex = 0;
       for (VectorWrapper<?> vw : va) {
         int columnWidth = getColumnWidth(columnWidths, columnIndex);
-        Object o = vw.getValueVector().getAccessor().getObject(row);
+        Object o = vw.getValueVector().getObject(row);
         String cellString;
         if (o instanceof byte[]) {
           cellString = DremioStringUtils.toBinaryString((byte[]) o);

@@ -26,38 +26,42 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
-import com.dremio.exec.planner.physical.OldScanPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
-import com.dremio.exec.store.ischema.InfoSchemaGroupScan;
-import com.dremio.exec.store.ischema.InfoSchemaTableType;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
-import com.dremio.exec.store.sys.SystemTablePlugin;
-import com.dremio.exec.store.sys.SystemTableScan;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class TestSimpleLimitExchangeRemover {
@@ -79,8 +83,10 @@ public class TestSimpleLimitExchangeRemover {
         .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))
         .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
+    ClusterResourceInformation info = mock(ClusterResourceInformation.class);
+    when(info.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(optionManager, null, null);
+    plannerSettings = new PlannerSettings(optionManager, null, info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 
@@ -98,7 +104,7 @@ public class TestSimpleLimitExchangeRemover {
         );
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output, "Screen", "Project", "UnionExchange", "Project", "OldScan");
+    verifyOutput(output, "Screen", "Project", "UnionExchange", "Project", "SystemScan");
   }
 
   @Test
@@ -119,7 +125,7 @@ public class TestSimpleLimitExchangeRemover {
         );
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output, "Screen", "Limit", "Project", "Limit", "Project", "OldScan");
+    verifyOutput(output, "Screen", "Limit", "Project", "Limit", "Project", "SystemScan");
   }
 
 
@@ -145,7 +151,7 @@ public class TestSimpleLimitExchangeRemover {
           );
 
       Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-      verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "OldScan");
+      verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
     } finally {
       when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
           .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
@@ -171,7 +177,7 @@ public class TestSimpleLimitExchangeRemover {
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
     verifyOutput(output,
-        "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "OldScan");
+        "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
   }
 
   @Test
@@ -192,7 +198,7 @@ public class TestSimpleLimitExchangeRemover {
         );
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-    verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "OldScan");
+    verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
   }
 
   @Test
@@ -217,7 +223,7 @@ public class TestSimpleLimitExchangeRemover {
 
     Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
     verifyOutput(output,
-        "Screen", "Limit", "Project", "UnionExchange", "HashJoin", "Project", "OldScan", "Project", "OldScan");
+        "Screen", "Limit", "Project", "UnionExchange", "HashJoin", "Project", "SystemScan", "Project", "SystemScan");
   }
 
   private void verifyOutput(Prel output, String... expRels) {
@@ -243,11 +249,27 @@ public class TestSimpleLimitExchangeRemover {
   }
 
   private Prel newHardScan(RelDataType rowType) {
-    return new OldScanPrel(cluster, traits, new SystemTableScan(SystemTable.MEMORY, (SystemTablePlugin)null), rowType, asList("sys", "memory"));
+    TableMetadata metadata = Mockito.mock(TableMetadata.class);
+    when(metadata.getName()).thenReturn(new NamespaceKey(ImmutableList.of("sys", "memory")));
+    when(metadata.getSchema()).thenReturn(SystemTable.MEMORY.getSchema());
+    List<SchemaPath> columns = FluentIterable.from(SystemTable.MEMORY.getSchema()).transform(new Function<Field, SchemaPath>(){
+      @Override
+      public SchemaPath apply(Field input) {
+        return SchemaPath.getSimplePath(input.getName());
+      }}).toList();
+    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d, rowType);
   }
 
   private Prel newSoftScan(RelDataType rowType) {
-    return new OldScanPrel(cluster, traits, new InfoSchemaGroupScan(InfoSchemaTableType.TABLES, null, (SabotContext)null), rowType, asList("col1", "col2"));
+    TableMetadata metadata = Mockito.mock(TableMetadata.class);
+    when(metadata.getName()).thenReturn(new NamespaceKey(ImmutableList.of("sys", "version")));
+    when(metadata.getSchema()).thenReturn(SystemTable.VERSION.getSchema());
+    List<SchemaPath> columns = FluentIterable.from(SystemTable.VERSION.getSchema()).transform(new Function<Field, SchemaPath>(){
+      @Override
+      public SchemaPath apply(Field input) {
+        return SchemaPath.getSimplePath(input.getName());
+      }}).toList();
+    return new SystemScanPrel(cluster, traits, Mockito.mock(RelOptTable.class), metadata, columns, 1.0d, rowType);
   }
 
   private RelDataType rowType() {
@@ -258,9 +280,9 @@ public class TestSimpleLimitExchangeRemover {
   }
 
   private List<RexNode> exprs() {
-    return asList(
-        (RexNode) new RexInputRef(0, typeFactory.createSqlType(SqlTypeName.INTEGER)),
-        (RexNode) new RexInputRef(1, typeFactory.createSqlType(SqlTypeName.DOUBLE))
+    return ImmutableList.<RexNode>of(
+        rexBuilder.makeExactLiteral(BigDecimal.ONE, typeFactory.createSqlType(SqlTypeName.INTEGER)),
+        rexBuilder.makeExactLiteral(BigDecimal.ONE, typeFactory.createSqlType(SqlTypeName.DOUBLE))
     );
   }
 

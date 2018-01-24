@@ -20,7 +20,8 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import ViewStateWrapper from 'components/ViewStateWrapper';
-import FontIcon from 'components/Icon/FontIcon';
+import { injectIntl } from 'react-intl';
+import Art from 'components/Art';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 import { bodySmall } from 'uiTheme/radium/typography';
@@ -30,6 +31,7 @@ import { PALE_NAVY, PALE_ORANGE } from 'uiTheme/radium/colors';
 import DatasetItemLabel from './Dataset/DatasetItemLabel';
 import './DatasetsSearch.less';
 
+@injectIntl
 @Radium
 @pureRender
 export default class DatasetsSearch extends Component {
@@ -51,7 +53,8 @@ export default class DatasetsSearch extends Component {
     globalSearch: PropTypes.bool,
     handleSearchHide: PropTypes.func.isRequired,
     inputValue: PropTypes.string,
-    searchViewState: PropTypes.instanceOf(Immutable.Map).isRequired
+    searchViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   getDatasetsList(searchData, inputValue) {
@@ -93,13 +96,19 @@ export default class DatasetsSearch extends Component {
           dataset.getIn(['links', 'edit']) &&
           <Link to={dataset.getIn(['links', 'edit'])}>
             <button className='settings-button' data-qa='edit'>
-              <FontIcon type='Edit'/>
+              <Art
+                src={'Edit.svg'}
+                alt={this.props.intl.formatMessage({ id: 'Common.Edit' })}
+                style={styles.icon} />
             </button>
           </Link>
         }
         <Link to={dataset.getIn(['links', 'self'])}>
           <button className='settings-button' data-qa='query'>
-            <FontIcon type='Query'/>
+            <Art
+              src={'Query.svg'}
+              alt={this.props.intl.formatMessage({ id: 'Common.DoQuery' })}
+              style={styles.icon} />
           </button>
         </Link>
       </span>
@@ -133,7 +142,11 @@ export default class DatasetsSearch extends Component {
     return (
       <h3 style={styles.header}>
         {la('Search Results for')} "{inputValue}"
-        <FontIcon type='XBig' theme={styles.closeIcon} onClick={this.props.handleSearchHide.bind(this)}/>
+        <Art
+          src={'XBig.svg'}
+          alt={this.props.intl.formatMessage({ id: 'Common.Close' })}
+          style={styles.closeIcon}
+          onClick={this.props.handleSearchHide.bind(this)} />
       </h3>
     );
   }
@@ -190,12 +203,14 @@ const styles = {
     maxHeight: 360,
     overflow: 'auto'
   },
+  icon: {
+    width: 24,
+    height: 24
+  },
   closeIcon: {
-    Container: {
-      margin: '0 0 0 auto',
-      height: 24,
-      cursor: 'pointer'
-    }
+    margin: '0 0 0 auto',
+    height: 24,
+    cursor: 'pointer'
   },
   actionButtons: {
     margin: '0 0 0 auto'

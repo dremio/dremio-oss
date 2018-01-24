@@ -20,7 +20,7 @@ import org.junit.Test;
 public class TestHBaseConnectionManager extends BaseHBaseTest {
 
   @Test
-  public void testHBaseConnectionManager() throws Exception{
+  public void testHBaseConnectionManager() throws Exception {
     setColumnWidth(8);
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key\n"
@@ -31,8 +31,11 @@ public class TestHBaseConnectionManager extends BaseHBaseTest {
     /*
      * Simulate HBase connection close and ensure that the connection
      * will be reestablished automatically.
+     *
+     * DX-9766: This is actually invalid because it puts the connection in a "closing" state which is then shared when other connections are opened.
      */
-    storagePlugin.getConnection().close();
+    // storagePlugin.getStoragePlugin().closeCurrentConnection();
+
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key\n"
         + "FROM\n"

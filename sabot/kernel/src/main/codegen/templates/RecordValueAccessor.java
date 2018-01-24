@@ -65,8 +65,13 @@ public class RecordValueAccessor {
   }
 
   public void getFieldById(int fieldId, ComplexHolder holder) {
-    holder.isSet = vectors[fieldId].getAccessor().isNull(currentIndex) ? 1 : 0;
-    holder.reader = (vectors[fieldId]).getReader();
+    final ValueVector vv = vectors[fieldId];
+    if (vv instanceof BaseDataValueVector) {
+      holder.isSet =vv.getAccessor().isNull(currentIndex) ? 1 : 0;
+    } else {
+      holder.isSet = vv.isNull(currentIndex) ? 1 : 0;
+    }
+    holder.reader = vv.getReader();
     holder.reader.setPosition(currentIndex);
   }
 
@@ -76,8 +81,12 @@ public class RecordValueAccessor {
   <#assign supported = typeMapping.supported!true>
   <#if supported>
     <#list vv.modes as mode>
-  public void getFieldById(int fieldId, ${mode.prefix}${minor.class}Holder holder){
+  public void getFieldById(int fieldId, ${mode.prefix}${minor.class}Holder holder) {
+    <#if mode.prefix == "Nullable">
+    ((${mode.prefix}${minor.class}Vector) vectors[fieldId]).get(currentIndex, holder);
+    <#else>
     ((${mode.prefix}${minor.class}Vector) vectors[fieldId]).getAccessor().get(currentIndex, holder);
+    </#if>
   }
 
     </#list>

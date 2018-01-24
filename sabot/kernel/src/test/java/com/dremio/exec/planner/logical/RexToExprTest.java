@@ -53,7 +53,7 @@ public class RexToExprTest {
       // create a dummy RexOver object.
       RexNode window = rex.makeOver(anyType, SqlStdOperatorTable.AVG, emptyList, emptyList, e, null, null, true,
           false, false);
-      RexToExpr.toExpr(null, null, window);
+      RexToExpr.toExpr(null, null, null, window);
     } catch (UserException e) {
       if (e.getMessage().contains(RexToExpr.UNSUPPORTED_REX_NODE_ERROR)) {
         // got expected error return

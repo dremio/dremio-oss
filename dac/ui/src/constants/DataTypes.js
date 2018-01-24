@@ -52,6 +52,25 @@ export const typeToIconType = {
   [ANY]: 'TypeOther'
 };
 
+export const typeToFormatMessageId = {
+  [TEXT]: 'Type.Text',
+  [BINARY]: 'Type.Binary',
+  [BOOLEAN]: 'Type.Boolean',
+  [FLOAT]: 'Type.Float',
+  [DECIMAL]: 'Type.Decimal',
+  [INTEGER]: 'Type.Integer',
+  [BIGINT]: 'Type.Integer', // can MAYBE remove BIGINT with DX-5403 Acceleration UI missing type icons due to incorrect types from BE
+  [MIXED]: 'Type.Mixed',
+  [DATE]: 'Type.Date',
+  [TIME]: 'Type.Time',
+  [DATETIME]: 'Type.DateTime',
+  [LIST]: 'Type.List',
+  [MAP]: 'Type.Map',
+  [GEO]: 'Type.Geo',
+  [OTHER]: 'Type.Other',
+  [ANY]: 'Type.Other'
+};
+
 export const dateTypeToFormat = {
   [DATE]: 'YYYY-MM-DD',
   [TIME]: 'HH:mm:ss',

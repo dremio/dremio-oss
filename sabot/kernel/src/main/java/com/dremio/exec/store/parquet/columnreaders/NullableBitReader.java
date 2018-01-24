@@ -48,7 +48,7 @@ final class NullableBitReader extends ColumnReader<NullableBitVector> {
       defLevel = pageReader.definitionLevels.readInteger();
       // if the value is defined
       if (defLevel == columnDescriptor.getMaxDefinitionLevel()){
-        valueVec.getMutator().setSafe(i + valuesReadInCurrentPass,
+        valueVec.setSafe(i + valuesReadInCurrentPass,
             pageReader.valueReader.readBoolean() ? 1 : 0 );
       }
       // otherwise the value is skipped, because the bit vector indicating nullability is zero filled

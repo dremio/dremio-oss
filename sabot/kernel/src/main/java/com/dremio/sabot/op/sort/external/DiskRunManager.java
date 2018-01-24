@@ -96,6 +96,7 @@ public class DiskRunManager implements AutoCloseable {
   private final SpillManager spillManager;
   private boolean compressSpilledBatch;
   private BufferAllocator compressSpilledBatchAllocator;
+  private final ExternalSortTracer tracer;
 
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
@@ -114,7 +115,8 @@ public class DiskRunManager implements AutoCloseable {
       BufferAllocator parentAllocator,
       List<Ordering> orderings,
       BatchSchema dataSchema,
-      boolean compressSpilledBatch
+      boolean compressSpilledBatch,
+      ExternalSortTracer tracer
       ) {
     this.targetRecordCount = targetRecordCount;
     this.targetBatchSizeInBytes = targetBatchSizeInBytes;
@@ -123,6 +125,7 @@ public class DiskRunManager implements AutoCloseable {
     this.dataSchema = dataSchema;
     this.parentAllocator = parentAllocator;
     this.compressSpilledBatch = compressSpilledBatch;
+    this.tracer = tracer;
     if (compressSpilledBatch) {
       long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
       compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
@@ -191,9 +194,10 @@ public class DiskRunManager implements AutoCloseable {
     // We failed to reserve memory to handle all runs, so attempt to merge some runs
 
     int runsToMerge = diskRuns.size() / 2;
+    List<DiskRun> runList = null;
     while (true) {
       try {
-        List<DiskRun> runList = ImmutableList.copyOf(diskRuns.subList(0, runsToMerge));
+        runList = ImmutableList.copyOf(diskRuns.subList(0, runsToMerge));
         getCopierAllocator(runList);
         removeDiskRuns(runList.size());
         try {
@@ -207,18 +211,30 @@ public class DiskRunManager implements AutoCloseable {
         // reattempt with smaller list
         runsToMerge /= 2;
         if (runsToMerge < 2) {
-          throw UserException
-            .memoryError(e)
-            .message("Unable to secure enough memory to merge spilled sort data.")
-            .addContext("Runs", diskRuns.size())
-            .addContext("Merges", mergeCount())
-            .addContext("Mean batch size", getAvgMaxBatchSize())
-            .addContext("Median batch size", getMedianMaxBatchSize())
-            .addContext("Max batch size", getMaxBatchSize())
-            .build(logger);
+          final String message = "DiskRunManager: Unable to secure enough memory to merge spilled sort data.";
+          final long totalMaxBatchSizeAllRuns = getMaxBatchSizeAllRuns(runList);
+          final long reservation = totalMaxBatchSizeAllRuns + (targetBatchSizeInBytes * 3);
+          /* we are here for OOM because we couldnt't create a copy allocator for loading batches from even 2 disk runs
+           * so record all the information including how much copy allocator tried to reserve before it failed.
+           * see getCopierAllocator, the computation has been borrowed from that function.
+           */
+          tracer.reserveMemoryForDiskRunCopyOOMEvent(reservation, Long.MAX_VALUE, totalMaxBatchSizeAllRuns);
+          tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
+          tracer.setDiskRunCopyAllocatorState(copierAllocator);
+          tracer.setExternalSortAllocatorState(parentAllocator);
+          throw tracer.prepareAndThrowException(e, message);
         }
       }
     }
+  }
+
+  private long getMaxBatchSizeAllRuns(List<DiskRun> diskRuns) {
+    long totalMax = 0;
+    for(DiskRun run : diskRuns){
+      long batchSize = nextPowerOfTwo(run.largestBatch);
+      totalMax += batchSize;
+    }
+    return totalMax;
   }
 
   private void removeDiskRuns(int toRemove) {
@@ -314,23 +330,21 @@ public class DiskRunManager implements AutoCloseable {
   }
 
   public void spill(VectorContainer hyperBatch, BufferAllocator copyTargetAllocator) throws Exception {
+    /* as per MemoryRun, for copyTargetAllocator, initReservation and maxAllocation are same */
+    logger.debug("DiskRunManager-Spill: max allowed allocation for spill copy allocator" + copyTargetAllocator.getLimit());
     spillWatch.start();
     try {
-
       int maxBatchSize = 0;
       int batchCount = 0;
       int records = 0;
+      int recordCount = 0;
+      int recordsSpilledInCurrentIteration = 0;
+      int remainingRecordCount = 0;
       final SpillFile spillFile = spillManager.getSpillFile(String.format("run%05d", run++));
 
       try (FSDataOutputStream out = spillFile.create();
            final VectorContainer outgoing = VectorContainer.create(copyTargetAllocator, hyperBatch.getSchema());
            VectorContainer hyperBatchToClose = hyperBatch) {
-
-        // Set initial capacity so that each vector will allocate just what it needs, and the total allocation will fit
-        // in the reserved amount
-        for (VectorWrapper w : outgoing) {
-          w.getValueVector().setInitialCapacity(hyperBatch.getSelectionVector4().getCount());
-        }
 
         final Copier copier = CopierOperator.getGenerated4Copier(
           producer,
@@ -339,29 +353,80 @@ public class DiskRunManager implements AutoCloseable {
         final SelectionVector4 sv4 = hyperBatch.getSelectionVector4();
 
         do {
-          final int recordCount = sv4.getCount();
+          recordCount = sv4.getCount();
           if (recordCount == 0) {
             continue;
           }
-
-          int localRecordCount = 0;
-          while (localRecordCount < recordCount) {
-            final int copied = copier.copyRecords(localRecordCount, recordCount - localRecordCount);
+          /* Set initial capacity so that each vector will allocate just what it needs,
+           * and the total allocation will fit in the reserved amount.
+           *
+           * setInitialCapacity will change the state of variables used to allocate
+           * memory for vectors during the call to allocateNew() later in copyRecords().
+           * Since the actual allocation happens inside the while loop by copyRecords(),
+           * for each call to copyRecords(), we don't need to allocate memory for
+           * number of records we started with so its better to invoke setInitialCapacity
+           * again to ensure reduced allocation. For example:
+           *
+           * 1. say MemoryRun gave us a batch of size 4096 to spill, i.e sv4.getCount() is 4096
+           * 2. we did setInitialCapacity(4096) on the vectors inside the outgoing container that
+           * will be spilled.
+           * 3. we then entered the while loop to start copy records from the incoming batch given to
+           * us by MemoryRun.closeToDisk().
+           * 4. Say in first iteration of copyRecords(), we copied only 2048 records.
+           * 5. We spilled the currently copied batch and move onto copying next 2048 records after
+           * clearing the outgoing container and releasing memory with underlying buffers.
+           * 6. In the next call to copyRecords, we again allocate memory for vectors in outgoing.
+           * But we allocated memory for 4096 records because that was the state we recorded when
+           * doing the setInitialCapacity() in first place. This is the reason why it is
+           * probably better to do setInitialCapacity() before each call to copyRecords.
+           * This is probably what was implied by the author of TODO below.
+           */
+          remainingRecordCount = recordCount;
+          recordsSpilledInCurrentIteration = 0;
+          while (recordsSpilledInCurrentIteration < recordCount) {
+            logger.debug("DiskRunManager-Spill: setting initial capacity for: " + remainingRecordCount);
+            for (VectorWrapper w : outgoing) {
+              w.getValueVector().setInitialCapacity(remainingRecordCount);
+            }
+            final int copied = copier.copyRecords(recordsSpilledInCurrentIteration, remainingRecordCount);
             assert copied > 0 : "couldn't copy any rows, probably run out of memory while doing so";
-            localRecordCount += copied;
             outgoing.setAllCount(copied);
 
             int batchSize = spillBatch(outgoing, copied, out);
+            recordsSpilledInCurrentIteration += copied;
             maxBatchSize = Math.max(maxBatchSize, batchSize);
             batchCount++;
+            logger.debug("spilled a batch of records: " + copied);
 
             // TODO: deal with adaptive sizing. for now we'll zero vectors to reset vectors to their default size.
             outgoing.zeroVectors();
+            remainingRecordCount = recordCount - recordsSpilledInCurrentIteration;
           }
 
           records += recordCount;
         } while (sv4.next());
 
+      } catch (OutOfMemoryException ex) {
+        /*
+         * this is thrown by Copier if it fails to copy a single record.
+         * if the copier catches OOM after copying one or more records, then
+         * we proceed with spilling whatever we copied and move onto next
+         * iteration of <allocate, copy, spill>.
+         */
+        tracer.setBatchesSpilled(batchCount);
+        tracer.setTotalRecordsSpilled(records);
+        tracer.setRecordsToSpillInCurrentIteration(recordCount);
+        tracer.setRecordsSpilledInCurrentIteration(recordsSpilledInCurrentIteration);
+        tracer.setSchemaOfBatchToSpill(hyperBatch.getSchema().toJSONString());
+        tracer.setInitialCapacityForCurrentSpillIteration(remainingRecordCount);
+        tracer.setMaxBatchSizeSpilled(maxBatchSize);
+        tracer.setSpillCopyAllocatorState(copyTargetAllocator);
+        tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
+        tracer.setDiskRunCopyAllocatorState(copierAllocator);
+        tracer.setExternalSortAllocatorState(parentAllocator);
+
+        final String message = "DiskRunManager: Failure while spilling sort data to disk";
+        throw tracer.prepareAndThrowException(ex, message);
       }
 
       Preconditions.checkArgument(copyTargetAllocator.getAllocatedMemory() == 0,

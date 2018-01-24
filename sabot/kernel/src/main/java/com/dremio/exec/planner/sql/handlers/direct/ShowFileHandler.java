@@ -52,7 +52,7 @@ public class ShowFileHandler implements SqlDirectHandler<ShowFilesCommandResult>
     List<ShowFilesCommandResult> rows = new ArrayList<>();
 
     FileSystemWrapper fs = null;
-    String defaultLocation = null;
+    String location = null;
     String fromDir = "./";
 
     SchemaPlus schemaPlus = defaultSchema;
@@ -88,10 +88,10 @@ public class ShowFileHandler implements SqlDirectHandler<ShowFilesCommandResult>
     // Get the file system object
     fs = schema.getFileSystem();
 
-    // Get the default path
-    defaultLocation = schema.getDefaultLocation();
+    // Get the resolved path
+    location = schema.resolveLocation(fromDir);
 
-    for (FileStatus fileStatus : fs.list(new Path(defaultLocation, fromDir), false)) {
+    for (FileStatus fileStatus : fs.list(new Path(location), false)) {
       ShowFilesCommandResult result = new ShowFilesCommandResult(fileStatus.getPath().getName(), fileStatus.isDir(),
           !fileStatus.isDirectory(), fileStatus.getLen(),
           fileStatus.getOwner(), fileStatus.getGroup(),

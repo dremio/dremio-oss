@@ -252,7 +252,7 @@ public class LocalJobsService implements JobsService {
     this.namespaceService = contextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
     final FileSystemPlugin fileSystemPlugin = fileSystemPluginProvider.get();
-    this.storageName = fileSystemPlugin.getStorageName();
+    this.storageName = fileSystemPlugin.getName();
     this.jobResultsStore = new JobResultsStore(fileSystemPlugin, store, allocator);
 
     if (isMaster) { // if Dremio process died, clean up
@@ -315,7 +315,7 @@ public class LocalJobsService implements JobsService {
   public void close() throws Exception {
     logger.info("Stopping JobsService");
     if (cleanupTask != null) {
-      cleanupTask.cancel();
+      cleanupTask.cancel(false);
       cleanupTask = null;
     }
     AutoCloseables.close(jobResultsStore, allocator);
@@ -365,7 +365,6 @@ public class LocalJobsService implements JobsService {
     final LocalExecutionConfig config =
         LocalExecutionConfig.newBuilder()
             .setEnableLeafLimits(enableLeafLimits)
-            .setMaxQueryWidth(enableLeafLimits ? 10L : 0L)
             // for UI queries, we should allow reattempts even if data has been returned from query
             .setFailIfNonEmptySent(!QueryTypeUtils.isQueryFromUI(queryType))
             .setUsername(jobRequest.getUsername())
@@ -1245,7 +1244,7 @@ public class LocalJobsService implements JobsService {
 
           for (int i = 0; i < batch.getRecordCount(); i++) {
             final ArrowFileFormat.ArrowFileMetadata metadata =
-                ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataVector.getAccessor().getObject(i));
+                ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataVector.getObject(i));
             job.getJobAttempt().getInfo().getResultMetadataList().add(ArrowFileReader.toBean(metadata));
           }
         }

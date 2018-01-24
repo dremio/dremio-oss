@@ -111,11 +111,12 @@ public class PlanningStage implements Stage {
 
     final boolean removeProject = optionManager.getOption(ExecConstants.ACCELERATION_RAW_REMOVE_PROJECT);
     final boolean enableMinMax = optionManager.getOption(ExecConstants.ACCELERATION_ENABLE_MIN_MAX);
+    final boolean useAlternateAnalysis = optionManager.getOption(ExecConstants.ACCELERATION_USE_ALTERNATE_SUGGESTION_ANALYSIS);
 
     final DatasetConfig config = context.getNamespaceService().findDatasetByUUID(acceleration.getId().getId());
     final NamespaceKey path = new NamespaceKey(config.getFullPathList());
     final RelNode accPlan = context.getAccelerationAnalysisPlan();
-    final RelNode datasetPlan = removeUpdateColumn(null != accPlan ? accPlan : createAnalyzer(jobsService).getPlan(path));
+    final RelNode datasetPlan = removeUpdateColumn(null != accPlan ? accPlan : createAnalyzer(jobsService, useAlternateAnalysis).getPlan(path));
 
     final LogicalPlanSerializer serializer = createSerializer(datasetPlan.getCluster());
     final LayoutExpander expander = createExpander(datasetPlan, enableMinMax);
@@ -150,8 +151,8 @@ public class PlanningStage implements Stage {
   }
 
   @VisibleForTesting
-  AccelerationAnalyzer createAnalyzer(final JobsService jobsService) {
-    return new AccelerationAnalyzer(jobsService);
+  AccelerationAnalyzer createAnalyzer(final JobsService jobsService, final boolean useAlternateAnalysis) {
+    return new AccelerationAnalyzer(jobsService, useAlternateAnalysis);
   }
 
   @VisibleForTesting

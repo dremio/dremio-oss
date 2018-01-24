@@ -253,7 +253,7 @@ public class FragmentExecutor {
         transitionToFailed(e);
       } else {
         // we have a heap out of memory error. The JVM in unstable, exit.
-        CatastrophicFailure.exit(e, "Unable to handle out of memory condition in FragmentExecutor.", -2);
+        CatastrophicFailure.exit(e, "Unable to handle out of memory condition in FragmentExecutor.", 2);
       }
     } catch (Throwable e) {
       transitionToFailed(e);

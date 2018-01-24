@@ -130,6 +130,9 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return new FileSystemWrapper(fsConf, fs);
   }
 
+  public static FileSystemWrapper get(Configuration fsConf, OperatorStats stats) throws IOException {
+    return new FileSystemWrapper(fsConf, stats);
+  }
 
   public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
     FileSystem fs = path.getFileSystem(fsConf);

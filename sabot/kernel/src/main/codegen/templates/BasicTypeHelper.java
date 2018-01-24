@@ -381,12 +381,12 @@ public class BasicTypeHelper {
     case OPTIONAL:
     if (holder instanceof Nullable${minor.class}Holder) {
         if (((Nullable${minor.class}Holder) holder).isSet == 1) {
-        ((Nullable${minor.class}Vector) vector).getMutator().setSafe(index, (Nullable${minor.class}Holder) holder);
+        ((Nullable${minor.class}Vector) vector).setSafe(index, (Nullable${minor.class}Holder) holder);
       } else {
-        ((Nullable${minor.class}Vector) vector).getMutator().isSafe(index);
+        ((Nullable${minor.class}Vector) vector).isSafe(index);
       }
     } else {
-      ((Nullable${minor.class}Vector) vector).getMutator().setSafe(index, (${minor.class}Holder) holder);
+      ((Nullable${minor.class}Vector) vector).setSafe(index, (${minor.class}Holder) holder);
     }
     return;
     }
@@ -394,7 +394,7 @@ public class BasicTypeHelper {
     </#list>
     </#list>
     case GENERIC_OBJECT:
-      ((ObjectVector) vector).getMutator().setSafe(index, (ObjectHolder) holder);
+      ((ObjectVector) vector).setSafe(index, (ObjectHolder) holder);
     default:
       throw new UnsupportedOperationException(buildErrorMessage("set value safe", getArrowMinorType(type.getMinorType())));
     }
@@ -452,16 +452,16 @@ public class BasicTypeHelper {
     <#if minor.class?starts_with("Var") || minor.class == "IntervalDay" || minor.class == "Interval" ||
             minor.class?starts_with("Decimal")>
       holder = new Nullable${minor.class}Holder();
-    ((Nullable${minor.class}Holder)holder).isSet = ((Nullable${minor.class}Vector) vector).getAccessor().isSet(index);
+    ((Nullable${minor.class}Holder)holder).isSet = ((Nullable${minor.class}Vector) vector).isSet(index);
     if (((Nullable${minor.class}Holder)holder).isSet == 1) {
-      ((Nullable${minor.class}Vector) vector).getAccessor().get(index, (Nullable${minor.class}Holder)holder);
+      ((Nullable${minor.class}Vector) vector).get(index, (Nullable${minor.class}Holder)holder);
     }
     return holder;
     <#else>
       holder = new Nullable${minor.class}Holder();
-    ((Nullable${minor.class}Holder)holder).isSet = ((Nullable${minor.class}Vector) vector).getAccessor().isSet(index);
+    ((Nullable${minor.class}Holder)holder).isSet = ((Nullable${minor.class}Vector) vector).isSet(index);
     if (((Nullable${minor.class}Holder)holder).isSet == 1) {
-      ((Nullable${minor.class}Holder)holder).value = ((Nullable${minor.class}Vector) vector).getAccessor().get(index);
+      ((Nullable${minor.class}Holder)holder).value = ((Nullable${minor.class}Vector) vector).get(index);
     }
     return holder;
     </#if>

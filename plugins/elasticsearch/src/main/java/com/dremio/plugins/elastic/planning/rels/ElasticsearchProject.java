@@ -46,7 +46,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.plugins.elastic.ElasticsearchStoragePlugin2;
+import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.planning.rules.ProjectAnalyzer;
 import com.dremio.plugins.elastic.planning.rules.SchemaField;
@@ -71,7 +71,7 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     ElasticsearchStoragePluginConfig config = scan.getPluginId().getConfig();
     final boolean scriptsEnabled = config.isEnableScripts();
     final boolean painlessAllowed = config.isEnablePainless();
-    final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin2.ENABLE_V5_FEATURES);
+    final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
     for (RexNode originalExpression : getProjects()) {
       try {
         final RexNode expr = SchemaField.convert(originalExpression, scan, disallowedSpecialTypes);

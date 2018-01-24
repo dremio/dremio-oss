@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -34,7 +32,6 @@ import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.hbase.HBaseConstants;
 import com.dremio.exec.store.hbase.HBaseStoragePlugin;
 import com.dremio.exec.store.hbase.HBaseStoragePluginConfig;
-import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;

@@ -41,8 +41,10 @@ import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.metrics.Metrics;
+import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.rpc.CoordToExecHandlerImpl;
@@ -65,7 +67,7 @@ import com.google.common.collect.Iterators;
 /**
  * Service managing fragment execution.
  */
-public class FragmentWorkManager implements Service {
+public class FragmentWorkManager implements Service, SafeExit {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
 
   private final BootStrapContext context;
@@ -75,6 +77,7 @@ public class FragmentWorkManager implements Service {
   private final BindingCreator bindingCreator;
   private final Provider<FabricService> fabricServiceProvider;
   private final Provider<StoragePluginRegistry> storagePluginRegistry;
+  private final Provider<ContextInformationFactory> contextInformationFactory;
 
   private FragmentStatusThread statusThread;
   private ThreadsStatsCollector statsCollectorThread;
@@ -97,6 +100,7 @@ public class FragmentWorkManager implements Service {
       final Provider<SabotContext> dbContext,
       final Provider<FabricService> fabricServiceProvider,
       final Provider<StoragePluginRegistry> storagePluginRegistry,
+      final Provider<ContextInformationFactory> contextInformationFactory,
       final BindingCreator bindingCreator
       ) {
     this.context = context;
@@ -106,6 +110,7 @@ public class FragmentWorkManager implements Service {
     this.fabricServiceProvider = fabricServiceProvider;
     this.dbContext = dbContext;
     this.bindingCreator = bindingCreator;
+    this.contextInformationFactory = contextInformationFactory;
   }
 
   public WorkStats getWorkStats() {
@@ -272,6 +277,8 @@ public class FragmentWorkManager implements Service {
         bitContext.getPlanReader(),
         bitContext.getNamespaceService(SystemUser.SYSTEM_USERNAME),
         storagePluginRegistry.get(),
+        contextInformationFactory.get(),
+        bitContext.getFunctionImplementationRegistry(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()));
 
     // register coord/exec message handling.

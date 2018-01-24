@@ -30,6 +30,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Objects;
+import com.google.common.base.Predicate;
 
 /**
  * A pointer to a table exposed by the namespace service. May load lazily.
@@ -78,6 +79,11 @@ public class TableMetadataImpl implements TableMetadata {
   }
 
   @Override
+  public TableMetadata prune(Predicate<DatasetSplit> splitPredicate) throws NamespaceException {
+    return new TableMetadataImpl(plugin, config, user, splits.prune(splitPredicate));
+  }
+
+  @Override
   public TableMetadata prune(List<DatasetSplit> newSplits) throws NamespaceException {
     if(newSplits != splits){
       return new TableMetadataImpl(plugin, config, user, new SplitsPointerImpl(newSplits, splits.getTotalSplitsCount()));
@@ -87,7 +93,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public String computeDigest(){
-    return splits.computeDigest() + plugin.getName() + config.getId().getId();
+    return String.format("%s|%s|%s", splits.computeDigest(), plugin.getName(), config.getId().getId());
   }
 
   @Override

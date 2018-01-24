@@ -155,6 +155,6 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
 
   @Override
   public void close() throws Exception {
-
+    serviceCache.close();
   }
 }

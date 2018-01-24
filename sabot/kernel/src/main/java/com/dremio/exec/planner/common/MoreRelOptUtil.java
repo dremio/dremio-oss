@@ -67,7 +67,6 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.resolver.TypeCastRules;
-import com.dremio.exec.store.OldNamespaceTable;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.exec.store.NamespaceTable;
@@ -618,13 +617,8 @@ public final class MoreRelOptUtil {
             if (column.getOriginTable() == null) {
               supportContains = false;
             } else {
-              OldNamespaceTable namespaceTable = column.getOriginTable().unwrap(OldNamespaceTable.class);
               NamespaceTable namespaceTable2 = column.getOriginTable().unwrap(NamespaceTable.class);
-              if (namespaceTable != null) {
-                if (!namespaceTable.getPlugin().supportsContains()) {
-                  supportContains = false;
-                }
-              } else if (namespaceTable2 != null) {
+              if (namespaceTable2 != null) {
                 if(!namespaceTable2.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.SUPPORTS_CONTAINS)){
                   supportContains = false;
                 }

@@ -83,6 +83,11 @@ public class FakeAllocator implements BufferAllocator {
   }
 
   @Override
+  public long getInitReservation() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public String getName() {
     throw new UnsupportedOperationException();
   }

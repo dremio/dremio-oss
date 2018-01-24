@@ -62,6 +62,7 @@ public class AccelerationAnalyzer {
   private static final NamespaceKey NONE_PATH = new NamespaceKey(ImmutableList.of("__none"));
 
   private static final Multimap<RelDataTypeFamily, StatType> DIMENSIONS = HashMultimap.create();
+  private static final Multimap<RelDataTypeFamily, StatType> DIMENSIONS_ALTERNATE = HashMultimap.create();
 
   static {
     DIMENSIONS.putAll(SqlTypeFamily.CHARACTER, ImmutableList.of(
@@ -79,12 +80,31 @@ public class AccelerationAnalyzer {
         StatType.MAX,
         StatType.AVG
     ));
+
+    DIMENSIONS_ALTERNATE.putAll(SqlTypeFamily.CHARACTER, ImmutableList.of(
+      StatType.COUNT,
+      StatType.COUNT_DISTINCT,
+      StatType.MIN_LEN_ALTERNATE,
+      StatType.MAX_LEN_ALTERNATE,
+      StatType.AVG_LEN_ALTERNATE
+    ));
+
+    DIMENSIONS_ALTERNATE.putAll(SqlTypeFamily.NUMERIC, ImmutableList.of(
+      StatType.COUNT,
+      StatType.COUNT_DISTINCT,
+      StatType.MIN,
+      StatType.MAX,
+      StatType.AVG
+    ));
   }
 
   private final JobsService jobsService;
+  private final Multimap<RelDataTypeFamily, StatType> dimensionsMap;
 
-  public AccelerationAnalyzer(final JobsService jobsService) {
+
+  public AccelerationAnalyzer(final JobsService jobsService, final boolean useAlternateAnalysis) {
     this.jobsService = Preconditions.checkNotNull(jobsService, "job service is required");
+    dimensionsMap = useAlternateAnalysis ? DIMENSIONS_ALTERNATE : DIMENSIONS;
   }
 
   public AccelerationAnalysis analyze(final NamespaceKey path) {
@@ -187,7 +207,7 @@ public class AccelerationAnalyzer {
 
   protected Iterable<StatColumn> getStatColumnsPerField(final RelDataTypeField field) {
     final RelDataTypeFamily family = field.getType().getFamily();
-    final Collection<StatType> dims = DIMENSIONS.get(family);
+    final Collection<StatType> dims = dimensionsMap.get(family);
     if (dims.isEmpty()) {
       return ImmutableList.of();
     }
@@ -228,18 +248,21 @@ public class AccelerationAnalyzer {
           column.setAverageValue(Double.valueOf(value.toString()));
           break;
         case AVG_LEN:
+        case AVG_LEN_ALTERNATE:
           column.setAverageLength(Double.valueOf(value.toString()));
           break;
         case MAX:
           column.setMaxValue(Double.valueOf(value.toString()));
           break;
         case MAX_LEN:
+        case MAX_LEN_ALTERNATE:
           column.setMaxLength(Long.valueOf(value.toString()));
           break;
         case MIN:
           column.setMinValue(Double.valueOf(value.toString()));
           break;
         case MIN_LEN:
+        case MIN_LEN_ALTERNATE:
           column.setMinLength(Long.valueOf(value.toString()));
           break;
         default:
@@ -260,7 +283,10 @@ public class AccelerationAnalyzer {
     AVG("avg(%s)", "avg_%s"),
     MIN_LEN("min(length(%s))", "min_len_%s"),
     MAX_LEN("max(length(%s))", "max_len_%s"),
-    AVG_LEN("avg(length(%s))", "avg_len_%s");
+    AVG_LEN("avg(length(%s))", "avg_len_%s"),
+    MIN_LEN_ALTERNATE("min(octet_length(%s))", "min_len_%s"),
+    MAX_LEN_ALTERNATE("max(octet_length(%s))", "max_len_%s"),
+    AVG_LEN_ALTERNATE("avg(octet_length(%s))", "avg_len_%s");
     private final String function;
     private final String alias;
 

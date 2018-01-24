@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.explore.udfs;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
@@ -26,6 +28,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 /**
  * Functions to extract a substring
@@ -50,6 +53,7 @@ public class ExtractPosition {
     @Param private NullableIntHolder length;
 
     @Output private ComplexWriter out;
+    @Inject private FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -61,7 +65,7 @@ public class ExtractPosition {
         out.rootAsList(); // calling this sets the ComplexWriter as a list type.
         return;
       }
-      final int strLength = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in.buffer, in.start, in.end);
+      final int strLength = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in.buffer, in.start, in.end, errCtx);
       final int s;
       if (start.value < 0) {
         s = strLength - (-start.value);

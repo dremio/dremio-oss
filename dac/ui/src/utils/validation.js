@@ -17,6 +17,8 @@ import { merge, set, result } from 'lodash/object';
 import { capitalize } from 'lodash';
 import Immutable from 'immutable';
 
+// todo: loc
+
 export function isEmptyValue(value) {
   return value === '' || value === undefined || value === null;
 }
@@ -33,7 +35,7 @@ export function isRequired(key, label) {
     const isEmptyArr = value && (value instanceof Immutable.List && !value.size);
     if (isEmptyValue(value) || (typeof value === 'number' && isNaN(value)) || isEmptyArr) {
       // use lodash.set in case key has dotted path
-      return set({}, key, `${finalLabel} is required`);
+      return set({}, key, `${finalLabel} is required.`);
     }
   };
 }
@@ -41,7 +43,7 @@ export function isRequired(key, label) {
 export function confirmPassword(password, confirm) {
   return function(values) {
     if ((values[password] || values[confirm]) && values[password] !== values[confirm]) {
-      return set({}, confirm, 'Passwords don\'t match');
+      return set({}, confirm, 'Passwords don\'t match.');
     }
   };
 }
@@ -50,7 +52,7 @@ export function isEmail(key) {
   return function(values) {
     const email = values[key];
     if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(email)) {
-      return set({}, key, 'Not a valid email address');
+      return set({}, key, 'Not a valid email address.');
     }
   };
 }
@@ -60,7 +62,7 @@ export function notEmptyArray(key, message) {
   return function(values) {
     const value = result(values, key);
     if (!value || value.length === 0) {
-      return set({}, key, message || `${key} should not be empty`);
+      return set({}, key, message || `${key} should not be empty.`);
     }
   };
 }
@@ -69,7 +71,7 @@ export function notEmptyObject(key, message) {
   return function(values) {
     const value = result(values, key);
     if (isEmptyObject(value)) {
-      return set({}, key, message || `${key} should not be empty`);
+      return set({}, key, message || `${key} should not be empty.`);
     }
   };
 }
@@ -78,7 +80,7 @@ export function isRequiredIfAnotherPropertyEqual(key, dependetKey, dependetValue
 
   return function(values) {
     if (!values[key] && values[dependetKey] !== dependetValue) {
-      return {[key]: `${key} is required`};
+      return {[key]: `${key} is required.`};
     }
   };
 }
@@ -87,7 +89,7 @@ export function isNumber(key, label = key) {
   return function(values) {
     const value = result(values, key);
     if (!isEmptyValue(value) && isNaN(Number(value))) {
-      return set({}, key, `${label} must be a number`);
+      return set({}, key, `${label} must be a number.`);
     }
   };
 }
@@ -96,7 +98,7 @@ export function isWholeNumber(key, label = key) {
   return function(values) {
     const value = result(values, key);
     if (!isEmptyValue(value) && (isNaN(Number(value)) || Number(value) % 1 || Number(value) < 0)) {
-      return set({}, key, `${label} must be an integer greater than or equal to zero`);
+      return set({}, key, `${label} must be an integer greater than or equal to zero.`);
     }
   };
 }
@@ -105,7 +107,7 @@ export function isInteger(key, label = key) {
   return function(values) {
     const value = result(values, key);
     if (!isEmptyValue(value) && (isNaN(Number(value)) || Number(value) % 1)) {
-      return set({}, key, `${label} must be an integer`);
+      return set({}, key, `${label} must be an integer.`);
     }
   };
 }
@@ -114,7 +116,7 @@ export function isPositiveInteger(key, label = key) {
   return function(values) {
     const value = result(values, key);
     if (!isEmptyValue(value) && (isNaN(Number(value)) || Number(value) % 1 || Number(value) <= 0)) {
-      return set({}, key, `${label} must be an integer greater than zero`);
+      return set({}, key, `${label} must be an integer greater than zero.`);
     }
   };
 }
@@ -138,7 +140,7 @@ export function applyBoundValidator(values, fields) {
   for (const key of fields) {
     const value = result(values, key);
     if (isEmptyValue(value)) {
-      validations[key] = 'At least one bound should not be None';
+      validations[key] = 'At least one bound should not be None.';
     } else {
       return {};
     }

@@ -16,24 +16,31 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
+import { injectIntl } from 'react-intl';
 
 import PropTypes from 'prop-types';
 
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 
+@injectIntl
 @Radium
 @pureRender
 class LoginTitle extends Component {
   static propTypes = {
     subTitle: PropTypes.node,
-    style: PropTypes.object
+    style: PropTypes.object,
+    intl: PropTypes.object.isRequired
   };
 
   render() {
     return (
       <div id='login-title' style={[styles.base, this.props.style]}>
         <div style={[styles.mainTitle]}>
-          <FontIcon type='NarwhalLogoWithNameLight' theme={styles.theme}/>
+          <Art
+            src={'NarwhalLogoWithNameLight.svg'}
+            alt={this.props.intl.formatMessage({ id: 'App.NarwhalLogo' })}
+            style={styles.icon}
+          />
         </div>
         <h1 style={styles.subtitle}>
           {this.props.subTitle}
@@ -55,11 +62,10 @@ const styles = {
     display: 'flex',
     alignItems: 'center'
   },
-  theme: {
-    Icon: {
-      width: 240,
-      height: 75
-    }
+  icon: {
+    width: 223,
+    height: 75,
+    marginBottom: 4
   }
 };
 

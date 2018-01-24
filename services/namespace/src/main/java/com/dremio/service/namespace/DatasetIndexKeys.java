@@ -23,6 +23,9 @@ import com.dremio.datastore.indexed.IndexKey;
  * Index keys for dataset.
  */
 public interface DatasetIndexKeys {
+
+  String LOWER_CASE_SUFFIX = "_LC";
+
   IndexKey DATASET_ID = new IndexKey("id", "DATASET_ID", String.class, SearchFieldSorting.FieldType.STRING, true, false);
   IndexKey DATASET_UUID = new IndexKey("uuid", "DATASET_UUID", String.class, null, true, false);
   IndexKey DATASET_SQL = new IndexKey("sql", "SQL", String.class, null, true, false);
@@ -31,6 +34,18 @@ public interface DatasetIndexKeys {
   IndexKey DATASET_OWNER = new IndexKey("usr", "OWNER", String.class, null, true, false);
   IndexKey DATASET_SOURCES = new IndexKey("src", "SOURCE", String.class, null, false, false);
   IndexKey DATASET_ALLPARENTS = new IndexKey("apar", "ALL_PARENTS", String.class, null, false, false); // get all descendants
+
+  // name and schema without escaping for use in jdbc/odbc and information metadata probes. (for case sensitive matching)
+  IndexKey UNQUOTED_NAME = new IndexKey("uname", "SEARCH_NAME", String.class, null, false, false);
+  IndexKey UNQUOTED_SCHEMA = new IndexKey("uschm","SEARCH_SCHEMA", String.class, null, false, false);
+
+  // lower case path without escaping.
+  IndexKey UNQUOTED_LC_PATH = new IndexKey("ulpth", "SEARCH_PATH_LC", String.class, null, false, false);
+
+  // lower-cased paths for case insensitive matching.
+  IndexKey UNQUOTED_LC_NAME = new IndexKey("ulname", UNQUOTED_NAME.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class, null, false, false);
+  IndexKey UNQUOTED_LC_SCHEMA = new IndexKey("ulschm", UNQUOTED_SCHEMA.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class, null, false, false);
+
 
   // TODO add Physical dataset search index keys
 

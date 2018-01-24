@@ -97,7 +97,7 @@ public abstract class FilterRelBase extends Filter {
   }
 
   protected LogicalExpression getFilterExpression(ParseContext context){
-    return RexToExpr.toExpr(context, getInput(), getCondition());
+    return RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), getCondition());
   }
 
   /* Given the condition (C1 and C2 and C3 and ... C_n), here is how to estimate cpu cost of FILTER :

@@ -17,11 +17,13 @@ package com.dremio.dac.explore.udfs;
 
 import static com.dremio.dac.proto.model.dataset.IndexType.INDEX_BACKWARDS;
 import static com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8;
+import static com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import javax.inject.Inject;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.holders.NullableIntHolder;
@@ -38,6 +40,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 
 /**
@@ -47,13 +50,20 @@ public class ExtractPattern {
   public static final String APPLY = "extract_pattern";
   public static final String GEN_EXAMPLE = "extract_pattern_example";
 
-  public static IndexType initType(NullableVarCharHolder indexType) {
-    return IndexType.valueOf(toStringFromUTF8(indexType.start, indexType.end, indexType.buffer));
+  public static IndexType initType(NullableVarCharHolder indexType, FunctionErrorContext errCtx) {
+    final String indexName = toStringFromUTF8(indexType.start, indexType.end, indexType.buffer);
+    try {
+      return IndexType.valueOf(indexName);
+    } catch (IllegalArgumentException e) {
+      throw errCtx.error()
+        .message("Illegal indexType '%s'", indexName)
+        .build();
+    }
   }
 
-  public static Matcher initMatcher(NullableVarCharHolder pattern) {
-    return Pattern.compile(
-        toStringFromUTF8(pattern.start, pattern.end, pattern.buffer))
+  public static Matcher initMatcher(NullableVarCharHolder pattern, FunctionErrorContext errCtx) {
+    return compilePattern(
+        toStringFromUTF8(pattern.start, pattern.end, pattern.buffer), errCtx)
         .matcher("");
   }
 
@@ -104,11 +114,12 @@ public class ExtractPattern {
     @Output private NullableVarCharHolder out;
     @Workspace private java.util.regex.Matcher matcher;
     @Workspace private com.dremio.dac.proto.model.dataset.IndexType t;
+    @Inject private FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
-      matcher = com.dremio.dac.explore.udfs.ExtractPattern.initMatcher(pattern);
-      t = com.dremio.dac.explore.udfs.ExtractPattern.initType(indexType);
+      matcher = com.dremio.dac.explore.udfs.ExtractPattern.initMatcher(pattern, errCtx);
+      t = com.dremio.dac.explore.udfs.ExtractPattern.initType(indexType, errCtx);
     }
 
     @Override
@@ -124,8 +135,8 @@ public class ExtractPattern {
         out.isSet = 0;
       } else {
         out.buffer = in.buffer;
-        out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer, in.start, in.end, result.start());
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer, in.start, in.end, result.end());
+        out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer, in.start, in.end, result.start(), errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer, in.start, in.end, result.end(), errCtx);
         out.isSet = 1;
       }
     }
@@ -153,10 +164,12 @@ public class ExtractPattern {
     @Workspace private java.util.regex.Matcher matcher;
     @Workspace private com.dremio.dac.proto.model.dataset.IndexType t;
 
+    @Inject private FunctionErrorContext errCtx;
+
     @Override
     public void setup() {
-      matcher = com.dremio.dac.explore.udfs.ExtractPattern.initMatcher(pattern);
-      t = com.dremio.dac.explore.udfs.ExtractPattern.initType(indexType);
+      matcher = com.dremio.dac.explore.udfs.ExtractPattern.initMatcher(pattern, errCtx);
+      t = com.dremio.dac.explore.udfs.ExtractPattern.initType(indexType, errCtx);
     }
 
     @Override

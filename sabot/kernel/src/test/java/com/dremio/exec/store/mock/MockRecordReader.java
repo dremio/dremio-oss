@@ -22,6 +22,7 @@ import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.GenerateSampleData;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -92,8 +93,7 @@ public class MockRecordReader extends AbstractRecordReader {
     final int recordSetSize = Math.min(batchRecordCount, this.config.getRecords() - recordsRead);
     recordsRead += recordSetSize;
     for (final ValueVector v : valueVectors) {
-      final ValueVector.Mutator m = v.getMutator();
-      m.generateTestData(recordSetSize);
+      GenerateSampleData.generateTestData(v, recordSetSize);
     }
 
     return recordSetSize;

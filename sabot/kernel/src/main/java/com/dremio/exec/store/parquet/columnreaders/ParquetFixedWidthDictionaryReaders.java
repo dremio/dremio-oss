@@ -52,7 +52,7 @@ public class ParquetFixedWidthDictionaryReaders {
 
       if (usingDictionary) {
         for (int i = 0; i < recordsReadInThisIteration; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
         }
       }
     }
@@ -75,18 +75,17 @@ public class ParquetFixedWidthDictionaryReaders {
       readLength = (int) Math.ceil(readLengthInBits / 8.0);
 
       if (usingDictionary) {
-        NullableVarBinaryVector.Mutator mutator =  valueVec.getMutator();
         Binary currDictValToWrite = null;
         for (int i = 0; i < recordsReadInThisIteration; i++){
           currDictValToWrite = pageReader.dictionaryValueReader.readBytes();
-          mutator.setSafe(valuesReadInCurrentPass + i, currDictValToWrite.toByteBuffer(), 0,
+          valueVec.setSafe(valuesReadInCurrentPass + i, currDictValToWrite.toByteBuffer(), 0,
               currDictValToWrite.length());
         }
         // Set the write Index. The next page that gets read might be a page that does not use dictionary encoding
         // and we will go into the else condition below. The readField method of the parent class requires the
         // writer index to be set correctly.
-        int writerIndex = valueVec.getBuffer().writerIndex();
-        valueVec.getBuffer().setIndex(0, writerIndex + (int)readLength);
+        int writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, writerIndex + (int)readLength);
       } else {
         super.readField(recordsToReadInThisPass);
       }
@@ -95,7 +94,7 @@ public class ParquetFixedWidthDictionaryReaders {
       // now we need to write the lengths of each value
       int byteLength = dataTypeLengthInBits / 8;
       for (int i = 0; i < recordsToReadInThisPass; i++) {
-        valueVec.getMutator().setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
+        valueVec.setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
       }
     }
   }
@@ -118,7 +117,7 @@ public class ParquetFixedWidthDictionaryReaders {
         for (int i = 0; i < recordsReadInThisIteration; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readInteger()));
           DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
-          valueVec.getMutator().setIndexDefined(valuesReadInCurrentPass + i);
+          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       }
     }
@@ -140,7 +139,7 @@ public class ParquetFixedWidthDictionaryReaders {
 
       if (usingDictionary) {
         for (int i = 0; i < recordsReadInThisIteration; i++){
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readInteger());
         }
       }
     }
@@ -161,17 +160,16 @@ public class ParquetFixedWidthDictionaryReaders {
           - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
 
       if (usingDictionary) {
-        NullableBigIntVector.Mutator mutator =  valueVec.getMutator();
         for (int i = 0; i < recordsReadInThisIteration; i++){
-          mutator.setSafe(valuesReadInCurrentPass + i,  pageReader.dictionaryValueReader.readLong());
+          valueVec.setSafe(valuesReadInCurrentPass + i,  pageReader.dictionaryValueReader.readLong());
         }
         // Set the write Index. The next page that gets read might be a page that does not use dictionary encoding
         // and we will go into the else condition below. The readField method of the parent class requires the
         // writer index to be set correctly.
         readLengthInBits = recordsReadInThisIteration * dataTypeLengthInBits;
         readLength = (int) Math.ceil(readLengthInBits / 8.0);
-        int writerIndex = valueVec.getBuffer().writerIndex();
-        valueVec.getBuffer().setIndex(0, writerIndex + (int)readLength);
+        int writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, writerIndex + (int)readLength);
       } else {
         super.readField(recordsToReadInThisPass);
       }
@@ -196,7 +194,7 @@ public class ParquetFixedWidthDictionaryReaders {
         try {
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readLong()));
           DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
-          valueVec.getMutator().setIndexDefined(valuesReadInCurrentPass + i);
+          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         } catch ( Exception ex) {
           throw ex;
         }
@@ -220,7 +218,7 @@ public class ParquetFixedWidthDictionaryReaders {
 
       for (int i = 0; i < recordsReadInThisIteration; i++){
         try {
-          valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
+          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
         } catch ( Exception ex) {
           throw ex;
         }
@@ -242,7 +240,7 @@ public class ParquetFixedWidthDictionaryReaders {
           - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
 
       for (int i = 0; i < recordsReadInThisIteration; i++){
-        valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readFloat());
+        valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readFloat());
       }
     }
   }
@@ -261,7 +259,7 @@ public class ParquetFixedWidthDictionaryReaders {
           - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
 
       for (int i = 0; i < recordsReadInThisIteration; i++){
-        valueVec.getMutator().setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readDouble());
+        valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readDouble());
       }
     }
   }

@@ -23,6 +23,7 @@ describe('ReflectionList', () => {
   let minimalProps;
   let commonProps;
   let wrapper;
+  let context;
   beforeEach(() => {
     minimalProps = {
       jobDetails: Immutable.fromJS({
@@ -146,12 +147,23 @@ describe('ReflectionList', () => {
     commonProps = {
       ...minimalProps
     };
+    context = {location: {}, loggedInUser: {admin: true}};
 
-    wrapper = shallow(<ReflectionList {...commonProps}/>);
+    wrapper = shallow(<ReflectionList {...commonProps}/>, {context});
   });
 
   it('should render with minimal props without exploding', () => {
-    expect(shallow(<ReflectionList {...minimalProps}/>)).to.have.length(1);
+    expect(shallow(<ReflectionList {...minimalProps}/>, {context})).to.have.length(1);
+  });
+
+  it('no link if not admin', () => {
+    expect(shallow(<ReflectionList {...commonProps}/>, {context}).find('Link')).to.have.length(4);
+    context.loggedInUser.admin = false;
+    expect(shallow(<ReflectionList {...commonProps}/>, {context}).find('Link')).to.have.length(0);
+    expect(shallow(<ReflectionList {...commonProps}/>, {context}).find('EllipsedText').first().props()).to.eql({
+      'children': false,
+      'text': '{"0":{"id":"Reflection.UnnamedReflection"}}'
+    });
   });
 
   it('should render with common props without exploding', () => {

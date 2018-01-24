@@ -21,7 +21,6 @@ import java.sql.DriverManager;
 import java.util.Properties;
 
 import org.junit.BeforeClass;
-
 import com.dremio.jdbc.DremioConnection;
 
 /**
@@ -36,4 +35,5 @@ public class TestLegacyJdbcMetadata extends TestJdbcMetadata {
     connection = DriverManager.getConnection("jdbc:dremio:zk=local", defaultProperties);
     assertTrue(((DremioConnection) connection).getConfig().isServerMetadataDisabled());
   }
+
 }

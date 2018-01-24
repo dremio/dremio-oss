@@ -27,6 +27,7 @@ public class SqlOperatorImpl extends SqlFunction {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlOperatorImpl.class);
 
   private final boolean isDeterministic;
+  private final boolean isDynamic;
   private final SqlSyntax syntax;
   /**
    * This constructor exists for the legacy reason.
@@ -49,12 +50,13 @@ public class SqlOperatorImpl extends SqlFunction {
         argCountMin,
         argCountMax,
         isDeterministic,
+        false,
         DynamicReturnType.INSTANCE,
         SqlSyntax.FUNCTION);
   }
 
   public SqlOperatorImpl(String name, int argCountMin, int argCountMax, boolean isDeterministic,
-      SqlReturnTypeInference sqlReturnTypeInference, SqlSyntax syntax) {
+      boolean isDynamic, SqlReturnTypeInference sqlReturnTypeInference, SqlSyntax syntax) {
     super(new SqlIdentifier(name, SqlParserPos.ZERO),
         sqlReturnTypeInference,
         null,
@@ -62,6 +64,7 @@ public class SqlOperatorImpl extends SqlFunction {
         null,
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.isDeterministic = isDeterministic;
+    this.isDynamic = isDynamic;
     this.syntax = syntax;
   }
   @Override
@@ -72,5 +75,10 @@ public class SqlOperatorImpl extends SqlFunction {
   @Override
   public boolean isDeterministic() {
     return isDeterministic;
+  }
+
+  @Override
+  public boolean isDynamicFunction() {
+    return isDynamic;
   }
 }

@@ -19,6 +19,7 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
+import java.util.Arrays;
 import java.util.Collections;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Test;
@@ -26,6 +27,7 @@ import org.junit.Test;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.join.nlj.NLJOperator;
 
@@ -119,6 +121,45 @@ public class TestNLJ extends BaseTestOperator {
 
   }
 
+  @Test
+  public void nljBatchBoundary() throws Exception {
 
+    DataRow dr = tr(1);
+
+    int rows = 2047;
+
+    DataRow[] t1Data = new DataRow[rows];
+
+    Arrays.fill(t1Data, dr);
+
+    final Table t1 = t(
+      th("x"),
+      t1Data
+    );
+
+    final Table t2 = t(
+      th("y"),
+      dr
+    );
+
+    DataRow expDr = tr(1,1);
+
+    DataRow[] expectedData = new DataRow[rows];
+
+    Arrays.fill(expectedData, expDr);
+
+    final Table expected = t(
+      th("y", "x"),
+      expectedData
+    );
+
+
+    validateDual(
+      new NestedLoopJoinPOP(null, null, Collections.<JoinCondition>emptyList(), JoinRelType.INNER),
+      NLJOperator.class,
+      t1.toGenerator(getTestAllocator()),
+      t2.toGenerator(getTestAllocator()),
+      2047, expected);
+  }
 
 }

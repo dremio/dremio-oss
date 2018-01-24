@@ -48,6 +48,7 @@ import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
 import com.dremio.exec.util.ApproximateStringMatcher;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
@@ -189,14 +190,24 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
 
       final int nArgs = clonedOperands.size();
 
-      if (nArgs != 2) {
+      if (nArgs < 2) {
         // Second operand is missing
         throw UserException.parseError()
           .message("'%s' expects a string literal as a second argument.", functionName)
           .build(logger);
+      } else if (nArgs > 3 || (nArgs > 2 && functionName.equalsIgnoreCase("convert_to"))) {
+        // Too many operands (>2 for 'convert_to', or >3 for 'convert_from')
+        throw UserException.parseError()
+          .message("Too many operands (%d) for '%s'", nArgs, functionName)
+          .build(logger);
       }
 
       if (!(clonedOperands.get(1) instanceof RexLiteral)) {
+        // caused by user entering a non-literal
+        throw getConvertFunctionInvalidTypeException(call);
+      }
+
+      if (nArgs == 3 && !(clonedOperands.get(2) instanceof RexLiteral)) {
         // caused by user entering a non-literal
         throw getConvertFunctionInvalidTypeException(call);
       }
@@ -211,6 +222,14 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
 
       // construct the new function name based on the input argument
       String newFunctionName = functionName + literal;
+      if (nArgs == 3) {
+        if (!literal.equalsIgnoreCase("utf8")) {
+          throw UserException.parseError()
+            .message("3-argument convert_from only supported for utf8 encoding. Instead, got %s", literal)
+            .build(logger);
+        }
+        newFunctionName = "convert_replaceUTF8";
+      }
 
       // Look up the new function name in the operator table
       List<SqlOperator> operatorList = table.getSqlOperator(newFunctionName);
@@ -232,7 +251,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
         throw getConvertFunctionException(functionName, literal);
       }
 
-      SqlOperatorImpl sqlOperator = new SqlOperatorImpl(newFunctionName, 1, 1, true, new SqlReturnTypeInference() {
+      SqlOperatorImpl sqlOperator = new SqlOperatorImpl(newFunctionName, 1, nArgs - 1, true, new SqlReturnTypeInference() {
         @Override
         public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
           return call.getType();
@@ -240,7 +259,12 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
       });
 
       // create the new expression to be used in the rewritten project
-      return builder.makeCall(sqlOperator, clonedOperands.subList(0, 1));
+      if (nArgs == 2) {
+        return builder.makeCall(sqlOperator, clonedOperands.subList(0, 1));
+      } else {
+        // 3 arguments. The two arguments passed to the function are the first and last argument (the middle is the type)
+        return builder.makeCall(sqlOperator, ImmutableList.of(clonedOperands.get(0), clonedOperands.get(2)));
+      }
     }
 
     private UserException getConvertFunctionInvalidTypeException(final RexCall function) {

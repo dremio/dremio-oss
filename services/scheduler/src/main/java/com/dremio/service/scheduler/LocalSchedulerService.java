@@ -27,7 +27,6 @@ import org.threeten.bp.Instant;
 import org.threeten.bp.temporal.ChronoUnit;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
-
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -123,7 +122,7 @@ public class LocalSchedulerService implements SchedulerService {
     }
 
     @Override
-    public void cancel() {
+    public void cancel(boolean mayInterruptIfRunning) {
       if (cancelled.getAndSet(true)) {
         // Already cancelled
         return;
@@ -132,7 +131,7 @@ public class LocalSchedulerService implements SchedulerService {
       LOGGER.info(format("Cancelling task %s", task.toString()));
       ScheduledFuture<?> future = currentTask.getAndSet(null);
       if (future != null) {
-        future.cancel(true);
+        future.cancel(mayInterruptIfRunning);
       }
     }
 

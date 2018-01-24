@@ -62,7 +62,7 @@ public class TestJsonReaderWithSparseFiles extends BaseTestQuery {
         for (int c = 0; c<values[r].length; c++) {
           final Object expected = row[c];
           final Object unconverted = loader.getValueAccessorById(ValueVector.class, c)
-              .getValueVector().getAccessor().getObject(r);
+              .getValueVector().getObject(r);
           final Object actual = converter.convert(unconverted);
           assertEquals(String.format("row:%d - col:%d - expected:%s[%s] - actual:%s[%s]",
                 r, c, expected,

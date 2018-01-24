@@ -16,6 +16,8 @@
 package org.apache.arrow.vector.complex;
 
 
+import com.dremio.common.types.TypeProtos;
+import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -37,12 +39,28 @@ public class UnionVectorHelper {
   }
 
   public void load(UserBitShared.SerializedField metadata, ArrowBuf buffer) {
+    /* clear the current buffers (if any) */
+    unionVector.clear();
+
     unionVector.valueCount = metadata.getValueCount();
 
     int typesLength = metadata.getChild(0).getBufferLength();
     int mapLength = metadata.getChild(1).getBufferLength();
-    TypeHelper.load(unionVector.typeVector, metadata.getChild(0), buffer);
+    loadTypeBuffer(metadata.getChild(0), buffer);
     TypeHelper.load(unionVector.internalMap, metadata.getChild(1), buffer.slice(typesLength, mapLength));
+  }
+
+  private void loadTypeBuffer(SerializedField metadata, ArrowBuf buffer) {
+    final int valueCount = metadata.getValueCount();
+    final int actualLength = metadata.getBufferLength();
+    final int expectedLength = valueCount * 1;
+    assert expectedLength == actualLength:
+      String.format("Expected to load %d bytes in type buffer but actually loaded %d bytes", expectedLength,
+        actualLength);
+
+    unionVector.typeBuffer = buffer.slice(0, actualLength);
+    unionVector.typeBuffer.writerIndex(actualLength);
+    unionVector.typeBuffer .retain(1);
   }
 
   public void materialize(Field field) {
@@ -60,13 +78,22 @@ public class UnionVectorHelper {
             .setBufferLength(unionVector.getBufferSize())
             .setValueCount(unionVector.valueCount);
 
-    b.addChild(TypeHelper.getMetadata(unionVector.typeVector));
+    b.addChild(buildTypeField());
     b.addChild(TypeHelper.getMetadata(unionVector.internalMap));
     return b.build();
+  }
+
+  private SerializedField buildTypeField() {
+    SerializedField.Builder typeBuilder = SerializedField.newBuilder()
+      .setNamePart(UserBitShared.NamePart.newBuilder().setName("types").build())
+      .setValueCount(unionVector.valueCount)
+      .setBufferLength(unionVector.valueCount)
+      .setMajorType(com.dremio.common.types.Types.required(TypeProtos.MinorType.UINT1));
+
+    return typeBuilder.build();
   }
 
   public MapVector getInternalMap() {
     return unionVector.internalMap;
   }
-
 }

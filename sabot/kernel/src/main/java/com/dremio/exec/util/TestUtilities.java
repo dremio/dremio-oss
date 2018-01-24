@@ -55,7 +55,7 @@ public class TestUtilities {
                                                       final String tmpDirPath)
       throws ExecutionSetupException {
     final FileSystemPlugin plugin = (FileSystemPlugin) pluginRegistry.getPlugin(DFS_TEST_PLUGIN_NAME);
-    final FileSystemConfig pluginConfig = plugin.getConfig();
+    final FileSystemConfig pluginConfig = plugin.getId().getConfig();
 
     final FileSystemConfig newPluginConfig = new FileSystemConfig(
         pluginConfig.getConnection(),

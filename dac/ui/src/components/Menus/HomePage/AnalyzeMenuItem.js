@@ -18,16 +18,18 @@ import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import { connect } from 'react-redux';
 
 import MenuItem from 'components/Menus/MenuItem';
 import SubMenu from 'components/Menus/SubMenu';
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 import AnalyzeMenuItems from 'components/Menus/AnalyzeMenuItems';
 
 import { openTableau, openQlikSense, openPowerBI } from 'actions/explore/download';
 
+@injectIntl
 @pureRender
 export class AnalyzeMenuItem extends Component {
 
@@ -36,7 +38,8 @@ export class AnalyzeMenuItem extends Component {
     openTableau: PropTypes.func,
     openQlikSense: PropTypes.func,
     openPowerBI: PropTypes.func,
-    closeMenu: PropTypes.func
+    closeMenu: PropTypes.func,
+    intl: PropTypes.object.isRequired
   };
 
   handleTableauClick = () => {
@@ -56,7 +59,7 @@ export class AnalyzeMenuItem extends Component {
 
   render() {
     return <MenuItem
-      rightIcon={<FontIcon type='TriangleRight' theme={styles.rightIcon}/>}
+      rightIcon={<Art src='TriangleRight.svg' alt={''} style={styles.rightIcon} />}
       menuItems={[
         <SubMenu key='analyze-with'>
           <AnalyzeMenuItems
@@ -77,11 +80,8 @@ export default connect(null, {
 
 const styles = {
   rightIcon: {
-    'Icon': {
-      width: 7,
-      height: 10,
-      backgroundSize: '24px 24px',
-      backgroundPosition: '-10px 50%'
-    }
+    width: 25,
+    height: 25,
+    marginRight: -10
   }
 };

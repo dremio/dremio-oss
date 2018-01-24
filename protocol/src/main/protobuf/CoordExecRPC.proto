@@ -104,6 +104,7 @@ message QueryContextInformation {
   optional string default_schema_name = 3;  // default schema in current session when the query is submitted
   optional FragmentPriority priority = 4;
   optional int64 query_max_allocation = 5;
+  optional bytes extra = 6;
 }
 
 message NodeQueryStatus {

@@ -27,7 +27,7 @@ import com.sun.codemodel.JVar;
 
 public abstract class AbstractFunctionHolder implements FunctionHolder {
 
-  public abstract JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables);
+  public abstract JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, FunctionErrorContext errorContext);
 
   public void renderMiddle(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
     // default implementation is add no code
@@ -48,4 +48,11 @@ public abstract class AbstractFunctionHolder implements FunctionHolder {
   public abstract CompleteType getParamType(int i);
 
   public abstract int getParamCount();
+
+  /*
+   *  Does the function held here use a FunctionErrorContext injectable?
+   */
+  public boolean usesErrContext() {
+    return false;
+  }
 }

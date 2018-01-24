@@ -23,6 +23,7 @@ import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.compile.sig.SignatureHolder;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
 import com.sun.codemodel.JClassAlreadyExistsException;
 import com.sun.codemodel.JCodeModel;
@@ -54,11 +55,11 @@ public class CodeGenerator<T> {
   private String generatedCode;
   private String generifiedCode;
 
-  CodeGenerator(CodeCompiler compiler, TemplateClassDefinition<T> definition) {
-    this(compiler, ClassGenerator.getDefaultMapping(), definition);
+  CodeGenerator(CodeCompiler compiler, TemplateClassDefinition<T> definition, FunctionContext functionContext) {
+    this(compiler, ClassGenerator.getDefaultMapping(), definition, functionContext);
   }
 
-  CodeGenerator(CodeCompiler compiler, MappingSet mappingSet, TemplateClassDefinition<T> definition) {
+  CodeGenerator(CodeCompiler compiler, MappingSet mappingSet, TemplateClassDefinition<T> definition, FunctionContext functionContext) {
     Preconditions.checkNotNull(definition.getSignature(),
         "The signature for defintion %s was incorrectly initialized.", definition);
     this.definition = definition;
@@ -70,7 +71,7 @@ public class CodeGenerator<T> {
       JDefinedClass clazz = model._package(PACKAGE_NAME)._class(className);
       clazz = clazz._extends(model.directClass(definition.getTemplateClassName()));
       clazz.constructor(JMod.PUBLIC).body().invoke(SignatureHolder.INIT_METHOD);
-      rootGenerator = new ClassGenerator<>(this, mappingSet, definition.getSignature(), new EvaluationVisitor(), clazz, model);
+      rootGenerator = new ClassGenerator<>(this, mappingSet, definition.getSignature(), new EvaluationVisitor(functionContext), clazz, model);
     } catch (JClassAlreadyExistsException e) {
       throw new IllegalStateException(e);
     }
@@ -120,8 +121,8 @@ public class CodeGenerator<T> {
     return fqcn;
   }
 
-  public static <T> CodeGenerator<T> get(TemplateClassDefinition<T> definition, CodeCompiler compiler) {
-    return new CodeGenerator<>(compiler, definition);
+  public static <T> CodeGenerator<T> get(TemplateClassDefinition<T> definition, CodeCompiler compiler, FunctionContext functionContext) {
+    return new CodeGenerator<>(compiler, definition, functionContext);
   }
 
   @Override

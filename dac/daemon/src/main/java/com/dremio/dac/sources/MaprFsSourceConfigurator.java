@@ -38,9 +38,8 @@ public class MaprFsSourceConfigurator extends SingleSourceToStoragePluginConfig<
   public StoragePluginConfig configureSingle(MapRFSConfig maprfs) {
     String clusterName = checkNotNull(maprfs.getClusterName(), "missing clusterName");
     String connection = "maprfs://" + clusterName;
-    FileSystemConfig config =
-      new FileSystemConfig(connection, null, null, getDefaultFormats(), maprfs.getEnableImpersonation(), SchemaMutability.NONE);
+    FileSystemConfig config = new FileSystemConfig(connection, maprfs.getRootPath(), null,
+        getDefaultFormats(), maprfs.getEnableImpersonation(), SchemaMutability.NONE);
     return config;
-
   }
 }

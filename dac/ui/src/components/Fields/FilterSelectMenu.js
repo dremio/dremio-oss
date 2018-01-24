@@ -232,7 +232,7 @@ export default class FilterSelectMenu extends Component {
         data-qa={name + '-filter'}
         onClick={this.handleRequestOpen}
         style={[styles.base]}
-        className='filter-select-menu'>
+        className='filter-select-menu field'>
         <span>{this.props.preventSelectedLabel || !this.props.selectedValues.size ? label : ''}</span>
         {this.renderSelectedLabel()}
         <FontIcon type='ArrowDownSmall' theme={styles.arrow}/>

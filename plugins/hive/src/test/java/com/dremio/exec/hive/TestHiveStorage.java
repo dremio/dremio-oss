@@ -47,7 +47,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.StoragePlugin2.UpdateStatus;
+import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;

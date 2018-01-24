@@ -77,10 +77,11 @@ export class AddFolderModal extends Component {
 }
 
 function mapStateToProps(state) {
-  const parentType = getEntityType(location.pathname);
+  const pathname = state.routing.locationBeforeTransitions.pathname;
+  const parentType = getEntityType(pathname);
 
   return {
-    parentEntity: getHomeContents(state, parentType, window.location.pathname) || Immutable.Map(),
+    parentEntity: getHomeContents(state, parentType, pathname) || Immutable.Map(),
     parentType,
     viewState: getViewState(state, VIEW_ID)
   };

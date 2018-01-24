@@ -145,7 +145,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
 
   public VectorContainer loadDictionary(String fieldName) throws IOException, ExecutionSetupException {
     final StoragePluginId id = config.getDictionaryEncodedFields().get(fieldName).getStoragePluginId();
-    final StoragePlugin<?> storagePlugin = config.getRegistry().getPlugin(id);
+    final StoragePlugin storagePlugin = config.getRegistry().getPlugin(id);
     if (storagePlugin instanceof FileSystemPlugin) {
       final FileSystemPlugin fsPlugin = (FileSystemPlugin) storagePlugin;
       final FileSystem fs = FileSystemWrapper.get(fsPlugin.getFsConf());
@@ -159,12 +159,12 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0, svIndex = sv2.getIndex(i); i < recordsConsumedCurrentBatch; ++i) {
-        final int id = input.getAccessor().get(svIndex);
+        final int id = input.get(svIndex);
         output.copyFromSafe(id, svIndex, dictionary);
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        int id = input.getAccessor().get(i);
+        int id = input.get(i);
         output.copyFromSafe(id, i, dictionary);
       }
     }
@@ -175,12 +175,12 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        final int id = input.getAccessor().get(svIndex);
+        final int id = input.get(svIndex);
         output.copyFromSafe(id, svIndex, dictionary);
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        final int id = input.getAccessor().get(i);
+        final int id = input.get(i);
         output.copyFromSafe(id, i, dictionary);
       }
     }
@@ -191,12 +191,12 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        final int id = input.getAccessor().get(svIndex);
+        final int id = input.get(svIndex);
         output.copyFromSafe(id, svIndex, dictionary);
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        final int id = input.getAccessor().get(i);
+        final int id = input.get(i);
         output.copyFromSafe(id, i, dictionary);
       }
     }
@@ -207,12 +207,12 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        final int id = input.getAccessor().get(svIndex);
+        final int id = input.get(svIndex);
         output.copyFromSafe(id, svIndex, dictionary);
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        final int id = input.getAccessor().get(i);
+        final int id = input.get(i);
         output.copyFromSafe(id, i, dictionary);
       }
     }
@@ -223,12 +223,12 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        final int id = input.getAccessor().get(svIndex);
+        final int id = input.get(svIndex);
         output.copyFromSafe(id, svIndex, dictionary);
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        final int id = input.getAccessor().get(i);
+        final int id = input.get(i);
         output.copyFromSafe(id, i, dictionary);
       }
     }
@@ -240,22 +240,22 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
         // TODO : Implement CopySafe between varchar and varbinary vectors.
-        if (!input.getAccessor().isNull(svIndex)) {
-          output.getMutator().setNull(svIndex);
+        if (!input.isNull(svIndex)) {
+          output.setNull(svIndex);
         } else {
-          final int id = input.getAccessor().get(svIndex);
-          final byte[] value = dictionary.getAccessor().get(id);
-          output.getMutator().setSafe(svIndex, value, 0, value.length);
+          final int id = input.get(svIndex);
+          final byte[] value = dictionary.get(id);
+          output.setSafe(svIndex, value, 0, value.length);
         }
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        if (input.getAccessor().isNull(i)) {
-          output.getMutator().setNull(i);
+        if (input.isNull(i)) {
+          output.setNull(i);
         } else {
-          final int id = input.getAccessor().get(i);
-          final byte[] value = dictionary.getAccessor().get(id);
-          output.getMutator().setSafe(i, value, 0, value.length);
+          final int id = input.get(i);
+          final byte[] value = dictionary.get(id);
+          output.setSafe(i, value, 0, value.length);
         }
       }
     }
@@ -266,20 +266,20 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        if (input.getAccessor().isNull(svIndex)) {
-          output.getMutator().setNull(svIndex);
+        if (input.isNull(svIndex)) {
+          output.setNull(svIndex);
         } else {
-          final int id = input.getAccessor().get(svIndex);
-          output.getMutator().setSafe(svIndex, id);
+          final int id = input.get(svIndex);
+          output.setSafe(svIndex, id);
         }
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        if (input.getAccessor().isNull(i)) {
-          output.getMutator().setNull(i);
+        if (input.isNull(i)) {
+          output.setNull(i);
         } else {
-          final int id = input.getAccessor().get(i);
-          output.getMutator().setSafe(i, id);
+          final int id = input.get(i);
+          output.setSafe(i, id);
         }
       }
     }
@@ -291,20 +291,20 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        if (input.getAccessor().isNull(svIndex)) {
-          output.getMutator().setNull(svIndex);
+        if (input.isNull(svIndex)) {
+          output.setNull(svIndex);
         } else {
-          final int id = input.getAccessor().get(svIndex);
-          output.getMutator().setSafe(svIndex, dictionary.getAccessor().get(id) * (long) DateTimeConstants.MILLIS_PER_DAY);
+          final int id = input.get(svIndex);
+          output.setSafe(svIndex, dictionary.get(id) * (long) DateTimeConstants.MILLIS_PER_DAY);
         }
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        if (input.getAccessor().isNull(i)) {
-          output.getMutator().setNull(i);
+        if (input.isNull(i)) {
+          output.setNull(i);
         } else {
-          int id = input.getAccessor().get(i);
-          output.getMutator().setSafe(i, dictionary.getAccessor().get(id) * (long) DateTimeConstants.MILLIS_PER_DAY);
+          int id = input.get(i);
+          output.setSafe(i, dictionary.get(id) * (long) DateTimeConstants.MILLIS_PER_DAY);
         }
       }
     }
@@ -316,20 +316,20 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
         final int svIndex = sv2.getIndex(i);
-        if (input.getAccessor().isNull(svIndex)) {
-          output.getMutator().setNull(svIndex);
+        if (input.isNull(svIndex)) {
+          output.setNull(svIndex);
         } else {
-          final int id = input.getAccessor().get(svIndex);
-          output.getMutator().setSafe(svIndex, dictionary.getAccessor().get(id));
+          final int id = input.get(svIndex);
+          output.setSafe(svIndex, dictionary.get(id));
         }
       }
     } else {
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
-        if (input.getAccessor().isNull(i)) {
-          output.getMutator().setNull(i);
+        if (input.isNull(i)) {
+          output.setNull(i);
         } else {
-          int id = input.getAccessor().get(i);
-          output.getMutator().setSafe(i, dictionary.getAccessor().get(id));
+          int id = input.get(i);
+          output.setSafe(i, dictionary.get(id));
         }
       }
     }
@@ -354,7 +354,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableIntVector output = (NullableIntVector) allocationVectors.get(fieldName);
           final NullableIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableIntVector.class, 0).getValueVector();
           decodeInt(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -363,7 +363,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableBigIntVector output = (NullableBigIntVector) allocationVectors.get(fieldName);
           final NullableBigIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
           decodeBigInt(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -373,7 +373,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableVarBinaryVector output = (NullableVarBinaryVector) allocationVectors.get(fieldName);
           final NullableVarBinaryVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
           decodeBinary(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -383,7 +383,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableVarCharVector output = (NullableVarCharVector) allocationVectors.get(fieldName);
           final NullableVarBinaryVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
           decodeVarChar(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -392,7 +392,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableFloat4Vector output = (NullableFloat4Vector) allocationVectors.get(fieldName);
           final NullableFloat4Vector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableFloat4Vector.class, 0).getValueVector();
           decodeFloat(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -401,7 +401,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableFloat8Vector output = (NullableFloat8Vector) allocationVectors.get(fieldName);
           final NullableFloat8Vector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableFloat8Vector.class, 0).getValueVector();
           decodeDouble(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -409,7 +409,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableIntVector input = (NullableIntVector) entry.getValue();
           final NullableBitVector output = (NullableBitVector) allocationVectors.get(fieldName);
           decodeBoolean(input, output);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -418,7 +418,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableDateMilliVector output = (NullableDateMilliVector) allocationVectors.get(fieldName);
           final NullableIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableIntVector.class, 0).getValueVector();
           decodeDate(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
@@ -427,7 +427,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
           final NullableTimeStampMilliVector output = (NullableTimeStampMilliVector) allocationVectors.get(fieldName);
           final NullableBigIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
           decodeTimestamp(input, output, dictionary);
-          output.getMutator().setValueCount(recordsConsumedCurrentBatch);
+          output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 

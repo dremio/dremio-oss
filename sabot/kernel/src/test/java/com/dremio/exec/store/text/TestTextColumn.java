@@ -80,8 +80,8 @@ public class TestTextColumn extends BaseTestQuery{
         for (int i = 0; i < rows; ++i) {
           output.add(new ArrayList<String>());
           for (VectorWrapper<?> vw: loader) {
-            ValueVector.Accessor accessor = vw.getValueVector().getAccessor();
-            Object o = accessor.getObject(i);
+            ValueVector vv = vw.getValueVector();
+            Object o = vv.getObject(i);
             output.get(last).add(o == null ? null: o.toString());
           }
           ++last;

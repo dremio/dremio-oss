@@ -168,7 +168,8 @@ export default connect(mapStateToProps, {
 const style = {
   base: {
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    overflow: 'hidden'
   },
   element: {
     marginBottom: 15,

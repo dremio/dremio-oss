@@ -101,18 +101,18 @@ export class HelpFunctions extends Component {
     };
 
     return (
-      <div
-        className='func_for_sql_editor' style={[styles.func, activeFuncStyle]}
-        key={`helpFunction-${item.get('id')}`}
-        ref={isActiveItem ? 'activeItem' : undefined}
-        onMouseUp={e => e.preventDefault()}
-        onClick={this.expandFuncInfo.bind(this, item.get('id'))}>
-        <DragSource
-          dragType={this.props.dragType}
-          id={nameToInsert}
-          args={item.get('args')}
-          key={item.get('id')}>
-          <div style={{display: 'flex', alignItems: 'flex-start'}}>
+      <DragSource
+        dragType={this.props.dragType}
+        id={nameToInsert}
+        args={item.get('args')}
+        key={item.get('id')}>
+        <div
+          className='func_for_sql_editor' style={[styles.func, activeFuncStyle]}
+          key={`helpFunction-${item.get('id')}`}
+          ref={isActiveItem ? 'activeItem' : undefined}
+          onMouseUp={e => e.preventDefault()}
+          onClick={this.expandFuncInfo.bind(this, item.get('id'))}>
+          <div style={{display: 'flex', alignItems: 'flex-start', paddingTop: 1}}>
             <FontIcon
               style={{ height: 10, marginTop: -6, cursor: 'pointer', marginRight: 3}} // fudge factor makes it look v-aligned better
               type='Add'
@@ -125,12 +125,12 @@ export class HelpFunctions extends Component {
             <div style={styles.arrow}>{'>'}</div>
             <div style={fixedWidthBold}>{item.get('returnType')}</div>
           </div>
-        </DragSource>
-        <div className='inside-text' style={[styles.insideText, activeDes]}>
-          <div style={styles.insideDescription} dangerouslySetInnerHTML={{__html: descriptionHTML}}></div>
-          {example}
+          <div className='inside-text' style={[styles.insideText, activeDes]}>
+            <div style={styles.insideDescription} dangerouslySetInnerHTML={{__html: descriptionHTML}}></div>
+            {example}
+          </div>
         </div>
-      </div>
+      </DragSource>
     );
   }
 
@@ -205,12 +205,11 @@ const styles = {
     cursor: 'pointer'
   },
   insideText: {
-    padding: '1px 0',
-    overflow: 'hidden',
-    maxHeight: 0
+    padding: '2px 0',
+    display: 'none'
   },
   insideTextActive: {
-    maxHeight: 150
+    display: 'block'
   },
   funcActive: {
     background: '#fff5dc'

@@ -288,9 +288,9 @@ public class StreamingAggOperator implements SingleInputOperator  {
     for (final VectorWrapper<?> vw: outgoing) {
       final ValueVector vv = vw.getValueVector();
       if (!exprs.isEmpty() && isCount(exprs.get(exprIndex))) {
-        ((NullableBigIntVector) vv).getMutator().setSafe(0, 0);
+        ((NullableBigIntVector) vv).setSafe(0, 0);
       }
-      vv.getMutator().setValueCount(SPECIAL_BATCH_COUNT);
+      vv.setValueCount(SPECIAL_BATCH_COUNT);
       exprIndex++;
     }
     outgoing.setRecordCount(SPECIAL_BATCH_COUNT);

@@ -73,9 +73,9 @@ class AggrFunctionHolder extends BaseFunctionHolder {
   }
 
   @Override
-  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables) {
+  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, FunctionErrorContext errorContext) {
     if (!g.getMappingSet().isHashAggMapping()) {  //Declare workspace vars for non-hash-aggregation.
-        JVar[] workspaceJVars = declareWorkspaceVariables(g);
+        JVar[] workspaceJVars = declareWorkspaceVariables(g, errorContext);
         generateBody(g, BlockType.SETUP, setup(), null, workspaceJVars, true);
         return workspaceJVars;
       } else {  //Declare workspace vars and workspace vectors for hash aggregation.
@@ -206,8 +206,8 @@ class AggrFunctionHolder extends BaseFunctionHolder {
       }
       //sub.assign(workspaceJVars[i], JExpr._new(g.getHolderType(workspaceVars[i].majorType)));
       //Access workspaceVar through workspace vector.
-      JConditional cond = sub._if(g.getWorkspaceVectors().get(workspaceVars[i]).invoke("getAccessor").invoke("isNull").arg(wsIndexVariable).not());
-      JInvocation getValueAccessor = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("getAccessor").invoke("get");
+      JConditional cond = sub._if(g.getWorkspaceVectors().get(workspaceVars[i]).invoke("isNull").arg(wsIndexVariable).not());
+      JInvocation getValueAccessor = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("get");
       if (workspaceVars[i].completeType == CompleteType.OBJECT) {
         cond._then().add(getValueAccessor.arg(wsIndexVariable).arg(workspaceJVars[i]));
       } else {
@@ -231,12 +231,12 @@ class AggrFunctionHolder extends BaseFunctionHolder {
       JInvocation setMeth;
       CompleteType type = workspaceVars[i].completeType;
       if (Types.usesHolderForGet(type.toMinorType())) {
-          setMeth = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("getMutator").invoke("setSafe").arg(wsIndexVariable).arg(workspaceJVars[i]);
+          setMeth = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("setSafe").arg(wsIndexVariable).arg(workspaceJVars[i]);
       }else{
         if (!type.isFixedWidthScalar()) {
-          setMeth = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("getMutator").invoke("setSafe").arg(wsIndexVariable).arg(workspaceJVars[i].ref("value"));
+          setMeth = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("setSafe").arg(wsIndexVariable).arg(workspaceJVars[i].ref("value"));
         } else {
-          setMeth = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("getMutator").invoke("set").arg(wsIndexVariable).arg(workspaceJVars[i].ref("value"));
+          setMeth = g.getWorkspaceVectors().get(workspaceVars[i]).invoke("set").arg(wsIndexVariable).arg(workspaceJVars[i].ref("value"));
         }
       }
 

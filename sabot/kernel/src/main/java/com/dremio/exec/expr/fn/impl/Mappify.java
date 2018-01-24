@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -66,12 +67,13 @@ public class Mappify {
     @Param  FieldReader reader;
     @Inject ArrowBuf buffer;
     @Output ComplexWriter writer;
+    @Inject FunctionErrorContext errorContext;
 
     public void setup() {
     }
 
     public void eval() {
-      buffer = com.dremio.exec.expr.fn.impl.MappifyUtility.mappify(reader, writer, buffer);
+      buffer = com.dremio.exec.expr.fn.impl.MappifyUtility.mappify(reader, writer, buffer, errorContext);
     }
   }
 

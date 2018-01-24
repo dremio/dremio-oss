@@ -17,43 +17,42 @@ package com.dremio.exec.planner.logical;
 
 import java.util.List;
 
-import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Permutation;
 
 import com.dremio.exec.planner.logical.FlattenVisitors.FlattenCounter;
 
 public class MergeProjectRule extends RelOptRule {
 
-  public static final MergeProjectRule INSTANCE = new MergeProjectRule();
+  public static final MergeProjectRule CALCITE_INSTANCE = new MergeProjectRule(LogicalProject.class, RelFactories.LOGICAL_BUILDER, "ProjectMergeRuleCrel");
+  public static final MergeProjectRule LOGICAL_INSTANCE = new MergeProjectRule(ProjectRel.class, DremioRelFactories.LOGICAL_BUILDER, "ProjectMergeRuleDrel");
 
-  private MergeProjectRule() {
+  private MergeProjectRule(Class<? extends Project> class1, RelBuilderFactory relBuilderFactory, String name) {
     super(
-        operand(Project.class,
-            operand(Project.class, any())),
-        DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-        "ProjectMergeRule");
+        operand(class1,
+            operand(class1, any())),
+        relBuilderFactory,
+        name);
   }
 
   @Override
   public boolean matches(RelOptRuleCall call) {
-    Project topProject = call.rel(0);
-    Project bottomProject = call.rel(1);
-
-    if (topProject.getConvention() != Convention.NONE || bottomProject.getConvention() != Convention.NONE) {
-      return false;
-    }
-
     return true;
   }
 
+  // TODO: go back to inheriting from Calcite's rule. Requires modifying the
+  // construction signature to allow a user to set which project rels to match.
+  @Override
   public void onMatch(RelOptRuleCall call) {
     final Project topProject = call.rel(0);
     final Project bottomProject = call.rel(1);

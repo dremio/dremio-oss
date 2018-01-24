@@ -28,6 +28,7 @@ import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.impl.SingleMapReaderImpl;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.util.Pair;
 import org.apache.curator.shaded.com.google.common.base.Preconditions;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -39,6 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSplitXattr;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.DefaultSchemaMutator;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -49,7 +51,7 @@ import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticActions.SearchScroll;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
-import com.dremio.plugins.elastic.ElasticsearchStoragePlugin2;
+import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
 import com.dremio.plugins.elastic.mapping.SchemaMerger;
@@ -103,7 +105,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private final boolean metaIDSelected;
   private final boolean metaIndexSelected;
   private final boolean metaTypeSelected;
-  private final ElasticsearchStoragePlugin2 plugin;
+  private final ElasticsearchStoragePlugin plugin;
 
   private long totalSize;
   private long totalCount;
@@ -113,7 +115,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private State state = State.INIT;
 
   public ElasticsearchRecordReader(
-      ElasticsearchStoragePlugin2 plugin,
+      ElasticsearchStoragePlugin plugin,
       List<String> tableSchemaPath,
       ElasticTableXattr tableAttributes,
       OperatorContext context,
@@ -200,9 +202,26 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         throw UserException.dataReadError().message("Unable to find schema information for %s after observing schema change.", key).build(logger);
       }
 
-      int latestMappingHash = mapping.hashCode();
-      if(mappingHash != latestMappingHash){
-        throw UserException.dataReadError().message("Mapping updated since last metadata refresh. Please run \"ALTER TABLE %s REFRESH METADATA\" before rerunning query.", new NamespaceKey(tableSchemaPath).toString()).build(logger);
+      if (context.getOptions().getOption(ExecConstants.ELASTIC_ENABLE_MAPPING_CHECKSUM)) {
+        int latestMappingHash = mapping.hashCode();
+        if (mappingHash != latestMappingHash) {
+          UserException.Builder builder = UserException
+            .dataReadError()
+            .message("Mapping updated since last metadata refresh. Please run \"ALTER TABLE %s REFRESH METADATA\" before rerunning query.",
+              new NamespaceKey(tableSchemaPath).toString()
+            )
+            .addContext("new mapping", mapping.toString());
+
+          List<Pair<Field, Field>> differentFields = expectedSchema.findDiff(newlyObservedSchema);
+          for (Pair<Field, Field> pair : differentFields) {
+            if (pair.left == null) {
+              builder.addContext("new Field", pair.right.toString());
+            } else {
+              builder.addContext("different Field", pair.toString());
+            }
+          }
+          throw builder.build(logger);
+        }
       }
 
       SchemaMerger merger = new SchemaMerger(new NamespaceKey(oldConfig.getFullPathList()).toString());

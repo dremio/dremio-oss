@@ -24,10 +24,12 @@ import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.model.namespace.DatasetContainer;
 import com.dremio.dac.model.namespace.NamespaceTree;
-import com.dremio.dac.proto.model.source.AzureBlobStoreConfig;
+import com.dremio.dac.proto.model.source.ADLConfig;
+import com.dremio.dac.proto.model.source.AZBConfig;
 import com.dremio.dac.proto.model.source.ClassPathConfig;
 import com.dremio.dac.proto.model.source.DB2Config;
 import com.dremio.dac.proto.model.source.ElasticConfig;
+import com.dremio.dac.proto.model.source.GCSConfig;
 import com.dremio.dac.proto.model.source.HBaseConfig;
 import com.dremio.dac.proto.model.source.HdfsConfig;
 import com.dremio.dac.proto.model.source.HiveConfig;
@@ -82,7 +84,9 @@ public class SourceUI implements AddressableResource, DatasetContainer {
       @Type(value = RedshiftConfig.class, name = "REDSHIFT"),
       @Type(value = HBaseConfig.class, name = "HBASE"),
       @Type(value = KuduConfig.class, name = "KUDU"),
-      @Type(value = AzureBlobStoreConfig.class, name = "AZURE"),
+      @Type(value = AZBConfig.class, name = "AZB"),
+      @Type(value = ADLConfig.class, name = "ADL"),
+      @Type(value = GCSConfig.class, name = "GCS"),
       @Type(value = HiveConfig.class, name = "HIVE"),
       @Type(value = PDFSConfig.class, name = "PDFS"),
       @Type(value = DB2Config.class, name = "DB2"),
@@ -325,7 +329,9 @@ public class SourceUI implements AddressableResource, DatasetContainer {
       case MAPRFS:
       case S3:
       case PDFS:
-      case AZURE:
+      case AZB:
+      case ADL:
+      case GCS:
       case CLASSPATH:
         return true;
       case MONGO:

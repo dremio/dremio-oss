@@ -52,6 +52,7 @@ export default class SelectItem extends Component {
       <div
         onTouchTap={this.handleTouchTap}
         style={[styles.base, style, selectedStyle]}
+        className='field'
         data-qa={label}>
         <div style={[labelStyle, styles.label]}>
           {label}

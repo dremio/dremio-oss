@@ -370,9 +370,9 @@ public class TestArrowFileReader {
     colBitV.allocateNew(5);
     for(int i=0; i<TEST_BIT_VALUES.size(); i++) {
       if (TEST_BIT_VALUES.get(i) == null) {
-        colBitV.getMutator().setNull(i);
+        colBitV.setNull(i);
       } else {
-        colBitV.getMutator().set(i, TEST_BIT_VALUES.get(i) ? 1 : 0);
+        colBitV.set(i, TEST_BIT_VALUES.get(i) ? 1 : 0);
       }
     }
 
@@ -385,9 +385,9 @@ public class TestArrowFileReader {
     colVarCharV.allocateNew(500, 5);
     for(int i=0; i<TEST_VARCHAR_VALUES.size(); i++) {
       if (TEST_VARCHAR_VALUES.get(i) == null) {
-        colVarCharV.getMutator().setNull(i);
+        colVarCharV.setNull(i);
       } else {
-        colVarCharV.getMutator().set(i, TEST_VARCHAR_VALUES.get(i).getBytes());
+        colVarCharV.set(i, TEST_VARCHAR_VALUES.get(i).getBytes());
       }
     }
 
@@ -481,7 +481,7 @@ public class TestArrowFileReader {
     VectorContainer container = new VectorContainer();
     if (recordCount != 0) {
       for (ValueVector v : vv) {
-        v.getMutator().setValueCount(recordCount);
+        v.setValueCount(recordCount);
       }
     }
     container.addCollection(asList(vv));

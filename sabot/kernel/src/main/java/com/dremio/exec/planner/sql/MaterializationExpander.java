@@ -34,10 +34,8 @@ import org.apache.calcite.schema.SchemaPlus;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.acceleration.LogicalPlanDeserializer;
-import com.dremio.exec.planner.logical.ScanConverter;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable;
-import com.dremio.exec.store.OldNamespaceTable;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -56,7 +54,7 @@ public class MaterializationExpander {
 
     final RelNode deserializedPlan = deserializePlan(descriptor.getPlan());
 
-    RelNode queryRel = deserializedPlan.accept(ScanConverter.INSTANCE);
+    RelNode queryRel = deserializedPlan;
 
     // for incremental update, we need to rewrite the queryRel so that it propogates the UPDATE_COLUMN and
     // adds it as a grouping key in aggregates
@@ -79,7 +77,6 @@ public class MaterializationExpander {
 
     BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
 
-    tableRel = tableRel.accept(ScanConverter.INSTANCE);
     tableRel = tableRel.accept(new IncrementalUpdateUtils.RemoveDirColumn(queryRel.getRowType()));
 
     // Namespace table removes UPDATE_COLUMN from scans, but for incremental materializations, we need to add it back
@@ -128,11 +125,6 @@ public class MaterializationExpander {
         return null;
       }
     };
-
-    OldNamespaceTable oldTable =  table.unwrap(OldNamespaceTable.class);
-    if(oldTable != null){
-      return oldTable.toRel(context, table);
-    }
 
     NamespaceTable newTable = table.unwrap(NamespaceTable.class);
     if(newTable != null){

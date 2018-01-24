@@ -155,7 +155,10 @@
       "message": "Please use object spread {...} instead."
     }],
     "jsx-quotes": ["error", "prefer-single"],
-    "no-restricted-globals": ["error", "encodeURI"], // if you think you want this, you probably want encodeURIComponent instead
+    "no-restricted-globals": ["error",
+      "encodeURI", // if you think you want this, you probably want encodeURIComponent instead
+      "location" // usually want react router location instead
+    ],
     "keyword-spacing": ["error", { "before": true, "after": true }]
   },
   "settings": {
@@ -164,12 +167,12 @@
     ]
   },
   "globals":{
-    "$": true,
-    "jsPlumb": true,
-    "ga": true,
-    "la": true, // todo: remove
-    "expect": true,
-    "sinon": true,
-    "Immutable": true
+    "$": false,
+    "jsPlumb": false,
+    "ga": false,
+    "la": false, // todo: remove
+    "expect": false,
+    "sinon": false,
+    "Immutable": false
   }
 }

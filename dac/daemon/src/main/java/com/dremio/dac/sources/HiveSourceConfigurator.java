@@ -48,7 +48,9 @@ public class HiveSourceConfigurator extends SingleSourceToStoragePluginConfig<Hi
 
     if (hive.getEnableSasl()) {
       configProps.put("hive.metastore.sasl.enabled", "true");
-      configProps.put("hive.metastore.kerberos.principal", checkNotNull(hive.getKerberosPrincipal()));
+      if (hive.getKerberosPrincipal() != null) {
+        configProps.put("hive.metastore.kerberos.principal", hive.getKerberosPrincipal());
+      }
     }
 
     final HiveStoragePluginConfig config = new HiveStoragePluginConfig(configProps);

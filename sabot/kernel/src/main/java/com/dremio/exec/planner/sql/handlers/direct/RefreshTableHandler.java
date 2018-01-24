@@ -26,7 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.StoragePlugin2.UpdateStatus;
+import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.google.common.collect.ImmutableSet;

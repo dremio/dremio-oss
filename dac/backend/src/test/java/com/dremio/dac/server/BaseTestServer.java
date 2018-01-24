@@ -359,7 +359,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
       masterDremioDaemon = DACDaemon.newDremioDaemon(
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-              .masterNode(hostname)
               .autoPort(true)
               .allowTestApis(true)
               .serveUI(false)
@@ -378,7 +377,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       currentDremioDaemon = DACDaemon.newDremioDaemon(
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-              .masterNode(hostname)
+              .isMaster(false)
               .autoPort(true)
               .allowTestApis(true)
               .serveUI(false)
@@ -387,7 +386,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
               .clusterMode(ClusterMode.DISTRIBUTED)
               .localPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort() + 1)
-              .masterPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort())
               .isRemote(true)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
               .zk("localhost:" + zkPort),
@@ -400,7 +398,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
       executorDaemon = DACDaemon.newDremioDaemon(
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-              .masterNode(hostname)
               .autoPort(true)
               .allowTestApis(true)
               .serveUI(false)
@@ -410,7 +407,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
               .clusterMode(ClusterMode.DISTRIBUTED)
               .localPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort() + 1)
-              .masterPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort())
               .isRemote(true)
               .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
@@ -424,7 +420,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
       currentDremioDaemon = DACDaemon.newDremioDaemon(
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-              .masterNode(hostname)
               .autoPort(true)
               .allowTestApis(true)
               .serveUI(false)
@@ -602,7 +597,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       ((LocalKVStoreProvider) getCurrentDremioDaemon().getBindingProvider().lookup(KVStoreProvider.class))
           .deleteEverything(SimpleUserService.USER_STORE);
     }
-    currentDremioDaemon.getBindingProvider().lookup(StoragePluginRegistry.class).updateNamespace(Sets.newHashSet("cp", "__datasetDownload", "__home", "__jobResultsStore", "$scratch"), CatalogService.REFRESH_EVERYTHING_NOW);
+    currentDremioDaemon.getBindingProvider().lookup(StoragePluginRegistry.class).updateNamespace(Sets.newHashSet("cp", "__datasetDownload", "__home", "__jobResultsStore", "$scratch", "sys", "INFORMATION_SCHEMA"), CatalogService.REFRESH_EVERYTHING_NOW);
     ((CatalogServiceImpl)currentDremioDaemon.getBindingProvider().lookup(CatalogService.class)).testTrimBackgroundTasks();
   }
 

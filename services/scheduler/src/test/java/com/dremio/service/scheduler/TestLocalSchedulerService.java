@@ -218,7 +218,7 @@ public class TestLocalSchedulerService {
     @SuppressWarnings("resource")
     final SchedulerService service = new LocalSchedulerService(executorService);
     final Cancellable cancellable = service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
-    cancellable.cancel();
+    cancellable.cancel(true);
 
     // Making a copy as running pending future will alter the list
     ImmutableList<MockScheduledFuture<?>> copyOfFutures = ImmutableList.copyOf(futures);
@@ -298,7 +298,7 @@ public class TestLocalSchedulerService {
 
     ready.await(1, TimeUnit.SECONDS);
 
-    cancellable.cancel();
+    cancellable.cancel(true);
 
     done.countDown();
 

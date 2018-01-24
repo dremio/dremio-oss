@@ -66,11 +66,11 @@ public class TestDateTypes extends PopUnitTestBase {
 
             for (VectorWrapper<?> v : batchLoader) {
 
-                ValueVector.Accessor accessor = v.getValueVector().getAccessor();
+                ValueVector vv = v.getValueVector();
 
-                assertEquals((accessor.getObject(0).toString()), ("1970-01-02"));
-                assertEquals((accessor.getObject(1).toString()), ("2008-12-28"));
-                assertEquals((accessor.getObject(2).toString()), ("2000-02-27"));
+                assertEquals((vv.getObject(0).toString()), ("1970-01-02"));
+                assertEquals((vv.getObject(1).toString()), ("2008-12-28"));
+                assertEquals((vv.getObject(2).toString()), ("2000-02-27"));
             }
 
             batchLoader.clear();
@@ -100,11 +100,11 @@ public class TestDateTypes extends PopUnitTestBase {
 
             for (VectorWrapper<?> v : batchLoader) {
 
-                ValueVector.Accessor accessor = v.getValueVector().getAccessor();
+                ValueVector vv = v.getValueVector();
 
-                assertEquals((accessor.getObject(0).toString()), new String("1970-01-02"));
-                assertEquals((accessor.getObject(1).toString()), new String("2000-02-27"));
-                assertEquals((accessor.getObject(2).toString()), new String("2008-12-28"));
+                assertEquals((vv.getObject(0).toString()), new String("1970-01-02"));
+                assertEquals((vv.getObject(1).toString()), new String("2000-02-27"));
+                assertEquals((vv.getObject(2).toString()), new String("2008-12-28"));
             }
 
             batchLoader.clear();
@@ -134,11 +134,11 @@ public class TestDateTypes extends PopUnitTestBase {
 
             for (VectorWrapper<?> v : batchLoader) {
 
-                ValueVector.Accessor accessor = v.getValueVector().getAccessor();
+                ValueVector vv = v.getValueVector();
 
-                assertEquals(accessor.getObject(0).toString() ,"1970-01-02 10:20:33.000");
-                assertEquals(accessor.getObject(1).toString() ,"2008-12-28 11:34:00.129");
-                assertEquals(accessor.getObject(2).toString(), "2000-02-27 14:24:00.000");
+                assertEquals(vv.getObject(0).toString() ,"1970-01-02 10:20:33.000");
+                assertEquals(vv.getObject(1).toString() ,"2008-12-28 11:34:00.129");
+                assertEquals(vv.getObject(2).toString(), "2000-02-27 14:24:00.000");
             }
 
             batchLoader.clear();
@@ -169,36 +169,35 @@ public class TestDateTypes extends PopUnitTestBase {
 
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
-            ValueVector.Accessor accessor = itr.next().getValueVector().getAccessor();
+            ValueVector vv = itr.next().getValueVector();
 
             // Check the interval type
-            assertEquals((accessor.getObject(0).toString()), ("2 years 2 months 1 day 1:20:35.0"));
-            assertEquals((accessor.getObject(1).toString()), ("2 years 2 months 0 days 0:0:0.0"));
-            assertEquals((accessor.getObject(2).toString()), ("0 years 0 months 0 days 1:20:35.0"));
-            assertEquals((accessor.getObject(3).toString()),("2 years 2 months 1 day 1:20:35.897"));
-            assertEquals((accessor.getObject(4).toString()), ("0 years 0 months 0 days 0:0:35.4"));
-            assertEquals((accessor.getObject(5).toString()), ("1 year 10 months 1 day 0:-39:-25.0"));
+            assertEquals((vv.getObject(0).toString()), ("2 years 2 months 1 day 1:20:35.0"));
+            assertEquals((vv.getObject(1).toString()), ("2 years 2 months 0 days 0:0:0.0"));
+            assertEquals((vv.getObject(2).toString()), ("0 years 0 months 0 days 1:20:35.0"));
+            assertEquals((vv.getObject(3).toString()),("2 years 2 months 1 day 1:20:35.897"));
+            assertEquals((vv.getObject(4).toString()), ("0 years 0 months 0 days 0:0:35.4"));
+            assertEquals((vv.getObject(5).toString()), ("1 year 10 months 1 day 0:-39:-25.0"));
 
-            accessor = itr.next().getValueVector().getAccessor();
+            vv = itr.next().getValueVector();
 
             // Check the interval year type
-            assertEquals((accessor.getObject(0).toString()), ("2 years 2 months "));
-            assertEquals((accessor.getObject(1).toString()), ("2 years 2 months "));
-            assertEquals((accessor.getObject(2).toString()), ("0 years 0 months "));
-            assertEquals((accessor.getObject(3).toString()), ("2 years 2 months "));
-            assertEquals((accessor.getObject(4).toString()), ("0 years 0 months "));
-            assertEquals((accessor.getObject(5).toString()), ("1 year 10 months "));
+            assertEquals((vv.getObject(0).toString()), ("2 years 2 months "));
+            assertEquals((vv.getObject(1).toString()), ("2 years 2 months "));
+            assertEquals((vv.getObject(2).toString()), ("0 years 0 months "));
+            assertEquals((vv.getObject(3).toString()), ("2 years 2 months "));
+            assertEquals((vv.getObject(4).toString()), ("0 years 0 months "));
+            assertEquals((vv.getObject(5).toString()), ("1 year 10 months "));
 
-
-            accessor = itr.next().getValueVector().getAccessor();
+            vv = itr.next().getValueVector();
 
             // Check the interval day type
-            assertEquals((accessor.getObject(0).toString()), ("1 day 1:20:35.0"));
-            assertEquals((accessor.getObject(1).toString()), ("0 days 0:0:0.0"));
-            assertEquals((accessor.getObject(2).toString()), ("0 days 1:20:35.0"));
-            assertEquals((accessor.getObject(3).toString()), ("1 day 1:20:35.897"));
-            assertEquals((accessor.getObject(4).toString()), ("0 days 0:0:35.4"));
-            assertEquals((accessor.getObject(5).toString()), ("1 day 0:-39:-25.0"));
+            assertEquals((vv.getObject(0).toString()), ("1 day 1:20:35.0"));
+            assertEquals((vv.getObject(1).toString()), ("0 days 0:0:0.0"));
+            assertEquals((vv.getObject(2).toString()), ("0 days 1:20:35.0"));
+            assertEquals((vv.getObject(3).toString()), ("1 day 1:20:35.897"));
+            assertEquals((vv.getObject(4).toString()), ("0 days 0:0:35.4"));
+            assertEquals((vv.getObject(5).toString()), ("1 day 0:-39:-25.0"));
 
             batchLoader.clear();
             for(QueryDataBatch b : results){
@@ -234,10 +233,8 @@ public class TestDateTypes extends PopUnitTestBase {
             int idx = 0;
 
             for (VectorWrapper<?> v : batchLoader) {
-
-                ValueVector.Accessor accessor = v.getValueVector().getAccessor();
-
-                assertEquals((accessor.getObject(0).toString()), (result[idx++]));
+                ValueVector vv = v.getValueVector();
+                assertEquals((vv.getObject(0).toString()), (result[idx++]));
             }
 
             batchLoader.clear();
@@ -267,12 +264,8 @@ public class TestDateTypes extends PopUnitTestBase {
             assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
             for (VectorWrapper<?> v : batchLoader) {
-
-                ValueVector.Accessor accessor = v.getValueVector().getAccessor();
-
-                assertEquals((accessor.getObject(0).toString()), ("2008-03-27 00:00:00.000"));
-
-
+                ValueVector vv = v.getValueVector();
+                assertEquals((vv.getObject(0).toString()), ("2008-03-27 00:00:00.000"));
             }
 
             batchLoader.clear();

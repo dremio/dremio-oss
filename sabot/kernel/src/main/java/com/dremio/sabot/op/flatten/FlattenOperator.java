@@ -22,6 +22,7 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
+import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -71,7 +72,7 @@ public class FlattenOperator implements SingleInputOperator {
   private List<ComplexWriter> complexWriters;
   private boolean hasRemainder = false;
   private int remainderIndex = 0;
-  private ValueVector.Mutator flattenVectorMutator;
+  private ValueVector flattenVector;
 
   public FlattenOperator(OperatorContext context, FlattenPOP pop) throws OutOfMemoryException {
     this.config = pop;
@@ -103,7 +104,7 @@ public class FlattenOperator implements SingleInputOperator {
     if (tp != null) {
       transfers.add(tp);
       outgoing.add(tp.getTo());
-      flattenVectorMutator = tp.getTo().getMutator();
+      flattenVector = tp.getTo();
       transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
     }
 
@@ -212,7 +213,7 @@ public class FlattenOperator implements SingleInputOperator {
 
   private int handleInitial(int incomingRecordCount) {
     doAlloc();
-    int childCount = incomingRecordCount == 0 ? 0 : flattener.getFlattenField().getAccessor().getInnerValueCount();
+    int childCount = incomingRecordCount == 0 ? 0 : ((BaseRepeatedValueVector)flattener.getFlattenField()).getInnerValueCount();
     int outputRecords = flattener.flattenRecords(incomingRecordCount, 0, monitor);
     // TODO - change this to be based on the repeated vector length
     if (outputRecords < childCount) {
@@ -230,7 +231,7 @@ public class FlattenOperator implements SingleInputOperator {
   }
 
   private int handleRemainder() {
-    final int remainingRecordCount = flattener.getFlattenField().getAccessor().getInnerValueCount() - remainderIndex;
+    final int remainingRecordCount = ((BaseRepeatedValueVector)flattener.getFlattenField()).getInnerValueCount() - remainderIndex;
     doAlloc();
 
     int projRecords = flattener.flattenRecords(remainingRecordCount, 0, monitor);
@@ -271,12 +272,11 @@ public class FlattenOperator implements SingleInputOperator {
 
   private void setValueCount(int count) {
     for (ValueVector v : allocationVectors) {
-      ValueVector.Mutator m = v.getMutator();
-      m.setValueCount(count);
+      v.setValueCount(count);
     }
 
-    if(flattenVectorMutator != null){
-      flattenVectorMutator.setValueCount(count);
+    if(flattenVector != null){
+      flattenVector.setValueCount(count);
     }
 
     if (complexWriters != null) {

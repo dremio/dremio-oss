@@ -47,7 +47,6 @@ public class Limit0Converter extends BasePrelVisitor<Prel, Void, IOException> {
     if (prel instanceof LimitPrel) {
       LimitPrel limit = (LimitPrel) prel;
       if(isLimit0(limit.getFetch())){
-        config.getContext().getPlannerSettings().forceSingleMode();
         PhysicalOperator op = PrelTransformer.convertToPop(config, prel);
         BatchSchema schema = op.getSchema(config.getContext().getFunctionRegistry());
 

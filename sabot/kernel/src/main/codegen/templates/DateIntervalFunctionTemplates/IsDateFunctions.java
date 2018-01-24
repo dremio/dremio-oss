@@ -24,12 +24,16 @@
 
 package com.dremio.exec.expr.fn.impl;
 
+import javax.inject.Inject;
+
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+
 import org.apache.arrow.vector.holders.*;
 
 /**
@@ -56,12 +60,15 @@ public class GIs${type}Functions {
         @Output 
         NullableBitHolder out;
 
+        @Inject
+        FunctionErrorContext errCtx;
+
         public void setup() {
             // Get the desired output format
             byte[] buf = new byte[right.end - right.start];
             right.buffer.getBytes(right.start, buf, 0, right.end - right.start);
             String formatString = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
-            format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString);
+            format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString, errCtx);
         }
 
         public void eval() {
@@ -73,9 +80,11 @@ public class GIs${type}Functions {
                 String input=new String(buf1, java.nio.charset.StandardCharsets.UTF_8);
 
                 try{
-                    com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input, format);
+                    com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input, format, errCtx);
                     out.value=1;
-                } catch(Exception ex) {}
+                } catch(Exception ex) {
+                    // do not throw on purpose as we just want to set out.value
+                }
             }
         }
     }

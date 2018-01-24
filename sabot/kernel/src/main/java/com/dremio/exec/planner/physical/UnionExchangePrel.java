@@ -74,10 +74,6 @@ public class UnionExchangePrel extends ExchangePrel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    if (PrelUtil.getSettings(getCluster()).isSingleMode()) {
-      return childPOP;
-    }
-
     UnionExchange g = new UnionExchange(childPOP);
     return creator.addMetadata(this, g);
   }

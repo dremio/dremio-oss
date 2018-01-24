@@ -25,6 +25,11 @@ import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_PARENTS;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SOURCES;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SQL;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_UUID;
+import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_NAME;
+import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_PATH;
+import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_SCHEMA;
+import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_NAME;
+import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_SCHEMA;
 
 import java.util.List;
 import java.util.Set;
@@ -61,6 +66,19 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
       case DATASET: {
         final DatasetConfig datasetConfig = container.getDataset();
         writer.write(DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
+
+        final NamespaceKey nkey = new NamespaceKey(container.getFullPathList());
+
+        // add standard case searches.
+        writer.write(UNQUOTED_SCHEMA, nkey.getParent().toUnescapedString());
+        writer.write(UNQUOTED_NAME, nkey.getName());
+
+        // add a lowercase search indices
+        NamespaceKey lkey = nkey.asLowerCase();
+        writer.write(UNQUOTED_LC_PATH, lkey.toUnescapedString());
+        writer.write(UNQUOTED_LC_SCHEMA, lkey.getParent().toUnescapedString());
+        writer.write(UNQUOTED_LC_NAME, lkey.getName());
+
         writer.write(DATASET_UUID, datasetConfig.getId().getId());
         if (datasetConfig.getOwner() != null) {
           writer.write(DATASET_OWNER, datasetConfig.getOwner());
@@ -119,7 +137,7 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
       final String[] columns = new String[s.getFields().size()];
       int i = 0;
       for (Field field : s.getFields()) {
-        columns[i++] = field.getName();
+        columns[i++] = field.getName().toLowerCase();
       }
       writer.write(DATASET_COLUMNS_NAMES, columns);
     } else {
@@ -130,7 +148,7 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
           final String[] columns = new String[viewFieldTypes.size()];
           int i = 0;
           for (ViewFieldType field : viewFieldTypes) {
-            columns[i++] = field.getName();
+            columns[i++] = field.getName().toLowerCase();
           }
           writer.write(DATASET_COLUMNS_NAMES, columns);
         }

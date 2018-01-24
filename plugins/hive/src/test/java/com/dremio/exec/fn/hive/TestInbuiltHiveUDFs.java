@@ -115,31 +115,22 @@ public class TestInbuiltHiveUDFs extends HiveTestBase {
 
   @Test //DRILL-4868
   public void testEmbeddedHiveFunctionCall() throws Exception {
-    // TODO(DRILL-2326) temporary until we fix the scalar replacement bug for this case
-    final OptionValue srOption = QueryTestUtil.setupScalarReplacementOption(nodes[0], ClassTransformer.ScalarReplacementOption.TRY);
+    final String[] queries = {
+        "SELECT convert_from(unhex(key2), 'INT_BE') as intkey \n" +
+            "FROM cp.`functions/conv/conv.json`",
+    };
 
-    try {
-      final String[] queries = {
-          "SELECT convert_from(unhex(key2), 'INT_BE') as intkey \n" +
-              "FROM cp.`functions/conv/conv.json`",
-      };
-
-      for (String query: queries) {
-        testBuilder()
-            .sqlQuery(query)
-            .ordered()
-            .baselineColumns("intkey")
-            .baselineValues(1244739896)
-            .baselineValues(new Object[] { null })
-            .baselineValues(1313814865)
-            .baselineValues(1852782897)
-            .build()
-            .run();
-      }
-
-    } finally {
-      // restore the system option
-      QueryTestUtil.restoreScalarReplacementOption(nodes[0], srOption);
+    for (String query: queries) {
+      testBuilder()
+          .sqlQuery(query)
+          .ordered()
+          .baselineColumns("intkey")
+          .baselineValues(1244739896)
+          .baselineValues(new Object[] { null })
+          .baselineValues(1313814865)
+          .baselineValues(1852782897)
+          .build()
+          .run();
     }
   }
 

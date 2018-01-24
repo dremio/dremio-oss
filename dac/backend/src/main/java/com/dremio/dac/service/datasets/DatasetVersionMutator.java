@@ -18,6 +18,7 @@ package com.dremio.dac.service.datasets;
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetUI;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetVersion;
+import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ALLPARENTS;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ID;
 import static com.dremio.service.namespace.DatasetIndexKeys.MAPPING;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MAX_VERSION;
@@ -38,11 +39,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.perf.Timer;
+import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.common.RootEntity.RootType;
-import com.dremio.dac.model.graph.DataGraph;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
@@ -92,9 +94,8 @@ public class DatasetVersionMutator {
   private final NamespaceService namespaceService;
   private final JobsService jobsService;
 
-  private DataGraphHandler dataGraphHandler;
-  private DatasetDownloadManager datasetDownloadManager;
-  private KVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
+  private final DatasetDownloadManager datasetDownloadManager;
+  private final KVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
 
   @Inject
   public DatasetVersionMutator(
@@ -105,7 +106,6 @@ public class DatasetVersionMutator {
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.datasetVersions = kv.getStore(VersionStoreCreator.class);
-    this.dataGraphHandler = new DataGraphHandler(namespaceService, jobsService, datasetVersions);
     InitializerImpl initd = init.get(InitializerImpl.class);
     this.datasetDownloadManager = new DatasetDownloadManager(jobsService, initd.getDownloadRootDir(), initd.getFileSystem());
   }
@@ -192,6 +192,10 @@ public class DatasetVersionMutator {
     return virtualDatasetUI;
   }
 
+  public VirtualDatasetVersion getVirtualDatasetVersion(DatasetPath path, DatasetVersion version) {
+    return datasetVersions.get(new VersionDatasetKey(path, version));
+  }
+
   public Iterable<VirtualDatasetUI> getAllVersions(DatasetPath path) throws DatasetVersionNotFoundException {
     return Iterables.transform(datasetVersions.find(
         new FindByRange<>(new VersionDatasetKey(path, MIN_VERSION), false, new VersionDatasetKey(path, MAX_VERSION), false)),
@@ -254,6 +258,39 @@ public class DatasetVersionMutator {
     return namespaceService;
   }
 
+  /**
+   * Get count of datasets depending on given dataset
+   * @param path path of saved dataset
+   * @return count of all descendants.
+   * @throws NamespaceException
+   */
+  public int getDescendantsCount(NamespaceKey path) {
+    try (TimedBlock b = Timer.time("getDescendantCounts")) {
+      return namespaceService.getCounts(SearchQueryUtils.newTermQuery(DATASET_ALLPARENTS, path.toString())).get(0);
+    } catch(NamespaceException e) {
+      logger.error("Failed to get descendant counts for path " + path);
+      return 0;
+    }
+  }
+
+  /**
+   * Get list of dataset paths depending on given dataset
+   * @param path path of saved dataset
+   * @return dataset paths of descendants.
+   * @throws NamespaceException
+   */
+  public Iterable<DatasetPath> getDescendants(DatasetPath path) throws NamespaceException {
+    FindByCondition condition = new FindByCondition()
+      .setCondition(SearchQueryUtils.newTermQuery(DATASET_ALLPARENTS, path.toNamespaceKey().toString()))
+      .setLimit(1000);
+    return Iterables.transform(namespaceService.find(condition), new Function<Entry<NamespaceKey, NameSpaceContainer>, DatasetPath>() {
+      @Override
+      public DatasetPath apply(Entry<NamespaceKey, NameSpaceContainer> input) {
+        return new DatasetPath(input.getKey().getPathComponents());
+      }
+    });
+  }
+
   public int getJobsCount(NamespaceKey path) {
     return jobsService.getJobsCount(path);
   }
@@ -301,27 +338,6 @@ public class DatasetVersionMutator {
       }
     }
     return datasets;
-  }
-
-  public DataGraph getDataGraph(DatasetPath datasetPath, DatasetPath currentPath, String parentFilter, String childrenFilter) throws NamespaceException {
-    return dataGraphHandler.getDataGraph(datasetPath, currentPath, parentFilter, childrenFilter);
-  }
-
-  public DataGraph getDataGraph(DatasetPath datasetPath, DatasetVersion version, DatasetPath currentPath, String parentFilter, String childrenFilter) throws NamespaceException {
-    return dataGraphHandler.getDataGraph(datasetPath, version, currentPath, parentFilter, childrenFilter);
-  }
-
-  public int getDescendantsCount(NamespaceKey path) {
-    try {
-      return dataGraphHandler.getDescendantsCount(path);
-    } catch (NamespaceException ne) {
-      logger.error("Failed to get descendant counts for path " + path);
-    }
-    return 0;
-  }
-
-  public Iterable<DatasetPath> getDescendants(DatasetPath path) throws NamespaceException {
-    return dataGraphHandler.getDescendants(path);
   }
 
   public Job prepareDownload(DatasetPath datasetPath, DatasetVersion datasetVersion, DownloadFormat downloadFormat,

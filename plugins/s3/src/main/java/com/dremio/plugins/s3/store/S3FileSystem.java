@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 
@@ -185,14 +186,6 @@ public class S3FileSystem extends FileSystem {
   private String getBucket(Path path) {
     List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
     return pathComponents.get(0);
-  }
-
-  private static String removeLeadingSlash(String path) {
-    if (path.charAt(0) == '/') {
-      return path.substring(1, path.length());
-    } else {
-      return path;
-    }
   }
 
   private Path pathWithoutBucket(Path path) {

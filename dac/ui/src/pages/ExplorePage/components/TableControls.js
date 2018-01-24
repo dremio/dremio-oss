@@ -119,7 +119,7 @@ export class TableControls extends Component {
   }
 
   join = () => {
-    this.navigateToTransformWizard({ detailType: 'JOIN', column: '', location });
+    this.navigateToTransformWizard({ detailType: 'JOIN', column: '', location: this.context.location });
   }
 
   handleRequestClose = () => {

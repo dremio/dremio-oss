@@ -65,7 +65,8 @@ public class ConcatFunctions {
   <#list 1..n as i>
       size += (arg${i}.end - arg${i}.start);
   </#list>
-      out.buffer = buffer.reallocIfNeeded(size);
+      buffer = buffer.reallocIfNeeded(size);
+      out.buffer = buffer;
       out.start = out.end = 0;
       out.isSet = 1;
 

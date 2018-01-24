@@ -59,10 +59,10 @@ public class PermissionCheckCache {
   }
 
   /**
-   * Delegates call to the actual {@link StoragePlugin2#hasAccessPermission permission check} and caches the
+   * Delegates call to the actual {@link StoragePlugin#hasAccessPermission permission check} and caches the
    * result based on the metadata policy defined in the source configuration.
    *
-   * See {@link StoragePlugin2#hasAccessPermission}.
+   * See {@link StoragePlugin#hasAccessPermission}.
    *
    * @param registry storage plugin to check access against
    * @param username username to check access for
@@ -73,7 +73,7 @@ public class PermissionCheckCache {
    * @return true iff user has access
    * @throws UserException if the underlying calls throws any exception
    */
-  public boolean hasAccess(final StoragePlugin2 registry, final String username, final NamespaceKey namespaceKey,
+  public boolean hasAccess(final StoragePlugin registry, final String username, final NamespaceKey namespaceKey,
                            final DatasetConfig config, final MetadataPolicy metadataPolicy, final MetadataStatsCollector metadataStatsCollector) {
     final long authTtlMs = metadataPolicy == null ? 0 : metadataPolicy.getAuthTtlMs();
     final Stopwatch permissionCheck = Stopwatch.createStarted();

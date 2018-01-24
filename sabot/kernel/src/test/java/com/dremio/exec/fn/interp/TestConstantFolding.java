@@ -245,4 +245,11 @@ public class TestConstantFolding extends PlanTestBase {
     testPlanOneExcludedPattern("select columns[0], 3+5 from cp.`functions/interp/test_input.csv`",
         "EXPR\\$[0-9]+=\\[\\+\\(3, 5\\)\\]");
   }
+
+  // See DX-9650
+  @Test
+  public void testConstExprFolding_MinusPrefix() throws Exception {
+    testPlanOneExpectedPattern("SELECT CAST('2017-11-07 17:38:38.287' AS TIMESTAMP) +  CAST(CONCAT('P',-( 7 * 26),'D') as INTERVAL DAY)",
+        "2017-05-09 17:38:38");
+  }
 }

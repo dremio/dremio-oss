@@ -16,6 +16,7 @@
 package com.dremio.common.concurrent;
 
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Simple wrapper class that allows Locks to be released via an try-with-resources block.
@@ -31,6 +32,19 @@ public class AutoCloseableLock implements AutoCloseable {
   public AutoCloseableLock open() {
     lock.lock();
     return this;
+  }
+
+  /**
+   * Acquires the lock if it is free within the given waiting time and the
+   * current thread has not been interrupted.
+   *
+   * @param time    Time to wait.
+   * @param unit    Unit of time.
+   * @return The AutoCloseableLock instance or null if the wait time expired.
+   * @throws InterruptedException
+   */
+  public AutoCloseableLock tryOpen(long time, TimeUnit unit) throws InterruptedException {
+    return lock.tryLock(time, unit) ? this : null;
   }
 
   @Override

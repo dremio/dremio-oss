@@ -15,11 +15,11 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import io.netty.buffer.ArrowBuf;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.dremio.exec.proto.UserBitShared.QueryData;
+
+import io.netty.buffer.ArrowBuf;
 
 public class QueryDataBatch implements AutoCloseable {
   // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryDataBatch.class);

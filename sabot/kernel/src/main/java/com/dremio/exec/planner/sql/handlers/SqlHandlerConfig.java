@@ -17,18 +17,15 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map.Entry;
 
 import org.apache.calcite.tools.RuleSet;
 
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.PlannerCallback;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.MaterializationList;
 import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.store.AbstractStoragePlugin;
 import com.dremio.exec.store.StoragePlugin;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -70,23 +67,9 @@ public class SqlHandlerConfig {
     return new SqlHandlerConfig(this.context, this.converter, replacementObserver, this.materializations);
   }
 
-  public PlannerCallback getPlannerCallback(PlannerPhase phase){
-    List<PlannerCallback> callbacks = Lists.newArrayList();
-    for(StoragePlugin<?> plugin: getPlugins()){
-      if(plugin instanceof AbstractStoragePlugin){
-        PlannerCallback callback = ((AbstractStoragePlugin<?>)plugin).getPlannerCallback(context, phase);
-        if(callback != null){
-          callbacks.add(callback);
-        }
-      }
-    }
-    return PlannerCallback.merge(callbacks);
-  }
-
-  @SuppressWarnings("rawtypes")
   private Collection<StoragePlugin> getPlugins(){
     Collection<StoragePlugin> plugins = Lists.newArrayList();
-    for (Entry<String, StoragePlugin<?>> k : context.getStorage()) {
+    for (Entry<String, StoragePlugin> k : context.getStorage()) {
       plugins.add(k.getValue());
     }
     return plugins;

@@ -481,7 +481,7 @@ public final class Fixtures {
 
     @SuppressWarnings("unchecked")
     public CellCompare compare(ValueVector vector, int index, boolean isValid) {
-      V obj = isValid ? (V) vector.getAccessor().getObject(index) : null;
+      V obj = isValid ? (V) vector.getObject(index) : null;
       if(obj == null && this.obj == null){
         return new CellCompare(true, toString(obj));
       }
@@ -543,7 +543,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableBigIntVector) v).getMutator().setSafe(index, obj);
+        ((NullableBigIntVector) v).setSafe(index, obj);
       }
     }
 
@@ -563,7 +563,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableIntVector) v).getMutator().setSafe(index, obj);
+        ((NullableIntVector) v).setSafe(index, obj);
       }
     }
 
@@ -582,7 +582,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableFloat4Vector) v).getMutator().setSafe(index, obj);
+        ((NullableFloat4Vector) v).setSafe(index, obj);
       }
     }
 
@@ -617,7 +617,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableFloat8Vector) v).getMutator().setSafe(index, obj);
+        ((NullableFloat8Vector) v).setSafe(index, obj);
       }
     }
 
@@ -654,7 +654,7 @@ public final class Fixtures {
     public void set(ValueVector v, int index) {
       if(obj != null){
         byte[] bytes = obj.getBytes();
-        ((NullableVarCharVector) v).getMutator().setSafe(index, bytes, 0, bytes.length);
+        ((NullableVarCharVector) v).setSafe(index, bytes, 0, bytes.length);
       }
     }
 
@@ -670,7 +670,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableTimeStampMilliVector) v).getMutator().setSafe(index, com.dremio.common.util.DateTimes.toMillis(obj));
+        ((NullableTimeStampMilliVector) v).setSafe(index, com.dremio.common.util.DateTimes.toMillis(obj));
       }
     }
 
@@ -691,7 +691,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableDateMilliVector) v).getMutator().setSafe(index,  obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
+        ((NullableDateMilliVector) v).setSafe(index,  obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
       }
     }
 
@@ -711,7 +711,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableTimeMilliVector) v).getMutator().setSafe(index, (int) obj.toDateTimeToday(DateTimeZone.UTC).getMillis());
+        ((NullableTimeMilliVector) v).setSafe(index, (int) obj.getMillisOfDay());
       }
     }
 
@@ -737,7 +737,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableBitVector) v).getMutator().setSafe(index, obj == true ? 1 : 0);
+        ((NullableBitVector) v).setSafe(index, obj == true ? 1 : 0);
       }
     }
 
@@ -766,7 +766,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableVarBinaryVector) v).getMutator().setSafe(index, obj, 0, obj.length);
+        ((NullableVarBinaryVector) v).setSafe(index, obj, 0, obj.length);
       }
     }
   }

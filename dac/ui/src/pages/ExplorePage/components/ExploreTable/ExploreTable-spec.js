@@ -160,7 +160,7 @@ describe('ExploreTable', () => {
       columns = [{width: 10}, {width: 20}, {width: null}];
 
     it('should calculate column width', () => {
-      expect(ExploreTable.getDefaultColumnWidth(300, columns)).to.equal(270);
+      expect(ExploreTable.getDefaultColumnWidth(300, columns)).to.equal(254);
     });
 
     it('should return MIN_COLUMN_WIDTH if calculated is less than MIN_COLUMN_WIDTH', () => {

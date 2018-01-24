@@ -44,7 +44,6 @@ import com.dremio.exec.planner.physical.HashToMergeExchangePrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
-import com.dremio.exec.planner.physical.OldScanPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
@@ -79,11 +78,6 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
   public static Prel useGlobalDictionaries(Prel prel) {
     final PrelWithDictionaryInfo p =  prel.accept(new GlobalDictionaryVisitor(prel.getCluster()), null);
     return p.getPrel();
-  }
-
-  @Override
-  public PrelWithDictionaryInfo visitOldScan(OldScanPrel prel, Void value) throws RuntimeException {
-    return new PrelWithDictionaryInfo(prel);
   }
 
   @Override

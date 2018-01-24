@@ -34,7 +34,6 @@ public class LogicalPlanImplementor {
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LogicalPlanImplementor.class);
 
-  private Set<TableBase> tables = Sets.newHashSet();
   private Set<String> storageEngineNames = Sets.newHashSet();
   private LogicalPlanBuilder planBuilder = new LogicalPlanBuilder();
   private LogicalPlan plan;
@@ -48,12 +47,6 @@ public class LogicalPlanImplementor {
 
   public ParseContext getContext(){
     return context;
-  }
-
-  public void registerSource(TableBase table){
-    if(tables.add(table) && storageEngineNames.add(table.getStorageEngineName())){
-      planBuilder.addStorageEngine(table.getStorageEngineName(), table.getStorageEngineConfig());
-    }
   }
 
   public void go(Rel root) {

@@ -42,6 +42,7 @@ public class TestFragmenter extends PopUnitTestBase {
     assertNull(b.getSendingExchange());
   }
 
+
   @Test
   public void ensureThreeFragments() throws FragmentSetupException, IOException, ForemanSetupException {
     PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);

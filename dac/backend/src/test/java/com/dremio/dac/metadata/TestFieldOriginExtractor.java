@@ -115,11 +115,28 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
 
   @Test
   public void windowFunction() throws Exception {
-    testNoResult("select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1 FROM cp.\"tpch/nation.parquet\"");
-    assertEquals(2, fields.size());
+    testNoResult("select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1," +
+      "MIN(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w2" +
+      " FROM cp.\"tpch/nation" +
+      ".parquet\"");
+    assertEquals(3, fields.size());
 
     validateField(0, "N_REGIONKEY", NATION_PARQUET, "n_regionkey");
     validateField(1, "w1", NATION_PARQUET, "n_nationkey");
+    validateField(2, "w2", NATION_PARQUET, "n_nationkey");
+  }
+
+  @Test
+  public void windowMultiGroupFunction() throws Exception {
+    testNoResult("select N_REGIONKEY, AVG(N_NATIONKEY) OVER (PARTITION BY N_REGIONKEY) as w1," +
+      "MIN(N_REGIONKEY) OVER (PARTITION BY N_NATIONKEY) as w2" +
+      " FROM cp.\"tpch/nation" +
+      ".parquet\"");
+    assertEquals(3, fields.size());
+
+    validateField(0, "N_REGIONKEY", NATION_PARQUET, "n_regionkey");
+    validateField(1, "w1", NATION_PARQUET, "n_nationkey");
+    validateField(2, "w2", NATION_PARQUET, "n_regionkey");
   }
 
   @Test

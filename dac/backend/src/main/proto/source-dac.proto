@@ -42,6 +42,7 @@ message HdfsConfig {
   optional int32 port = 2;
   optional bool enableImpersonation = 3 [default = false];
   repeated Property property = 4;
+  optional string root_path = 5 [default = "/"];
 }
 
 message MapRFSConfig {
@@ -50,6 +51,7 @@ message MapRFSConfig {
   optional bool enableImpersonation = 2 [default = false];
   optional bool secure = 3;
   repeated Property property = 4;
+  optional string root_path = 5 [default = "/"];
 }
 
 message S3Config {
@@ -102,6 +104,7 @@ message ElasticConfig {
   optional bool usePainless = 11 [default = true];
   optional bool useWhitelist = 12 [default = false];
   optional int32 scrollSize = 13 [default = 4000];
+  optional bool allowGroupByOnNormalizedFields = 14 [default = false];
 }
 
 message OracleConfig {
@@ -184,13 +187,107 @@ message HBaseConfig {
   repeated Property property = 4;
 }
 
-message AzureBlobStoreConfig {
+/*
+ * Azure Blob Store (azb)
+ * https://hadoop.apache.org/docs/stable/hadoop-azure/index.html
+ */
+message AZBConfig {
   option (extends_class) = "com.dremio.dac.model.sources.Source";
-  optional string container = 1;
-  optional string account = 2;
-  optional string access_key = 3;
-  optional bool secure = 4; //wasb vs wasbs
+  
+  // fs.azure.account.key.[youraccount].blob.core.windows.net
+  optional string account = 1;
+  optional string access_key = 2;
+  optional bool secure = 3; //wasb vs wasbs
+  repeated Property property = 4;
 }
+
+/*
+ * Azure Data Lake (ADL)
+ * https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
+ */
+enum ADLAuth {
+
+  // fs.adl.oauth2.access.token.provider.type = RefreshToken
+  REFRESH_TOKEN = 1;
+  
+  // fs.adl.oauth2.access.token.provider.type = ClientCredential
+  CLIENT_KEY = 2;
+}
+
+message ADLConfig {
+  option (extends_class) = "com.dremio.dac.model.sources.Source";
+  optional ADLAuth mode = 1;
+  
+  /** Shared **/
+  optional string account_name = 2;
+  
+  // dfs.adls.oauth2.client.id
+  optional string client_id = 3;
+  
+  /** REFRESH_TOKEN **/
+  
+  // dfs.adls.oauth2.refresh.token
+  optional string refresh_token_secret = 4;
+  
+  /** CLIENT_KEY mode **/ 
+  
+  // dfs.adl.oauth2.refresh.url
+  optional string client_key_refresh_url = 5;
+  
+  // dfs.adl.oauth2.credential
+  optional string client_key_password = 6;
+  
+  
+  /** Shared **/
+  repeated Property property = 7;
+}
+
+
+/* 
+ * Google Cloud Storage (GCS)
+ * https://github.com/GoogleCloudPlatform/bigdata-interop/blob/master/gcs/conf/gcs-core-default.xml
+ */
+enum GCSAuth {
+
+  // google.cloud.auth.service.account.enable = true
+  SERVICE_ACCOUNT = 1;
+  
+  // google.cloud.auth.service.account.enable = false 
+  CLIENT_KEY = 2;
+}
+
+message GCSConfig {
+  option (extends_class) = "com.dremio.dac.model.sources.Source";
+  
+  optional GCSAuth mode = 1;
+  
+  /** both modes **/
+  // fs.gs.project.id
+  optional string project_id = 2;
+  
+  /** Service Account **/
+  
+  // google.cloud.auth.service.account.email (optional)
+  optional string service_account_email = 3;
+  
+  // google.cloud.auth.service.account.keyfile (optional)
+  optional string service_account_keyfile = 4;
+  
+  /** Client Key **/
+  
+  // google.cloud.auth.client.id
+  optional string client_key_id = 5;
+  
+  // google.cloud.auth.client.secret
+  optional string client_key_secret = 6;
+  
+  // google.cloud.auth.client.file
+  optional string client_key_keyfile = 7;
+  
+  repeated Property property = 8;
+  
+}
+
 
 /*
  * Configuration for Hive source.

@@ -28,6 +28,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
+import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.store.TableMetadata;
@@ -42,7 +43,7 @@ public abstract class ScanPrelBase extends ScanRelBase implements Prel, HasDistr
   public ScanPrelBase(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
       TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
-    assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Prel.PHYSICAL;
+    assert traitSet.getTrait(ConventionTraitDef.INSTANCE) != Rel.LOGICAL;
   }
 
   public int getMaxParallelizationWidth(){

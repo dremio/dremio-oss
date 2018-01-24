@@ -39,9 +39,9 @@ import io.airlift.tpch.GenerationDefinition.TpchTable;
 public class RegionGenerator extends TpchGenerator {
   private static final int COMMENT_AVERAGE_LENGTH = 72;
 
-  private final NullableBigIntVector.Mutator regionKey;
-  private final NullableVarCharVector.Mutator name;
-  private final NullableVarCharVector.Mutator comment;
+  private final NullableBigIntVector regionKey;
+  private final NullableVarCharVector name;
+  private final NullableVarCharVector comment;
 
   private final Distribution regions;
   private final RandomText commentRandom;

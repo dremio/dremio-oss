@@ -23,6 +23,10 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.fn.JodaDateValidator;
+import com.dremio.common.util.DateTimes;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  * Helper method to reduce the complexity of TO_XX and IS_XX date functions
  */
@@ -53,54 +57,102 @@ public class DateFunctionsUtils {
     }
   }
 
+  public static DateTimeFormatter getFormatterForFormatString(final String formatString, FunctionErrorContext errCtx) {
+    String jodaString;
+    try {
+      jodaString = JodaDateValidator.toJodaFormat(formatString);
+    } catch (ParseException e) {
+      throw errCtx.error()
+        .message("Failure parsing the formatting string at column %d of: %s", e.getErrorOffset(), formatString)
+        .addContext("Details", e.getMessage())
+        .addContext("Format String", formatString)
+        .addContext("Error Offset", e.getErrorOffset())
+        .build();
+    }
+
+    try {
+      return DateTimeFormat.forPattern(jodaString).withZoneUTC();
+    } catch (IllegalArgumentException ex) {
+      throw errCtx.error()
+        .message("Invalid formatting string")
+        .addContext("Details", ex.getMessage())
+        .addContext("Format String", formatString)
+        .build();
+    }
+  }
+
+  public static long formatDateMilli(String input, DateTimeFormatter format, FunctionErrorContext errCtx) {
+    return formatDate(input, format, errCtx);
+  }
+
   public static long formatDateMilli(String input, DateTimeFormatter format) {
     return formatDate(input, format);
   }
 
-  public static long formatDate(String input, DateTimeFormatter format) {
+  public static long formatDate(String input, DateTimeFormatter format, FunctionErrorContext errCtx) {
     try {
-      final DateTime dateTime = format.parseDateTime(input);
-
-      // Subtract out the time part in DateTime
-      return com.dremio.common.util.DateTimes.toMillis(dateTime) - dateTime.millisOfDay().get();
+      return formatDate(input, format);
     } catch (IllegalArgumentException ex) {
-      throw UserException.functionError(ex)
+      throw errCtx.error()
       .message("Input text cannot be formatted to date")
       .addContext("Details", ex.getMessage())
       .addContext("Input text", input)
-      .build(logger);
+      .build();
     }
+  }
+
+  public static long formatDate(String input, DateTimeFormatter format) {
+      final DateTime dateTime = format.parseDateTime(input);
+      // Subtract out the time part in DateTime
+      return DateTimes.toMillis(dateTime) - dateTime.millisOfDay().get();
+  }
+
+  public static long formatTimeStampMilli(String input, DateTimeFormatter format, FunctionErrorContext errCtx) {
+    return formatTimeStamp(input, format, errCtx);
   }
 
   public static long formatTimeStampMilli(String input, DateTimeFormatter format) {
     return formatTimeStamp(input, format);
   }
 
-  public static long formatTimeStamp(String input, DateTimeFormatter format) {
+  public static long formatTimeStamp(String input, DateTimeFormatter format, FunctionErrorContext errCtx) {
     try {
-      return com.dremio.common.util.DateTimes.toMillis(format.parseDateTime(input));
+      return formatTimeStamp(input, format);
     } catch (IllegalArgumentException ex) {
-      throw UserException.functionError(ex)
+      throw errCtx.error()
         .message("Input text cannot be formatted to date")
         .addContext("Details", ex.getMessage())
         .addContext("Input text", input)
-        .build(logger);
+        .build();
     }
+  }
+
+  @VisibleForTesting
+  static long formatTimeStamp(String input, DateTimeFormatter format) {
+    return DateTimes.toMillis(format.parseDateTime(input));
+  }
+
+  public static int formatTimeMilli(String input, DateTimeFormatter format, FunctionErrorContext errCtx) {
+    return formatTime(input, format, errCtx);
   }
 
   public static int formatTimeMilli(String input, DateTimeFormatter format) {
     return formatTime(input, format);
   }
 
-  public static int formatTime(String input, DateTimeFormatter format) {
+  public static int formatTime(String input, DateTimeFormatter format, FunctionErrorContext errCtx) {
     try {
-      return com.dremio.common.util.DateTimes.toMillisOfDay(format.parseDateTime(input));
+      return formatTime(input, format);
     } catch (IllegalArgumentException ex) {
-      throw UserException.functionError(ex)
+      throw errCtx.error()
         .message("Input text cannot be formatted to date")
         .addContext("Details", ex.getMessage())
         .addContext("Input text", input)
-        .build(logger);
+        .build();
     }
+  }
+
+  public static int formatTime(String input, DateTimeFormatter format) {
+    return DateTimes.toMillisOfDay(format.parseDateTime(input));
   }
 }

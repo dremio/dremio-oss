@@ -20,9 +20,11 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +33,9 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.AbstractServiceSet;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
+import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ServiceSet;
+import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -48,6 +52,8 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
    * ConcurrentModificationException.
    */
   private final ConcurrentMap<String, DistributedSemaphore> semaphores = Maps.newConcurrentMap();
+
+  private final ConcurrentMap<String, Election> elections = Maps.newConcurrentMap();
 
   private final EnumMap<ClusterCoordinator.Role, LocalServiceSet> serviceSets = new EnumMap<>(ClusterCoordinator.Role.class);
 
@@ -154,6 +160,14 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     return semaphores.get(name);
   }
 
+  @Override
+  public RegistrationHandle joinElection(String name, ElectionListener listener) {
+    if (!elections.containsKey(name)) {
+      elections.putIfAbsent(name, new Election());
+    }
+    return elections.get(name).joinElection(listener);
+  }
+
   private class LocalSemaphore implements DistributedSemaphore {
     private final Semaphore semaphore;
     private final LocalLease localLease = new LocalLease();
@@ -175,6 +189,54 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       @Override
       public void close() throws Exception {
         semaphore.release();
+      }
+    }
+  }
+
+
+
+  private final class Candidate {
+    private final ElectionListener listener;
+
+    public Candidate(ElectionListener listener) {
+      this.listener = listener;
+    }
+  }
+
+  private final class Election {
+    private final Queue<Candidate> waiting = new LinkedBlockingQueue<>();
+    private volatile Candidate currentLeader = null;
+
+    public RegistrationHandle joinElection(final ElectionListener listener) {
+      final Candidate candidate = new Candidate(listener);
+      synchronized(this) {
+        if (currentLeader == null) {
+          currentLeader = candidate;
+          candidate.listener.onElected();
+        } else {
+          waiting.add(candidate);
+        }
+      }
+
+
+      return new RegistrationHandle() {
+        @Override
+        public void close() {
+          leaveElection(candidate);
+        }
+      };
+    }
+
+    private void leaveElection(final Candidate candidate) {
+      synchronized(this) {
+        if (currentLeader == candidate) {
+          currentLeader = waiting.poll();
+          if (currentLeader != null) {
+            currentLeader.listener.onElected();
+          }
+        } else {
+          waiting.remove(candidate);
+        }
       }
     }
   }

@@ -30,6 +30,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
+import org.apache.arrow.vector.ValueVector;
 
 public abstract class CopierTemplate4 implements Copier{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CopierTemplate4.class);
@@ -50,13 +51,17 @@ public abstract class CopierTemplate4 implements Copier{
     try{
 
       for(VectorWrapper<?> out : outgoing){
+        final ValueVector v = out.getValueVector();
         MajorType type = getMajorTypeForField(out.getField());
+        logger.debug("Copier: allocating memory for vector: " + v.getClass() + " MajorType: " + type.toString() + " MinorType: " + type.getMinorType().toString());
         if (!Types.isFixedWidthType(type) || Types.isRepeated(type)) {
           out.getValueVector().allocateNew();
         } else {
           AllocationHelper.allocate(out.getValueVector(), recordCount, 1);
         }
       }
+
+      logger.debug("Copier: allocated memory for all vectors in outgoing.");
 
       for(int svIndex = index; svIndex < index + recordCount; svIndex++, outgoingPosition++){
         int deRefIndex = sv4.get(svIndex);
@@ -66,7 +71,7 @@ public abstract class CopierTemplate4 implements Copier{
       if(outgoingPosition == 0) {
         throw ex;
       }
-      logger.debug("Ran out of space in copy, returning early.");
+      logger.debug("Copier: Ran out of space in copy, returning early.");
     }
     return outgoingPosition;
   }

@@ -90,6 +90,7 @@ public class ExternalSortOperator implements SingleInputOperator {
   private VectorAccessible incoming;
   private MemoryRun memoryRun;
   private MovingCopier copier;
+  private ExternalSortTracer tracer;
 
   private int maxBatchesInMemory = 0;
 
@@ -134,11 +135,11 @@ public class ExternalSortOperator implements SingleInputOperator {
 
   @Override
   public VectorAccessible setup(VectorAccessible incoming) {
+    this.tracer = new ExternalSortTracer();
     this.output =  VectorContainer.create(context.getAllocator(), incoming.getSchema());
-    this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema());
+    this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema(), tracer);
     this.incoming = incoming;
     state = State.CAN_CONSUME;
-
 
     // estimate how much memory the outgoing batch will take in memory
     final OptionManager options = context.getOptions();
@@ -150,7 +151,10 @@ public class ExternalSortOperator implements SingleInputOperator {
 
     this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
         context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
-        config.getOrderings(), incoming.getSchema(), compressSpilledBatch);
+        config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer);
+
+    tracer.setTargetBatchSize(targetBatchSize);
+    tracer.setTargetBatchSizeInBytes(targetBatchSizeInBytes);
     return output;
   }
 
@@ -246,7 +250,7 @@ public class ExternalSortOperator implements SingleInputOperator {
     }
 
     for (VectorWrapper<?> w : output) {
-      w.getValueVector().getMutator().setValueCount(copied);
+      w.getValueVector().setValueCount(copied);
     }
     output.setRecordCount(copied);
     return copied;
@@ -270,15 +274,14 @@ public class ExternalSortOperator implements SingleInputOperator {
 
   private void rotateRuns() {
     if(memoryRun.isEmpty()){
-      throw UserException
-        .memoryError()
-        .message("Memory failed due to not enough memory to sort even one batch of records.")
-        .build(logger);
+      final String message = "Memory failed due to not enough memory to sort even one batch of records.";
+      tracer.setExternalSortAllocatorState(allocator);
+      throw tracer.prepareAndThrowException(new OutOfMemoryException(message), null);
     }
 
     try {
       memoryRun.closeToDisk(diskRuns);
-      memoryRun = new MemoryRun(config, producer, allocator, incoming.getSchema());
+      memoryRun = new MemoryRun(config, producer, allocator, incoming.getSchema(), tracer);
     } catch (Exception e) {
       throw UserException.dataWriteError(e)
         .message("Failure while attempting to spill sort data to disk.")

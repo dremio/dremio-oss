@@ -51,7 +51,7 @@ final class BitReader extends ColumnReader<NullableBitVector> {
     // benefit, for now this reader has been moved to use the higher level value
     // by value reader provided by the parquet library.
     for (int i = 0; i < recordsReadInThisIteration; i++){
-      valueVec.getMutator().setSafe(i + valuesReadInCurrentPass,
+      valueVec.setSafe(i + valuesReadInCurrentPass,
             pageReader.valueReader.readBoolean() ? 1 : 0 );
     }
   }

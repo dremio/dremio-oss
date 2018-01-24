@@ -34,6 +34,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.vector.*;
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
@@ -94,6 +95,9 @@ public abstract class ParquetOutputRecordWriter extends AbstractRowBasedRecordWr
     private Nullable${minor.class}Holder holder = new Nullable${minor.class}Holder();
     <#if minor.class?contains("Interval")>
       private final byte[] output = new byte[12];
+    </#if>
+    <#if minor.class == "Decimal">
+    private final byte[] bytes = new byte[16];
     </#if>
 
     public Nullable${minor.class}ParquetConverter(int fieldId, String fieldName, FieldReader reader) {
@@ -174,9 +178,14 @@ public abstract class ParquetOutputRecordWriter extends AbstractRowBasedRecordWr
       ArrowBuf buf = holder.buffer;
       consumer.addBinary(Binary.fromByteBuffer(holder.buffer.nioBuffer(holder.start, holder.end - holder.start)));
       <#elseif minor.class == "Decimal">
+      /* Decimals are now Little Endian. So after reading the vector contents into holder,
+       * we need to swap the bytes to get BE byte order. Copy the bytes from holder's
+       * buffer and swap them before writing the binary.
+       */
       reader.read(holder);
-      Binary b = Binary.fromByteBuffer(holder.buffer.nioBuffer(holder.start, 16));
-      consumer.addBinary(b);
+      holder.buffer.getBytes(holder.start, bytes, 0, 16);
+      DecimalHelper.swapBytes(bytes);
+      consumer.addBinary(Binary.fromByteArray(bytes));
       </#if>
     }
 

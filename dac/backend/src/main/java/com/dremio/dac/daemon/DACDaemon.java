@@ -16,8 +16,6 @@
 package com.dremio.dac.daemon;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -63,11 +61,22 @@ public final class DACDaemon implements AutoCloseable {
     LOCAL, DISTRIBUTED
   }
 
+  private final Runnable shutdownHook = new Runnable() {
+    @Override
+    public void run() {
+      try {
+        close();
+      } catch (InterruptedException ignored) {
+      } catch (Exception e) {
+        logger.error("Failed to close services during shutdown", e);
+      }
+    }
+  };
+
   private final Set<ClusterCoordinator.Role> roles;
 
   private final SingletonRegistry bootstrapRegistry;
   private final SingletonRegistry registry;
-  private final String masterNode;
   private final String thisNode;
   private final boolean isMaster;
   private final boolean isCoordinator;
@@ -95,37 +104,31 @@ public final class DACDaemon implements AutoCloseable {
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
 
+
+    this.dacConfig = new DACConfig(config);
+    this.isMaster = dacConfig.isMaster;
+    this.isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
+    this.isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
+    this.thisNode = dacConfig.thisNode;
+
     this.roles = EnumSet.noneOf(ClusterCoordinator.Role.class);
-    if (config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL)) {
+    if (isMaster) {
+      roles.add(ClusterCoordinator.Role.MASTER);
+    }
+    if (isCoordinator) {
       roles.add(ClusterCoordinator.Role.COORDINATOR);
     }
-    if (config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL)) {
+    if (isExecutor) {
       roles.add(ClusterCoordinator.Role.EXECUTOR);
     }
 
-    isCoordinator = roles.contains(ClusterCoordinator.Role.COORDINATOR);
-    isExecutor = roles.contains(ClusterCoordinator.Role.EXECUTOR);
-
-    this.dacConfig = new DACConfig(config);
-
-
-    this.masterNode = dacConfig.getMasterNode();
-
-    try (TimedBlock bh = Timer.time("getCanonicalHostName")) {
-      this.thisNode = InetAddress.getLocalHost().getCanonicalHostName();
-    } catch (UnknownHostException ex) {
-      throw new RuntimeException("Failure retrieving hostname from node. Check hosts file.", ex);
-    }
-
-    this.isMaster = !dacConfig.isRemote && NetworkUtil.addressResolvesToThisNode(masterNode);
     StringBuilder sb = new StringBuilder();
     if (isMaster) {
       sb.append("This node is the master node, ");
-      sb.append(masterNode);
+      sb.append(dacConfig.thisNode);
       sb.append(". ");
     } else {
-      sb.append("This node is not master, waiting on ");
-      sb.append(masterNode);
+      sb.append("This node is not master, waiting on master to register in ZooKeeper");
       sb.append(". ");
     }
 
@@ -157,8 +160,8 @@ public final class DACDaemon implements AutoCloseable {
       registry = new NonMasterSingletonRegistry(bootstrapRegistry.provider(MasterStatusListener.class));
     }
 
-    dacModule.bootstrap(bootstrapRegistry, scanResult, dacConfig, masterNode, isMaster);
-    dacModule.build(bootstrapRegistry, registry, scanResult, dacConfig, masterNode, isMaster, sourceConfigurator);
+    dacModule.bootstrap(shutdownHook, bootstrapRegistry, scanResult, dacConfig, isMaster);
+    dacModule.build(bootstrapRegistry, registry, scanResult, dacConfig, isMaster, sourceConfigurator);
   }
 
   @VisibleForTesting
@@ -182,7 +185,7 @@ public final class DACDaemon implements AutoCloseable {
       }
 
     } catch (final Throwable ex) {
-      CatastrophicFailure.exit(ex, "Failed to start services, daemon exiting.", -1);
+      CatastrophicFailure.exit(ex, "Failed to start services, daemon exiting.", 1);
     }
   }
 
@@ -213,18 +216,7 @@ public final class DACDaemon implements AutoCloseable {
    */
   public void closeOnJVMShutDown() {
     // Set shutdown hook after services are initialized
-    Runtime.getRuntime()
-        .addShutdownHook(new Thread() {
-          @Override
-          public void run() {
-            try {
-              close();
-            } catch (InterruptedException ignored) {
-            } catch (Exception e) {
-              logger.error("Failed to close services during shutdown", e);
-            }
-          }
-        });
+    Runtime.getRuntime().addShutdownHook(new Thread(shutdownHook, "shutdown-thread"));
   }
 
   @VisibleForTesting

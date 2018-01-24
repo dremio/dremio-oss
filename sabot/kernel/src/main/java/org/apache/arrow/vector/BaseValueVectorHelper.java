@@ -35,7 +35,12 @@ public class BaseValueVectorHelper {
   public SerializedField.Builder getMetadataBuilder() {
 //    return SerializedFieldHelper.getAsBuilder(vector.getField())
     return SerializedField.newBuilder().setNamePart(NamePart.newBuilder().setName(vector.name).build())
-        .setValueCount(vector.getAccessor().getValueCount())
+        .setValueCount(vector.getValueCount())
         .setBufferLength(vector.getBufferSize());
+  }
+
+  /* number of bytes for the validity buffer for the given valueCount */
+  public static int getValidityBufferSizeFromCount(final int valueCount) {
+    return (int) Math.ceil(valueCount / 8.0);
   }
 }

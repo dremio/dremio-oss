@@ -32,6 +32,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.*;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateMidnight;
@@ -48,6 +49,7 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
 
   @Param ${type.from}Holder in;
   @Output ${type.to}Holder out;
+  @Inject FunctionErrorContext errCtx;
 
   public void setup() {
   }
@@ -59,7 +61,13 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
       String input = new String(buf, com.google.common.base.Charsets.UTF_8);
 
       // Parse the ISO format
-      org.joda.time.Period period = org.joda.time.Period.parse(input);
+      org.joda.time.Period period;
+      try {
+        period = org.joda.time.Period.parse(input);
+      } catch (RuntimeException e) {
+        throw errCtx.error(e)
+          .build();
+      }
 
       <#if type.to == "IntervalDay">
       final long millis = ((long)period.getHours() * org.apache.arrow.vector.util.DateUtility.hoursToMillis) +

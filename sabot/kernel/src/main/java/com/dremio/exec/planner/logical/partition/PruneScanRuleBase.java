@@ -47,6 +47,7 @@ import org.apache.arrow.vector.NullableUInt4Vector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -335,7 +336,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
 
         // Inner loop: within each batch iterate over the each partition in this batch
         for (int i = 0; i < splitsLoaded; ++i) {
-          if (!output.getAccessor().isNull(i) && output.getAccessor().get(i) == 1) {
+          if (!output.isNull(i) && output.get(i) == 1) {
             // select this partition
             qualifiedCount++;
             finalNewSplits.add(splitsInBatch.get(i));
@@ -520,7 +521,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       case INT: {
         NullableIntVector intVector = (NullableIntVector) vv;
         if(pv.getIntValue() != null){
-          intVector.getMutator().setSafe(index, pv.getIntValue());
+          intVector.setSafe(index, pv.getIntValue());
         }
         return;
       }
@@ -528,7 +529,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableSmallIntVector smallIntVector = (NullableSmallIntVector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
-          smallIntVector.getMutator().setSafe(index, value.shortValue());
+          smallIntVector.setSafe(index, value.shortValue());
         }
         return;
       }
@@ -536,7 +537,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableTinyIntVector tinyIntVector = (NullableTinyIntVector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
-          tinyIntVector.getMutator().setSafe(index, value.byteValue());
+          tinyIntVector.setSafe(index, value.byteValue());
         }
         return;
       }
@@ -544,7 +545,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableUInt1Vector intVector = (NullableUInt1Vector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
-          intVector.getMutator().setSafe(index, value.byteValue());
+          intVector.setSafe(index, value.byteValue());
         }
         return;
       }
@@ -552,7 +553,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableUInt2Vector intVector = (NullableUInt2Vector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
-          intVector.getMutator().setSafe(index, (char) value.shortValue());
+          intVector.setSafe(index, (char) value.shortValue());
         }
         return;
       }
@@ -560,7 +561,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableUInt4Vector intVector = (NullableUInt4Vector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
-          intVector.getMutator().setSafe(index, value);
+          intVector.setSafe(index, value);
         }
         return;
       }
@@ -568,7 +569,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableBigIntVector bigIntVector = (NullableBigIntVector) vv;
         Long value = pv.getLongValue();
         if(value != null){
-          bigIntVector.getMutator().setSafe(index, value);
+          bigIntVector.setSafe(index, value);
         }
         return;
       }
@@ -576,7 +577,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableFloat4Vector float4Vector = (NullableFloat4Vector) vv;
         Float value = pv.getFloatValue();
         if(value != null){
-          float4Vector.getMutator().setSafe(index, value);
+          float4Vector.setSafe(index, value);
         }
         return;
       }
@@ -584,7 +585,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableFloat8Vector float8Vector = (NullableFloat8Vector) vv;
         Double value = pv.getDoubleValue();
         if(value != null){
-          float8Vector.getMutator().setSafe(index, value);
+          float8Vector.setSafe(index, value);
         }
         return;
       }
@@ -592,7 +593,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableVarBinaryVector varBinaryVector = (NullableVarBinaryVector) vv;
         if(pv.getBinaryValue() != null){
           byte[] bytes = pv.getBinaryValue().toByteArray();
-          varBinaryVector.getMutator().setSafe(index, bytes, 0, bytes.length);
+          varBinaryVector.setSafe(index, bytes, 0, bytes.length);
         }
         return;
       }
@@ -600,7 +601,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableDateMilliVector dateVector = (NullableDateMilliVector) vv;
         Long value = pv.getLongValue();
         if(value != null){
-          dateVector.getMutator().setSafe(index, value);
+          dateVector.setSafe(index, value);
         }
         return;
       }
@@ -608,7 +609,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableTimeMilliVector timeVector = (NullableTimeMilliVector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
-          timeVector.getMutator().setSafe(index, value);
+          timeVector.setSafe(index, value);
         }
         return;
       }
@@ -616,14 +617,14 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableTimeStampMilliVector timeStampVector = (NullableTimeStampMilliVector) vv;
         Long value = pv.getLongValue();
         if(value != null){
-          timeStampVector.getMutator().setSafe(index, value);
+          timeStampVector.setSafe(index, value);
         }
         return;
       }
       case BIT: {
         NullableBitVector bitVect = (NullableBitVector) vv;
         if(pv.getBitValue() != null){
-          bitVect.getMutator().setSafe(index, pv.getBitValue() ? 1 : 0);
+          bitVect.setSafe(index, pv.getBitValue() ? 1 : 0);
         }
         return;
       }
@@ -632,10 +633,10 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         if(pv.getBinaryValue() != null){
           byte[] bytes = pv.getBinaryValue().toByteArray();
           Preconditions.checkArgument(bytes.length == 16, "Expected 16 bytes, received %d", bytes.length);
-          try(ArrowBuf buf = allocator.buffer(16)){
-            buf.writeBytes(bytes);
-            decimal.getMutator().setSafe(index, buf);
-          }
+          /* set the bytes in LE format in the buffer of decimal vector, we will swap
+           * the bytes while writing into the vector.
+           */
+          decimal.setBigEndianSafe(index, bytes);
         }
         return;
       }
@@ -643,7 +644,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         NullableVarCharVector varCharVector = (NullableVarCharVector) vv;
         if(pv.getStringValue() != null){
           byte[] bytes = pv.getStringValue().getBytes();
-          varCharVector.getMutator().setSafe(index, bytes, 0, bytes.length);
+          varCharVector.setSafe(index, bytes, 0, bytes.length);
         }
         return;
       }
@@ -652,17 +653,13 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     }
   }
 
-  private boolean rexEqual(RexNode r1, RexNode r2){
-    return r1.toString().equals(r2.toString()) && r1.getType().equals(r2.getType());
-  }
-
   private LogicalExpression materializePruneExpr(RexNode pruneCondition,
                                                    PlannerSettings settings,
                                                    RelNode scanRel,
                                                    VectorContainer container) {
     // materialize the expression
     logger.debug("Attempting to prune {}", pruneCondition);
-    final LogicalExpression expr = RexToExpr.toExpr(new ParseContext(settings), scanRel, pruneCondition);
+    final LogicalExpression expr = RexToExpr.toExpr(new ParseContext(settings), scanRel.getRowType(), scanRel.getCluster().getRexBuilder(), pruneCondition);
     container.buildSchema();
 
     return ExpressionTreeMaterializer.materializeAndCheckErrors(expr, container.getSchema(), optimizerContext.getFunctionRegistry());

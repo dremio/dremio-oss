@@ -36,10 +36,10 @@ import com.dremio.exec.store.WritePartition;
 
 class PartitionWriteManager {
 
-  private final BitVector.Accessor changeVector;
-  private final IntVector.Accessor bucketNumber;
+  private final NullableBitVector changeVector;
+  private final NullableIntVector bucketNumber;
 
-  private final List<ValueVector.Accessor> partitions = new ArrayList<>();
+  private final List<ValueVector> partitions = new ArrayList<>();
 
   private final VectorContainer maskedContainer;
 
@@ -52,7 +52,7 @@ class PartitionWriteManager {
     final TypedFieldId changeDetectionField = incoming.getValueVectorId(SchemaPath.getSimplePath(WriterPrel.PARTITION_COMPARATOR_FIELD));
     if (changeDetectionField != null) {
       maskedIds.add(changeDetectionField.getFieldIds()[0]);
-      changeVector = incoming.getValueAccessorById(NullableBitVector.class, changeDetectionField.getFieldIds()).getValueVector().getValuesVector().getAccessor();
+      changeVector = incoming.getValueAccessorById(NullableBitVector.class, changeDetectionField.getFieldIds()).getValueVector();
     } else {
       throw new IllegalArgumentException("Incoming schema didn't include change detection column even though writer was configured for partitioning.");
     }
@@ -61,7 +61,7 @@ class PartitionWriteManager {
       final TypedFieldId bucketNumberField = incoming.getValueVectorId(SchemaPath.getSimplePath(WriterPrel.BUCKET_NUMBER_FIELD));
       if (bucketNumberField != null) {
         maskedIds.add(bucketNumberField.getFieldIds()[0]);
-        bucketNumber = incoming.getValueAccessorById(NullableIntVector.class, bucketNumberField.getFieldIds()).getValueVector().getValuesVector().getAccessor();
+        bucketNumber = incoming.getValueAccessorById(NullableIntVector.class, bucketNumberField.getFieldIds()).getValueVector();
       } else {
         throw new IllegalArgumentException("Incoming schema didn't include partitions even though writer was configured for partitioning.");
       }
@@ -73,7 +73,7 @@ class PartitionWriteManager {
     for(String column : options.getPartitionColumns()){
       final TypedFieldId partitionValueField = incoming.getValueVectorId(SchemaPath.getSimplePath(column));
       if (partitionValueField != null) {
-        partitions.add(incoming.getValueAccessorById(ValueVector.class, partitionValueField.getFieldIds()).getValueVector().getAccessor());
+        partitions.add(incoming.getValueAccessorById(ValueVector.class, partitionValueField.getFieldIds()).getValueVector());
       } else {
         throw new IllegalArgumentException("Incoming schema didn't include partitions even though writer was configured for partitioning.");
       }

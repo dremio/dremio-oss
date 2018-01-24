@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
@@ -25,7 +26,9 @@ import org.junit.Test;
 
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.proto.model.source.NASConfig;
+import com.dremio.dac.proto.model.source.S3Config;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceType;
 
@@ -161,5 +164,29 @@ public class TestSourceResource extends BaseTestServer {
   @Test
   public void testDeleteNoneExistingSource() throws Exception {
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("nonexistandid")).buildDelete());
+  }
+
+  @Test
+  public void testRemovingSensitiveFields() throws Exception {
+    SourceConfig config = new SourceConfig();
+    config.setName("Foopy");
+    config.setId(new EntityId("id"));
+    config.setVersion(0L);
+    config.setAccelerationGracePeriod(0L);
+    config.setAccelerationRefreshPeriod(0L);
+    config.setType(SourceType.S3);
+
+    S3Config s3Config = new S3Config();
+    s3Config.setAccessKey("accesskey");
+    s3Config.setAccessSecret("supersecret");
+    config.setConfig(s3Config.toByteString());
+
+    SourceResource sourceResource = new SourceResource(newSourceService());
+    Source source = sourceResource.fromSourceConfig(config);
+    S3Config newConfig = (S3Config) source.getConfig();
+
+    // make sure the sensitive fields have been removed
+    assertNull(newConfig.getAccessKey());
+    assertNull(newConfig.getAccessSecret());
   }
 }

@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-
 import PropTypes from 'prop-types';
 
 import General from 'components/Forms/General';
 import { getCreatedSource } from 'selectors/resources';
 import SourceProperties from 'components/Forms/SourceProperties';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
-
 import { FieldWithError, TextField, Checkbox } from 'components/Fields';
-
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { section, sectionTitle } from 'uiTheme/radium/forms';
@@ -53,15 +50,14 @@ export class MapRFSForm extends Component {
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
         <FormBody style={formBodyStyle}>
           <General fields={fields} editing={editing}>
-            <div style={section}>
+            <div style={{marginBottom: 5}}>
               <h2 style={sectionTitle}>{la('Cluster Name')}</h2>
               <FieldWithError {...fields.config.clusterName}>
                 <TextField {...fields.config.clusterName}/>
               </FieldWithError>
             </div>
             <div style={section}>
-              <Checkbox {...fields.config.enableImpersonation}
-                label={la('Impersonation')} style={{margin: '-20px 0 20px 0'}}/>
+              <Checkbox {...fields.config.enableImpersonation} label={la('Impersonation')} />
             </div>
             <div style={section}>
               <h2 style={sectionTitle}>{la('Options')}</h2>
@@ -73,6 +69,11 @@ export class MapRFSForm extends Component {
             <div style={section}>
               <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
+                <div style={styles.formSubRow}>
+                  <FieldWithError errorPlacement='top' label={la('Root Path')} {...fields.config.rootPath}>
+                    <TextField {...fields.config.rootPath}/>
+                  </FieldWithError>
+                </div>
                 <MetadataRefresh fields={fields} hideObjectNames showAuthorization/>
               </AdvancedOptionsExpandable>
             </div>
@@ -90,6 +91,7 @@ function mapStateToProps(state, props) {
     config: {
       secure: false,
       enableImpersonation: false,
+      rootPath: '/',
       ...props.initialValues.config
     }
   };
@@ -105,5 +107,11 @@ function mapStateToProps(state, props) {
 
 export default connectComplexForm({
   form: 'source',
-  fields: ['config.clusterName', 'config.secure', 'config.enableImpersonation']
+  fields: ['config.clusterName', 'config.secure', 'config.enableImpersonation', 'config.rootPath']
 }, SECTIONS, mapStateToProps, null)(MapRFSForm);
+
+const styles = {
+  formSubRow: {
+    marginBottom: 6
+  }
+};

@@ -18,11 +18,13 @@ package com.dremio.exec.store.parquet2;
 import static com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.getDateTimeValueFromBinary;
 import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
@@ -418,13 +420,14 @@ abstract class ParquetGroupConverter extends GroupConverter {
 
     @Override
     public void addInt(int value) {
-      buffer.setInt(12, Integer.reverseBytes(value));
+      /* set the bytes in LE format in the buffer of decimal vector */
+      buffer.setInt(0, value);
       if (value < 0) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 1; i < 4; i++) {
           buffer.setInt(i * 4, 0xFFFFFFFF);
         }
       } else {
-        buffer.setZero(0, 12);
+        buffer.setZero(4, 12);
       }
       writer.writeDecimal(0, buffer);
     }
@@ -536,13 +539,14 @@ abstract class ParquetGroupConverter extends GroupConverter {
 
     @Override
     public void addLong(long value) {
-      buffer.setLong(8, Long.reverseBytes(value));
+      /* set the bytes in LE format in the buffer of decimal vector */
+      buffer.setLong(0, value);
       if (value < 0) {
-        for (int i = 0; i < 2; i++) {
+        for (int i = 2; i < 4; i++) {
           buffer.setInt(i * 4, 0xFFFFFFFF);
         }
       } else {
-        buffer.setZero(0, 8);
+        buffer.setZero(8, 8);
       }
       writer.writeDecimal(0, buffer);
     }
@@ -646,9 +650,11 @@ abstract class ParquetGroupConverter extends GroupConverter {
     @Override
     public void addBinary(Binary value) {
       final int length = value.length();
-      buffer.setBytes(16 - length, value.getBytes(), 0, length);
-      buffer.setZero(0, 16 - length);
-      writer.writeDecimal(0, buffer);
+      final byte[] bytes = value.getBytes();
+      /* set the bytes in LE format in the buffer of decimal vector, we will swap
+       * the bytes while writing into the vector.
+       */
+      writer.writeBigEndianBytesToDecimal(bytes);
     }
   }
 

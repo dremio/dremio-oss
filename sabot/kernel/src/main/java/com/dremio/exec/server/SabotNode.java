@@ -35,7 +35,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogServiceImpl;
 import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
-import com.dremio.exec.store.sys.SystemTablePluginProvider;
+import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
@@ -46,6 +46,7 @@ import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.sabot.exec.FragmentWorkManager;
+import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.rpc.CoordExecService;
 import com.dremio.sabot.rpc.CoordToExecHandler;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
@@ -174,14 +175,13 @@ public class SabotNode implements AutoCloseable {
         registry.provider(NamespaceService.Factory.class),
         registry.provider(UserService.class),
         registry.provider(CatalogService.class),
-        null,
-        false
+        null
         ));
 
     // Note: corePoolSize param below should be more than 1 to show any multithreading issues
     registry.bind(SchedulerService.class, new LocalSchedulerService(2));
 
-    registry.bindSelf(new SystemTablePluginProvider(registry.provider(SabotContext.class)));
+    registry.bindSelf(new SystemTablePluginConfigProvider());
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
@@ -190,8 +190,9 @@ public class SabotNode implements AutoCloseable {
         registry.getBindingCreator(),
         true,
         true,
-        registry.provider(SystemTablePluginProvider.class)));
+        registry.provider(SystemTablePluginConfigProvider.class)));
 
+    registry.bindSelf(new ContextInformationFactory());
     registry.bindSelf(
         new FragmentWorkManager(bootstrap,
             dremioConfig,
@@ -199,6 +200,7 @@ public class SabotNode implements AutoCloseable {
             registry.provider(SabotContext.class),
             registry.provider(FabricService.class),
             registry.provider(StoragePluginRegistry.class),
+            registry.provider(ContextInformationFactory.class),
             registry.getBindingCreator()));
 
     registry.bindSelf(

@@ -107,4 +107,17 @@ public class TestHBaseQueries extends BaseHBaseTest {
         .go();
   }
 
+  // DX-10110: issues when "use hbase" used multiple times
+  @Test
+  public void testMultiUseHbase() throws Exception {
+    test("use hbase");
+    test("use hbase");
+    testBuilder()
+      .sqlQuery("SELECT count(*) as cnt FROM " + HBaseTestsSuite.TEST_TABLE_1.getNameAsString())
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(8L)
+      .go();
+  }
+
 }

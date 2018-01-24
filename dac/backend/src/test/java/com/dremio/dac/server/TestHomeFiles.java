@@ -39,7 +39,6 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -444,23 +443,6 @@ public class TestHomeFiles extends BaseTestServer {
       runTests(pdfsHomeFileStore);
     } finally {
       tool.clear();
-    }
-  }
-
-  @Test
-  @Ignore("This test connects to hdfs at h011.d.drem.io:8020")
-  public void testHDFSFileStore() throws Exception {
-    final HomeFileConfig hdfsHomeFileStore = new HomeFileConfig(new Path("hdfs://h011.d.drem.io:8020/tmp/" + BaseTestServer.folder1.getRoot().toString() + "/" + "testNASFileStore").toUri(), "localhost");
-    HomeFileTool tool = new HomeFileTool(hdfsHomeFileStore, hdfsHomeFileStore.createFileSystem());
-    StoragePluginRegistry registry = getCurrentDremioDaemon().getBindingProvider().lookup(StoragePluginRegistry.class);
-    registry.createOrUpdate(HomeFileConfig.HOME_PLUGIN_NAME, new HomeFileSystemPluginConfig(hdfsHomeFileStore), true);
-    try {
-      runTests(hdfsHomeFileStore);
-    } finally {
-      tool.clear();
-      // reset plugin?
-      final HomeFileConfig pdfsHomeFileStore = l(HomeFileConfig.class);
-      registry.createOrUpdate(HomeFileConfig.HOME_PLUGIN_NAME, new HomeFileSystemPluginConfig(pdfsHomeFileStore), true);
     }
   }
 }

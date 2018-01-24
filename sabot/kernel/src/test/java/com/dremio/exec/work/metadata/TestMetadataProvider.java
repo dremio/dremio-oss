@@ -146,6 +146,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<SchemaMetadata> schemas = resp.getSchemasList();
+
     assertEquals(1, schemas.size());
 
     verifySchema("INFORMATION_SCHEMA", schemas.get(0));
@@ -212,7 +213,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertTrue(tables.isEmpty());
+    assertEquals(0, tables.size());
   }
 
   @Test
@@ -253,9 +254,12 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(8, tables.size());
+    assertEquals(10, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
+    verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
+    verifyTable("INFORMATION_SCHEMA", "COLUMNS", iterator.next());
+
     verifyTable("sys", "accelerations", iterator.next());
     verifyTable("sys", "boot", iterator.next());
     verifyTable("sys", "layouts", iterator.next());
@@ -278,7 +282,10 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(0, tables.size());
+    Iterator<TableMetadata> iterator = tables.iterator();
+    assertEquals(2, tables.size());
+    verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
+    verifyTable("INFORMATION_SCHEMA", "COLUMNS", iterator.next());
   }
 
   @Test
@@ -302,9 +309,16 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(4, columns.size());
+    assertEquals(9, columns.size());
+
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
+    verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "ORDINAL_POSITION", iterator.next());
+    verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "NUMERIC_PRECISION", iterator.next());
+    verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "NUMERIC_PRECISION_RADIX", iterator.next());
+    verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "DATETIME_PRECISION", iterator.next());
+    verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "INTERVAL_PRECISION", iterator.next());
+
     verifyColumn("sys", "memory", "fabric_port", iterator.next());
     verifyColumn("sys", "nodes", "user_port", iterator.next());
     verifyColumn("sys", "nodes", "fabric_port", iterator.next());
@@ -343,6 +357,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
+
     assertEquals(2, columns.size());
 
     Iterator<ColumnMetadata> iterator = columns.iterator();

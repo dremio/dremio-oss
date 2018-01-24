@@ -212,7 +212,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     this.pipelineManager = new PipelineManager(storeProvider, new Provider<String>() {
       @Override
       public String get() {
-        return acceleratorStoragePluginProvider.get().getStorageName();
+        return acceleratorStoragePluginProvider.get().getName();
       }
     }, materializationStore, jobsService, namespaceService, catalogService, sabotConfig, optionManager, this, executor, acceleratorStoragePluginProvider);
   }
@@ -323,7 +323,7 @@ public class AccelerationServiceImpl implements AccelerationService {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(materializationProvider, pipelineManager);
-    ScheduleUtils.cancel(syncDatasetPathsTask, cleanupTaskRef.get());
+    ScheduleUtils.cancel(false, syncDatasetPathsTask, cleanupTaskRef.get());
   }
 
   @Override
@@ -381,7 +381,7 @@ public class AccelerationServiceImpl implements AccelerationService {
   public Optional<Layout> getLayout(final LayoutId layoutId) {
     final Optional<Acceleration> acceleration = accelerationStore.getByIndex(AccelerationIndexKeys.LAYOUT_ID, layoutId.getId());
     if (!acceleration.isPresent()) {
-      return null;
+      return Optional.absent();
     }
 
     return FluentIterable.from(AccelerationUtils.allLayouts(acceleration.get()))
@@ -721,7 +721,7 @@ public class AccelerationServiceImpl implements AccelerationService {
     if (settings.getOrphanCleanupInterval() != null && getSettings().getOrphanCleanupInterval() != settings.getOrphanCleanupInterval()) {
       manager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS.getOptionName(), settings.getOrphanCleanupInterval()));
       Cancellable cleanupTask = cleanupTaskRef.getAndSet(scheduleCleanupTask());
-      cleanupTask.cancel();
+      cleanupTask.cancel(false);
     }
     if (settings.getLayoutRefreshMaxAttempts() != null) {
       manager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), settings.getLayoutRefreshMaxAttempts()));
@@ -1050,7 +1050,7 @@ public class AccelerationServiceImpl implements AccelerationService {
         namespaceService.get(),
         catalogService.get(),
         schedulerService.get(),
-        acceleratorStoragePluginProvider.get().getStorageName(),
+        acceleratorStoragePluginProvider.get().getName(),
         materializationStore,
         executor,
         acceleratorStoragePluginProvider.get());
@@ -1070,7 +1070,7 @@ public class AccelerationServiceImpl implements AccelerationService {
           DatasetConfig dataset = namespaceService.get().findDatasetByUUID(acceleration.get().getId().getId());
           if (dataset != null) {
             MaterializationPlanningTask task = materializationPlanningFactory.createTask(
-                acceleratorStoragePluginProvider.get().getStorageName(),
+                acceleratorStoragePluginProvider.get().getName(),
                 jobsService.get(), layout, namespaceService.get(), this, acceleration.get());
             executor.execute(task);
             DependencyNode vertex = new DependencyNode(layout);

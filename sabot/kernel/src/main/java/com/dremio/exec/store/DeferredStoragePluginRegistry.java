@@ -38,7 +38,7 @@ public class DeferredStoragePluginRegistry implements StoragePluginRegistry {
   }
 
   @Override
-  public Iterator<Entry<String, StoragePlugin<?>>> iterator() {
+  public Iterator<Entry<String, StoragePlugin>> iterator() {
     return registry.get().getOldRegistry().iterator();
   }
 
@@ -48,34 +48,34 @@ public class DeferredStoragePluginRegistry implements StoragePluginRegistry {
   }
 
   @Override
-  public StoragePlugin<?> createOrUpdate(String name, StoragePluginConfig config, boolean persist)
+  public StoragePlugin createOrUpdate(String name, StoragePluginConfig config, boolean persist)
       throws ExecutionSetupException {
     return registry.get().getOldRegistry().createOrUpdate(name, config, persist);
   }
 
   @Override
-  public StoragePlugin<?> createOrUpdate(String name, StoragePluginConfig config, SourceConfig sourceConfig,
+  public StoragePlugin createOrUpdate(String name, StoragePluginConfig config, SourceConfig sourceConfig,
       boolean persist) throws ExecutionSetupException {
     return registry.get().getOldRegistry().createOrUpdate(name, config, sourceConfig, persist);
   }
 
   @Override
-  public StoragePlugin<?> getPlugin(String name) throws ExecutionSetupException {
+  public StoragePlugin getPlugin(String name) throws ExecutionSetupException {
     return registry.get().getOldRegistry().getPlugin(name);
   }
 
   @Override
-  public StoragePlugin<?> getPlugin(StoragePluginConfig config) throws ExecutionSetupException {
+  public StoragePlugin getPlugin(StoragePluginConfig config) throws ExecutionSetupException {
     return registry.get().getOldRegistry().getPlugin(config);
   }
 
   @Override
-  public StoragePlugin<?> getPlugin(StoragePluginId pluginId) throws ExecutionSetupException {
+  public StoragePlugin getPlugin(StoragePluginId pluginId) throws ExecutionSetupException {
     return registry.get().getOldRegistry().getPlugin(pluginId);
   }
 
   @Override
-  public void addPlugin(String name, StoragePlugin<?> plugin) {
+  public void addPlugin(String name, StoragePlugin plugin) {
     registry.get().getOldRegistry().addPlugin(name, plugin);
   }
 

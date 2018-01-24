@@ -34,8 +34,6 @@ import com.dremio.common.util.ObjectType;
 import io.netty.buffer.ArrowBuf;
 
 public class ObjectVector extends BaseValueVector implements FieldVector {
-  private final Accessor accessor = new Accessor();
-  private final Mutator mutator = new Mutator();
   private int maxCount = 0;
   private int count = 0;
   private int allocationSize = 4096;
@@ -61,47 +59,42 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
-  public final class Mutator implements ValueVector.Mutator {
 
-    public void set(int index, Object obj) {
-      int listOffset = index / allocationSize;
-      if (listOffset >= objectArrayList.size()) {
-        addNewArray();
-      }
-      objectArrayList.get(listOffset)[index % allocationSize] = obj;
-    }
-
-    public boolean setSafe(int index, long value) {
-      set(index, value);
-      return true;
-    }
-
-    protected void set(int index, ObjectHolder holder) {
-      set(index, holder.obj);
-    }
-
-    public boolean setSafe(int index, ObjectHolder holder){
-      set(index, holder);
-      return true;
-    }
-
-    @Override
-    public void setValueCount(int valueCount) {
-      count = valueCount;
-    }
-
-    @Override
-    public void reset() {
-      count = 0;
-      maxCount = 0;
-      objectArrayList = new ArrayList<>();
+  public void set(int index, Object obj) {
+    int listOffset = index / allocationSize;
+    if (listOffset >= objectArrayList.size()) {
       addNewArray();
     }
-
-    @Override
-    public void generateTestData(int values) {
-    }
+    objectArrayList.get(listOffset)[index % allocationSize] = obj;
   }
+
+  public boolean setSafe(int index, long value) {
+    set(index, value);
+    return true;
+  }
+
+  protected void set(int index, ObjectHolder holder) {
+    set(index, holder.obj);
+  }
+
+  public boolean setSafe(int index, ObjectHolder holder){
+    set(index, holder);
+    return true;
+  }
+
+  @Override
+  public void setValueCount(int valueCount) {
+    count = valueCount;
+  }
+
+  public void reset() {
+    count = 0;
+    maxCount = 0;
+    objectArrayList = new ArrayList<>();
+    addNewArray();
+  }
+
+  public void generateTestData(int values) { }
 
   @Override
   public void setInitialCapacity(int numRecords) {
@@ -208,8 +201,9 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   }
 
   @Override
+  @Deprecated
   public Accessor getAccessor() {
-    return accessor;
+    throw new UnsupportedOperationException("ObjectVector does not support Accessor");
   }
 
   @Override
@@ -228,8 +222,9 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
 //  }
 
   @Override
+  @Deprecated
   public Mutator getMutator() {
-    return mutator;
+    throw new UnsupportedOperationException("ObjectVector does not support Mutator");
   }
 
   @Override
@@ -237,28 +232,31 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
-  public final class Accessor extends BaseAccessor {
-    @Override
-    public Object getObject(int index) {
-      int listOffset = index / allocationSize;
-      if (listOffset >= objectArrayList.size()) {
-        addNewArray();
-      }
-      return objectArrayList.get(listOffset)[index % allocationSize];
+  @Override
+  public Object getObject(int index) {
+    int listOffset = index / allocationSize;
+    if (listOffset >= objectArrayList.size()) {
+      addNewArray();
     }
+    return objectArrayList.get(listOffset)[index % allocationSize];
+  }
 
-    @Override
-    public int getValueCount() {
-      return count;
-    }
+  @Override
+  public boolean isNull(int index) {
+    return false;
+  }
 
-    public Object get(int index) {
-      return getObject(index);
-    }
+  @Override
+  public int getValueCount() {
+    return count;
+  }
 
-    public void get(int index, ObjectHolder holder){
-      holder.obj = getObject(index);
-    }
+  public Object get(int index) {
+    return getObject(index);
+  }
+
+  public void get(int index, ObjectHolder holder){
+    holder.obj = getObject(index);
   }
 
   @Override

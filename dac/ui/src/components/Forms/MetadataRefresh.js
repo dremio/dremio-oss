@@ -43,6 +43,7 @@ const AUTHORIZATION_TOOLTIP =
   'When impersonation is enabled, maximum amount of time Dremio will cache authorization information.';
 const DEFAULT_DURATION_ONE_HOUR = 3600000;
 const DEFAULT_DURATION_THREE_HOUR = DEFAULT_DURATION_ONE_HOUR * 3;
+const DEFAULT_DURATION_ONE_DAY = DEFAULT_DURATION_ONE_HOUR * 24;
 const TTL_FIELDS = ['namesRefreshMillis', 'datasetDefinitionRefreshAfterMillis', 'datasetDefinitionExpireAfterMillis',
   'authTTLMillis'];
 
@@ -66,7 +67,7 @@ export default class MetadataRefresh extends Component {
         namesRefreshMillis: DEFAULT_DURATION_ONE_HOUR,
         datasetDefinitionRefreshAfterMillis: DEFAULT_DURATION_ONE_HOUR,
         datasetDefinitionExpireAfterMillis: DEFAULT_DURATION_THREE_HOUR,
-        authTTLMillis: DEFAULT_DURATION_THREE_HOUR,
+        authTTLMillis: DEFAULT_DURATION_ONE_DAY,
         updateMode: 'PREFETCH_QUERIED'
       }
     };
@@ -211,7 +212,7 @@ const styles = {
     width: 42
   },
   inRowSelect: {
-    width: 214
+    width: 250
   },
   hoverTip: {
     textAlign: 'left',
@@ -236,6 +237,6 @@ const styles = {
     marginBottom: 6
   },
   durationField: {
-    width: 214
+    width: 250
   }
 };

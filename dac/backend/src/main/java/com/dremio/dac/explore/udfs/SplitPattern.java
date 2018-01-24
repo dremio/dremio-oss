@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
@@ -42,6 +44,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 
 import io.netty.buffer.ArrowBuf;
@@ -154,6 +157,8 @@ public class SplitPattern {
     @Workspace private java.util.regex.Matcher matcher;
     @Workspace private com.dremio.dac.proto.model.dataset.SplitPositionType positionType;
 
+    @Inject private FunctionErrorContext errCtx;
+
     @Override
     public void setup() {
       matcher = com.dremio.dac.explore.udfs.SplitPattern.initMatcher(pattern);
@@ -167,7 +172,7 @@ public class SplitPattern {
         return;
       }
 
-      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in.buffer, in.start, in.end);
+      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in.buffer, in.start, in.end, errCtx);
       final String v = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
 
       java.util.List<Match> matches = com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, v);

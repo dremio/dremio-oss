@@ -66,7 +66,7 @@ public class StorageResource {
     try {
       StoragePlugin plugin = pluginConfiguration.getPlugin(name);
       if (plugin != null) {
-        return new PluginConfigWrapper(name, plugin.getConfig());
+        return new PluginConfigWrapper(name, plugin.getId().getConfig());
       }
     } catch (Exception e) {
       throw new BadRequestException("Failure while trying to access storage config: " + name, e);

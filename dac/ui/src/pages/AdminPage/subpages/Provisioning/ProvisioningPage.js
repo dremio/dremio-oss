@@ -57,11 +57,14 @@ export class ProvisioningPage extends Component {
 
   pollId = 0
 
+  _isUnmounted = false
+
   componentWillMount() {
     this.startPollingProvisionData(true);
   }
 
   componentWillUnmount() {
+    this._isUnmounted = true;
     this.stopPollingProvisionData();
   }
 
@@ -133,7 +136,7 @@ export class ProvisioningPage extends Component {
 
   startPollingProvisionData = (isFirst) => {
     const pollAgain = () => {
-      if (isFirst || this.pollId) {
+      if (!this._isUnmounted && (isFirst || this.pollId)) {
         this.pollId = setTimeout(this.startPollingProvisionData, PROVISION_POLL_INTERVAL);
       }
     };

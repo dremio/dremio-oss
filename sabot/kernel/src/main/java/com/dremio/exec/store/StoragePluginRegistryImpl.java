@@ -56,10 +56,9 @@ import com.dremio.exec.store.StoragePluginStarter.Success;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.ischema.InfoSchemaConfig;
-import com.dremio.exec.store.ischema.InfoSchemaStoragePlugin;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
-import com.dremio.exec.store.sys.SystemTablePluginProvider;
+import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.store.KVPersistentStore.PersistentStoreCreator;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -67,15 +66,10 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.TableInstance;
-import com.dremio.service.namespace.TableInstance.TableParamDef;
-import com.dremio.service.namespace.TableInstance.TableSignature;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceType;
-import com.dremio.service.namespace.space.proto.FolderConfig;
-import com.dremio.service.users.SystemUser;
+import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
@@ -86,10 +80,8 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
 
 public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoCloseable {
@@ -98,7 +90,15 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(6);
   private static final long STORAGE_PLUGIN_STARTUP_WAIT_MILLIS = 15_000;
 
-  private Map<Class<?>, Constructor<? extends StoragePlugin<?>>> availablePlugins = Collections.emptyMap();
+  private static final long ONEYEAR = TimeUnit.DAYS.toMillis(365);
+  private static final MetadataPolicy ONE_YEAR_POLICY = new MetadataPolicy()
+      .setAuthTtlMs(ONEYEAR)
+      .setDatasetDefinitionExpireAfterMs(ONEYEAR)
+      .setDatasetDefinitionRefreshAfterMs(ONEYEAR)
+      .setDatasetUpdateMode(UpdateMode.PREFETCH)
+      .setNamesRefreshMs(ONEYEAR);
+
+  private Map<Class<?>, Constructor<? extends StoragePlugin>> availablePlugins = Collections.emptyMap();
   private final StoragePluginMap plugins = new StoragePluginMap();
 
   private final SabotContext context;
@@ -106,18 +106,16 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   private final PersistentStore<StoragePluginConfig> pluginSystemTable;
   private final LogicalPlanPersistence lpPersistence;
   private final ScanResult classpathScan;
-  private final SystemTablePluginProvider sysPluginProvider;
+  private final SystemTablePluginConfigProvider sysPluginProvider;
 
   private final ConcurrentHashMap<String, Integer> manuallyAddedPlugins = new ConcurrentHashMap<>();
-  private final LoadingCache<StoragePluginConfig, StoragePlugin<?>> ephemeralPlugins;
-  private HashMap<String, SourceType> pluginSourceTypes = new HashMap<String, SourceType>(); // recording the source type of each entry in 'plugins'
-  private static final ImmutableSet<SourceType> singleInstanceTypes = ImmutableSet.of(SourceType.HDFS, SourceType.MAPRFS);
+  private final LoadingCache<StoragePluginConfig, StoragePlugin> ephemeralPlugins;
 
   //TODO do we actually need to pass SabotContext ?
   public StoragePluginRegistryImpl(final SabotContext context,
                                    final CatalogService catalog,
                                    final PersistentStoreProvider provider,
-                                   final SystemTablePluginProvider sysPluginProvider) {
+                                   final SystemTablePluginConfigProvider sysPluginProvider) {
     this.context = checkNotNull(context);
     this.catalog = checkNotNull(catalog);
     this.lpPersistence = checkNotNull(context.getLpPersistence());
@@ -134,15 +132,15 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     ephemeralPlugins = CacheBuilder.newBuilder()
         .expireAfterAccess(24, TimeUnit.HOURS)
         .maximumSize(250)
-        .removalListener(new RemovalListener<StoragePluginConfig, StoragePlugin<?>>() {
+        .removalListener(new RemovalListener<StoragePluginConfig, StoragePlugin>() {
           @Override
-          public void onRemoval(RemovalNotification<StoragePluginConfig, StoragePlugin<?>> notification) {
+          public void onRemoval(RemovalNotification<StoragePluginConfig, StoragePlugin> notification) {
             closePlugin(notification.getValue());
           }
         })
-        .build(new CacheLoader<StoragePluginConfig, StoragePlugin<?>>() {
+        .build(new CacheLoader<StoragePluginConfig, StoragePlugin>() {
           @Override
-          public StoragePlugin<?> load(StoragePluginConfig config) throws Exception {
+          public StoragePlugin load(StoragePluginConfig config) throws Exception {
             return create(null, config, true);
           }
         });
@@ -166,7 +164,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     this.plugins.putAll(createPlugins());
   }
 
-  private Map<String, StoragePlugin<?>> createPlugins() throws NodeStartupException {
+  private Map<String, StoragePlugin> createPlugins() throws NodeStartupException {
     try {
       /*
        * Check if the storage plugins system table has any entries. If not, load the boostrap-storage-plugin file into
@@ -198,17 +196,13 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
         }
       }
 
-      Map<String, StoragePlugin<?>> activePlugins = new HashMap<>();
 
-      StoragePlugin<?> infoSchema = new InfoSchemaStoragePlugin(new InfoSchemaConfig(), context,
-              INFORMATION_SCHEMA_PLUGIN);
-      activePlugins.put(INFORMATION_SCHEMA_PLUGIN, infoSchema);
-      manuallyAddedPlugins.put(INFORMATION_SCHEMA_PLUGIN, 0);
-      activePlugins.put(SYS_PLUGIN, sysPluginProvider.provide());
-      manuallyAddedPlugins.put(SYS_PLUGIN, 0);
+      Map<String, StoragePlugin> activePlugins = new HashMap<>();
 
-      StoragePluginStarter starter = new StoragePluginStarter(pluginSystemTable, STORAGE_PLUGIN_STARTUP_WAIT_MILLIS,
-              new InitTimeCreator());
+      activePlugins.put(INFORMATION_SCHEMA_PLUGIN, registerInternal(INFORMATION_SCHEMA_PLUGIN, new InfoSchemaConfig(), SourceType.INFORMATION_SCHEMA));
+      activePlugins.put(SYS_PLUGIN, registerInternal(SYS_PLUGIN, sysPluginProvider.get(), SourceType.SYS));
+
+      StoragePluginStarter starter = new StoragePluginStarter(pluginSystemTable, STORAGE_PLUGIN_STARTUP_WAIT_MILLIS, new InitTimeCreator());
       for (Map.Entry<String, StoragePluginConfig> entry : Lists.newArrayList(pluginSystemTable.getAll())) {
         starter.add(entry.getKey(), entry.getValue());
       }
@@ -226,34 +220,33 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
 
   private class InitTimeCreator implements StoragePluginStarter.StoragePluginCreator {
     @Override
-    public StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig) throws Exception {
+    public StoragePlugin create(String name, StoragePluginConfig pluginConfig) throws Exception {
         return StoragePluginRegistryImpl.this.create(name, pluginConfig, true);
     }
 
     @Override
-    public void informLateCreate(String name, StoragePlugin<?> plugin) {
+    public void informLateCreate(String name, StoragePlugin plugin) {
       plugins.put(name, plugin);
     }
   }
 
   @Override
-  public void addPlugin(String name, StoragePlugin<?> plugin) {
+  public void addPlugin(String name, StoragePlugin plugin) {
     plugins.put(name, plugin);
     manuallyAddedPlugins.put(name, 0);
   }
 
   @Override
   public void deletePlugin(String name) {
-    StoragePlugin<?> plugin = plugins.remove(name);
+    StoragePlugin plugin = plugins.remove(name);
     closePlugin(plugin);
-    pluginSourceTypes.remove(name);
     if(manuallyAddedPlugins.remove(name) == null){
       pluginSystemTable.delete(name);
     }
     catalog.unregisterSource(new NamespaceKey(name));
   }
 
-  private void closePlugin(StoragePlugin<?> plugin) {
+  private void closePlugin(StoragePlugin plugin) {
     if (plugin == null) {
       return;
     }
@@ -266,26 +259,16 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   }
 
   @Override
-  public StoragePlugin<?> createOrUpdate(String name, StoragePluginConfig config, boolean persist) throws ExecutionSetupException {
+  public StoragePlugin createOrUpdate(String name, StoragePluginConfig config, boolean persist) throws ExecutionSetupException {
     return createOrUpdate(name, config, null, persist);
   }
 
   @Override
-  public StoragePlugin<?> createOrUpdate(String name, StoragePluginConfig config, SourceConfig sourceConfig, boolean persist)
+  public StoragePlugin createOrUpdate(String name, StoragePluginConfig config, SourceConfig sourceConfig, boolean persist)
       throws ExecutionSetupException {
-    if (sourceConfig != null && singleInstanceTypes.contains(sourceConfig.getType())) {
-      for (Map.Entry<String, SourceType> entry : pluginSourceTypes.entrySet()) {
-        if (entry.getValue() == sourceConfig.getType() && plugins.get(name) == null) {
-          throw UserException.dataReadError()
-            .message("Conflict with existing %s source %s. Dremio only allows a single instance of this type",
-              sourceConfig.getType(), entry.getKey())
-            .build(logger);
-        }
-      }
-    }
     for (;;) {
-      final StoragePlugin<?> oldPlugin = plugins.get(name);
-      final StoragePlugin<?> newPlugin = create(name, config, sourceConfig, false);
+      final StoragePlugin oldPlugin = plugins.get(name);
+      final StoragePlugin newPlugin = create(name, config, sourceConfig, false);
       boolean done = false;
       try {
         if (oldPlugin != null) {
@@ -306,11 +289,8 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
         if (persist) {
           pluginSystemTable.put(name, config);
         }
-        pluginSourceTypes.put(name, (sourceConfig == null ? null : sourceConfig.getType()));
 
-        if (name != null && newPlugin.getStoragePlugin2() == null) {
-          // NB: V1 storage plugins must be scheduled only after the plugin is added to 'plugins', as that's the
-          // only way V1 plugins are accessible
+        if (name != null) {
           if (sourceConfig == null) {
             sourceConfig = decorate(new SourceConfig().setType(SourceType.UNKNOWN).setName(name));
           }
@@ -322,8 +302,8 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   }
 
   @Override
-  public StoragePlugin<?> getPlugin(String name) throws ExecutionSetupException {
-    StoragePlugin<?> plugin = plugins.get(name);
+  public StoragePlugin getPlugin(String name) throws ExecutionSetupException {
+    StoragePlugin plugin = plugins.get(name);
     if (manuallyAddedPlugins.containsKey(name)) {
       return plugin;
     }
@@ -333,11 +313,10 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     if (config == null) {
       if (plugin != null) {
         plugins.remove(name);
-        pluginSourceTypes.remove(name);
       }
       return null;
     } else {
-      if (plugin == null || !plugin.getConfig().equals(config)) {
+      if (plugin == null || !plugin.getId().getConfig().equals(config)) {
         plugin = createOrUpdate(name, config, false);
       }
       return plugin;
@@ -345,18 +324,18 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   }
 
   @Override
-  public StoragePlugin<?> getPlugin(StoragePluginId pluginId) throws ExecutionSetupException {
+  public StoragePlugin getPlugin(StoragePluginId pluginId) throws ExecutionSetupException {
     //TODO: this should be smarted (checking name, etc)
-    StoragePlugin<?> plugin = getPlugin(pluginId.getName());
-    if(plugin != null && plugin.getStoragePlugin2() != null && plugin.getStoragePlugin2().getId().equals(pluginId)){
+    StoragePlugin plugin = getPlugin(pluginId.getName());
+    if(plugin != null && plugin.getId().equals(pluginId)){
       return plugin;
     }
     return getPlugin(pluginId.getConfig());
   }
 
-  public StoragePlugin<?> getPlugin(final StoragePluginConfig config) throws ExecutionSetupException {
+  public StoragePlugin getPlugin(final StoragePluginConfig config) throws ExecutionSetupException {
     // try to lookup plugin by configuration
-    StoragePlugin<?> plugin = plugins.get(config);
+    StoragePlugin plugin = plugins.get(config);
     if (plugin != null) {
       return plugin;
     }
@@ -379,7 +358,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   @Override
   public FormatPlugin getFormatPlugin(StoragePluginConfig storageConfig, FormatPluginConfig formatConfig)
       throws ExecutionSetupException {
-    StoragePlugin<?> p = getPlugin(storageConfig);
+    StoragePlugin p = getPlugin(storageConfig);
     if (!(p instanceof FileSystemPlugin)) {
       throw new ExecutionSetupException(
           String.format("You tried to request a format plugin for a storage plugin that wasn't of type "
@@ -406,14 +385,61 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     return name.startsWith("__") || name.startsWith("$");
   }
 
-  private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig, boolean atRestart) throws ExecutionSetupException {
+  private StoragePlugin create(String name, StoragePluginConfig pluginConfig, boolean atRestart) throws ExecutionSetupException {
     return create(name, pluginConfig, null, atRestart);
   }
 
-  private StoragePlugin<?> create(String name, StoragePluginConfig pluginConfig, SourceConfig sourceConfig, boolean atRestart) throws ExecutionSetupException {
+  /**
+   * Create an internal source.
+   *
+   * Used for sources that have static metadata and are not managed by end users (such as system tables).
+   *
+   * Will create the source and persist it in Namespace but does not create/exist in plugin system table.
+   *
+   * Also schedules metadata refresh with Catalog service once per year as an UNKNOWN type source.
+   *
+   * @param name
+   * @param pluginConfig
+   * @param type
+   * @return The create plugin.
+   */
+  private StoragePlugin registerInternal(String name, StoragePluginConfig pluginConfig, SourceType type) {
+    final NamespaceService ns = context.getNamespaceService(SYSTEM_USERNAME);
+    final NamespaceKey key = new NamespaceKey(name);
+
+    if(!ns.exists(key, Type.SOURCE)) {
+      final SourceConfig config = decorate(new SourceConfig()
+          .setType(type).setName(name)
+          .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+          .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+          .setMetadataPolicy(ONE_YEAR_POLICY));
+
+      try {
+        ns.addOrUpdateSource(key, config);
+      } catch (Exception ex) {
+        // race condition, ignore.
+      }
+    }
+
+    try {
+      Constructor<? extends StoragePlugin> c = availablePlugins.get(pluginConfig.getClass());
+      if(c == null) {
+        throw new IllegalStateException(String.format("Unknown plugin config: %s. Known Plugin Configurations: %s.", pluginConfig.getClass().getName(), availablePlugins.keySet()));
+      }
+      StoragePlugin plugin = c.newInstance(pluginConfig, context, name);
+      manuallyAddedPlugins.put(name, 0);
+      catalog.registerSource(key, plugin);
+      catalog.refreshSource(key, ONE_YEAR_POLICY);
+      return plugin;
+    } catch (Exception ex) {
+      throw Throwables.propagate(ex);
+    }
+  }
+
+  private StoragePlugin create(String name, StoragePluginConfig pluginConfig, SourceConfig sourceConfig, boolean atRestart) throws ExecutionSetupException {
     // name could be null if this is a ephemeral storage plugin.
 
-    StoragePlugin<?> plugin;
+    StoragePlugin plugin;
     boolean updateSourceInNamespace = false;
     // if sourceConfig is null, that means
     if (sourceConfig != null) {
@@ -422,7 +448,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
         .setAccelerationGracePeriod(Optional.fromNullable(sourceConfig.getAccelerationGracePeriod()).or(DEFAULT_GRACE_PERIOD));
       updateSourceInNamespace = true;
     }
-    Constructor<? extends StoragePlugin<?>> c = availablePlugins.get(pluginConfig.getClass());
+    Constructor<? extends StoragePlugin> c = availablePlugins.get(pluginConfig.getClass());
     if (c == null) {
       throw new ExecutionSetupException(String.format("Failure finding StoragePlugin constructor for config %s",
           pluginConfig));
@@ -432,7 +458,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
     try {
       plugin = c.newInstance(pluginConfig, context, name);
       plugin.start();
-      if (plugin.getState().getStatus() != SourceState.SourceStatus.good
+      if (plugin.getState().getStatus() == SourceState.SourceStatus.bad
           && context.getOptionManager().getOption(ExecConstants.STORAGE_PLUGIN_CHECK_STATE)
           && !atRestart) {
         // Unable to start the plugin
@@ -457,7 +483,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
               ns.addOrUpdateSource(sourceKey, sourceConfig);
             }
           }
-          catalog.registerSource(sourceKey, plugin.getStoragePlugin2());
+          catalog.registerSource(sourceKey, plugin);
         }
       } catch (ConcurrentModificationException ce) {
         if (sourceConfig == null) {
@@ -474,32 +500,23 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
           throw ne;
         }
       }
+
       if (updateSourceInNamespace) {
-        if (plugin.getStoragePlugin2() == null){
-          refreshSourceMetadataInNamespace(name, plugin, SYSTEM_USERNAME);
-        } else {
-          catalog.refreshSourceNames(sourceKey, sourceConfig.getMetadataPolicy() == null ? CatalogService.DEFAULT_METADATA_POLICY : sourceConfig.getMetadataPolicy());
-        }
-      }
-      if (name != null && plugin.getStoragePlugin2() != null) {
-        // NB: V1 storage plugins cannot be scheduled until the plugin is added to 'plugins', as that's the
-        // only way V1 plugins are accessible
+        catalog.refreshSourceNames(sourceKey, sourceConfig.getMetadataPolicy() == null ? CatalogService.DEFAULT_METADATA_POLICY : sourceConfig.getMetadataPolicy());
         catalog.scheduleMetadataRefresh(sourceKey, sourceConfig);
       }
       return plugin;
-    } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
-        | IOException | NamespaceException e) {
+    } catch (IOException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NamespaceException e) {
       Throwable t = e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException() : e;
       if (t instanceof ExecutionSetupException) {
         throw ((ExecutionSetupException) t);
       }
-      throw new ExecutionSetupException(String.format(
-          "Failure setting up new storage plugin configuration for config %s", pluginConfig), t);
+      throw new ExecutionSetupException(String.format("Failure setting up new storage plugin configuration for config %s", pluginConfig), t);
     }
   }
 
   @Override
-  public Iterator<Entry<String, StoragePlugin<?>>> iterator() {
+  public Iterator<Entry<String, StoragePlugin>> iterator() {
     return plugins.iterator();
   }
 
@@ -516,16 +533,12 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
    * @return A Map of StoragePluginConfig => StoragePlugin.<init>() constructors.
    */
   @SuppressWarnings("unchecked")
-  public static Map<Class<?>, Constructor<? extends StoragePlugin<?>>> findAvailablePlugins(final ScanResult classpathScan) {
-    Map<Class<?>, Constructor<? extends StoragePlugin<?>>> availablePlugins = new HashMap<>();
-    final Set<Class<? extends StoragePlugin<?>>> pluginClasses =
-        (Set<Class<? extends StoragePlugin<?>>>) (Object) classpathScan.getImplementations(StoragePlugin.class);
-    final String lineBrokenList =
-        pluginClasses.size() == 0
-            ? "" : "\n\t- " + Joiner.on("\n\t- ").join(pluginClasses);
-    logger.debug("Found {} storage plugin configuration classes: {}.",
-        pluginClasses.size(), lineBrokenList);
-    for (Class<? extends StoragePlugin<?>> plugin : pluginClasses) {
+  public static Map<Class<?>, Constructor<? extends StoragePlugin>> findAvailablePlugins(final ScanResult classpathScan) {
+    Map<Class<?>, Constructor<? extends StoragePlugin>> availablePlugins = new HashMap<>();
+    final Set<Class<? extends StoragePlugin>> pluginClasses = (Set<Class<? extends StoragePlugin>>) (Object) classpathScan.getImplementations(StoragePlugin.class);
+    final String lineBrokenList = pluginClasses.size() == 0 ? "" : "\n\t- " + Joiner.on("\n\t- ").join(pluginClasses);
+    logger.debug("Found {} storage plugin configuration classes: {}.", pluginClasses.size(), lineBrokenList);
+    for (Class<? extends StoragePlugin> plugin : pluginClasses) {
       int i = 0;
       for (Constructor<?> c : plugin.getConstructors()) {
         Class<?>[] params = c.getParameterTypes();
@@ -537,7 +550,7 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
               + "[constructor(StoragePluginConfig, SabotContext, String)]", c, plugin);
           continue;
         }
-        availablePlugins.put(params[0], (Constructor<? extends StoragePlugin<?>>) c);
+        availablePlugins.put(params[0], (Constructor<? extends StoragePlugin>) c);
         i++;
       }
       if (i == 0) {
@@ -551,132 +564,32 @@ public class StoragePluginRegistryImpl implements StoragePluginRegistry, AutoClo
   @VisibleForTesting
   public void refreshSourceMetadataInNamespace(final String pluginName, MetadataPolicy metadataPolicy)
     throws NamespaceException {
-    StoragePlugin2 plugin2 = catalog.getStoragePlugin(pluginName);
+    StoragePlugin plugin2 = catalog.getStoragePlugin(pluginName);
     if(plugin2 != null){
       catalog.refreshSource(new NamespaceKey(pluginName), metadataPolicy);
-    } else {
-      try {
-        refreshSourceMetadataInNamespace(pluginName, getPlugin(pluginName), SystemUser.SYSTEM_USERNAME);
-      } catch (ExecutionSetupException e) {
-        throw Throwables.propagate(e);
-      }
     }
   }
-
-  @VisibleForTesting
-  void refreshSourceMetadataInNamespace(final String pluginName, StoragePlugin<?> plugin, String userName)
-      throws NamespaceException {
-    final NamespaceService ns = context.getNamespaceService(userName);
-
-    /**
-     * Assume everything in the namespace is deleted. As we discover the datasets from source, remove found entries
-     * from these sets.
-     */
-    final Set<NamespaceKey> deletedDatasets = Sets.newHashSet(ns.getAllDatasets(new NamespaceKey(pluginName)));
-    final Set<NamespaceKey> deletedFolders = Sets.newHashSet();
-    for(NamespaceKey datasetKey : deletedDatasets) {
-      addFoldersOnPathToDeletedFolderSet(datasetKey, deletedFolders);
-    }
-
-    for (DatasetConfig dataset : plugin.listDatasets()) {
-      NamespaceKey key = new NamespaceKey(dataset.getFullPathList());
-
-      /**
-       * Add the dataset to namespace if the dataset is not already present in the namespace.
-       * If the dataset is not present but a folder with the same path is present delete the folder first and insert
-       * the dataset in namespace.
-       */
-      if (!deletedDatasets.contains(key)) {
-        try {
-          final FolderConfig folderConfig = ns.getFolder(key);
-          ns.deleteFolder(key, folderConfig.getVersion());
-        } catch (NamespaceNotFoundException ex) {
-          // ignore
-        } catch (NamespaceException ex) {
-          logger.warn("Failure deleting folder '{}' during namespace update", key.toString());
-        }
-
-        ns.tryCreatePhysicalDataset(new NamespaceKey(dataset.getFullPathList()), dataset);
-      } else {
-        // if it already exists in namespace delete it from the list. We will be deleting whatever is remaining in
-        // the list from namespace as they are the ones deleted from source.
-        deletedDatasets.remove(key);
-      }
-      removeFoldersOnPathFromDeletedSet(key, deletedFolders);
-    }
-
-    /**
-     * {@link StoragePlugin#listDatasets()} only lists the explicit datasets. It is possible that some datasets in
-     * namespace are implicit datasets. So we need to probe the source individually for each remaining dataset in
-     * deletedDatasets to confirm if it is actually deleted.
-     */
-    for(NamespaceKey dsKey : deletedDatasets) {
-      try {
-        final DatasetConfig dsConfigFromSource = plugin.getDataset(
-            dsKey.getPathComponents(),
-            new TableInstance(new TableSignature(dsKey.getName(), Collections.<TableParamDef>emptyList()), Collections.emptyList()),
-            SchemaConfig.newBuilder(SYSTEM_USERNAME).build()
-        );
-
-        if (dsConfigFromSource == null) {
-          final DatasetConfig dsConfigFromNS = ns.getDataset(dsKey);
-          ns.deleteDataset(dsKey, dsConfigFromNS.getVersion());
-        } else {
-          removeFoldersOnPathFromDeletedSet(dsKey, deletedFolders);
-        }
-      } catch (NamespaceNotFoundException ex) {
-        // no-op
-      } catch (Throwable ex) {
-        logger.warn(String.format("Failed to update dataset '%s' status in namespace", dsKey), ex);
-      }
-    }
-
-    for(NamespaceKey folderKey : deletedFolders) {
-      try {
-        final FolderConfig folderConfig = ns.getFolder(folderKey);
-        ns.deleteFolder(folderKey, folderConfig.getVersion());
-      } catch (NamespaceNotFoundException ex) {
-        // no-op
-      } catch (NamespaceException ex) {
-        logger.warn("Failed to delete dataset from Namespace ");
-      }
-    }
-  }
-
-
-  private static void addFoldersOnPathToDeletedFolderSet(NamespaceKey dsKey, Set<NamespaceKey> existingFolderSet) {
-    NamespaceKey key = dsKey.getParent();
-    while(key.hasParent()) { // a folder always has a parent
-      existingFolderSet.add(key);
-      key = key.getParent();
-    }
-  }
-
-  private static void removeFoldersOnPathFromDeletedSet(NamespaceKey dsKey, Set<NamespaceKey> existingFolderSet) {
-    NamespaceKey key = dsKey;
-    while(key.hasParent()) { // a folder always has a parent
-      key = key.getParent();
-      existingFolderSet.remove(key);
-    }
-  }
-
 
   @Override
   @VisibleForTesting
   public void updateNamespace(Set<String> pluginNames, MetadataPolicy policy) {
-    for (Entry<String,StoragePlugin<?>> entry : plugins) {
+    for (Entry<String,StoragePlugin> entry : plugins) {
       if (pluginNames.contains(entry.getKey())) {
         try {
           try {
             context.getNamespaceService(SYSTEM_USERNAME).getSource(new NamespaceKey(Collections.singletonList(entry.getKey())));
           } catch (NamespaceNotFoundException e) {
             try {
-              createOrUpdate(entry.getKey(), entry.getValue().getConfig(), true);
+              createOrUpdate(entry.getKey(), entry.getValue().getId().getConfig(), true);
             } catch (ExecutionSetupException e1) {
               throw new RuntimeException(e1);
             }
           }
-          refreshSourceMetadataInNamespace(entry.getKey(), policy);
+
+          StoragePlugin plugin2 = catalog.getStoragePlugin(entry.getKey());
+          if(plugin2 != null){
+            catalog.refreshSource(new NamespaceKey(entry.getKey()), policy);
+          }
         } catch (NamespaceException e) {
           logger.warn("exception", e);
         }

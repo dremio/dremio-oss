@@ -28,6 +28,7 @@ import javax.inject.Named;
  * class contains the main nested loop join logic.
  */
 public abstract class NLJWorkerTemplate implements NLJWorker {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NLJWorkerTemplate.class);
 
   // Current left input batch being processed
   private VectorAccessible left = null;
@@ -62,7 +63,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
   /**
    * Emit records for the join.
    * @param outputIndex
-   * @param targetCount
+   * @param targetTotalOutput
    * @return
    */
   public int emitRecords(int outputIndex, int targetTotalOutput) {
@@ -74,7 +75,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
     // Total number of records on the left
     final int localLeftRecordCount = left.getRecordCount();
 
-    // System.out.println(String.format("Left record count: %d, Right batch count: %d, OutputIndex: %d, Target output %d", localLeftRecordCount, totalRightBatches, outputIndex, targetTotalOutput));
+     logger.debug("Left record count: {}, Right batch count: {}, OutputIndex: {}, Target output {}", localLeftRecordCount, totalRightBatches, outputIndex, targetTotalOutput);
 
     /*
      * The below logic is the core of the NLJ. To have better performance we copy the instance members into local
@@ -87,7 +88,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
     int lRightIndex = this.rightIndex;
     boolean finishedCurrentLeft = true;
 
-    // System.out.println(String.format("[Enter] Left: %d, Right %d:%d.",  leftIndex, lRightBatchNumber, rightIndex));
+    logger.debug("[Enter] Left: {}, Right {}:{}.",  leftIndex, lRightBatchNumber, rightIndex);
 
     outer: {
 
@@ -102,7 +103,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
           for (; lLeftIndex < localLeftRecordCount; lLeftIndex++) {
             // for every record in the left batch
 
-            // System.out.println(String.format("Left: %d, Right: %d:%d, Output: %d", lLeftIndex, lRightBatchNumber, lRightIndex, outputIndex));
+            logger.trace("Left: {}, Right: {}:{}, Output: {}", lLeftIndex, lRightBatchNumber, lRightIndex, outputIndex);
 
             // project records from the left and right batches
             emitLeft(lLeftIndex, outputIndex);
@@ -129,14 +130,14 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
       this.rightBatchNumber = 0;
       this.rightIndex = 0;
       this.leftIndex = 0;
-      // System.out.println(String.format("[Exit] Left: %d, Right %d:%d, OutputIndex: %d",  leftIndex, rightBatchNumber, rightIndex, outputIndex));
+      logger.debug("[Exit] Left: {}, Right {}:{}, OutputIndex: {}",  leftIndex, rightBatchNumber, rightIndex, outputIndex);
       return outputIndex;
     } else {
       // save offsets
       this.rightBatchNumber = lRightBatchNumber;
       this.rightIndex = lRightIndex;
       this.leftIndex = lLeftIndex;
-      // System.out.println(String.format("[Exit] Left: %d, Right %d:%d, OutputIndex: %d",  leftIndex, rightBatchNumber, rightIndex, outputIndex));
+       logger.debug("[Exit] Left: {}, Right {}:{}, OutputIndex: {}",  leftIndex, rightBatchNumber, rightIndex, outputIndex);
       return -outputIndex;
     }
   }

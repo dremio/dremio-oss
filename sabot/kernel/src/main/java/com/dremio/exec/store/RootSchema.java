@@ -28,8 +28,9 @@ import org.apache.calcite.schema.SchemaPlus;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
 import com.dremio.exec.store.SchemaTreeProvider.MetadataStatsCollector;
+import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -38,8 +39,10 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
@@ -49,8 +52,8 @@ public class RootSchema extends AbstractSchema {
   private final SchemaConfig schemaConfig;
   private final SabotContext sabotContext;
   private final Supplier<Map<String, SourceConfig>> sources;
-  private final Supplier<Set<String>> spaces;
-  private final Supplier<Set<String>> allHomeSpaces;
+  private final Supplier<Map<String, String>> spaces;
+  private final Supplier<Map<String, String>> allHomeSpaces;
   private final Supplier<Boolean> userHomeExists;
   private final MetadataStatsCollector metadataStatsCollector;
   private final boolean isSystemUser;
@@ -74,28 +77,28 @@ public class RootSchema extends AbstractSchema {
               "$scratch".equalsIgnoreCase(sourceName) ||
               isSystemUser ||
               schemaConfig.exposeInternalSources()) {
-            builder.put(sourceName, sourceConfig);
+            builder.put(sourceName.toLowerCase(), sourceConfig);
           }
         }
         return builder.build();
       }
     });
-    this.spaces = Suppliers.memoize(new Supplier<Set<String>>() {
+    this.spaces = Suppliers.memoize(new Supplier<Map<String, String>>() {
       @Override
-      public Set<String> get() {
-        final ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+      public Map<String, String> get() {
+        final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
         for(final SpaceConfig spaceConfig : ns.getSpaces()) {
-          builder.add(spaceConfig.getName());
+          builder.put(spaceConfig.getName().toLowerCase(), spaceConfig.getName());
         }
         return builder.build();
       }
     });
-    this.allHomeSpaces = Suppliers.memoize(new Supplier<Set<String>>() {
+    this.allHomeSpaces = Suppliers.memoize(new Supplier<Map<String, String>>() {
       @Override
-      public Set<String> get() {
-        final ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+      public Map<String, String> get() {
+        final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
         for(final HomeConfig homeConfig : ns.getHomeSpaces()) {
-          builder.add("@" + homeConfig.getOwner());
+          builder.put("@" + homeConfig.getOwner().toLowerCase(), "@" + homeConfig.getOwner());
         }
         return builder.build();
       }
@@ -141,30 +144,41 @@ public class RootSchema extends AbstractSchema {
   }
 
   private SimpleSchema findRootLevelSubSchema(String name) {
-    if (sources.get().containsKey(name)) {
-      StoragePlugin<?> plugin = null;
+    String nameLC = name.toLowerCase();
+    if (sources.get().containsKey(nameLC)) {
+      StoragePlugin plugin = null;
       try{
         plugin = sabotContext.getStorage().getPlugin(name);
+        if(plugin == null) {
+          plugin = sabotContext.getStorage().getPlugin(nameLC);
+        }
       }catch(ExecutionSetupException e){
         logger.info("Failure while attempting to retrieve plugin for name {}.", name, e);
       }
-      SourceConfig config = sources.get().get(name);
+      SourceConfig config = sources.get().get(nameLC);
       MetadataPolicy policy = config.getMetadataPolicy() != null ? config.getMetadataPolicy() : CatalogService.DEFAULT_METADATA_POLICY;
       SimpleSchema.MetadataParam metadataParam = new SimpleSchema.MetadataParam(policy, config.getLastRefreshDate());
-      return newTopLevelSchema(name, SchemaType.SOURCE, metadataParam, plugin == null ? SchemaMutability.NONE : plugin.getMutability());
+
+      final SchemaMutability mutability;
+      if(plugin != null && plugin instanceof FileSystemPlugin) {
+        mutability = ((FileSystemPlugin) plugin).getMutability();
+      } else {
+        mutability = SchemaMutability.NONE;
+      }
+      return newTopLevelSchema(name, SchemaType.SOURCE, metadataParam, mutability);
     }
 
-    if (spaces.get().contains(name)) {
+    if (spaces.get().containsKey(nameLC)) {
       return newTopLevelSchema(name, SchemaType.SPACE, null, SchemaMutability.USER_VIEW);
     }
 
-    if (isSystemUser && allHomeSpaces.get().contains(name)) {
+    if (isSystemUser && allHomeSpaces.get().containsKey(nameLC)) {
       return newTopLevelSchema(name, SchemaType.HOME, null, SchemaMutability.USER_VIEW);
     }
 
     if (userHomeExists.get()) {
       final String homeName = "@" + schemaConfig.getUserName();
-      if (homeName.equals(name)) {
+      if (homeName.equalsIgnoreCase(name)) {
         return newTopLevelSchema(homeName, SchemaType.HOME, null, SchemaMutability.USER_VIEW);
       }
     }
@@ -176,12 +190,16 @@ public class RootSchema extends AbstractSchema {
   public Set<String> getSubSchemaNames() {
     // Convert this into an iterator
     final ImmutableSet.Builder<String> setBuilder = ImmutableSet.<String>builder()
-        .addAll(sources.get().keySet())
-        .addAll(spaces.get());
+        .addAll(FluentIterable.from(sources.get().values()).transform(new Function<SourceConfig, String>() {
+          @Override
+          public String apply(SourceConfig input) {
+            return input.getName();
+          }}))
+        .addAll(spaces.get().values());
 
     if (isSystemUser) {
       // System user has access to all users home spaces
-      setBuilder.addAll(allHomeSpaces.get());
+      setBuilder.addAll(allHomeSpaces.get().values());
     } else if (userHomeExists.get()) {
       setBuilder.add("@" + schemaConfig.getUserName());
     }

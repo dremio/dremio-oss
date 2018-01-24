@@ -20,11 +20,8 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
-import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.SubScan;
-import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
@@ -54,19 +51,9 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
     this.rowCountEstimate = rowCountEstimate;
   }
 
-  @Override
-  public ScanStats getScanStats(PlannerSettings settings) {
-    return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, rowCountEstimate, 1, 1);
-  }
-
   @JsonProperty("spec")
   public ElasticsearchScanSpec getScanSpec() {
     return spec;
-  }
-
-  @Override
-  public ScanCostFactor getScanCostFactor() {
-    return ScanCostFactor.ELASTIC;
   }
 
   @Override

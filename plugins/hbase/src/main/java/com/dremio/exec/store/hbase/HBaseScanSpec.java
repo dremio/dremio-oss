@@ -17,58 +17,85 @@ package com.dremio.exec.store.hbase;
 
 
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.util.Bytes;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
+import com.google.common.base.Predicate;
 
 public class HBaseScanSpec {
 
-  final protected String tableName;
-  final protected byte[] startRow;
-  final protected byte[] stopRow;
-  protected byte[] filter;
+  private final TableName tableName;
+  private final byte[] startRow;
+  private final byte[] stopRow;
+  private final byte[] filter;
 
-  protected Filter filterParsed;
+  private transient Filter filterParsed;
 
-  @JsonCreator
-  public HBaseScanSpec(@JsonProperty("tableName") String tableName,
-                       @JsonProperty("startRow") byte[] startRow,
-                       @JsonProperty("stopRow") byte[] stopRow,
-                       @JsonProperty("serializedFilter") byte[] serializedFilter,
-                       @JsonProperty("filterString") String filterString) {
+  public HBaseScanSpec(
+      NamespaceKey key,
+      byte[] startRow,
+      byte[] stopRow,
+      byte[] serializedFilter) {
+    this.tableName = TableNameGetter.getTableName(key);
+    this.startRow = startRow;
+    this.stopRow = stopRow;
+    this.filter = serializedFilter;
+  }
+
+  public HBaseScanSpec(
+      TableName tableName,
+      byte[] startRow,
+      byte[] stopRow,
+      byte[] serializedFilter) {
     this.tableName = tableName;
     this.startRow = startRow;
     this.stopRow = stopRow;
-    if (filterString != null) {
-      this.filter = HBaseUtils.serializeFilter(HBaseUtils.parseFilterString(filterString));
-    } else {
-      this.filter = serializedFilter;
+    this.filter = serializedFilter;
+  }
+
+  public HBaseScanSpec(
+      TableName tableName,
+      byte[] startRow,
+      byte[] stopRow,
+      Filter filter) {
+    this(tableName, startRow, stopRow, HBaseUtils.serializeFilter(filter));
+  }
+
+  @JsonIgnore
+  public KeyRange getKeyRange() {
+    return KeyRange.getRange(startRow, stopRow);
+  }
+
+  @JsonIgnore
+  public Predicate<DatasetSplit> getRowKeyPredicate() {
+    if( (startRow == null || startRow.length == 0) &&
+        (stopRow == null || stopRow.length == 0)
+        ){
+          return null;
+        }
+
+    return new SplitPrune(startRow, stopRow);
+  }
+
+  private class SplitPrune implements Predicate<DatasetSplit> {
+    private final KeyRange range;
+
+    private SplitPrune(byte[] start, byte[] stop){
+      range = KeyRange.getRange(start, stop);
     }
-    if (serializedFilter != null && filterString != null) {
-      throw new IllegalArgumentException("The parameters 'serializedFilter' or 'filterString' cannot be specified at the same time.");
+
+    @Override
+    public boolean apply(DatasetSplit input) {
+      return KeyRange.fromSplit(input).overlaps(range);
     }
   }
 
-  public HBaseScanSpec(String tableName, byte[] startRow, byte[] stopRow, Filter filter) {
-    this.tableName = tableName;
-    this.startRow = startRow;
-    this.stopRow = stopRow;
-    if (filter != null) {
-      this.filter = HBaseUtils.serializeFilter(filter);
-    } else {
-      this.filter = null;
-    }
-  }
-
-  public HBaseScanSpec(String tableName) {
-    this(tableName, null, null, null);
-  }
-
-  public String getTableName() {
+  public TableName getTableName() {
     return tableName;
   }
 

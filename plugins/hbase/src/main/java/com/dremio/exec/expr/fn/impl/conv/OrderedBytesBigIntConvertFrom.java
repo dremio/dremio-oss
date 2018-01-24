@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 
@@ -25,6 +27,7 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 @FunctionTemplate(names = {"convert_fromBIGINT_OB", "convert_fromBIGINT_OBD"},
     scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
@@ -34,6 +37,7 @@ public class OrderedBytesBigIntConvertFrom implements SimpleFunction {
   @Output BigIntHolder out;
   @Workspace byte[] bytes;
   @Workspace org.apache.hadoop.hbase.util.PositionedByteRange br;
+  @Inject FunctionErrorContext errorContext;
 
   @Override
   public void setup() {
@@ -43,7 +47,7 @@ public class OrderedBytesBigIntConvertFrom implements SimpleFunction {
 
   @Override
   public void eval() {
-    com.dremio.exec.util.ByteBufUtil.checkBufferLength(in.buffer, in.start, in.end, 9);
+    com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 9);
     in.buffer.getBytes(in.start, bytes, 0, 9);
     br.set(bytes);
     out.value = org.apache.hadoop.hbase.util.OrderedBytes.decodeInt64(br);

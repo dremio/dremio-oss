@@ -28,6 +28,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import io.netty.buffer.ArrowBuf;
 
 /**
@@ -50,6 +51,7 @@ public class JsonConvertTo {
     @Param FieldReader input;
     @Output VarBinaryHolder out;
     @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup(){
@@ -66,7 +68,9 @@ public class JsonConvertTo {
 
           jsonWriter.write(input);
         } catch (Exception e) {
-          throw new RuntimeException(e);
+          throw errCtx.error()
+            .message("%s", e)
+            .build();
         }
 
         byte[] bytea = stream.toByteArray();
@@ -84,6 +88,7 @@ public class JsonConvertTo {
     @Param FieldReader input;
     @Output VarBinaryHolder out;
     @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup(){
@@ -99,7 +104,9 @@ public class JsonConvertTo {
 
         jsonWriter.write(input);
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw errCtx.error()
+          .message("%s", e)
+          .build();
       }
 
       byte [] bytea = stream.toByteArray();

@@ -21,12 +21,17 @@ import java.util.Collections;
 import java.util.List;
 
 import com.dremio.common.utils.PathUtils;
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
 /**
  * NamespaceKey describes list representation of dotted schema path.
  */
 public class NamespaceKey {
+  private static final Joiner DOT_JOINER = Joiner.on('.');
+
   private final List<String> pathComponents;
   private final String schemaPath;
 
@@ -57,6 +62,14 @@ public class NamespaceKey {
     return schemaPath.hashCode();
   }
 
+  public NamespaceKey asLowerCase() {
+    return new NamespaceKey(FluentIterable.from(pathComponents).transform(new Function<String, String>(){
+      @Override
+      public String apply(String input) {
+        return input.toLowerCase();
+      }}).toList());
+  }
+
   @Override
   public String toString() {
     return schemaPath;
@@ -85,6 +98,10 @@ public class NamespaceKey {
 
   public NamespaceKey getParent() {
     return new NamespaceKey(pathComponents.subList(0, pathComponents.size() - 1));
+  }
+
+  public String toUnescapedString() {
+    return DOT_JOINER.join(pathComponents);
   }
 
   public boolean hasParent() {

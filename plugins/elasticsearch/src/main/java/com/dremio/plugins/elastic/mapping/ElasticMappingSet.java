@@ -52,6 +52,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Describes the response to a _mapping query in Elastic.
@@ -451,7 +452,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(name, type, indexing, formats, children);
+      return Objects.hashCode(name, type.ordinal(), indexing.ordinal(), formats, ImmutableSet.copyOf(children));
     }
 
     @Override
@@ -598,7 +599,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(name, fields);
+      return Objects.hashCode(name, ImmutableSet.copyOf(fields));
     }
 
     @Override

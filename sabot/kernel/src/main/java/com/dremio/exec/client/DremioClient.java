@@ -89,7 +89,9 @@ import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.dremio.sabot.rpc.user.UserRpcUtils;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
+import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ServiceSet;
+import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -132,6 +134,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     @Override
     public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
       return clusterCoordinator.getSemaphore(name, maximumLeases);
+    }
+
+    @Override
+    public RegistrationHandle joinElection(String name, ElectionListener listener) {
+      return clusterCoordinator.joinElection(name, listener);
     }
 
     @Override

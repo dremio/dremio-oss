@@ -23,7 +23,13 @@ package com.dremio.service.scheduler;
  * does not guarantee for current execution to be halted.
  */
 public interface Cancellable {
-  void cancel();
+  /**
+   * Cancel the operation.
+   *
+   * @param mayInterruptIfRunning if true, might interrupt the thread if the operation is
+   * currently running (to use with caution).
+   */
+  void cancel(boolean mayInterruptIfRunning);
 
   boolean isCancelled();
 }

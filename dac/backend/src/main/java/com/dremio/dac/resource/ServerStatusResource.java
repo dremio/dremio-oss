@@ -23,6 +23,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.model.system.ServerStatus;
@@ -30,6 +31,7 @@ import com.dremio.dac.model.system.ServerStatus;
 /**
  * Check server status.
  */
+@Bootstrap
 @RestResource
 @Path("/server_status")
 public class ServerStatusResource {

@@ -63,9 +63,9 @@ public class TestDateFunctions extends PopUnitTestBase {
               int i = 0;
               for (VectorWrapper<?> v : batchLoader) {
 
-                ValueVector.Accessor accessor = v.getValueVector().getAccessor();
-                System.out.println(accessor.getObject(0));
-                assertEquals( expectedResults[i++], accessor.getObject(0).toString());
+                ValueVector vv = v.getValueVector();
+                System.out.println(vv.getObject(0));
+                assertEquals( expectedResults[i++], vv.getObject(0).toString());
               }
             }
             for(QueryDataBatch b : results){

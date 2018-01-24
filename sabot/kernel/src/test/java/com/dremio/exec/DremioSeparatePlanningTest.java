@@ -267,8 +267,8 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
              Map<String,String> record = Maps.newHashMap();
             for (VectorWrapper<?> vw : loader) {
               final String field = vw.getValueVector().getField().getName();
-              final ValueVector.Accessor accessor = vw.getValueVector().getAccessor();
-              final Object value = i < accessor.getValueCount() ? accessor.getObject(i) : null;
+              final ValueVector vv = vw.getValueVector();
+              final Object value = i < vv.getValueCount() ? vv.getObject(i) : null;
               final String display = value == null ? null : value.toString();
               record.put(field, display);
             }

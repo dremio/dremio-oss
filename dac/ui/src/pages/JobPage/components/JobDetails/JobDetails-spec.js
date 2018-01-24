@@ -42,12 +42,14 @@ describe('JobDetails', () => {
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<JobDetails {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
+    wrapper.instance().componentWillUnmount();
   });
 
   it('should render TabsNavigation and TabsContent', () => {
     const wrapper = shallow(<JobDetails {...commonProps}/>);
     expect(wrapper.find('TabsNavigation')).to.have.length(1);
     expect(wrapper.find('TabsContent')).to.have.length(1);
+    wrapper.instance().componentWillUnmount();
   });
 
   describe('componentWillReceiveProps', () => {
@@ -59,6 +61,7 @@ describe('JobDetails', () => {
       expect(commonProps.loadJobDetails).to.be.calledOnce;
       wrapper.setProps({jobId: '456'});
       expect(commonProps.loadJobDetails).to.be.calledTwice;
+      wrapper.instance().componentWillUnmount();
     });
   });
 
@@ -73,6 +76,7 @@ describe('JobDetails', () => {
     clock.tick(3000);
     expect(commonProps.loadJobDetails.callCount).to.eql(2);
     clock.restore();
+    wrapper.instance().componentWillUnmount();
   });
 
   describe('load', () => {
@@ -94,7 +98,8 @@ describe('JobDetails', () => {
         }
       };
 
-      shallow(<JobDetails {...props}/>);
+      const wrapper = shallow(<JobDetails {...props}/>);
+      wrapper.instance().componentWillUnmount();
     });
   });
 });

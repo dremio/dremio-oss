@@ -30,6 +30,7 @@ import com.dremio.exec.expr.fn.OutputDerivation.Dummy;
  * allows the 'flatten()' function in SQL.
  */
 @FunctionTemplate(name = "flatten", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = Dummy.class)
+@SuppressWarnings("unused") // found through classpath search
 public class DummyFlatten implements SimpleFunction {
 
   @Output BaseWriter.ComplexWriter out;

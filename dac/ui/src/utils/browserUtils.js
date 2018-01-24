@@ -57,6 +57,9 @@ const browserUtils = {
   },
   isApprovedUnsupportedBrowser() {
     return localStorageUtils.getCustomValue('isApprovedUnsupportedBrowser');
+  },
+  isMSBrowser() {
+    return ['IE', 'Microsoft Edge'].includes(platform.name);
   }
 };
 

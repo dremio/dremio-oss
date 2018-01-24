@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
@@ -23,6 +25,7 @@ import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 public class ContainsFunctions {
 
@@ -35,13 +38,17 @@ public class ContainsFunctions {
     VarCharHolder query;
     @Output
     NullableBitHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     public void setup() {
     }
 
     public void eval() {
       if (true) {
-        throw new RuntimeException("Contains function is not supported in this context");
+        throw errCtx.error()
+          .message("Contains function is not supported in this context")
+          .build();
       }
     }
   }

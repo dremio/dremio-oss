@@ -331,7 +331,7 @@ public abstract class HashAggTemplate implements HashAggregator {
 
     // set the value count for outgoing batch value vectors
     for (VectorWrapper<?> v : outContainer) {
-      v.getValueVector().getMutator().setValueCount(recordCount);
+      v.getValueVector().setValueCount(recordCount);
     }
 
     return recordCount;

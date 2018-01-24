@@ -34,6 +34,7 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
@@ -55,13 +56,15 @@ public class StringFunctions{
     @Output BitHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike( //
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer)),
-          java.util.regex.Pattern.DOTALL
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer), errCtx),
+          java.util.regex.Pattern.DOTALL,
+          errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -82,14 +85,16 @@ public class StringFunctions{
     @Output BitHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike( //
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(
           com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer)),
-          java.util.regex.Pattern.DOTALL
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer), errCtx),
+          java.util.regex.Pattern.DOTALL,
+          errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -109,13 +114,15 @@ public class StringFunctions{
     @Output BitHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike( //
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer)),
-          java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer), errCtx),
+          java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL,
+          errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -136,15 +143,17 @@ public class StringFunctions{
     @Output BitHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike( //
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike( //
           com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer)),
-          java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL)
-          .matcher(charSequenceWrapper);
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer), errCtx),
+          java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL,
+          errCtx
+      ).matcher(charSequenceWrapper);
     }
 
     @Override
@@ -162,15 +171,16 @@ public class StringFunctions{
     @Output BitHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
           com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexSimilar(
-              com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer)
-          ),
-          java.util.regex.Pattern.DOTALL
+              com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer), errCtx),
+          java.util.regex.Pattern.DOTALL,
+          errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -190,14 +200,15 @@ public class StringFunctions{
     @Output BitHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexSimilar(
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexSimilar(
           com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer)),
-          java.util.regex.Pattern.DOTALL).matcher(charSequenceWrapper);
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer), errCtx),
+          java.util.regex.Pattern.DOTALL, errCtx).matcher(charSequenceWrapper);
     }
 
     @Override
@@ -221,10 +232,14 @@ public class StringFunctions{
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
-      matcher = java.util.regex.Pattern.compile(com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer)).matcher("");
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+        errCtx
+      ).matcher("");
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher.reset(charSequenceWrapper);
     }
@@ -242,7 +257,19 @@ public class StringFunctions{
       if (result) {
         StringBuffer sb = new StringBuffer();
         do {
-          matcher.appendReplacement(sb, r);
+          try {
+            matcher.appendReplacement(sb, r);
+          } catch (IllegalArgumentException e) {
+            throw errCtx.error()
+              .message("Invalid replacement string '%s'", r)
+              .addContext("exception", e.getMessage())
+              .build();
+          } catch (IndexOutOfBoundsException e) {
+            throw errCtx.error()
+              .message("Invalid replacement string '%s'", r)
+              .addContext("exception", e.getMessage())
+              .build();
+          }
           result = matcher.find();
         } while (result);
         matcher.appendTail(sb);
@@ -274,13 +301,15 @@ public class StringFunctions{
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
     @Output BitHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
-      matcher = java.util.regex.Pattern.compile(
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
           com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          java.util.regex.Pattern.DOTALL
+          java.util.regex.Pattern.DOTALL,
+          errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -296,13 +325,14 @@ public class StringFunctions{
   public static class CharLength implements SimpleFunction {
     @Param  VarCharHolder input;
     @Output IntHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
 
     @Override
     public void eval() {
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer, input.start, input.end);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer, input.start, input.end, errCtx);
     }
   }
 
@@ -310,13 +340,14 @@ public class StringFunctions{
   public static class ByteLength implements SimpleFunction {
     @Param  VarBinaryHolder input;
     @Output IntHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
 
     @Override
     public void eval() {
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer, input.start, input.end);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer, input.start, input.end, errCtx);
     }
   }
 
@@ -357,6 +388,7 @@ public class StringFunctions{
     @Param  VarCharHolder str;
 
     @Output IntHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
@@ -370,7 +402,7 @@ public class StringFunctions{
         out.value = 0; //indicate not found a matched substr.
       } else {
         //Count the # of characters. (one char could have 1-4 bytes)
-        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos) + 1;
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + 1;
       }
     }
   }
@@ -382,6 +414,7 @@ public class StringFunctions{
     @Param  IntHolder start;
 
     @Output IntHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
@@ -395,7 +428,7 @@ public class StringFunctions{
         out.value = 0; //indicate not found a matched substr.
       } else {
         //Count the # of characters. (one char could have 1-4 bytes)
-        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos) + 1;
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + 1;
       }
     }
 
@@ -409,6 +442,7 @@ public class StringFunctions{
     @Param  IntHolder index;
 
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
@@ -416,8 +450,9 @@ public class StringFunctions{
     @Override
     public void eval() {
       if (index.value < 1) {
-        throw com.dremio.common.exceptions.UserException.functionError()
-            .message("Index in split_part must be positive, value provided was " + index.value).build();
+        throw errCtx.error()
+          .message("Index in split_part must be positive, value provided was %d", index.value)
+          .build();
       }
       int bufPos = str.start;
       out.start = bufPos;
@@ -444,8 +479,7 @@ public class StringFunctions{
         } else {
           // Count the # of characters. (one char could have 1-4 bytes)
           // unlike the position function don't add 1, we are not translating the positions into SQL user level 1 based indices
-          bufPos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos) + str.start
-              + splitterLen;
+          bufPos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + str.start + splitterLen;
           // if this is the second to last iteration, store the position again, as the start and end of the
           // string to be returned need to be available
           if (i == index.value - 1) {
@@ -472,6 +506,7 @@ public class StringFunctions{
     @Param  VarCharHolder substr;
 
     @Output IntHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
@@ -485,7 +520,7 @@ public class StringFunctions{
         out.value = 0; //indicate not found a matched substr.
       } else {
         //Count the # of characters. (one char could have 1-4 bytes)
-        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos) + 1;
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + 1;
       }
     }
   }
@@ -567,6 +602,7 @@ public class StringFunctions{
 
     @Output VarCharHolder out;
     @Workspace ByteBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -580,7 +616,7 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
 
         final int fromCharIdx; //the start position of char  (inclusive)
         if (offset.value < 0) {
@@ -594,12 +630,12 @@ public class StringFunctions{
         if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
           out.start = out.end = 0;
         } else {
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1, errCtx);
 
           // Bounded length by charCount - fromCharIdx + 1. substring("abc", 1, 5) --> "abc"
           int charLen = Math.min((int)length.value, charCount - fromCharIdx + 1);
 
-          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen);
+          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen, errCtx);
         }
       }
     }
@@ -612,6 +648,7 @@ public class StringFunctions{
 
     @Output VarCharHolder out;
     @Workspace ByteBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -625,7 +662,7 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
 
         final int fromCharIdx; //the start position of char  (inclusive)
         if (offset.value < 0) {
@@ -639,7 +676,7 @@ public class StringFunctions{
         if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
           out.start = out.end = 0;
         } else {
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1, errCtx);
           out.end = string.end;
         }
       }
@@ -653,12 +690,14 @@ public class StringFunctions{
     @Output NullableVarCharHolder out;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
-      matcher = java.util.regex.Pattern.compile(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer))
-          .matcher("");
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
+          errCtx
+      ).matcher("");
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher.reset(charSequenceWrapper);
     }
@@ -675,8 +714,8 @@ public class StringFunctions{
         if (matcher.find()) {
           out.isSet = 1;
           out.buffer = input.buffer;
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input.buffer, input.start, input.end, matcher.start());
-          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input.buffer, input.start, input.end, matcher.end());
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input.buffer, input.start, input.end, matcher.start(), errCtx);
+          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input.buffer, input.start, input.end, matcher.end(), errCtx);
         } else {
           out.isSet = 0;
         }
@@ -695,6 +734,7 @@ public class StringFunctions{
 
     @Output VarCharHolder out;
     @Workspace ByteBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -708,7 +748,7 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
         final int charLen;
         if (length.value > 0) {
           charLen = Math.min((int)length.value, charCount);  //left('abc', 5) -> 'abc'
@@ -719,7 +759,7 @@ public class StringFunctions{
         }
 
         out.start = string.start; //Starting from the left of input string.
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen, errCtx);
       } // end of lenth.value != 0
     }
   }
@@ -732,6 +772,7 @@ public class StringFunctions{
 
     @Output VarCharHolder out;
     @Workspace ByteBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -745,7 +786,7 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
         final int fromCharIdx; //the start position of char (inclusive)
         final int charLen; // the end position of char (inclusive)
         if (length.value > 0) {
@@ -761,8 +802,8 @@ public class StringFunctions{
           out.start = out.end = 0;
         } else {
           //Do 2nd scan of string. Get bytes corresponding chars in range.
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1);
-          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1, errCtx);
+          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen, errCtx);
         }
       }
     }
@@ -862,6 +903,7 @@ public class StringFunctions{
     @Inject ArrowBuf buffer;
 
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -875,10 +917,10 @@ public class StringFunctions{
       byte currentByte = 0;
       int id = 0;
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
 
       //get the char length of fill.
-      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill.buffer, fill.start, fill.end);
+      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill.buffer, fill.start, fill.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -893,7 +935,7 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "fill" on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
@@ -937,6 +979,7 @@ public class StringFunctions{
 
     @Output VarCharHolder out;
     @Workspace byte spaceInByte;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -949,7 +992,7 @@ public class StringFunctions{
       final int lengthNeeded = (int) (theLength <= 0 ? 0 : theLength * 2);
       buffer = buffer.reallocIfNeeded(lengthNeeded);
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -964,7 +1007,7 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy " " on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
@@ -996,6 +1039,7 @@ public class StringFunctions{
     @Inject ArrowBuf buffer;
 
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1010,10 +1054,10 @@ public class StringFunctions{
       byte currentByte = 0;
       int id = 0;
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
 
       //get the char length of fill.
-      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill.buffer, fill.start, fill.end);
+      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill.buffer, fill.start, fill.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -1028,7 +1072,7 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy "fill" on the right.
         out.buffer = buffer;
@@ -1074,6 +1118,7 @@ public class StringFunctions{
 
     @Output VarCharHolder out;
     @Workspace byte spaceInByte;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1087,7 +1132,7 @@ public class StringFunctions{
       buffer = buffer.reallocIfNeeded(lengthNeeded);
 
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -1102,7 +1147,7 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy " " on the right.
         out.buffer = buffer;
@@ -1133,6 +1178,7 @@ public class StringFunctions{
     @Param  VarCharHolder from;
 
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1146,7 +1192,7 @@ public class StringFunctions{
       int bytePerChar = 0;
       //Scan from left of "text", stop until find a char not in "from"
       for (int id = text.start; id < text.end; id += bytePerChar) {
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
         int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
                                                                                             text.buffer, id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
@@ -1196,6 +1242,7 @@ public class StringFunctions{
     @Param  VarCharHolder from;
 
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1212,7 +1259,7 @@ public class StringFunctions{
         while ((text.buffer.getByte(id) & 0xC0) == 0x80 && id >= text.start) {
           id--;
         }
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
         int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
                                                                                             text.buffer, id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
@@ -1265,6 +1312,7 @@ public class StringFunctions{
     @Param  VarCharHolder from;
 
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1278,7 +1326,7 @@ public class StringFunctions{
 
       //Scan from left of "text", stop until find a char not in "from"
       for (int id = text.start; id < text.end; id += bytePerChar) {
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
         int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
                                                                                             text.buffer, id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
@@ -1292,7 +1340,7 @@ public class StringFunctions{
         while ((text.buffer.getByte(id) & 0xC0) == 0x80 && id >= text.start) {
           id--;
         }
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
         final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
                                                                                             text.buffer, id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
@@ -1395,6 +1443,7 @@ public class StringFunctions{
     @Param  VarCharHolder in;
     @Output VarBinaryHolder out;
     @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {}
@@ -1403,7 +1452,7 @@ public class StringFunctions{
     public void eval() {
       out.buffer = buffer.reallocIfNeeded(in.end - in.start);
       out.start = out.end = 0;
-      out.end = com.dremio.common.util.DremioStringUtils.parseBinaryStringNoFormat(in.buffer, in.start, in.end, out.buffer);
+      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.parseBinaryStringNoFormat(in.buffer, in.start, in.end, out.buffer, errCtx);
       out.buffer.setIndex(out.start, out.end);
     }
   }
@@ -1566,6 +1615,7 @@ public class StringFunctions{
     @Param  VarCharHolder in;
     @Output VarCharHolder out;
     @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1583,7 +1633,7 @@ public class StringFunctions{
       int innerindex = 0;
 
       for (int id = in.start; id < in.end; id += charlen) {
-        innerindex = charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(in.buffer, id);
+        innerindex = charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(in.buffer, id, errCtx);
 
         while (innerindex > 0) {
           out.buffer.setByte(index - innerindex, in.buffer.getByte(id + (charlen - innerindex)));

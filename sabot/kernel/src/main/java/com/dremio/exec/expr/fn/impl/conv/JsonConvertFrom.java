@@ -27,6 +27,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation.Dummy;
 
 import io.netty.buffer.ArrowBuf;
@@ -47,13 +48,19 @@ public class JsonConvertFrom {
 
     @Output
     ComplexWriter writer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     public void setup() {
-      throw new UnsupportedOperationException();
+      throw errCtx.error()
+        .message("Operation not supported")
+        .build();
     }
 
     public void eval() {
-      throw new UnsupportedOperationException();
+      throw errCtx.error()
+        .message("Operation not supported")
+        .build();
     }
   }
 
@@ -69,13 +76,19 @@ public class JsonConvertFrom {
 
     @Output
     ComplexWriter writer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     public void setup() {
-      throw new UnsupportedOperationException();
+      throw errCtx.error()
+        .message("Operation not supported")
+        .build();
     }
 
     public void eval() {
-      throw new UnsupportedOperationException();
+      throw errCtx.error()
+        .message("Operation not supported")
+        .build();
     }
   }
 

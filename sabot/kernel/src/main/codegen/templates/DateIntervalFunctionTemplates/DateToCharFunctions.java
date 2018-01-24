@@ -34,10 +34,13 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.*;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ArrowBuf;
+import javax.inject.Inject;
+
 /**
  * generated from ${.template_name} ${type}
  */
@@ -50,6 +53,7 @@ public class G${type}ToChar implements SimpleFunction {
     @Inject ArrowBuf buffer;
     @Workspace org.joda.time.format.DateTimeFormatter format;
     @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
 
     public void setup() {
         buffer = buffer.reallocIfNeeded(100);
@@ -61,7 +65,7 @@ public class G${type}ToChar implements SimpleFunction {
         try {
           format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(input).withZoneUTC();
         } catch (IllegalArgumentException ex) {
-          throw com.dremio.common.exceptions.UserException.functionError(ex)
+          throw errCtx.error()
               .message("Invalid date format string '%s'", input)
               .addContext("Details", ex.getMessage())
               .addContext("Input text", input)

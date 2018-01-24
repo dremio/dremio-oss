@@ -28,6 +28,7 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 @FunctionTemplate(name = "convert_toINT_HADOOPV", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
 public class IntVIntConvertTo implements SimpleFunction {
@@ -35,7 +36,7 @@ public class IntVIntConvertTo implements SimpleFunction {
   @Param IntHolder in;
   @Output VarBinaryHolder out;
   @Inject ArrowBuf buffer;
-
+  @Inject FunctionErrorContext errorContext;
 
   @Override
   public void setup() {
@@ -48,7 +49,7 @@ public class IntVIntConvertTo implements SimpleFunction {
   @Override
   public void eval() {
     buffer.clear();
-    com.dremio.exec.util.ByteBufUtil.HadoopWritables.writeVLong(buffer, 0, 9, in.value);
+    com.dremio.exec.util.ByteBufUtil.HadoopWritables.writeVLong(errorContext, buffer, 0, 9, in.value);
     out.buffer = buffer;
     out.start = 0;
     out.end = buffer.readableBytes();

@@ -58,8 +58,8 @@ public class TestClient extends ElasticBaseTestQuery {
   @Before
   public void before() throws Exception {
     super.before();
-    ElasticsearchStoragePlugin2 plugin = (ElasticsearchStoragePlugin2)
-        getSabotContext().getStorage().getPlugin(ElasticsearchStoragePluginConfig.NAME).getStoragePlugin2();
+    ElasticsearchStoragePlugin plugin = (ElasticsearchStoragePlugin)
+        getSabotContext().getStorage().getPlugin(ElasticsearchStoragePluginConfig.NAME);
     connection = plugin.getRandomConnection();
   }
 

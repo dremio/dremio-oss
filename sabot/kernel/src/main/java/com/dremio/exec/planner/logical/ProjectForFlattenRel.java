@@ -66,6 +66,7 @@ public class ProjectForFlattenRel extends SingleRel implements Rel {
     return planner.getCostFactory().makeInfiniteCost();
   }
 
+  @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw).item("projExprs", projExprs).item("itemExprs", this.itemExprs);
   }
@@ -79,7 +80,7 @@ public class ProjectForFlattenRel extends SingleRel implements Rel {
     // This is not a complete description of this rel node.  Should also include the itemExprs.
     int index = 0;
     for (RexNode rex : projExprs) {
-      LogicalExpression expr = RexToExpr.toExpr(implementor.getContext(), getInput(), rex);
+      LogicalExpression expr = RexToExpr.toExpr(implementor.getContext(), getInput().getRowType(), getCluster().getRexBuilder(), rex);
       builder.addExpr(new NamedExpression(expr, FieldReference.getWithQuotedRef(getRowType().getFieldNames().get(index))));
       index++;
     }

@@ -18,10 +18,22 @@ package com.dremio.common;
 import java.io.PrintStream;
 
 
-public class CatastrophicFailure {
+/**
+ * Helper for catastrophic failures
+ */
+public final class CatastrophicFailure {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatastrophicFailure.class);
 
   private CatastrophicFailure() {
+  }
+
+  /**
+   * Exit the VM as we hit a catastrophic failure.
+   * @param name a descriptive message
+   * @param code an error code to exit the JVM with.
+   */
+  public static void exit(String message, int code) {
+    exit(null, message, code);
   }
 
   /**
@@ -33,17 +45,19 @@ public class CatastrophicFailure {
    * @param code
    *          An error code to exit the JVM with.
    */
-  public static void exit(Throwable e, String message, int code) {
-    logger.error("Catastrophic Failure Occurred, exiting. Information message: {}", message, e);
+  public static void exit(Throwable t, String message, int code) {
+    logger.error("Catastrophic Failure Occurred, exiting. Information message: {}", message, t);
 
     final PrintStream out = ("true".equals(System.getProperty("dremio.catastrophic_to_standard_out", "true"))) ? System.out
         : System.err;
     out.println("Catastrophic failure occurred. Exiting. Information follows: " + message);
-    e.printStackTrace(out);
+    if (t != null) {
+      t.printStackTrace(out);
+    }
     out.flush();
     try {
       Thread.sleep(5000);
-    } catch (InterruptedException e2) {
+    } catch (InterruptedException e) {
     }
     System.exit(code);
   }

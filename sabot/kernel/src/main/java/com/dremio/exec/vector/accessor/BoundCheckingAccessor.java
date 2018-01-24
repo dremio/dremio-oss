@@ -142,8 +142,7 @@ public class BoundCheckingAccessor implements SqlAccessor {
   public Object getObject(int rowOffset) throws InvalidAccessException {
     // In case some vectors have fewer values than others, and callee invokes
     // this method with index >= getValueCount(), this should still yield null.
-    final ValueVector.Accessor accessor = vector.getAccessor();
-    if (rowOffset < accessor.getValueCount()) {
+    if (rowOffset < vector.getValueCount()) {
       return delegate.getObject(rowOffset);
     }
     return null;

@@ -84,7 +84,7 @@ public class InterpreterEvaluator {
       TypeHelper.setValueSafe(outVV, i, out);
     }
 
-    outVV.getMutator().setValueCount(recordCount);
+    outVV.setValueCount(recordCount);
 
   }
 

@@ -25,20 +25,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.text.StrTokenizer;
 import org.apache.hadoop.fs.Path;
 
+import com.dremio.common.exceptions.UserException;
 import com.github.slugify.Slugify;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
 /**
  * Utils to convert dotted path to file system path and vice versa.
  */
 public class PathUtils {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PathUtils.class);
+
   private static final char PATH_DELIMITER = '.'; // dot separated path
   private static final Joiner KEY_JOINER = Joiner.on(PATH_DELIMITER).useForNull("");
   private static final String SLASH = Path.SEPARATOR;
@@ -271,6 +272,39 @@ public class PathUtils {
       return PATH_JOINER.join(absolutePathComponents);
     } else {
       return absolutePath.toString();
+    }
+  }
+
+  /**
+   * Make sure the <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to avoid using ".." to
+   * refer entities outside the ba
+   * @param basePath
+   * @param givenPath
+   */
+  public static void verifyNoAccessOutsideBase(Path basePath, Path givenPath) {
+    final String givenPathNormalized = Path.getPathWithoutSchemeAndAuthority(givenPath).toString();
+    final String basePathNormalized = Path.getPathWithoutSchemeAndAuthority(basePath).toString();
+
+    if (!givenPathNormalized.startsWith(basePathNormalized)) {
+      throw UserException.permissionError()
+          .message("Not allowed to access files outside of the source root")
+          .addContext("Source root", basePathNormalized)
+          .addContext("Requested to path", givenPathNormalized)
+          .build(logger);
+    }
+  }
+
+  /**
+   * Remove leading "/"s in the given path string.
+   * @param path
+   * @return
+   */
+  public static String removeLeadingSlash(String path) {
+    if (path.length() > 0 && path.charAt(0) == '/') {
+      String newPath = path.substring(1);
+      return removeLeadingSlash(newPath);
+    } else {
+      return path;
     }
   }
 }

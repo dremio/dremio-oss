@@ -291,8 +291,8 @@ public class ElasticConnectionPool implements AutoCloseable {
 
   public SourceCapabilities getCapabilities(){
     return new SourceCapabilities(
-        new BooleanCapabilityValue(ElasticsearchStoragePlugin2.ENABLE_V5_FEATURES, enable5vFeatures),
-        new BooleanCapabilityValue(ElasticsearchStoragePlugin2.SUPPORTS_NEW_FEATURES, enableNewFeatures),
+        new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES, enable5vFeatures),
+        new BooleanCapabilityValue(ElasticsearchStoragePlugin.SUPPORTS_NEW_FEATURES, enableNewFeatures),
         new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, true)
         );
   }

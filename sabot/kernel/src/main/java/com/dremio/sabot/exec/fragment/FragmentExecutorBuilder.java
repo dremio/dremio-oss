@@ -53,6 +53,7 @@ import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
 import com.dremio.sabot.exec.QueriesClerk;
 import com.dremio.sabot.exec.QueriesClerk.FragmentTicket;
 import com.dremio.sabot.exec.context.ContextInformation;
+import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.context.StatusHandler;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
@@ -88,6 +89,7 @@ public class FragmentExecutorBuilder {
   private final SchemaChangeListener schemaUpdater;
   private final Set<ClusterCoordinator.Role> roles;
   private final StoragePluginRegistry storagePluginRegistry;
+  private final ContextInformationFactory contextInformationFactory;
 
   public FragmentExecutorBuilder(
       QueriesClerk clerk,
@@ -101,8 +103,9 @@ public class FragmentExecutorBuilder {
       PhysicalPlanReader planReader,
       NamespaceService namespace,
       StoragePluginRegistry storagePluginRegistry,
+      ContextInformationFactory contextInformationFactory,
+      FunctionImplementationRegistry functions,
       Set<ClusterCoordinator.Role> roles) {
-    super();
     this.clerk = clerk;
     this.config = config;
     this.coord = coord;
@@ -113,11 +116,12 @@ public class FragmentExecutorBuilder {
     this.namespace = namespace;
     this.planReader = planReader;
     this.opCreator = new OperatorCreatorRegistry(scanResult);
-    this.funcRegistry = new FunctionImplementationRegistry(config, scanResult, optionManager);
+    this.funcRegistry = functions;
     this.compiler = new CodeCompiler(config, optionManager);
     this.schemaUpdater = new NamespaceUpdater(namespace);
     this.roles = roles;
     this.storagePluginRegistry = storagePluginRegistry;
+    this.contextInformationFactory = contextInformationFactory;
   }
 
   public FragmentExecutor build(PlanFragment fragment, EventProvider eventProvider) throws Exception {
@@ -174,7 +178,8 @@ public class FragmentExecutorBuilder {
       final FlushableSendingAccountor flushable = new FlushableSendingAccountor(sharedResources.getGroup(PIPELINE_RES_GRP));
       final ExecutionControls controls = new ExecutionControls(fragmentOptions, fragment.getAssignment());
 
-      final ContextInformation contextInfo = new ContextInformation(fragment.getCredentials(), fragment.getContext());
+      final ContextInformation contextInfo =
+          contextInformationFactory.newContextFactory(fragment.getCredentials(), fragment.getContext());
 
       final OperatorContextCreator creator = new OperatorContextCreator(
           stats,

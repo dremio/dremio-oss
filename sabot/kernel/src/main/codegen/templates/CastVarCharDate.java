@@ -32,6 +32,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionCostCategory;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.*;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateMidnight;
@@ -51,7 +52,8 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
 
   @Param ${type.from}Holder in;
   @Output ${type.to}Holder out;
-  
+  @Inject FunctionErrorContext errCtx;
+
   public void setup() {
   }
 
@@ -62,18 +64,23 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
       String input = new String(buf, com.google.common.base.Charsets.UTF_8);
       </#if>  
-      
-      <#if type.to == "DateMilli">
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getDate(in.buffer, in.start, in.end);
 
-      <#elseif type.to == "TimeStampMilli">
-      org.joda.time.format.DateTimeFormatter f = org.apache.arrow.vector.util.DateUtility.getDateTimeFormatter();
-      out.value = com.dremio.common.util.DateTimes.toMillis(org.joda.time.LocalDateTime.parse(input, f));
+      try {
+        <#if type.to == "DateMilli">
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getDate(in.buffer, in.start, in.end);
 
-      <#elseif type.to == "TimeMilli">
-      org.joda.time.format.DateTimeFormatter f = org.apache.arrow.vector.util.DateUtility.getTimeFormatter();
-      out.value = (int) com.dremio.common.util.DateTimes.toMillis((f.parseLocalDateTime(input)));
-      </#if>
+        <#elseif type.to == "TimeStampMilli">
+        org.joda.time.format.DateTimeFormatter f = org.apache.arrow.vector.util.DateUtility.getDateTimeFormatter();
+        out.value = com.dremio.common.util.DateTimes.toMillis(org.joda.time.LocalDateTime.parse(input, f));
+
+        <#elseif type.to == "TimeMilli">
+        org.joda.time.format.DateTimeFormatter f = org.apache.arrow.vector.util.DateUtility.getTimeFormatter();
+        out.value = (int) com.dremio.common.util.DateTimes.toMillis((f.parseLocalDateTime(input)));
+        </#if>
+      } catch (RuntimeException e) {
+        throw errCtx.error(e)
+          .build();
+      }
 
   }
 }

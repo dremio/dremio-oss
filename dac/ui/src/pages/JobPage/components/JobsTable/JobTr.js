@@ -20,7 +20,6 @@ import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import StateIconTypes from 'constants/jobPage/StateIconType.json';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
 import jobsUtils from 'utils/jobsUtils';
@@ -28,6 +27,8 @@ import timeUtils from 'utils/timeUtils';
 
 import { fixedWidthSmall } from 'uiTheme/radium/typography';
 import { PALE_ORANGE } from 'uiTheme/radium/colors';
+
+import JobStateIcon from '../JobStateIcon';
 
 const DATASET_HEIGHT = 14;
 
@@ -85,7 +86,7 @@ export default class JobTr extends Component {
         style={trStyles}>
         <div style={styles.headerRow}>
           <div style={styles.td}>
-            <FontIcon type={StateIconTypes[jobState]}/>
+            <JobStateIcon state={jobState} />
           </div>
           <div style={styles.columns}>
             <div style={{ width: 100 }}>

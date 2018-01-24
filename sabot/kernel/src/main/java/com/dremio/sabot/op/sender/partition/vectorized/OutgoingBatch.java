@@ -52,8 +52,8 @@ public class OutgoingBatch extends VectorContainer {
   private final OperatorStats stats;
 
   // we need these to set the lastSet value for variable length vectors
-  private final List<NullableVarCharVector.Mutator> varchars = Lists.newArrayList();
-  private final List<NullableVarBinaryVector.Mutator> varbins = Lists.newArrayList();
+  private final List<NullableVarCharVector> varchars = Lists.newArrayList();
+  private final List<NullableVarBinaryVector> varbins = Lists.newArrayList();
 
   private final int batchIdx;
   private final int nextBatchIdx;
@@ -85,9 +85,9 @@ public class OutgoingBatch extends VectorContainer {
       add(outgoingVector);
 
       if (outgoingVector instanceof NullableVarBinaryVector) {
-        varbins.add(((NullableVarBinaryVector) outgoingVector).getMutator());
+        varbins.add(((NullableVarBinaryVector) outgoingVector));
       } else if (outgoingVector instanceof NullableVarCharVector) {
-        varchars.add(((NullableVarCharVector) outgoingVector).getMutator());
+        varchars.add(((NullableVarCharVector) outgoingVector));
       }
     }
   }
@@ -147,11 +147,11 @@ public class OutgoingBatch extends VectorContainer {
 
     stats.addLongStat(Metric.NUM_FLUSHES, 1);
 
-    for (NullableVarBinaryVector.Mutator mutator : varbins) {
-      mutator.setLastSet(preCopyIdx);
+    for (NullableVarBinaryVector vector : varbins) {
+      vector.setLastSet(preCopyIdx);
     }
-    for (NullableVarCharVector.Mutator mutator : varchars) {
-      mutator.setLastSet(preCopyIdx);
+    for (NullableVarCharVector vector : varchars) {
+      vector.setLastSet(preCopyIdx);
     }
     setAllCount(preCopyIdx);
     if (!hasSchema()) {

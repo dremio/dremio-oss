@@ -67,10 +67,18 @@ public class ${name}Accessor extends AbstractSqlAccessor {
   private static final MajorType TYPE = Types.required(MinorType.${dremioMinorType});
  </#if>
 
+  <#if mode == "Nullable">
+  private final ${name}Vector ac;
+  <#else>
   private final ${name}Vector.Accessor ac;
+  </#if>
 
   public ${name}Accessor(${name}Vector vector) {
+    <#if mode == "Nullable">
+    this.ac = vector;
+    <#else>
     this.ac = vector.getAccessor();
+    </#if>
   }
 
   @Override

@@ -27,6 +27,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import com.google.common.base.Predicate;
 
 /**
  * DatasetPointer interface
@@ -56,6 +57,8 @@ public interface TableMetadata {
   String getUser();
 
   TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException;
+
+  TableMetadata prune(Predicate<DatasetSplit> splitPredicate) throws NamespaceException;
 
   TableMetadata prune(List<DatasetSplit> newSplits) throws NamespaceException;
 

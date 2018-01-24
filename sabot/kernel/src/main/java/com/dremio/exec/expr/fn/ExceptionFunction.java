@@ -15,10 +15,11 @@
  */
 package com.dremio.exec.expr.fn;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
@@ -28,13 +29,14 @@ public class ExceptionFunction {
 
   public static final String EXCEPTION_FUNCTION_NAME = "__throwException";
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExceptionFunction.class);
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExceptionFunction.class);
 
   @FunctionTemplate(name = EXCEPTION_FUNCTION_NAME, isDeterministic = false)
   public static class ThrowException implements SimpleFunction {
 
     @Param VarCharHolder message;
     @Output NullableBigIntHolder out;
+    @Inject FunctionErrorContext errorContext;
 
     @Override
     public void setup() {
@@ -43,11 +45,13 @@ public class ExceptionFunction {
     @Override
     public void eval() {
       String msg = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(message.start, message.end, message.buffer);
-      com.dremio.exec.expr.fn.ExceptionFunction.throwException(msg);
+      com.dremio.exec.expr.fn.ExceptionFunction.throwException(errorContext, msg);
     }
   }
 
-  public static void throwException(String message) {
-    throw UserException.functionError().message(message).build(logger);
+  public static void throwException(FunctionErrorContext errorContext, String message) {
+    throw errorContext.error()
+        .message(message)
+        .build();
   }
 }

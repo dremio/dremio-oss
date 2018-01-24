@@ -40,8 +40,8 @@ public class HDFSSourceConfigurator extends SingleSourceToStoragePluginConfig<Hd
     // TODO: validate host
     String hostname = checkNotNull(hdfs.getHostname(), "missing hostname");
     String connection = "hdfs://" + hostname + ":" + port;
-    FileSystemConfig config =
-        new FileSystemConfig(connection, null, null, getDefaultFormats(), hdfs.getEnableImpersonation(), SchemaMutability.NONE);
+    FileSystemConfig config = new FileSystemConfig(connection, hdfs.getRootPath(), null,
+        getDefaultFormats(), hdfs.getEnableImpersonation(), SchemaMutability.NONE);
     return config;
   }
 

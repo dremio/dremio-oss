@@ -48,7 +48,7 @@ public class FlattenRel extends FlattenRelBase implements Rel {
 
     for (RexNode rex : toFlatten) {
       RexInputRef rexInput = (RexInputRef) rex;
-      LogicalExpression expr = RexToExpr.toExpr(implementor.getContext(), getInput(), rex);
+      LogicalExpression expr = RexToExpr.toExpr(implementor.getContext(), getInput().getRowType(), getCluster().getRexBuilder(), rex);
       builder.addExpr(new NamedExpression(expr, FieldReference.getWithQuotedRef(getRowType().getFieldNames().get(rexInput.getIndex()))));
     }
     return builder.build();

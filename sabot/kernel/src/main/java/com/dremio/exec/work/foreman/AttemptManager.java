@@ -44,7 +44,6 @@ import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
-import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
@@ -61,7 +60,6 @@ import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
-import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
@@ -128,10 +126,10 @@ public class AttemptManager implements Runnable {
     final AttemptId attemptId,
     final UserRequest queryRequest,
     final AttemptObserver observer,
-    final UserSession session,
     final OptionProvider options,
     final CoordToExecTunnelCreator tunnelCreator,
     final Cache<Long, PreparedPlan> plans,
+    final QueryContext queryContext,
     final FragmentsStateListener fragmentsStateListener
     ) {
     this.attemptId = attemptId;
@@ -143,15 +141,13 @@ public class AttemptManager implements Runnable {
     this.plans = plans;
     this.prepareId = new Pointer<>();
 
-    final QueryPriority priority = queryRequest.getPriority();
-    final long maxAllocation = queryRequest.getMaxAllocation();
-    this.queryContext = new QueryContext(session, sabotContext, queryId, priority, maxAllocation);
+    this.queryContext = queryContext;
     this.observers = AttemptObservers.of(observer);
-    this.queryManager = new QueryManager(queryId, queryContext, new CompletionListenerImpl(), prepareId,
-      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), queryContext.getSchemaTreeProvider(),
+    this.queryManager = new QueryManager(queryId, this.queryContext, new CompletionListenerImpl(), prepareId,
+      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), this.queryContext.getSchemaTreeProvider(),
       fragmentsStateListener);
 
-    final OptionManager optionManager = queryContext.getOptions();
+    final OptionManager optionManager = this.queryContext.getOptions();
     if(options != null){
       options.applyOptions(optionManager);
     }
@@ -262,6 +258,13 @@ public class AttemptManager implements Runnable {
   }
 
   /**
+   * Resume a paused query
+   */
+  public void resume() {
+    queryContext.getExecutionControls().unpauseAll();
+  }
+
+  /**
    * Called by execution pool to do query setup, and kick off remote execution.
    *
    * <p>Note that completion of this function is not necessarily the end of the AttemptManager's role
@@ -332,7 +335,7 @@ public class AttemptManager implements Runnable {
          * die here, they should get notified about that, and cancel themselves; we don't have to attempt to notify
          * them, which might not work under these conditions.
          */
-        CatastrophicFailure.exit(e, "Unable to handle out of memory condition in AttemptManager.", -1);
+        CatastrophicFailure.exit(e, "Unable to handle out of memory condition in AttemptManager.", 1);
       }
     } catch (Throwable ex) {
       moveToState(QueryState.FAILED,

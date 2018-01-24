@@ -439,6 +439,7 @@ public class ElasticsearchCluster implements Closeable {
         null, /* username */
         null, /* password */
         sslEnabled,
+        false,
         false
         );
 

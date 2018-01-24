@@ -57,6 +57,7 @@ public @interface FunctionTemplate {
   NullHandling nulls() default NullHandling.INTERNAL;
   boolean isBinaryCommutative() default false;
   boolean isDeterministic()  default true;
+  boolean isDynamic() default false; // see Calcite's SqlOperator#isDynamicFunction
   FunctionSyntax syntax() default FunctionSyntax.FUNCTION;
   String desc() default "";
   FunctionCostCategory costCategory() default FunctionCostCategory.SIMPLE;

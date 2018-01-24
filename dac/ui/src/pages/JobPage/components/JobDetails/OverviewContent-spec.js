@@ -23,6 +23,7 @@ describe('OverviewContent', () => {
   let minimalProps;
   let commonProps;
   let wrapper;
+  let context;
   beforeEach(() => {
     minimalProps = {
       jobDetails: Immutable.fromJS({
@@ -58,12 +59,13 @@ describe('OverviewContent', () => {
     commonProps = {
       ...minimalProps
     };
+    context = {location: {}};
 
-    wrapper = shallow(<OverviewContent {...commonProps}/>);
+    wrapper = shallow(<OverviewContent {...commonProps}/>, {context});
   });
 
   it('should render with minimal props without exploding', () => {
-    expect(shallow(<OverviewContent {...minimalProps}/>)).to.have.length(1);
+    expect(shallow(<OverviewContent {...minimalProps}/>, {context})).to.have.length(1);
   });
 
   describe('checkResultOfProfile', () => {
@@ -114,7 +116,7 @@ describe('OverviewContent', () => {
           ])
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(wrapper.instance().renderInfoAboutProfile()).to.eql('This query was attempted 2 times');
     });
 
@@ -134,7 +136,7 @@ describe('OverviewContent', () => {
           ])
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
         wrapper.instance().renderInfoAboutProfile()
       ).to.eql('This query was attempted 2 times due to schema learning 1');
@@ -147,7 +149,7 @@ describe('OverviewContent', () => {
           requestType: 'GET_CATALOGS'
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
           wrapper.instance().isMetadataJob()
       ).to.eql(true);
@@ -160,7 +162,7 @@ describe('OverviewContent', () => {
           requestType: 'SQL'
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
           wrapper.instance().isMetadataJob()
       ).to.eql(false);
@@ -173,7 +175,7 @@ describe('OverviewContent', () => {
           datasetPathList: undefined
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
           wrapper.instance().isDatasetAvailable()
       ).to.eql(false);
@@ -186,7 +188,7 @@ describe('OverviewContent', () => {
           parentsList: undefined
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
           wrapper.instance().isParentsAvailable()
       ).to.eql(false);
@@ -201,7 +203,7 @@ describe('OverviewContent', () => {
           ]
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
           wrapper.instance().isParentsAvailable()
       ).to.eql(true);
@@ -212,7 +214,7 @@ describe('OverviewContent', () => {
       const props = {
         jobDetails: commonProps.jobDetails.set('requestType', 'GET_CATALOGS')
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(wrapper.instance().renderSqlBlock()).to.eql(null);
     });
 
@@ -220,7 +222,7 @@ describe('OverviewContent', () => {
       const props = {
         jobDetails: commonProps.jobDetails.set('materializationFor', new Immutable.Map())
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(wrapper.instance().renderSqlBlock()).to.eql(null);
     });
 
@@ -240,7 +242,7 @@ describe('OverviewContent', () => {
           ])
         })
       };
-      wrapper = shallow(<OverviewContent {...props}/>);
+      wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
         wrapper.instance().renderInfoAboutProfile()
       ).to.eql('This query was attempted 2 times due to insufficient memory 1');

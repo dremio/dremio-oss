@@ -31,7 +31,7 @@ public class VectorValidator {
         for (VectorWrapper w : batch) {
           ValueVector v = w.getValueVector();
           for (int i = 0; i < count; i++) {
-            Object obj = v.getAccessor().getObject(i);
+            Object obj = v.getObject(i);
             if (obj != null) {
               hash = obj.hashCode() ^ hash;
             }
@@ -44,7 +44,7 @@ public class VectorValidator {
           ValueVector v = w.getValueVector();
           for (int i = 0; i < count; i++) {
             int index = batch.getSelectionVector2().getIndex(i);
-            Object obj = v.getAccessor().getObject(index);
+            Object obj = v.getObject(index);
             if (obj != null) {
               hash = obj.hashCode() ^ hash;
             }
@@ -58,7 +58,7 @@ public class VectorValidator {
           for (int i = 0; i < count; i++) {
             int index = batch.getSelectionVector4().get(i);
             ValueVector v = vv[index >> 16];
-            Object obj = v.getAccessor().getObject(index & 65535);
+            Object obj = v.getObject(index & 65535);
             if (obj != null) {
               hash = obj.hashCode() ^ hash;
             }

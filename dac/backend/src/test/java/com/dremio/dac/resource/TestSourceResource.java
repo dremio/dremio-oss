@@ -122,7 +122,7 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(source.getFullPathList(), result.getFullPathList());
 
     assertNotNull(source.getMetadataPolicy());
-    assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, result.getMetadataPolicy().getAuthTTLMillis());
+    assertEquals(CatalogService.DEFAULT_AUTHTTLS_MILLIS, result.getMetadataPolicy().getAuthTTLMillis());
     assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, result.getMetadataPolicy().getNamesRefreshMillis());
     assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, result.getMetadataPolicy().getDatasetDefinitionRefreshAfterMillis());
     assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, result.getMetadataPolicy().getDatasetDefinitionExpireAfterMillis());

@@ -186,7 +186,7 @@ public class Upgrade {
     } catch (Exception e) {
       e.printStackTrace();
       System.err.println("Upgrade failed " + e);
-      System.exit(-1);
+      System.exit(1);
     }
   }
 }

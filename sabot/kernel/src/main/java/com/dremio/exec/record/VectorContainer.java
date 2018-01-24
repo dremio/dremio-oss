@@ -393,7 +393,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   public int setAllCount(int records){
     if(records != 0){
       for(VectorWrapper<?> w : this){
-        w.getValueVector().getMutator().setValueCount(records);
+        w.getValueVector().setValueCount(records);
       }
     }
     setRecordCount(records);

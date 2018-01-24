@@ -57,6 +57,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.io.CharStreams;
 import com.google.protobuf.ByteString.Output;
+import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 
 import io.protostuff.ByteString;
 
@@ -73,6 +74,12 @@ public class PhysicalPlanReader {
                             final StoragePluginRegistry pluginRegistry, SabotContext context) {
 
     this.lpPersistance = lpPersistance;
+
+    final ObjectMapper lpMapper = lpPersistance.getMapper();
+
+    // automatic serialization of protobuf.
+    lpMapper.registerModule(new ProtobufModule());
+
     // Endpoint serializer/deserializer.
     final SimpleModule deserModule = new SimpleModule("PhysicalOperatorModule")
         .addSerializer(NodeEndpoint.class, new NodeEndpointSerDe.Se())
@@ -82,9 +89,6 @@ public class PhysicalPlanReader {
         .addDeserializer(ByteString.class, new ByteStringDeser())
         .addDeserializer(MajorType.class, new MajorTypeSerDe.De());
 
-
-
-    final ObjectMapper lpMapper = lpPersistance.getMapper();
     lpMapper.registerModule(deserModule);
     Set<Class<? extends PhysicalOperator>> subTypes = PhysicalOperatorUtil.getSubTypes(scanResult);
     for (Class<? extends PhysicalOperator> subType : subTypes) {

@@ -17,6 +17,7 @@ package com.dremio.sabot.rpc.user;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.UUID;
 
 import javax.inject.Provider;
@@ -43,6 +44,7 @@ import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.HandshakeStatus;
 import com.dremio.exec.proto.UserProtos.Property;
 import com.dremio.exec.proto.UserProtos.RecordBatchFormat;
+import com.dremio.exec.proto.UserProtos.RecordBatchType;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserProperties;
@@ -56,6 +58,7 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcCompatibilityEncoder;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValue;
@@ -68,6 +71,11 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserService;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Ordering;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 
@@ -153,6 +161,16 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         throw new RpcException("Failure while decoding QueryId body.", e);
       }
 
+    case RpcType.RESUME_PAUSED_QUERY_VALUE:
+      try {
+        final QueryId queryId = QueryId.PARSER.parseFrom(pBody);
+        final Ack ack = worker.resumeQuery(ExternalIdHelper.toExternal(queryId));
+        responseSender.send(new Response(RpcType.ACK, ack));
+        break;
+      } catch (InvalidProtocolBufferException e) {
+        throw new RpcException("Failure while decoding QueryId body.", e);
+      }
+
     case RpcType.GET_CATALOGS_VALUE:
       try {
         final GetCatalogsReq req = GetCatalogsReq.PARSER.parseFrom(pBody);
@@ -215,6 +233,38 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   }
 
   /**
+   * Choose the best Dremio record batch format based on client capabilities.
+   *
+   * @param inbound
+   * @return the chosen format
+   * @throws IllegalArgumentException if record batch format or type is unknown or invalid
+   */
+  @VisibleForTesting
+  static RecordBatchFormat chooseDremioRecordBatchFormat(UserToBitHandshake inbound) {
+    Preconditions.checkArgument(inbound.getRecordBatchType() == RecordBatchType.DREMIO);
+
+    // Choose record batch format based on what's supported by both clients and servers
+    List<RecordBatchFormat> supportedRecordBatchFormatsList = inbound.getSupportedRecordBatchFormatsList();
+    if (supportedRecordBatchFormatsList.isEmpty()) {
+      supportedRecordBatchFormatsList = ImmutableList.of(RecordBatchFormat.DREMIO_0_9); // Backward compatibility with older dremio clients
+    }
+
+    try {
+      RecordBatchFormat recordBatchFormat = Ordering
+          .explicit(RecordBatchFormat.UNKNOWN, RecordBatchFormat.DREMIO_0_9, RecordBatchFormat.DREMIO_1_4)
+          .max(supportedRecordBatchFormatsList);
+
+      // If unknown is the max value, it means client only supports format we don't know about yet.
+      if (recordBatchFormat == RecordBatchFormat.UNKNOWN) {
+        throw new IllegalArgumentException("Record batch format not supported");
+      }
+      return recordBatchFormat;
+    } catch (ClassCastException e) {
+      throw new IllegalArgumentException("Invalid batch format received", e);
+    }
+  }
+
+  /**
    * Interface for getting user session properties and interacting with user connection. Separating this interface from
    * {@link RemoteConnection} implementation for user connection:
    * <p><ul>
@@ -268,6 +318,46 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     }
 
     void setUser(final UserToBitHandshake inbound) throws IOException {
+      // First thing: log connection attempt
+      final RpcEndpointInfos info = inbound.hasClientInfos() ? inbound.getClientInfos() : UNKNOWN;
+      String infoMsg = String.format("[%s] Connection opened.\n" +
+          "\tEndpoint: %s:%d\n" +
+          "\tProtocol Version: %d\n" +
+          "\tRecord Type: %s\n" +
+          "\tRecord Formats: %s\n" +
+          "\tSupport Complex Types: %s\n" +
+          "\tName: %s\n" +
+          "\tVersion: %s (%d.%d.%d)\n" +
+          "\tApplication: %s\n",
+          uuid.toString(), remote.getHostString(), remote.getPort(), inbound.getRpcVersion(),
+          inbound.hasRecordBatchType() ? inbound.getRecordBatchType().name() : "n/a",
+          Joiner.on(", ").join(inbound.getSupportedRecordBatchFormatsList()),
+          inbound.hasSupportComplexTypes() ? inbound.getSupportComplexTypes() : "n/a",
+          info.hasName() ? info.getName() : "n/a",
+          info.hasVersion() ? info.getVersion() : "n/a",
+          info.hasMajorVersion() ? info.getMajorVersion() : 0,
+          info.hasMinorVersion() ? info.getMinorVersion() : 0,
+          info.hasPatchVersion() ? info.getPatchVersion() : 0,
+          info.hasApplication() ? info.getApplication() : "n/a"
+          );
+
+      if(!inbound.hasProperties() || inbound.getProperties().getPropertiesCount() == 0){
+        infoMsg += "\tUser Properties: none";
+      } else {
+        infoMsg += "\tUser Properties: \n";
+        UserProperties props = inbound.getProperties();
+        for(int i =0; i < props.getPropertiesCount(); i++){
+          Property p = props.getProperties(i);
+          if(p.getKey().equalsIgnoreCase("password")){
+              continue;
+          }
+          infoMsg += "\t\t" + p.getKey() + "=" + p.getValue() + "\n";
+        }
+      }
+
+      CONNECTION_LOGGER.info(infoMsg);
+
+
       final UserWorker worker = UserRPCServer.this.worker.get();
       UserSession.Builder builder = UserSession.Builder.newBuilder()
           .withCredentials(inbound.getCredentials())
@@ -318,48 +408,27 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         }
       }
 
-      if (inbound.hasRecordBatchFormat()) {
-        builder = builder.withRecordBatchFormat(inbound.getRecordBatchFormat());
+      // Choose batch record format to use
+      if (inbound.hasRecordBatchType()) {
+        switch (inbound.getRecordBatchType()) {
+        case DRILL:
+          // Only Drill 1.0 format supported for Dremio ODBC/Drill clients.
+          builder.withRecordBatchFormat(RecordBatchFormat.DRILL_1_0);
+          break;
+
+        case DREMIO:
+          try {
+            builder.withRecordBatchFormat(chooseDremioRecordBatchFormat(inbound));
+          } catch(IllegalArgumentException e) {
+            throw new UserRpcException(dbContext.get().getEndpoint(), e.getMessage(), e);
+          }
+          break;
+        }
       } else {
         // Use legacy format
         builder = builder.withRecordBatchFormat(RecordBatchFormat.DRILL_1_0);
       }
       this.session = builder.build();
-
-      final RpcEndpointInfos info = inbound.hasClientInfos() ? inbound.getClientInfos() : UNKNOWN;
-      String infoMsg = String.format("[%s] Connection opened.\n" +
-          "\tEndpoint: %s:%d\n" +
-          "\tProtocol Version: %d\n" +
-          "\tRecord Format: %s\n" +
-          "\tSupport Complex Types: %s\n" +
-          "\tName: %s\n" +
-          "\tVersion: %s (%d.%d.%d)\n" +
-          "\tApplication: %s\n",
-          uuid.toString(), remote.getHostString(), remote.getPort(), inbound.getRpcVersion(),
-          inbound.hasRecordBatchFormat() ? inbound.getRecordBatchFormat().name() : "n/a",
-          inbound.hasSupportComplexTypes() ? inbound.getSupportComplexTypes() : "n/a",
-          info.hasName() ? info.getName() : "n/a",
-          info.hasVersion() ? info.getVersion() : "n/a",
-          info.hasMajorVersion() ? info.getMajorVersion() : 0,
-          info.hasMinorVersion() ? info.getMinorVersion() : 0,
-          info.hasPatchVersion() ? info.getPatchVersion() : 0,
-          info.hasApplication() ? info.getApplication() : "n/a"
-          );
-
-      if(!inbound.hasProperties() || inbound.getProperties().getPropertiesCount() == 0){
-        infoMsg += "\tUser Properties: none";
-      } else {
-        infoMsg += "\tUser Properties: \n";
-        UserProperties props = inbound.getProperties();
-        for(int i =0; i < props.getPropertiesCount(); i++){
-          Property p = props.getProperties(i);
-          if(p.getKey().equalsIgnoreCase("password")){
-              continue;
-          }
-          infoMsg += "\t\t" + p.getKey() + "=" + p.getValue() + "\n";
-        }
-      }
-
 
       if(session.useLegacyCatalogName()){
         // set this to a system option so remote reads of information schema also know about this.
@@ -370,8 +439,6 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       if (impersonationManager != null && targetName != null) {
         impersonationManager.replaceUserOnSession(targetName, session);
       }
-
-      CONNECTION_LOGGER.info(infoMsg);
     }
 
     @Override
@@ -490,19 +557,44 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
           connection.setUser(inbound);
 
-          if(connection.session.getRecordBatchFormat() == RecordBatchFormat.DRILL_1_0) {
+          final RecordBatchFormat recordBatchFormat = connection.session.getRecordBatchFormat();
+          respBuilder.setRecordBatchFormat(recordBatchFormat);
+
+          switch (recordBatchFormat) {
+          case DRILL_1_0: {
             // This allocator is used for backward compatibility encoding. Note that the encoder is responsible for
             // closing the allocator during it's removal; this ensures any outstanding buffers in Netty pipeline
             // are released BEFORE the allocator is closed. See BackwardsCompatibilityEncoder#handlerRemoved
             final BufferAllocator bcAllocator = allocator.newChildAllocator(connection.uuid.toString()
-                    + "-backward-compatibility-allocator", 0, Long.MAX_VALUE);
+                + "-backward-compatibility-allocator", 0, Long.MAX_VALUE);
             logger.debug("Adding backwards compatibility encoder");
             connection.getChannel()
-                .pipeline()
-                .addAfter(PROTOCOL_ENCODER, "backward-compatibility-encoder",
-                    new BackwardsCompatibilityEncoder(bcAllocator));
+            .pipeline()
+            .addAfter(PROTOCOL_ENCODER, "backward-compatibility-encoder",
+                new BackwardsCompatibilityEncoder(new DrillBackwardsCompatibilityHandler(bcAllocator)));
           }
+          break;
 
+          case DREMIO_0_9: {
+            /*
+             * From Dremio 1.4 onwards we have moved to Little Endian Decimal format. We need to
+             * add a new encoder in the netty pipeline when talking to old (1.3 and less) Dremio
+             * Jdbc drivers.
+             */
+            final BufferAllocator bcAllocator = allocator.newChildAllocator(connection.uuid.toString()
+                + "-dremio09-backward", 0, Long.MAX_VALUE);
+            logger.debug("Adding dremio 09 backwards compatibility encoder");
+            connection.getChannel()
+            .pipeline()
+            .addAfter(PROTOCOL_ENCODER, "dremio09-backward",
+                new BackwardsCompatibilityEncoder(new Dremio09BackwardCompatibilityHandler(bcAllocator)));
+          }
+          break;
+
+          case DREMIO_1_4:
+          default:
+
+          }
           return respBuilder
               .setStatus(HandshakeStatus.SUCCESS)
               .build();

@@ -218,7 +218,7 @@ public abstract class WindowFunction {
       cg.setMappingSet(mappingSet);
       final JVar vv = cg.declareVectorValueSetupAndMember(cg.getMappingSet().getOutgoing(), fieldId);
       final JExpression outIndex = cg.getMappingSet().getValueWriteIndex();
-      JInvocation setMethod = vv.invoke("getMutator").invoke("setSafe").arg(outIndex).arg(JExpr.direct("partition." + getName()));
+      JInvocation setMethod = vv.invoke("setSafe").arg(outIndex).arg(JExpr.direct("partition." + getName()));
 
       cg.getEvalBlock().add(setMethod);
     }
@@ -306,7 +306,7 @@ public abstract class WindowFunction {
       cg.setMappingSet(mappingSet);
       final JVar vv = cg.declareVectorValueSetupAndMember(cg.getMappingSet().getOutgoing(), fieldId);
       final JExpression outIndex = cg.getMappingSet().getValueWriteIndex();
-      JInvocation setMethod = vv.invoke("getMutator").invoke("setSafe").arg(outIndex)
+      JInvocation setMethod = vv.invoke("setSafe").arg(outIndex)
         .arg(JExpr.direct("partition.ntile(" + numTiles + ")"));
       cg.getEvalBlock().add(setMethod);
     }

@@ -34,7 +34,6 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.exec.store.ischema.TableInfo;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
@@ -201,20 +200,4 @@ public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer 
         .build(logger);
   }
 
-  /**
-   * Returns table info for INFORMATION_SCHEMA.{`TABLES`, `VIEWS`} record generation. Default implementation fetches
-   * the complete table through {@link #getTable(String)} and creates a {@link TableInfo} from it. Implementations
-   * of {@link AbstractSchema} can override this to avoid creating the full table.
-   *
-   * @param tableName
-   * @return
-   */
-  public TableInfo getTableInfo(String tableName) {
-    final Table table = getTable(tableName);
-    if (table == null) {
-      return null;
-    }
-
-    return new TableInfo(table);
-  }
 }

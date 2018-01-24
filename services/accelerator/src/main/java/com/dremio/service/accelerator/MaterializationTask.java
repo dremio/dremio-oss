@@ -45,7 +45,8 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.StoragePlugin2.UpdateStatus;
+import com.dremio.exec.store.StoragePlugin.UpdateStatus;
+import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FileSystemWriter;
@@ -214,7 +215,7 @@ public abstract class MaterializationTask {
   MaterializationTask(final MaterializationContext materializationContext, Layout layout, Acceleration acceleration, long gracePeriod) {
     this.context = materializationContext;
     this.dfs = materializationContext.accelerationStoragePlugin.getFS(ImpersonationUtil.getProcessUserName());
-    this.accelerationStoreLocation = new Path(materializationContext.accelerationStoragePlugin.getConfig().getPath());
+    this.accelerationStoreLocation = new Path(materializationContext.accelerationStoragePlugin.getId().<FileSystemConfig>getConfig().getPath());
     this.layout = layout;
     this.acceleration = acceleration;
     this.gracePeriod = gracePeriod;

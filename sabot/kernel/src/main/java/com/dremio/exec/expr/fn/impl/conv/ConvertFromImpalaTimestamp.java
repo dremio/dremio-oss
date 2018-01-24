@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 
@@ -22,15 +24,17 @@ import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
+@SuppressWarnings("unused") // found through classpath search
 public class ConvertFromImpalaTimestamp {
-
 
   @FunctionTemplate(name = "convert_fromTIMESTAMP_IMPALA_LOCALTIMEZONE", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
   public static class ImpalaTimestampConvertFromWithLocalTimezone implements SimpleFunction {
 
     @Param VarBinaryHolder in;
     @Output TimeStampMilliHolder out;
+    @Inject FunctionErrorContext errorContext;
 
 
     @Override
@@ -38,7 +42,7 @@ public class ConvertFromImpalaTimestamp {
 
     @Override
     public void eval() {
-      com.dremio.exec.util.ByteBufUtil.checkBufferLength(in.buffer, in.start, in.end, 12);
+      com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 12);
 
       in.buffer.readerIndex(in.start);
       long nanosOfDay = in.buffer.readLong();
@@ -54,14 +58,14 @@ public class ConvertFromImpalaTimestamp {
 
     @Param VarBinaryHolder in;
     @Output TimeStampMilliHolder out;
-
+    @Inject FunctionErrorContext errorContext;
 
     @Override
     public void setup() { }
 
     @Override
     public void eval() {
-      com.dremio.exec.util.ByteBufUtil.checkBufferLength(in.buffer, in.start, in.end, 12);
+      com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 12);
 
       in.buffer.readerIndex(in.start);
       long nanosOfDay = in.buffer.readLong();

@@ -312,7 +312,7 @@ public final class BackupRestoreUtil {
     if(uploads.getScheme().equals("pdfs")){
       uploads = UriBuilder.fromUri(uploads).scheme("file").build();
     }
-    final HomeFileConfig homeFileStore = new HomeFileConfig(uploads, dacConfig.getMasterNode());
+    final HomeFileConfig homeFileStore = new HomeFileConfig(uploads, dacConfig.thisNode);
     homeFileStore.createFileSystem();
     Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(fs, backupDir);
     Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);

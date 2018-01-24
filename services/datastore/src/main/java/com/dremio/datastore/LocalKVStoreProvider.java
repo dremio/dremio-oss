@@ -27,7 +27,9 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.indexed.LocalIndexedStore;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -86,8 +88,9 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStore
     coreStoreProvider.start();
     if (fabricService != null) {
       final DefaultDataStoreRpcHandler rpcHandler = new LocalDataStoreRpcHandler(hostName, coreStoreProvider);
+      final NodeEndpoint thisNode = NodeEndpoint.newBuilder().setAddress(hostName).setFabricPort(fabricService.get().getPort()).build();
       try {
-        new DatastoreRpcService(hostName, fabricService.get().getPort(), fabricService.get(), allocator, rpcHandler);
+        new DatastoreRpcService(DirectProvider.wrap(thisNode), fabricService.get(), allocator, rpcHandler);
       } catch (RpcException e) {
         throw new DatastoreException("Failed to start rpc service", e);
       }
@@ -131,7 +134,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStore
   }
 
   public void deleteEverything(String... skipNamesArray) throws IOException {
-    ((CoreStoreProviderImpl)coreStoreProvider).deleteEverything(skipNamesArray);
+    coreStoreProvider.deleteEverything(skipNamesArray);
   }
 
   /**

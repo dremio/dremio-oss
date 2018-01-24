@@ -123,7 +123,7 @@ export default class AllSourcesView extends Component {
     return (
       this.context.loggedInUser.admin && <LinkButton
         buttonStyle='primary'
-        to={{ ...location, state: { modal: 'AddSourceModal' }}}
+        to={{ ...this.context.location, state: { modal: 'AddSourceModal' }}}
         style={allSpacesAndAllSources.addButton}>
         {this.props.intl.formatMessage({ id: 'Source.AddSource' })}
       </LinkButton>

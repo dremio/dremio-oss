@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.rpc;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.NamedThreadFactory;
-
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.NamedThreadFactory;
 
 public class CloseableThreadPool extends ThreadPoolExecutor implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CloseableThreadPool.class);
@@ -39,7 +39,7 @@ public class CloseableThreadPool extends ThreadPoolExecutor implements AutoClose
 
   @Override
   public void close() {
-    AutoCloseables.close(this, logger);
+    CloseableSchedulerThreadPool.close(this, logger);
   }
 
 }

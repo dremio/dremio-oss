@@ -154,7 +154,7 @@ export default class DateInput extends Component {
     const popoverStyle = this.getPopoverStyle();
 
     return (
-      <div style={styles.base}>
+      <div className='field' style={styles.base}>
         <input
           ref='input'
           style={[styles.input, props.style]}

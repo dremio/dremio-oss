@@ -67,7 +67,7 @@ export class DatasetContext extends Component {
   }
 
   openDatasetModal = (tab) => {
-    const { router } = this.context;
+    const { router, location } = this.context;
     router.push({
       ...location, state: {
         modal: 'DatasetSettingsModal',

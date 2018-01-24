@@ -66,7 +66,7 @@ export default class SearchField extends Component {
   render() {
     const showCloseIcon = this.props.showCloseIcon && this.state.value;
     return (
-      <div style={[styles.base, this.props.style]}>
+      <div className='field' style={[styles.base, this.props.style]}>
         <FontIcon
           type='Search'
           theme={this.props.searchIconTheme || styles.searchIcon}

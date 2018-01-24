@@ -106,7 +106,7 @@ export default class UsersView extends Component {
         <div className='admin-header' style={styles.adminHeader}>
           <h3>{la('Users')}</h3>
           <LinkButton
-            to={{...location, state: {modal: 'AddUserModal'}}}
+            to={{...this.context.location, state: {modal: 'AddUserModal'}}}
             buttonStyle='primary'
             data-qa='add-user'
             style={styles.addUserBtn}>

@@ -30,7 +30,6 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemStoragePlugin2;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
@@ -88,14 +87,11 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, EasySubScan config) throws ExecutionSetupException {
-    final FileSystemStoragePlugin2 registry = (FileSystemStoragePlugin2) fragmentExecContext.getStoragePlugin(config.getPluginId());
-    final FileSystemPlugin fsPlugin = registry.getFsPlugin();
+    final FileSystemPlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
 
-    final FileSystemWrapper fs = registry.getFs();
+    final FileSystemWrapper fs = plugin.getFs(config.getUserName(), context.getStats());
     final FormatPluginConfig formatConfig = PhysicalDatasetUtils.toFormatPlugin(config.getFileConfig(), Collections.<String>emptyList());
-    final EasyFormatPlugin<?> formatPlugin = (EasyFormatPlugin<?>)fsPlugin.getFormatPlugin(formatConfig);
-
-    //final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptions(), fs, config.getColumns());
+    final EasyFormatPlugin<?> formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
 
     FluentIterable<SplitAndExtended> unorderedWork = FluentIterable.from(config.getSplits())
       .transform(new Function<DatasetSplit, SplitAndExtended>() {

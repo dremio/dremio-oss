@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class FunctionCallFactory {
@@ -64,7 +65,7 @@ public class FunctionCallFactory {
   }
 
   public static boolean isBooleanOperator(String funcName) {
-    String opName  = replaceOpWithFuncName(funcName);
+    String opName = replaceOpWithFuncName(funcName);
     return opName.equals("booleanAnd") || opName.equals("booleanOr");
   }
 
@@ -74,13 +75,23 @@ public class FunctionCallFactory {
    *             ep   -- input expression position
    *             expr -- input expression
    */
-  public static LogicalExpression createCast(com.dremio.common.types.TypeProtos.MajorType type, LogicalExpression expr){
+  public static LogicalExpression createCast(com.dremio.common.types.TypeProtos.MajorType type, LogicalExpression expr) {
     return new CastExpression(expr, type);
   }
 
   public static LogicalExpression createConvert(String function, String conversionType, LogicalExpression expr) {
     return new ConvertExpression(function, conversionType, expr);
   }
+
+  public static LogicalExpression createConvertReplace(String function, ValueExpressions.QuotedString conversionType,
+                                                       LogicalExpression inputExpr, ValueExpressions.QuotedString replacement) {
+    if (conversionType.value.equalsIgnoreCase("UTF8")) {
+      return new FunctionCall("convert_replaceUTF8", ImmutableList.of(inputExpr, replacement));
+    } else {
+      return new FunctionCall(function, ImmutableList.of(inputExpr, conversionType, replacement));
+    }
+  }
+
 
   public static LogicalExpression createExpression(String functionName, List<LogicalExpression> args){
     String name = replaceOpWithFuncName(functionName);

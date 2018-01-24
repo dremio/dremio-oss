@@ -29,6 +29,6 @@ import java.sql.PreparedStatement;
  * </p>
  * @see #unwrap
  */
-public interface DremioPreparedStatement extends PreparedStatement {
+public interface DremioPreparedStatement extends PreparedStatement, DremioStatement {
 
 }

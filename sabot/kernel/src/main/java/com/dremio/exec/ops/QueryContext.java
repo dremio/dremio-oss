@@ -18,6 +18,7 @@ package com.dremio.exec.ops;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import javax.inject.Provider;
@@ -32,6 +33,8 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.substitution.DefaultSubstitutionProviderFactory;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
@@ -62,9 +65,11 @@ import com.dremio.exec.util.Utilities;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.ContextInformation;
+import com.dremio.sabot.exec.context.ContextInformationImpl;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ArrowBuf;
@@ -102,6 +107,9 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
   };
   /** Stores constants and their holders by type */
   private final Map<String, Map<MinorType, ValueHolder>> constantValueHolderCache;
+  /** Stores error contexts registered with this function context **/
+  int nextErrorContextId = 0;
+  private final List<FunctionErrorContext> errorContexts;
 
   /*
    * Flag to indicate if close has been called, after calling close the first
@@ -130,7 +138,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     table = new OperatorTable(getFunctionRegistry());
 
     queryContextInfo = Utilities.createQueryContextInfo(session.getDefaultSchemaName(), priority, maxAllocation);
-    contextInformation = new ContextInformation(session.getCredentials(), queryContextInfo);
+    contextInformation = new ContextInformationImpl(session.getCredentials(), queryContextInfo);
     this.queryId = queryId;
     allocator = sabotContext.getAllocator().newChildAllocator(
         "query-planing:" + QueryIdHelper.getQueryId(queryId),
@@ -143,6 +151,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     constantValueHolderCache = Maps.newHashMap();
     substitutionProviderFactory = sabotContext.getConfig().getInstance("dremio.exec.substitution.factory",
         SubstitutionProviderFactory.class, DefaultSubstitutionProviderFactory.class);
+    this.errorContexts = Lists.newArrayList();
   }
 
   public CatalogService getCatalogService(){
@@ -318,6 +327,27 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
   @Override
   public PartitionExplorer getPartitionExplorer() {
     return new PartitionExplorerImpl(getRootSchema());
+  }
+
+  @Override
+  public int registerFunctionErrorContext(FunctionErrorContext errorContext) {
+    assert errorContexts.size() == nextErrorContextId;
+    errorContexts.add(errorContext);
+    errorContext.setId(nextErrorContextId);
+    nextErrorContextId++;
+    return errorContext.getId();
+  }
+
+  @Override
+  public FunctionErrorContext getFunctionErrorContext(int errorContextId) {
+    assert 0 <= errorContextId && errorContextId <= errorContexts.size();
+    return errorContexts.get(errorContextId);
+  }
+
+  @Override
+  public FunctionErrorContext getFunctionErrorContext() {
+    // Dummy context. TODO (DX-9622): remove this method once we handle the function interpretation in the planning phase
+    return FunctionErrorContextBuilder.builder().build();
   }
 
   public MaterializationDescriptorProvider getMaterializationProvider() {

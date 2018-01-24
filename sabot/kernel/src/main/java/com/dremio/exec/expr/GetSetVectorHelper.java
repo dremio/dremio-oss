@@ -39,9 +39,7 @@ public class GetSetVectorHelper {
 
     MinorType type = ct.toMinorType();
 
-    final JInvocation getValueAccessor = vector.invoke("getAccessor");
-
-      eval.assign(out.getIsSet(), getValueAccessor.invoke("isSet").arg(indexVariable));
+      eval.assign(out.getIsSet(), vector.invoke("isSet").arg(indexVariable));
       eval = eval._if(out.getIsSet().eq(JExpr.lit(1)))._then();
       switch (type) {
       case BIGINT:
@@ -60,24 +58,24 @@ public class GetSetVectorHelper {
       case TIME:
       case TIMESTAMP:
       case BIT:
-        eval.assign(out.getValue(), getValueAccessor.invoke("get").arg(indexVariable));
+        eval.assign(out.getValue(), vector.invoke("get").arg(indexVariable));
         return;
       case DECIMAL:
         eval.assign(out.getHolder().ref("scale"), JExpr.lit(ct.getType(Decimal.class).getScale()));
         eval.assign(out.getHolder().ref("precision"), JExpr.lit(ct.getType(Decimal.class).getPrecision()));
         eval.assign(out.getHolder().ref("start"), JExpr.lit(TypeHelper.getSize(getArrowMinorType(type))).mul(indexVariable));
-        eval.assign(out.getHolder().ref("buffer"), vector.invoke("getBuffer"));
+        eval.assign(out.getHolder().ref("buffer"), vector.invoke("getDataBuffer"));
         return;
       case INTERVALDAY: {
         JVar start = eval.decl(model.INT, "start", JExpr.lit(TypeHelper.getSize(getArrowMinorType(type))).mul(indexVariable));
-        eval.assign(out.getHolder().ref("days"), vector.invoke("getBuffer").invoke("getInt").arg(start));
-        eval.assign(out.getHolder().ref("milliseconds"), vector.invoke("getBuffer").invoke("getInt").arg(start.plus(JExpr.lit(4))));
+        eval.assign(out.getHolder().ref("days"), vector.invoke("getDataBuffer").invoke("getInt").arg(start));
+        eval.assign(out.getHolder().ref("milliseconds"), vector.invoke("getDataBuffer").invoke("getInt").arg(start.plus(JExpr.lit(4))));
         return;
       }
       case VARBINARY:
       case VARCHAR:
-         eval.assign(out.getHolder().ref("buffer"), vector.invoke("getBuffer"));
-         JVar se = eval.decl(model.LONG, "startEnd", getValueAccessor.invoke("getStartEnd").arg(indexVariable));
+         eval.assign(out.getHolder().ref("buffer"), vector.invoke("getDataBuffer"));
+         JVar se = eval.decl(model.LONG, "startEnd", vector.invoke("getStartEnd").arg(indexVariable));
          eval.assign(out.getHolder().ref("start"), JExpr.cast(model._ref(int.class), se));
          eval.assign(out.getHolder().ref("end"), JExpr.cast(model._ref(int.class), se.shr(JExpr.lit(32))));
         return;
@@ -85,12 +83,12 @@ public class GetSetVectorHelper {
       }
 
     // fallback.
-    eval.add(getValueAccessor.invoke("get").arg(indexVariable).arg(out.getHolder()));
+    eval.add(vector.invoke("get").arg(indexVariable).arg(out.getHolder()));
   }
 
   public static JInvocation write(MinorType type, JVar vector, HoldingContainer in, JExpression indexVariable, String setMethodName) {
 
-    JInvocation setMethod = vector.invoke("getMutator").invoke(setMethodName).arg(indexVariable);
+    JInvocation setMethod = vector.invoke(setMethodName).arg(indexVariable);
 
     if (type == MinorType.UNION) {
       return setMethod.arg(in.getHolder());

@@ -20,11 +20,13 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+
 
 /**
  * Remote kvstore provider.
@@ -32,20 +34,18 @@ import com.google.common.collect.ImmutableMap;
 public class RemoteKVStoreProvider implements KVStoreProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemoteKVStoreProvider.class);
   private DatastoreRpcClient rpcClient;
+  private final Provider<NodeEndpoint> masterNode;
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
   private final String hostName;
-  private final String masterHostName;
-  private final int masterPort;
   private final ScanResult scan;
   private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
 
-  public RemoteKVStoreProvider(ScanResult scan, Provider<FabricService> fabricService, BufferAllocator allocator, String hostName, String masterHostName, int masterPort) {
+  public RemoteKVStoreProvider(ScanResult scan, Provider<NodeEndpoint> masterNode, Provider<FabricService> fabricService, BufferAllocator allocator, String hostName) {
+    this.masterNode = masterNode;
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
-    this.masterHostName = masterHostName;
-    this.masterPort = masterPort;
     this.scan = scan;
   }
 
@@ -65,7 +65,7 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
     logger.info("Starting RemoteKVStoreProvider");
     DefaultDataStoreRpcHandler rpcHandler = new DefaultDataStoreRpcHandler(hostName);
     try {
-      DatastoreRpcService rpcService = new DatastoreRpcService(masterHostName, masterPort, fabricService.get(), allocator, rpcHandler);
+      DatastoreRpcService rpcService = new DatastoreRpcService(masterNode, fabricService.get(), allocator, rpcHandler);
       rpcClient = new DatastoreRpcClient(rpcService);
     } catch (RpcException e) {
       throw new DatastoreFatalException("Failed to start rpc service", e);

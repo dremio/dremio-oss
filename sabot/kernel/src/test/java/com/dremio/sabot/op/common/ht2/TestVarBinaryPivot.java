@@ -47,39 +47,37 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
   static void populate(NullableVarCharVector vector, byte[][] values){
     vector.allocateNew();
     Random r = new Random();
-    NullableVarCharVector.Mutator mutator1 = vector.getMutator();
     for(int i =0; i < values.length; i++){
       byte[] val = values[i];
       if(val != null){
-        mutator1.setSafe(i, val, 0, val.length);
+        vector.setSafe(i, val, 0, val.length);
       } else {
         // add noise. this confirms that after pivot, noise is gone.
         byte[] bytes = new byte[r.nextInt(15)];
         r.nextBytes(bytes);
-        mutator1.setSafe(i, bytes, 0, bytes.length);
-        mutator1.setNull(i);
+        vector.setSafe(i, bytes, 0, bytes.length);
+        vector.setNull(i);
       }
     }
-    mutator1.setValueCount(values.length);
+    vector.setValueCount(values.length);
   }
 
   static void populate(NullableVarBinaryVector vector, byte[][] values){
     vector.allocateNew();
     Random r = new Random();
-    NullableVarBinaryVector.Mutator mutator1 = vector.getMutator();
     for(int i =0; i < values.length; i++){
       byte[] val = values[i];
       if(val != null){
-        mutator1.setSafe(i, val, 0, val.length);
+        vector.setSafe(i, val, 0, val.length);
       } else {
         // add noise. this confirms that after pivot, noise is gone.
         byte[] bytes = new byte[r.nextInt(15)];
         r.nextBytes(bytes);
-        mutator1.setSafe(i, bytes, 0, bytes.length);
-        mutator1.setNull(i);
+        vector.setSafe(i, bytes, 0, bytes.length);
+        vector.setNull(i);
       }
     }
-    mutator1.setValueCount(values.length);
+    vector.setValueCount(values.length);
   }
 
   private static void validateVarBinaryValues(int blockWidth, VectorPivotDef def, FixedBlockVector fixed, VariableBlockVector variable, byte[][] expected){

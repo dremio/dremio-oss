@@ -16,7 +16,7 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { section, label } from 'uiTheme/radium/forms';
+import { label } from 'uiTheme/radium/forms';
 import { formDefault } from 'uiTheme/radium/typography';
 import HoverHelp from 'components/HoverHelp';
 import DurationField from 'components/Fields/DurationField';
@@ -74,7 +74,7 @@ export default class DataFreshnessSection extends Component {
     const helpContent = la('How often reflections are refreshed and how long data can be served before expiration.');
 
     return (
-      <div style={section}>
+      <div>
         <span style={styles.label}>
           {la('Refresh Policy')}
           <HoverHelp content={helpContent} tooltipInnerStyle={styles.hoverTip}/>
@@ -132,6 +132,6 @@ const styles = {
     whiteSpace: 'pre-line'
   },
   durationField: {
-    width: 214
+    width: 250
   }
 };

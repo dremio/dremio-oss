@@ -28,6 +28,7 @@ import S3Form from './S3Form';
 import SQLServerForm from './SQLServerForm';
 import HiveForm from './HiveForm';
 import RedshiftForm from './RedshiftForm';
+import ADLForm from './ADLForm';
 
 const sourceForms = {
   ElasticForm,
@@ -43,7 +44,8 @@ const sourceForms = {
   SQLServerForm,
   HiveForm,
   DB2Form,
-  RedshiftForm
+  RedshiftForm,
+  ADLForm
 };
 
 // only include available source forms

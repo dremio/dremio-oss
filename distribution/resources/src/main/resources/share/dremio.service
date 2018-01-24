@@ -30,6 +30,7 @@ PIDFile=/opt/dremio/run/dremio.pid
 
 ExecStart=/opt/dremio/bin/dremio --config /opt/dremio/conf start
 ExecStop=/opt/dremio/bin/dremio --config /opt/dremio/conf stop
+RestartForceExitStatus=3
 
 [Install]
 WantedBy=multi-user.target

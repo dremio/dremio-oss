@@ -56,6 +56,7 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
   private final String password;
   private final boolean enableSSL;
   private final boolean enableWhitelist;
+  private final boolean allowGroupByOnNormalizedFields;
 
   /**
    * Construct a new elasticsearch storage plugin configuration.
@@ -82,7 +83,8 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
                                           @JsonProperty("username") String username,
                                           @JsonProperty("password") String password,
                                           @JsonProperty("enable_ssl") boolean enableSSL,
-                                          @JsonProperty("enable_whitelist") boolean enableWhitelist) {
+                                          @JsonProperty("enable_whitelist") boolean enableWhitelist,
+                                          @JsonProperty("allow_group_by_on_normalized_fields") boolean allowGroupByOnNormalizedFields) {
     if (batchSize < 128 || batchSize > 65535) {
       throw UserException.validationError()
         .message("Failure creating ElasticSearch connection. The valid range for scroll size is 128 - 65535.")
@@ -100,6 +102,7 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
     this.password = password;
     this.enableSSL = enableSSL;
     this.enableWhitelist = enableWhitelist;
+    this.allowGroupByOnNormalizedFields = allowGroupByOnNormalizedFields;
   }
 
   @JsonProperty("hosts")
@@ -183,6 +186,11 @@ public class ElasticsearchStoragePluginConfig extends StoragePluginConfig {
   @JsonProperty("enable_whitelist")
   public boolean isEnableWhitelist() {
     return enableWhitelist;
+  }
+
+  @JsonProperty("allow_group_by_on_normalized_fields")
+  public boolean isAllowGroupByOnNormalizedFields() {
+    return allowGroupByOnNormalizedFields;
   }
 
   @Override

@@ -25,7 +25,6 @@ package com.dremio.exec.store;
 import org.apache.arrow.vector.holders.*;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableBitVector.Accessor;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
 import java.io.IOException;

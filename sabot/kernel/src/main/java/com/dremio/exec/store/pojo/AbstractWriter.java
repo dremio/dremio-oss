@@ -52,7 +52,7 @@ abstract class AbstractWriter<V extends ValueVector> implements PojoWriter{
   }
 
   public void setValueCount(int valueCount){
-    vector.getMutator().setValueCount(valueCount);
+    vector.setValueCount(valueCount);
   }
 
   @Override

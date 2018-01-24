@@ -147,6 +147,9 @@ public class TestQueriesClerk {
     public long getLimit() {
       throw new UnsupportedOperationException();
     }
+    public long getInitReservation() {
+      throw new UnsupportedOperationException();
+    }
     public void setLimit(long var1) {
       throw new UnsupportedOperationException();
     }

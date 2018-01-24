@@ -58,6 +58,7 @@ export default class TextField extends Component {
         ref='input'
         {...this.props}
         defaultValue={this.props.default}
+        className='field'
         style={[
           forms.textInput,
           this.props.style,

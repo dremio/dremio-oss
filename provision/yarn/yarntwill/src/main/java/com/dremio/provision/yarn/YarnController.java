@@ -24,9 +24,7 @@ import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_RUNNABLE_N
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
@@ -47,6 +45,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.Property;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -126,8 +125,8 @@ public class YarnController {
     envVars.put("MALLOC_MMAP_MAX_", "65536");
 
     // maprfs specific env vars to enable read ahead throttling
-    envVars.put("MAPR_IMPALA_RA_THROTTLE", "true");
-    envVars.put("MAPR_MAX_RA_STREAMS", "800");
+    envVars.put("MAPR_IMPALA_RA_THROTTLE", Optional.fromNullable(System.getenv("MAPR_IMPALA_RA_THROTTLE")).or("true"));
+    envVars.put("MAPR_MAX_RA_STREAMS", Optional.fromNullable(System.getenv("MAPR_MAX_RA_STREAMS")).or("200"));
 
     try {
       String userName = UserGroupInformation.getCurrentUser().getUserName();
@@ -174,33 +173,22 @@ public class YarnController {
       dremioConfig.getString(DremioConfig.YARN_JVM_OPTIONS));
 
     String zkStr = dremioConfig.getString(DremioConfig.ZOOKEEPER_QUORUM);
+    int defaultZkPort = dremioConfig.getInt(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT);
 
-    String masterHost = dremioConfig.getString(DremioConfig.MASTER_NODE_STRING);
-    if ("localhost".equalsIgnoreCase(masterHost)) {
-      try {
-        String localHost = InetAddress.getLocalHost().getCanonicalHostName();
-        masterHost = localHost;
-        int zkPort = dremioConfig.getInt(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT);
-        zkStr = masterHost + ":" + zkPort;
-      } catch (UnknownHostException e) {
-        logger.error("Could not resolve localhost FQDN");
-        throw new RuntimeException("Could not resolve localhost FQDN");
-      }
+    if (dremioConfig.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL) &&
+        zkStr.equals(String.format("localhost:%d", defaultZkPort))) {
+      zkStr = String.format("%s:%d", dremioConfig.getThisNode(), defaultZkPort);
     }
 
     final Map<String,String> basicJVMOptions = Maps.newHashMap();
     final Map<String, String> systemOptions = Maps.newHashMap();
 
-    basicJVMOptions.put(DremioConfig.MASTER_NODE_STRING, masterHost);
-    basicJVMOptions.put(DremioConfig.MASTER_PORT_INT, dremioConfig.getString(DremioConfig.MASTER_PORT_INT));
     basicJVMOptions.put(DremioConfig.ZOOKEEPER_QUORUM, zkStr);
     basicJVMOptions.put(DremioConfig.LOCAL_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.LOCAL_WRITE_PATH_STRING,
       dremioConfig.getString(DremioConfig.LOCAL_WRITE_PATH_STRING)));
     basicJVMOptions.put(DremioConfig.DIST_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.DIST_WRITE_PATH_STRING,
       dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
     basicJVMOptions.put("dremio.classpath.scanning.cache.enabled", "false");
-    basicJVMOptions.put(DremioConfig.MASTER_NODE_STRING, masterHost);
-    basicJVMOptions.put(DremioConfig.MASTER_NODE_STRING, masterHost);
     basicJVMOptions.put("logback.configurationFile", "logback.xml");
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
     basicJVMOptions.put("services.coordinator.enabled", "false");

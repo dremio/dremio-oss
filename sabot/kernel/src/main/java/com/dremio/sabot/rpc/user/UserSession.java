@@ -62,7 +62,7 @@ public class UserSession {
   private boolean useLegacyCatalogName = false;
   private Quoting initialQuoting;
   private boolean supportFullyQualifiedProjections;
-  private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_0_9;
+  private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
   private boolean exposeInternalSources = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
 

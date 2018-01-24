@@ -24,7 +24,6 @@ import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
 
 import com.dremio.service.users.UserService;
 
@@ -60,14 +59,6 @@ public class NoUserFilter implements ContainerRequestFilter {
   }
 
   public static void handle(ContainerRequestContext requestContext) {
-    final UriInfo info = requestContext.getUriInfo();
-    final String path = info.getPath();
-    final boolean openUrl = path.startsWith("bootstrap/firstuser") || path.startsWith("test/create");
-
-    if(openUrl){
-      return;
-    }
-
     requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
         .entity(new GenericErrorMessage(GenericErrorMessage.NO_USER_MSG))
         .build());

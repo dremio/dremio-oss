@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>1.3.1-201712020438070881-a7af5c8</version>
+  <version>1.4.4-201801230630490666-6d69d32</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -40,9 +40,10 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.7.0-201711092339270134-6305826-dremio</arrow.version>
+
+    <arrow.version>0.8.0-201801160126180805-1bceda5-dremio</arrow.version>
     <avatica.version>1.9.0</avatica.version>
-    <calcite.version>1.12.0-201711022309440460-bd4149e</calcite.version>
+    <calcite.version>1.12.0-201712102340200054-6e60422</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -65,7 +66,7 @@
     <metrics.version>3.0.1</metrics.version>
     <mariadb.connector.version>1.6.2</mariadb.connector.version>
     <netty.version>4.0.49.Final</netty.version>
-    <parquet.version>1.8.1-fast-201708280410370966-bca0d40</parquet.version>
+    <parquet.version>1.8.1-fast-201712141648170019-ab0622b</parquet.version>
     <postgresql.version>42.1.1.jre7</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
@@ -110,6 +111,11 @@
     </profile>
     <profile>
       <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
       <properties>
         <hive.version>1.2.0-mapr-1703</hive.version>
         <hbase.version>1.1.8-mapr-1703</hbase.version>
@@ -1032,6 +1038,12 @@ limitations under the License.
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-coordinator</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-coordinator</artifactId>
+        <version>${project.version}</version>
+        <classifier>tests</classifier>
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
@@ -2406,10 +2418,6 @@ limitations under the License.
     <repository>
       <id>dremio-public</id>
       <url>http://maven.dremio.com/public/</url>
-    </repository>
-    <repository>
-      <id>dremio-public-so</id>
-      <url>http://repository.drem.io/content/repositories/releases/</url>
     </repository>
   </repositories>
 </project>

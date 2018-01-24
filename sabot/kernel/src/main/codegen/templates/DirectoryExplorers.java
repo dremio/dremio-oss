@@ -27,6 +27,7 @@ import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
@@ -49,10 +50,11 @@ public class DirectoryExplorers {
   public static class ${dirAggrProps.functionClassName} implements SimpleFunction {
 
     @Param VarCharHolder schema;
-    @Param  VarCharHolder table;
+    @Param VarCharHolder table;
     @Output NullableVarCharHolder out;
     @Inject ArrowBuf buffer;
     @Inject com.dremio.exec.store.PartitionExplorer partitionExplorer;
+    @Inject FunctionErrorContext errorContext;
 
     public void setup() {
     }
@@ -67,35 +69,39 @@ public class DirectoryExplorers {
             new java.util.ArrayList<String>(),
             new java.util.ArrayList<String>());
       } catch (com.dremio.exec.store.PartitionNotFoundException e) {
-        throw new RuntimeException(
+        throw errorContext.error(e)
+          .message(
             String.format("Error in %s function: Table %s does not exist in schema %s ",
                 ${dirAggrProps.name},
                 com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(table),
                 com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(schema))
-        );
+          )
+          .build();
       }
-      java.util.Iterator partitionIterator = subPartitions.iterator();
+      java.util.Iterator<String> partitionIterator = subPartitions.iterator();
       if (!partitionIterator.hasNext()) {
-        throw new RuntimeException(
+        throw errorContext.error()
+          .message(
             String.format("Error in %s function: Table %s in schema %s does not contain sub-partitions.",
                 ${dirAggrProps.name},
                 com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(table),
                 com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(schema)
             )
-        );
+          )
+          .build();
       }
-      String subPartitionStr = (String) partitionIterator.next();
+      String subPartitionStr = partitionIterator.next();
       String curr;
       // find the ${dirAggrProps.goal} directory in the list using a ${dirAggrProps.comparisonType} string comparison
       while (partitionIterator.hasNext()){
-        curr = (String) partitionIterator.next();
+        curr = partitionIterator.next();
         if (subPartitionStr.${dirAggrProps.comparison}) {
           subPartitionStr = curr;
         }
       }
       String[] subPartitionParts = subPartitionStr.split("/");
       subPartitionStr = subPartitionParts[subPartitionParts.length - 1];
-      byte[] result = subPartitionStr.getBytes();
+      byte[] result = subPartitionStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
       out.buffer = buffer = buffer.reallocIfNeeded(result.length);
 
       out.buffer.setBytes(0, subPartitionStr.getBytes(), 0, result.length);

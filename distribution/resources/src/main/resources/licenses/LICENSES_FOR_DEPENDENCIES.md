@@ -2,7 +2,15 @@
 
 |Name                                                        |Version             |License             |
 |------------------------------------------------------------|--------------------|--------------------|
+|                                                            |                    |                    |
+|                                                            |                    |                    |
+|                                                            |                    |                    |
+|                                                            |0.9.5               |Apache 2.0          |
+|                                                            |1.0.2               |Apache 2.0          |
+|                                                            |1.6.1               |Apache 2.0          |
+|                                                            |1.6.1-hadoop2       |Apache 2.0          |
 |Aggregate Designer Algorithm                                |6                   |Apache 2.0          |
+|almost-equal                                                |1.1.0               |MIT                 |
 |Antlr 3.4 Runtime                                           |3.4                 |BSD 3-clause        |
 |AntLR Parser Generator                                      |2.7.7               |Public Domain       |
 |ANTLR StringTemplate                                        |3.2.1               |BSD 3-clause        |
@@ -25,6 +33,8 @@
 |Apache Hadoop Amazon Web Services support                   |2.7.1               |Apache 2.0          |
 |Apache Hadoop Annotations                                   |2.7.1               |Apache 2.0          |
 |Apache Hadoop Auth                                          |2.7.1               |Apache 2.0          |
+|Apache Hadoop Azure Data Lake support                       |2.8.0               |Apache 2.0          |
+|Apache Hadoop Azure support                                 |2.8.0               |Apache 2.0          |
 |Apache Hadoop Client                                        |2.7.1               |Apache 2.0          |
 |Apache Hadoop Common                                        |2.7.1               |Apache 2.0          |
 |Apache Hadoop HDFS                                          |2.7.1               |Apache 2.0          |
@@ -32,6 +42,7 @@
 |Apache HBase - Client                                       |1.1.3               |Apache 2.0          |
 |Apache HBase - Common                                       |1.1.3               |Apache 2.0          |
 |Apache HBase - Protocol                                     |1.1.3               |Apache 2.0          |
+|Apache HBase - Server                                       |1.1.3               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.4               |Apache 2.0          |
 |Apache JempBox                                              |1.8.10              |Apache 2.0          |
 |Apache Parquet Column                                       |1.8.1-fast-201704081924160565-5949da6|Apache 2.0          |
@@ -61,6 +72,7 @@
 |Apache Velocity                                             |1.7                 |Apache 2.0          |
 |ApacheDS I18n                                               |2.0.0-M15           |Apache 2.0          |
 |ApacheDS Protocol Kerberos Codec                            |2.0.0-M15           |Apache 2.0          |
+|API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |Arrow Format                                                |0.2.1-201705011705160440-f112849-dremioARROW824|Apache 2.0          |
 |Arrow Memory                                                |0.2.1-201705011705160440-f112849-dremioARROW824|Apache 2.0          |
@@ -72,7 +84,10 @@
 |ASM Core                                                    |5.0.4               |BSD 3-clause        |
 |ASM Debug All                                               |5.0.3               |BSD 3-clause        |
 |attr-accept                                                 |1.1.0               |MIT                 |
+|AutoValue                                                   |1.2                 |Apache 2.0          |
 |AWS SDK for Java                                            |1.7.4               |Apache 2.0          |
+|Azure Data Lake Store - Java client SDK                     |2.1.4               |MIT License         |
+|babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-polyfill                                              |6.23.0              |MIT                 |
 |babel-runtime                                               |5.8.38              |MIT                 |
 |babel-runtime                                               |6.25.0              |MIT                 |
@@ -90,8 +105,12 @@
 |change-emitter                                              |0.1.6               |MIT                 |
 |ClassMate                                                   |1.1.0               |Apache 2.0          |
 |classnames                                                  |2.2.5               |MIT                 |
+|Cloud Storage API v1-rev35-1.20.0                           |v1-rev35-1.20.0     |Apache 2.0          |
 |codemirror                                                  |5.30.0              |MIT                 |
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
+|color-space                                                 |1.15.0              |MIT                 |
+|com.google.api.grpc:proto-google-common-protos              |0.1.21              |Apache 2.0          |
+|com.google.api.grpc:proto-google-iam-v1                     |0.1.21              |Apache 2.0          |
 |common-tags                                                 |1.4.0               |MIT                 |
 |Commons BeanUtils Core                                      |1.8.0               |Apache 2.0          |
 |Commons CLI                                                 |1.2                 |Apache 2.0          |
@@ -105,8 +124,8 @@
 |Commons DBCP                                                |1.4                 |Apache 2.0          |
 |Commons IO                                                  |2.4                 |Apache 2.0          |
 |Commons Lang                                                |2.6                 |Apache 2.0          |
-|Commons Math                                                |3.1.1               |Apache 2.0          |
 |Commons Math                                                |2.2                 |Apache 2.0          |
+|Commons Math                                                |3.1.1               |Apache 2.0          |
 |Commons Net                                                 |3.1                 |Apache 2.0          |
 |Commons Pool                                                |1.5.4               |Apache 2.0          |
 |commons-beanutils                                           |1.7.0               |Apache 2.0          |
@@ -133,8 +152,8 @@
 |Digester                                                    |1.8                 |Apache 2.0          |
 |disposables                                                 |1.0.1               |Apache-2.0          |
 |dnd-core                                                    |2.5.4               |BSD-3-Clause        |
-|dom-helpers                                                 |3.2.1               |MIT                 |
 |dom-helpers                                                 |2.4.0               |MIT                 |
+|dom-helpers                                                 |3.2.1               |MIT                 |
 |Dremio Fast Threads                                         |1.0                 |Dremio Free Software License 1.0|
 |Dremio Parquet Accelerator                                  |1.0                 |Dremio Free Software License 1.0|
 |Dremio Pushdown Pack                                        |1.0                 |Dremio Free Software License 1.0|
@@ -145,19 +164,31 @@
 |element-closest                                             |2.0.2               |CC0-1.0             |
 |encoding                                                    |0.1.12              |MIT                 |
 |error-stack-parser                                          |1.3.6               |Unlicense           |
-|exenv                                                       |1.2.2               |BSD-3-Clause        |
 |exenv                                                       |1.2.0               |BSD-3-Clause        |
+|exenv                                                       |1.2.2               |BSD-3-Clause        |
 |fastutil                                                    |6.5.7               |Apache 2.0          |
 |fbjs                                                        |0.8.16              |MIT                 |
 |file-saver                                                  |1.3.3               |MIT                 |
 |Findbugs Annotations under Apache License                   |1.3.9-1             |Apache 2.0          |
 |FindBugs-Annotations                                        |3.0.1               |LGPL v2             |
 |FindBugs-jsr305                                             |3.0.1               |Apache 2.0          |
-|fixed-data-table-2                                          |0.7.17              |BSD-3-Clause        |
+|fixed-data-table-2                                          |0.8.6               |BSD-3-Clause        |
 |FlatBuffers Java API                                        |1.2.0-3f79e055      |Apache 2.0          |
 |font-awesome                                                |4.7.0               |(OFL-1.1 AND MIT)   |
 |foodmart-data-json                                          |0.4                 |Apache 2.0          |
 |FreeMarker                                                  |2.3.23              |Apache 2.0          |
+|GAX (Google Api eXtensions)                                 |1.9.0               |BSD 3-clause        |
+|gcs-connector.jar                                           |1.6.1-hadoop2       |Apache 2.0          |
+|gcsio.jar                                                   |1.6.1               |Apache 2.0          |
+|Google APIs Client Library for Java                         |1.20.0              |Apache 2.0          |
+|Google App Engine extensions to the Google HTTP Client Library for Java.|1.22.0              |Apache 2.0          |
+|Google Auth Library for Java - Credentials                  |0.8.0               |BSD 3-clause        |
+|Google Auth Library for Java - OAuth2 HTTP                  |0.8.0               |BSD 3-clause        |
+|Google Cloud Core                                           |1.8.0               |Apache 2.0          |
+|Google Cloud Core HTTP                                      |1.8.0               |Apache 2.0          |
+|Google Cloud Storage                                        |1.8.0               |Apache 2.0          |
+|Google HTTP Client Library for Java                         |1.20.0              |Apache 2.0          |
+|Google OAuth Client Library for Java                        |1.20.0              |Apache 2.0          |
 |Gson                                                        |2.2.4               |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |18                  |Apache 2.0          |
 |hadoop-mapreduce-client-app                                 |2.7.1               |Apache 2.0          |
@@ -184,9 +215,10 @@
 |hoist-non-react-statics                                     |2.3.1               |BSD-3-Clause        |
 |HPPC Collections                                            |0.7.1               |Apache 2.0          |
 |htrace-core                                                 |3.1.0-incubating    |Apache 2.0          |
-|HttpClient                                                  |4.2.5               |Apache 2.0          |
 |HttpClient                                                  |3.1                 |Apache 2.0          |
+|HttpClient                                                  |4.2.5               |Apache 2.0          |
 |humanable                                                   |0.0.2               |MIT                 |
+|husl                                                        |5.0.3               |MIT                 |
 |hyphenate-style-name                                        |1.0.2               |BSD-3-Clause        |
 |iconv-lite                                                  |0.4.19              |MIT                 |
 |immutable                                                   |3.8.2               |MIT                 |
@@ -200,6 +232,10 @@
 |is-stream                                                   |1.1.0               |MIT                 |
 |isomorphic-fetch                                            |2.2.1               |MIT                 |
 |Jackson                                                     |1.9.11              |Apache 2.0          |
+|Jackson 2 extensions to the Google APIs Client Library for Java|1.20.0              |Apache 2.0          |
+|Jackson 2 extensions to the Google HTTP Client Library for Java.|1.20.0              |Apache 2.0          |
+|Jackson datatype: Guava                                     |2.7.9               |Apache 2.0          |
+|Jackson extensions to the Google HTTP Client Library for Java.|1.22.0              |Apache 2.0          |
 |Jackson module: Afterburner                                 |2.7.2               |Apache 2.0          |
 |Jackson-annotations                                         |2.7.2               |Apache 2.0          |
 |Jackson-core                                                |2.7.2               |Apache 2.0          |
@@ -212,6 +248,8 @@
 |Jackson-module-JAXB-annotations                             |2.7.2               |Apache 2.0          |
 |jackson-module-jsonSchema                                   |2.5.2               |Apache 2.0          |
 |Janino                                                      |2.7.6               |BSD 3-clause        |
+|Java 6 (and higher) Extensions to the Google API Client Library for Java.|1.20.0              |Apache 2.0          |
+|Java 6 (and higher) extensions to the Google OAuth Client Library for Java.|1.20.0              |Apache 2.0          |
 |Java binding for libpam.so                                  |1.8                 |MIT                 |
 |Java Concurrency in Practice book annotations               |1                   |CC 2.5              |
 |Java Native Access                                          |4.0.0               |Apache 2.0          |
@@ -262,6 +300,7 @@
 |Jetty Server                                                |6.1.26              |Apache 2.0          |
 |Jetty Utilities                                             |6.1.26              |Apache 2.0          |
 |JLine                                                       |0.9.94              |BSD 3-clause        |
+|JMES Path Query library                                     |1.11.156            |Apache 2.0          |
 |Joda convert                                                |1.2                 |Apache 2.0          |
 |Joda-Time                                                   |2.9                 |Apache 2.0          |
 |Joni                                                        |2.1.2               |MIT                 |
@@ -271,6 +310,8 @@
 |jquery-param                                                |0.2.0               |MIT                 |
 |js-tokens                                                   |3.0.2               |MIT                 |
 |JSch                                                        |0.1.42              |BSD 3-clause        |
+|JSON in Java                                                |20160810            |JSON license        |
+|JSON Small and Fast Parser                                  |1.1.1               |Apache 2.0          |
 |jsp-api                                                     |2.1                 |GPL v2 w/ CPE       |
 |jsplumb                                                     |2.1.4               |MIT                 |
 |JSR166e                                                     |1.1.0               |CC0 1.0 Universal   |
@@ -293,6 +334,8 @@
 |lilith-sender                                               |0.9.44              |Apache 2.0          |
 |lodash                                                      |4.17.4              |MIT                 |
 |lodash-es                                                   |4.17.4              |MIT                 |
+|lodash._basefor                                             |3.0.3               |MIT                 |
+|lodash._getnative                                           |3.9.1               |MIT                 |
 |lodash.assign                                               |4.2.0               |MIT                 |
 |lodash.curry                                                |4.1.1               |MIT                 |
 |lodash.debounce                                             |3.1.1               |MIT                 |
@@ -306,8 +349,6 @@
 |lodash.keysin                                               |3.0.8               |MIT                 |
 |lodash.merge                                                |4.6.0               |MIT                 |
 |lodash.throttle                                             |4.1.1               |MIT                 |
-|lodash._basefor                                             |3.0.3               |MIT                 |
-|lodash._getnative                                           |3.9.1               |MIT                 |
 |Log4j Implemented Over SLF4J                                |1.7.10              |MIT                 |
 |Logback Access Module                                       |1.1.3               |EPL 1.0             |
 |Logback Classic Module                                      |1.0.13              |EPL 1.0             |
@@ -338,6 +379,7 @@
 |Metrics Annotations                                         |2.2.0               |Apache 2.0          |
 |Metrics Core                                                |3.0.1               |Apache 2.0          |
 |Metrics Core Library                                        |2.2.0               |Apache 2.0          |
+|Microsoft Azure Storage Client SDK                          |2.2.0               |Apache 2.0          |
 |MIME streaming extension                                    |1.9.6               |GPL v2 w/ CPE       |
 |MinLog                                                      |1.3.0               |BSD 3-clause        |
 |Mockito                                                     |1.10.19             |MIT                 |
@@ -346,6 +388,7 @@
 |monaco-editor                                               |0.10.0              |MIT                 |
 |MongoDB Java Driver                                         |3.2.0               |Apache 2.0          |
 |mousetrap                                                   |1.6.1               |Apache-2.0          |
+|mumath                                                      |3.3.4               |Unlicense           |
 |Netty/Buffer                                                |4.0.41.Final        |Apache 2.0          |
 |Netty/Codec                                                 |4.0.41.Final        |Apache 2.0          |
 |Netty/Common                                                |4.0.41.Final        |Apache 2.0          |
@@ -353,17 +396,20 @@
 |Netty/TomcatNative [OpenSSL - Dynamic]                      |1.1.33.Fork24       |Apache 2.0          |
 |Netty/Transport                                             |4.0.41.Final        |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.0.41.Final        |Apache 2.0          |
+|Nimbus JOSE+JWT                                             |3.9                 |Apache 2.0          |
 |node-fetch                                                  |1.7.3               |MIT                 |
 |normalizr                                                   |2.3.1               |MIT                 |
 |object-assign                                               |4.1.1               |MIT                 |
 |Objenesis                                                   |2.4                 |Apache 2.0          |
+|OkHttp                                                      |2.4.0               |Apache 2.0          |
+|Okio                                                        |1.4.0               |Apache 2.0          |
 |options                                                     |0.0.6               |MIT                 |
 |Oracle odjbc7                                               |12.1.0.2            |Oracle Technology Network License Agreement|
 |OSGi resource locator bundle - used by various API providers that rely on META-INF/services mechanism to locate providers.|1.0.1               |CDDL 1.1            |
 |ParaNamer Core                                              |2.5.6               |BSD 3-clause        |
 |parse-key                                                   |0.2.1               |MIT                 |
-|performance-now                                             |2.1.0               |MIT                 |
 |performance-now                                             |0.2.0               |MIT                 |
+|performance-now                                             |2.1.0               |MIT                 |
 |platform                                                    |1.3.4               |MIT                 |
 |Plugin: Mapper: Attachments                                 |2.2.1               |Apache 2.0          |
 |PostgreSQL JDBC Driver                                      |9.1-901-1.jdbc4     |BSD 2-clause        |
@@ -389,6 +435,7 @@
 |react-addons-create-fragment                                |15.6.2              |MIT                 |
 |react-addons-shallow-compare                                |15.6.2              |MIT                 |
 |react-addons-transition-group                               |15.6.2              |MIT                 |
+|react-base16-styling                                        |0.4.7               |MIT                 |
 |react-base16-styling                                        |0.5.3               |MIT                 |
 |react-bootstrap                                             |0.31.3              |MIT                 |
 |react-copy-to-clipboard                                     |4.3.1               |MIT                 |
@@ -404,14 +451,15 @@
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
 |react-input-autosize                                        |1.2.0               |MIT                 |
 |react-intl                                                  |2.4.0               |BSD-3-Clause        |
+|react-json-tree                                             |0.10.3              |MIT                 |
 |react-json-tree                                             |0.10.9              |MIT                 |
 |react-lazy-cache                                            |3.0.1               |MIT                 |
 |react-modal                                                 |1.9.7               |MIT                 |
 |react-monaco-editor                                         |0.10.1              |MIT                 |
 |react-motion                                                |0.5.2               |MIT                 |
 |react-notification-system                                   |0.2.15              |MIT                 |
-|react-overlays                                              |0.8.2               |MIT                 |
 |react-overlays                                              |0.7.2               |MIT                 |
+|react-overlays                                              |0.8.2               |MIT                 |
 |react-prop-types                                            |0.4.0               |MIT                 |
 |react-pure-render                                           |1.0.2               |MIT                 |
 |react-redux                                                 |4.4.8               |MIT                 |
@@ -444,7 +492,7 @@
 |regenerator-runtime                                         |0.10.5              |MIT                 |
 |requires-port                                               |1.0.0               |MIT                 |
 |reselect                                                    |2.5.4               |MIT                 |
-|RocksDB JNI                                                 |4.11.2              |BSD 3-clause        |
+|RocksDB JNI                                                 |5.4.7               |BSD 3-clause        |
 |RSQL-parser                                                 |2.1.0               |MIT                 |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
@@ -463,6 +511,7 @@
 |sourcemapped-stacktrace                                     |1.1.7               |BSD-3-Clause        |
 |Spatial4J                                                   |0.5                 |Apache 2.0          |
 |Sqlserver: jdbc41                                           |4.2.6420.100        |MICROSOFT SOFTWARE LICENSE|
+|Sqlserver: jdbc41                                           |4.2.6420.100        |MICROSOFT SOFTWARE LICENSE|
 |stackframe                                                  |0.3.1               |Unlicense           |
 |stream-lib                                                  |2.7.0               |Apache 2.0          |
 |Streaming API for XML                                       |1.0-2               |GPL v2 w/ CPE       |
@@ -471,8 +520,8 @@
 |sulky-codec                                                 |0.9.17              |Apache 2.0          |
 |sulky-formatting                                            |0.9.17              |Apache 2.0          |
 |sulky-io                                                    |0.9.17              |Apache 2.0          |
-|symbol-observable                                           |1.0.4               |MIT                 |
 |symbol-observable                                           |0.2.4               |MIT                 |
+|symbol-observable                                           |1.0.4               |MIT                 |
 |T-Digest                                                    |3                   |Apache 2.0          |
 |TagSoup                                                     |1.2.1               |BSD 3-clause        |
 |The Netty Project                                           |3.7.0.Final         |Apache 2.0          |
@@ -484,7 +533,7 @@
 |uncontrollable                                              |4.1.0               |MIT                 |
 |underscore                                                  |1.8.3               |MIT                 |
 |univocity-parsers                                           |1.3.0               |Apache 2.0          |
-|url-parse                                                   |1.1.9               |MIT                 |
+|url-parse                                                   |1.2.0               |MIT                 |
 |uuid                                                        |2.0.3               |MIT                 |
 |warning                                                     |3.0.0               |BSD-3-Clause        |
 |whatwg-fetch                                                |2.0.3               |MIT                 |

@@ -289,7 +289,6 @@ public class TestStoreQueryResults extends BaseTestQuery {
     String queryResultsStorePath = format("%s.`%s`", TEMP_SCHEMA, storeTblName);
     LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
         .setEnableLeafLimits(false)
-        .setMaxQueryWidth(0L)
         .setFailIfNonEmptySent(false)
         .setUsername(getProcessUserName())
         .setSqlContext(Collections.<String>emptyList())

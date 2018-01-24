@@ -51,4 +51,6 @@ message Roles {
 	optional bool physical_plan = 3 [default = true];
 	optional bool java_executor = 4 [default = true];
 	optional bool distributed_cache = 5 [default = true];
+    // Dremio specific roles
+   optional bool master = 100 [ default = false ];
 }

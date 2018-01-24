@@ -178,7 +178,6 @@ public class FunctionConverter {
       final ValueReference[] ps = params.toArray(new ValueReference[params.size()]);
       final WorkspaceReference[] works = workspaceFields.toArray(new WorkspaceReference[workspaceFields.size()]);
       final String[] registeredNames = ((template.name().isEmpty()) ? template.names() : new String[] {template.name()} );
-      boolean isDeteministic = template.isDeterministic();
       OutputDerivation derivation;
       try{
       derivation = template.derivation().getConstructor().newInstance();
@@ -189,7 +188,8 @@ public class FunctionConverter {
           template.scope(),
           template.nulls(),
           template.isBinaryCommutative(),
-          isDeteministic,
+          template.isDeterministic(),
+          template.isDynamic(),
           template.syntax(),
           registeredNames,
           ps,

@@ -49,18 +49,21 @@ describe('ProvisioningPage', () => {
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<ProvisioningPage {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
+    wrapper.instance().componentWillUnmount();
   });
 
   it('should render list of available provision managers when no manager created', () => {
     const wrapper = shallow(<ProvisioningPage {...minimalProps}/>);
     expect(wrapper.find('ClusterListView')).to.have.length(0);
     expect(wrapper.find('SelectClusterType')).to.have.length(1);
+    wrapper.instance().componentWillUnmount();
   });
 
   it('should render manager info when any created', () => {
     const wrapper = shallow(<ProvisioningPage {...commonProps}/>);
     expect(wrapper.find('SelectClusterType')).to.have.length(0);
     expect(wrapper.find('ClusterListView')).to.have.length(1);
+    wrapper.instance().componentWillUnmount();
   });
 
   describe('#componentWillMount', () => {
@@ -71,6 +74,7 @@ describe('ProvisioningPage', () => {
       instance.componentWillMount();
       expect(instance.startPollingProvisionData).to.be.calledOnce;
       expect(instance.startPollingProvisionData).to.be.calledWith(true);
+      instance.componentWillUnmount();
     });
   });
 
@@ -81,6 +85,7 @@ describe('ProvisioningPage', () => {
       sinon.spy(instance, 'stopPollingProvisionData');
       instance.componentWillUnmount();
       expect(instance.stopPollingProvisionData).to.be.calledOnce;
+      instance.componentWillUnmount();
     });
   });
 
@@ -97,6 +102,10 @@ describe('ProvisioningPage', () => {
       instance.startPollingProvisionData.restore();
       clock.restore();
     });
+    after(() => {
+      instance.componentWillUnmount();
+    });
+
     it('should call startPollingProvisionData again after timeout', () => {
       instance.startPollingProvisionData();
       clock.tick(3000);
@@ -135,6 +144,9 @@ describe('ProvisioningPage', () => {
     beforeEach(() => {
       instance = shallow(<ProvisioningPage {...commonProps}/>).instance();
     });
+    afterEach(() => {
+      instance.componentWillUnmount();
+    });
     it('should reset pollId to undefined', () => {
       expect(instance.pollId).to.be.not.undefined;
       instance.stopPollingProvisionData();
@@ -149,6 +161,7 @@ describe('ProvisioningPage', () => {
       instance.handleRemoveProvision();
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(instance.removeProvision).to.not.be.called;
+      instance.componentWillUnmount();
     });
 
     it('should call remove provision when confirmed', () => {
@@ -161,6 +174,7 @@ describe('ProvisioningPage', () => {
       instance.handleRemoveProvision(Immutable.fromJS({id: 1}));
       expect(instance.removeProvision).to.be.called;
       expect(props.removeProvision).to.be.called;
+      instance.componentWillUnmount();
     });
   });
 
@@ -169,6 +183,7 @@ describe('ProvisioningPage', () => {
       const instance = shallow(<ProvisioningPage {...commonProps} />).instance();
       instance.handleEditProvision(commonProps.provisions.get(0));
       expect(commonProps.openEditProvisionModal).to.be.calledWith('1', 'YARN');
+      instance.componentWillUnmount();
     });
   });
 
@@ -178,6 +193,7 @@ describe('ProvisioningPage', () => {
       instance.handleStopProvision(sinon.stub());
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(commonProps.editProvision).to.not.be.called;
+      instance.componentWillUnmount();
     });
 
     it('should call stop provision when confirmed', () => {
@@ -189,6 +205,7 @@ describe('ProvisioningPage', () => {
       const stub = sinon.stub();
       instance.handleStopProvision(stub);
       expect(stub).to.be.called;
+      instance.componentWillUnmount();
     });
   });
 
@@ -205,6 +222,9 @@ describe('ProvisioningPage', () => {
     beforeEach(() => {
       instance = shallow(<ProvisioningPage {...commonProps} />).instance();
       sinon.spy(instance, 'handleStopProvision');
+    });
+    afterEach(() => {
+      instance.componentWillUnmount();
     });
 
     it('should call handleStopProvision if desiredState is STOPPED', () => {

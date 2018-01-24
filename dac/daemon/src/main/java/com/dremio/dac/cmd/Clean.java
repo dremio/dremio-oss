@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd;
 
-import javax.ws.rs.core.MediaType;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -24,7 +22,6 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.daemon.NetworkUtil;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
@@ -38,8 +35,6 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
  * Backup command line.
  */
 public class Clean {
-  private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-
   /**
    * Command line options for db stats reporting and cleaning
    */
@@ -111,8 +106,8 @@ public class Clean {
       return;
     }
 
-    if (!NetworkUtil.addressResolvesToThisNode(dacConfig.getMasterNode())) {
-      throw new UnsupportedOperationException("Cleanup should be run on master node " + dacConfig.getMasterNode());
+    if (!dacConfig.isMaster) {
+      throw new UnsupportedOperationException("Cleanup should be run on master node");
     }
 
     final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
@@ -168,7 +163,7 @@ public class Clean {
     } catch (Exception e) {
       System.err.println("Failed to complete cleanup.");
       e.printStackTrace(System.err);
-      System.exit(-1);
+      System.exit(1);
     }
   }
 

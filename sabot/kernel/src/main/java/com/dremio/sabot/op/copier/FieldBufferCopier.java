@@ -158,7 +158,7 @@ public abstract class FieldBufferCopier {
     public void copy(long sv2, int count) {
       final Reallocator realloc = this.realloc;
       // make sure vectors are internally consistent
-      VariableLengthValidator.validateVariable(source, source.getAccessor().getValueCount());
+      VariableLengthValidator.validateVariable(source, source.getValueCount());
 
       final List<ArrowBuf> sourceBuffers = source.getFieldBuffers();
 

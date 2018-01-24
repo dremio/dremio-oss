@@ -36,10 +36,10 @@ export default class Credentials extends Component {
   static validate(values) {
     const errors = {config: {}};
     if (values.config.authenticationType === 'MASTER' && !values.config.username) {
-      errors.config.username = 'Username is required unless you choose no authentication or user credentials';
+      errors.config.username = 'Username is required unless you choose no authentication or user credentials.';
     }
     if (values.config.authenticationType === 'MASTER' && !values.config.password) {
-      errors.config.password = 'Password is required unless you choose no authentication or user credentials';
+      errors.config.password = 'Password is required unless you choose no authentication or user credentials.';
     }
     return errors;
   }

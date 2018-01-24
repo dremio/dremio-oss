@@ -84,7 +84,7 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
       }
 
       NullableBigIntVector countV = batchLoader.getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
-      assertTrue("Total of "+ NUM_RECORDS + " records expected in count", countV.getAccessor().get(0) == NUM_RECORDS);
+      assertTrue("Total of "+ NUM_RECORDS + " records expected in count", countV.get(0) == NUM_RECORDS);
 
       batchLoader.clear();
       batch.release();

@@ -16,6 +16,24 @@
 
 package com.dremio.exec.planner.physical;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelFieldCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.util.BitSets;
+
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
@@ -30,24 +48,6 @@ import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.Lists;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.util.BitSets;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkState;
 
 public class WindowPrel extends WindowRelBase implements Prel {
   public WindowPrel(RelOptCluster cluster,
@@ -119,7 +119,7 @@ public class WindowPrel extends WindowRelBase implements Prel {
         args.add(new FieldReference(fn.get(i)));
       } else {
         final RexLiteral constant = constants.get(indexInConstants);
-        LogicalExpression expr = RexToExpr.toExpr(context, getInput(), constant);
+        LogicalExpression expr = RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), constant);
         args.add(expr);
       }
     }

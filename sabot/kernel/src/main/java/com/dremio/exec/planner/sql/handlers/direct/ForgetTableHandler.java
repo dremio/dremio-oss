@@ -23,7 +23,6 @@ import java.util.List;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.curator.shaded.com.google.common.collect.Iterables;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.SchemaUtilities;
@@ -34,6 +33,7 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 /**
  * Handler for <code>FORGET TABLE tblname</code> command.

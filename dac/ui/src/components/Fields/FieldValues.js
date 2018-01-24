@@ -50,7 +50,7 @@ export default class FieldValues extends Component {
   render() {
     const { options } = this.props;
     const maxPercent = Math.max(...options.map(option => option.percent));
-    return <table>
+    return <table className='field'>
       <tbody>
         {
         options.map(option => {

@@ -17,91 +17,206 @@ package com.dremio.exec.store.hbase;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.BufferedMutator;
+import org.apache.hadoop.hbase.client.BufferedMutatorParams;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.RegionLocator;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.hbase.HBaseStoragePlugin.HBaseConnectionKey;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.dremio.exec.util.ImpersonationUtil;
 
 /**
- * <p>A singleton class which manages the lifecycle of HBase connections.</p>
- * <p>One connection per storage plugin instance is maintained.</p>
+ * A Connection implementation that supports quick connection validation and renewing connection as necessary.
  */
-public final class HBaseConnectionManager
-    extends CacheLoader<HBaseConnectionKey, Connection> implements RemovalListener<HBaseConnectionKey, Connection> {
+public class HBaseConnectionManager implements AutoCloseable {
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HBaseConnectionManager.class);
 
-  public static final HBaseConnectionManager INSTANCE = new HBaseConnectionManager();
+  private final Configuration config;
+  private volatile Connection connection;
 
-  private final LoadingCache<HBaseConnectionKey, Connection> connectionCache;
-
-  private HBaseConnectionManager() {
-    this.connectionCache = CacheBuilder.newBuilder()
-        .expireAfterAccess(1, TimeUnit.HOURS) // Connections will be closed after 1 hour of inactivity
-        .removalListener(this)
-        .build(this);
+  public HBaseConnectionManager(Configuration config) {
+    this.config = config;
   }
 
-  private boolean isValid(Connection conn) {
+  public void validate() {
+    final Configuration testConfig = new Configuration(config);
+    testConfig.set("hbase.client.retries.number", "3");
+    testConfig.set("hbase.client.pause", "1000");
+    testConfig.set("zookeeper.recovery.retry", "1");
+
+    // make sure we can create a connection.
+    doAsCommand(
+      new UGIDoAsCommand<Void>() {
+        @Override
+        public Void run() throws Exception {
+          try(
+            Connection c = ConnectionFactory.createConnection(testConfig);
+            Admin admin = c.getAdmin();
+          ) {
+            admin.listNamespaceDescriptors();
+          }catch(IOException ex) {
+            throw UserException.dataReadError(ex).message("Failure while connecting to HBase.").build(logger);
+          }
+          return null;
+        }
+      },
+      ImpersonationUtil.getProcessUserUGI(),
+      "Failed to connect to HBase"
+    );
+  }
+
+  public Connection getConnection() {
+    if(true) {
+      // DX-9766: Kept here for testing.
+      // return HBaseConnectionManagerLegacy.getConnection(pluginId);
+    }
+
+    final Connection connection = this.connection;
+    if(isValid(connection)) {
+      return new ManagedConnection(connection);
+    }
+
+    return new ManagedConnection(newConnectionIfNotValid());
+  }
+
+  private synchronized Connection newConnectionIfNotValid() {
+    if(isValid(connection)) {
+      return connection;
+    }
+
+    try {
+      close();
+    } catch(IOException ex) {
+      logger.warn("Failure while closing connection: {}.", connection, ex);
+    }
+
+    logger.info("No valid HBase connection available, creating one.");
+
+    doAsCommand(
+      new UGIDoAsCommand<Void>() {
+        @Override
+        public Void run() throws Exception {
+          try {
+            connection = ConnectionFactory.createConnection(config);
+            logger.info("Connection created: {}.", connection);
+          } catch (IOException ex) {
+            throw UserException.dataReadError(ex).message("Failure while connecting to HBase.").build(logger);
+          }
+          return null;
+        }
+      },
+      ImpersonationUtil.getProcessUserUGI(),
+        "Failed to connect to HBase"
+    );
+    return this.connection;
+  }
+
+  private static boolean isValid(Connection conn) {
     return conn != null
         && !conn.isAborted()
         && !conn.isClosed();
   }
 
-  @Override
-  public Connection load(HBaseConnectionKey key) throws Exception {
-    Connection connection = ConnectionFactory.createConnection(key.getHBaseConf());
-    logger.info("HBase connection '{}' created.", connection);
-    return connection;
-  }
-
-  @Override
-  public void onRemoval(RemovalNotification<HBaseConnectionKey, Connection> notification) {
-    try {
-      Connection conn = notification.getValue();
-      if (isValid(conn)) {
-        conn.close();
-      }
-      logger.info("HBase connection '{}' closed.", conn);
-    } catch (Throwable t) {
-      logger.warn("Error while closing HBase connection.", t);
+  public synchronized void close() throws IOException {
+    if(connection != null) {
+      connection.close();
+      connection = null;
     }
   }
 
-  public Connection getConnection(HBaseConnectionKey key) {
-    checkNotNull(key);
+  protected interface UGIDoAsCommand<T> {
+    T run() throws Exception;
+  }
+
+  protected<T> T doAsCommand(final UGIDoAsCommand<T> cmd, UserGroupInformation ugi, String errMsg) {
+    checkNotNull(ugi, "UserGroupInformation object required");
     try {
-      Connection conn = connectionCache.get(key);
-      if (!isValid(conn)) {
-        key.lock(); // invalidate the connection with a per storage plugin lock
-        try {
-          conn = connectionCache.get(key);
-          if (!isValid(conn)) {
-            connectionCache.invalidate(key);
-            conn = connectionCache.get(key);
-          }
-        } finally {
-          key.unlock();
+      return ugi.doAs(new PrivilegedExceptionAction<T>() {
+        @Override
+        public T run() throws Exception {
+          return cmd.run();
         }
-      }
-      return conn;
-    } catch (ExecutionException | UncheckedExecutionException e) {
-      throw UserException.dataReadError(e.getCause()).build(logger);
+      });
+    } catch (final InterruptedException | IOException e) {
+      throw new RuntimeException(String.format("%s, doAs User: %s", errMsg, ugi.getUserName()), e);
     }
   }
 
-  public void closeConnection(HBaseConnectionKey key) {
-    checkNotNull(key);
-    connectionCache.invalidate(key);
-  }
+  /**
+   * Managed connection that doesn't allow consumers to close this connection.
+   */
+  private static class ManagedConnection implements Connection {
 
+    private final Connection delegate;
+
+    public ManagedConnection(Connection delegate) {
+      super();
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void abort(String why, Throwable e) {
+      delegate.abort(why, e);
+    }
+
+    @Override
+    public boolean isAborted() {
+      return delegate.isAborted();
+    }
+
+    @Override
+    public Configuration getConfiguration() {
+      return delegate.getConfiguration();
+    }
+
+    @Override
+    public Table getTable(TableName tableName) throws IOException {
+      return delegate.getTable(tableName);
+    }
+
+    @Override
+    public Table getTable(TableName tableName, java.util.concurrent.ExecutorService pool) throws IOException {
+      return delegate.getTable(tableName, pool);
+    }
+
+    @Override
+    public BufferedMutator getBufferedMutator(TableName tableName) throws IOException {
+      return delegate.getBufferedMutator(tableName);
+    }
+
+    @Override
+    public BufferedMutator getBufferedMutator(BufferedMutatorParams params) throws IOException {
+      return delegate.getBufferedMutator(params);
+    }
+
+    @Override
+    public RegionLocator getRegionLocator(TableName tableName) throws IOException {
+      return delegate.getRegionLocator(tableName);
+    }
+
+    @Override
+    public Admin getAdmin() throws IOException {
+      return delegate.getAdmin();
+    }
+
+    @Override
+    public void close() throws IOException {
+    }
+
+    @Override
+    public boolean isClosed() {
+      return delegate.isClosed();
+    }
+
+  }
 }

@@ -71,9 +71,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<UserService> userService;
   private final Provider<CatalogService> catalogService;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
-  private final boolean updateDremioDefaults;
   private final Set<ClusterCoordinator.Role> roles;
-  private final boolean isMaster;
 
   private SabotContext context;
 
@@ -94,13 +92,12 @@ public class ContextService implements Service, Provider<SabotContext> {
       Provider<NamespaceService.Factory> namespaceServiceFactory,
       Provider<UserService> userService,
       Provider<CatalogService> catalogService,
-      Provider<ViewCreatorFactory> viewCreatorFactory,
-      boolean updateDremioDefaults
+      Provider<ViewCreatorFactory> viewCreatorFactory
       ) {
     this(bindingCreator, bootstrapContext, coord, provider, workStats, kvStoreProvider, fabric, userServer,
         materializationDescriptorProvider, queryObserverFactory, runningQueriesProvider, accelerationManager,
         accelerationListManager, namespaceServiceFactory, userService, catalogService, viewCreatorFactory,
-        updateDremioDefaults, EnumSet.allOf(ClusterCoordinator.Role.class), false);
+        EnumSet.allOf(ClusterCoordinator.Role.class));
   }
 
   public ContextService(
@@ -121,9 +118,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       Provider<UserService> userService,
       Provider<CatalogService> catalogService,
       Provider<ViewCreatorFactory> viewCreatorFactory,
-      boolean updateDremioDefaults,
-      Set<ClusterCoordinator.Role> roles,
-      boolean isMaster) {
+      Set<ClusterCoordinator.Role> roles) {
     super();
     this.bindingCreator = bindingCreator;
     this.bootstrapContext = bootstrapContext;
@@ -139,12 +134,10 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.accelerationListManager = accelerationListManager;
     this.namespaceServiceFactoryProvider = namespaceServiceFactoryProvider;
     this.userService = userService;
-    this.updateDremioDefaults = updateDremioDefaults;
     this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
     this.roles = Sets.immutableEnumSet(roles);
-    this.isMaster = isMaster;
   }
 
   @Override

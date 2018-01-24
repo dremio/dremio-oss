@@ -3,37 +3,20 @@
  */
 package com.dremio.plugins.elastic;
 
-import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.aliasName;
-import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
-import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
-import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
-import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.STRING;
 import com.dremio.service.namespace.SourceTableDefinition;
 
 /* junit imports */
 import static org.junit.Assert.assertTrue;
-import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Assume;
 
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.math.BigDecimal;
-
-
-import com.dremio.exec.record.BatchSchema;
-
-import com.google.common.collect.ImmutableMap;
-
 /* Test if hidden indices are queryable or not */
 public class TestHiddenIndices extends ElasticBaseTestQuery {
 
-  public static ElasticsearchStoragePlugin2 plugin;
+  public static ElasticsearchStoragePlugin plugin;
 
   @BeforeClass
   public static void beforeStart() {
@@ -44,8 +27,7 @@ public class TestHiddenIndices extends ElasticBaseTestQuery {
   @Before
   public void before() throws Exception {
     super.before();
-    plugin = (ElasticsearchStoragePlugin2)
-        getSabotContext().getStorage().getPlugin(ElasticsearchStoragePluginConfig.NAME).getStoragePlugin2();
+    plugin = (ElasticsearchStoragePlugin) getSabotContext().getStorage().getPlugin(ElasticsearchStoragePluginConfig.NAME);
   }
 
   @Test

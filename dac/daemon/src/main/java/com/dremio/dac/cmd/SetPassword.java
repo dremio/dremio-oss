@@ -87,7 +87,7 @@ public class SetPassword {
     } catch (Throwable t) {
       t.printStackTrace();
       System.err.println("set-password failed " + t);
-      System.exit(-1);
+      System.exit(1);
     }
   }
 }

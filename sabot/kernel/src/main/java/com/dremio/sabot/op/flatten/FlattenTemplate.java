@@ -19,6 +19,7 @@ import java.util.List;
 
 import javax.inject.Named;
 
+import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.util.OversizedAllocationException;
 import org.apache.arrow.memory.BufferAllocator;
@@ -41,7 +42,6 @@ public abstract class FlattenTemplate implements Flattener {
   private BufferAllocator outputAllocator;
   private SelectionVectorMode svMode;
   private RepeatedValueVector fieldToFlatten;
-  private RepeatedValueVector.RepeatedAccessor accessor;
   private int valueIndex;
   private boolean bigRecords = false;
   private int bigRecordsBufferSize;
@@ -61,7 +61,6 @@ public abstract class FlattenTemplate implements Flattener {
   @Override
   public void setFlattenField(RepeatedValueVector flattenField) {
     this.fieldToFlatten = flattenField;
-    this.accessor = RepeatedValueVector.RepeatedAccessor.class.cast(flattenField.getAccessor());
   }
 
   public RepeatedValueVector getFlattenField() {
@@ -91,9 +90,9 @@ public abstract class FlattenTemplate implements Flattener {
         outer: {
           int outputIndex = firstOutputIndex;
           int recordsThisCall = 0;
-          final int valueCount = accessor.getValueCount();
+          final int valueCount = fieldToFlatten.getValueCount();
           for ( ; valueIndexLocal < valueCount; valueIndexLocal++) {
-            final int innerValueCount = accessor.getInnerValueCountAt(valueIndexLocal);
+            final int innerValueCount = ((BaseRepeatedValueVector)fieldToFlatten).getInnerValueCountAt(valueIndexLocal);
             for ( ; innerValueIndexLocal < innerValueCount; innerValueIndexLocal++) {
               // If we've hit the batch size limit, stop and flush what we've got so far.
               if (recordsThisCall == outputLimit) {

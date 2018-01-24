@@ -622,16 +622,16 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
         break;
       case NONE: {
         ValueVector vector = w.getValueVector();
-        checkArgument(vector.getAccessor().getValueCount() == records,
+        checkArgument(vector.getValueCount() == records,
           "Output value count %s not equal to vector count %s for vector: %s",
-          records, vector.getAccessor().getValueCount(), Describer.describe(vector.getField()));
+          records, vector.getValueCount(), Describer.describe(vector.getField()));
         break;
       }
       case TWO_BYTE: {
         ValueVector vector = w.getValueVector();
-        checkArgument(vector.getAccessor().getValueCount() >= records,
+        checkArgument(vector.getValueCount() >= records,
           "SV2: Top level value count %s should be less than equal to value count %s of vector %s when in SV2 mode.",
-          records, vector.getAccessor().getValueCount(), Describer.describe(vector.getField()));
+          records, vector.getValueCount(), Describer.describe(vector.getField()));
       }
         break;
       default:

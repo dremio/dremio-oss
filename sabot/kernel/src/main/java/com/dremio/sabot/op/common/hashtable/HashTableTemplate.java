@@ -377,7 +377,7 @@ public abstract class HashTableTemplate implements HashTable {
     private void setValueCount() {
       for (VectorWrapper<?> vw : htContainer) {
         ValueVector vv = vw.getValueVector();
-        vv.getMutator().setValueCount(maxOccupiedIdx + 1);
+        vv.setValueCount(maxOccupiedIdx + 1);
       }
     }
 

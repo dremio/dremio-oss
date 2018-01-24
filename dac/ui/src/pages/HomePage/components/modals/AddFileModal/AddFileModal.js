@@ -173,8 +173,9 @@ export class AddFileModal extends Component {
 }
 
 function mapStateToProps(state) {
-  const parentType = getEntityType(location.pathname);
-  const parentEntity = getHomeContents(state, parentType, window.location.pathname) || Immutable.Map();
+  const pathname = state.routing.locationBeforeTransitions.pathname;
+  const parentType = getEntityType(pathname);
+  const parentEntity = getHomeContents(state, parentType, pathname) || Immutable.Map();
   const fileName = state.form.addFile && state.form.addFile.name ? state.form.addFile.name.value : undefined;
   let file;
   if (parentEntity && fileName) {

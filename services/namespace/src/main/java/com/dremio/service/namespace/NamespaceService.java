@@ -141,7 +141,11 @@ public interface NamespaceService {
   // Also rewrite this function as utility that uses the
   boolean tryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig config) throws NamespaceException;
 
-  // SEARCH
+  /**
+   * Find entries by condition. If condition is not provided, returns all items.
+   * @param condition
+   * @return List of Key/Container entries.
+   */
   Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition);
 
   String dump();

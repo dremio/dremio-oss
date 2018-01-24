@@ -69,7 +69,7 @@ export default class ResourceTree extends Component {
 
     const classes = classNames('node', {'active-node': this.props.selectedNodeId === nodeId});
     const iconType = getIconByEntityType(node.get('type'));
-    const iconForResourceProps = getArtPropsByEntityIconType(iconType, this.props.intl);
+    const iconForResourceProps = getArtPropsByEntityIconType(iconType);
 
     const nodeElement = ResourceTree.isNodeExpandable(node) ?
       <div style={{ display: 'flex', minWidth: 0 }}>

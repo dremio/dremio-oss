@@ -61,7 +61,8 @@ public class ElasticSourceConfigurator extends SingleSourceToStoragePluginConfig
       username,
       password,
       getBooleanElseFalse(elastic.getSslEnabled()),
-      getBooleanElseFalse(elastic.getUseWhitelist()));
+      getBooleanElseFalse(elastic.getUseWhitelist()),
+      getBooleanElseFalse(elastic.getAllowGroupByOnNormalizedFields()));
     return config;
   }
 

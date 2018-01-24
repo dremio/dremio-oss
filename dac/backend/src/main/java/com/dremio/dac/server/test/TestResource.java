@@ -32,6 +32,7 @@ import javax.ws.rs.Produces;
 import org.glassfish.jersey.server.mvc.Viewable;
 
 import com.dremio.dac.admin.ProfileResource;
+import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.annotations.RestResourceUsedForTesting;
 import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
@@ -80,6 +81,7 @@ public class TestResource {
     this.catalogService = catalogService;
   }
 
+  @Bootstrap
   @POST
   @Path("create")
   public void createTestDataset() throws Exception {
@@ -108,7 +110,7 @@ public class TestResource {
   @Path("clear")
   public void clearTestDataset() throws Exception {
     ((LocalKVStoreProvider) provider).deleteEverything();
-    context.getStorage().updateNamespace(Sets.newHashSet("__jobResultsStore", "__home", "__accelerator", "__datasetDownload", "$scratch"),
+    context.getStorage().updateNamespace(Sets.newHashSet("__jobResultsStore", "__home", "__accelerator", "__datasetDownload", "$scratch", "sys", "INFORMATION_SCHEMA"),
       CatalogService.REFRESH_EVERYTHING_NOW);
   }
 

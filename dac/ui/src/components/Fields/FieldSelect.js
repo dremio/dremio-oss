@@ -15,21 +15,28 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 import { typeToIconType } from 'constants/DataTypes';
-import FontIcon from 'components/Icon/FontIcon';
+import Art from 'components/Art';
 import Select from './Select';
 
+@injectIntl
 export default class FieldSelect extends Component {
   static propTypes = {
     formField: PropTypes.object,
     items: PropTypes.array,
-    style: PropTypes.object
+    style: PropTypes.object,
+    intl: PropTypes.object.isRequired
   }
   mapFieldsToOptions(items) {
     return items.map(item => ({
       label: (
         <div style={styles.wrap}>
-          <FontIcon type={typeToIconType[item.type]} theme={styles.type}/>
+          <Art
+            src={`types/${typeToIconType[item.type]}.svg`}
+            alt={this.props.intl.formatMessage({id: 'Common.FieldType'})}
+            style={styles.icon}
+          />
           <span style={styles.name}>{item.name}</span>
         </div>
       ),
@@ -38,26 +45,19 @@ export default class FieldSelect extends Component {
   }
   render() {
     const { items, formField, style } = this.props;
-    return <Select buttonStyle={styles.wrap} {...formField} style={style} items={this.mapFieldsToOptions(items)} />;
+    return <Select {...formField} style={style} items={this.mapFieldsToOptions(items)} />;
   }
 }
 
 const styles = {
   wrap: {
     display: 'flex',
-    justifyContent: 'flex-start'
+    justifyContent: 'flex-start',
+    alignItems: 'center'
   },
-  type: {
-    'Icon': {
-      width: 24,
-      height: 20,
-      backgroundPosition: 'left center'
-    },
-    Container: {
-      width: 28,
-      height: 20,
-      top: 0
-    }
+  icon: {
+    width: 24,
+    height: 20
   },
   name: {
     marginLeft: 5

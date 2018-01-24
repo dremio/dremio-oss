@@ -33,6 +33,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
+import org.apache.calcite.sql.SqlExplainLevel;
+
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.cost.DremioCost;
@@ -122,13 +124,10 @@ public abstract class ScanRelBase extends TableScan {
       pw.item("rowAdjust", observedRowcountAdjustment);
     }
 
-    return pw;
-  }
-
-  @Override
-  protected String computeDigest() {
     // we need to include the table metadata digest since not all properties (specifically which splits) are included in the explain output  (what base computeDigest uses).
-    return super.computeDigest() + tableMetadata.computeDigest();
+    pw.itemIf("tableDigest", tableMetadata.computeDigest(), pw.getDetailLevel() == SqlExplainLevel.DIGEST_ATTRIBUTES);
+
+    return pw;
   }
 
   @Override

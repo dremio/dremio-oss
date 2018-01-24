@@ -37,6 +37,7 @@ import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.service.accelerator.ChainExecutor;
 import com.dremio.service.accelerator.DropTask;
 import com.dremio.service.accelerator.pipeline.StageContext;
@@ -772,7 +773,9 @@ public class TestActivationStage {
           .setLayoutList(new ArrayList<Layout>())
           .setEnabled(true));
 
-    when(context.getAcceleratorStoragePlugin().getConfig().getPath()).thenReturn("acceleration");
+    FileSystemConfig config = Mockito.mock(FileSystemConfig.class);
+    when(config.getPath()).thenReturn("acceleration");
+    when(context.getAcceleratorStoragePlugin().getId().getConfig()).thenReturn(config);
     when(context.getOriginalAcceleration()).thenReturn(originalAcceleration);
     when(context.getCurrentAcceleration()).thenReturn(currentAcceleration);
     when(context.getMaterializationStore()).thenReturn(store);

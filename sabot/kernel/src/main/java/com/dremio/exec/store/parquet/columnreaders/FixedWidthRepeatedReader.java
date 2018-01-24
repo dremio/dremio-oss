@@ -17,7 +17,11 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
+import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
+import org.apache.arrow.vector.complex.BaseRepeatedValueVectorHelper;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
@@ -181,11 +185,29 @@ public class FixedWidthRepeatedReader extends VarLengthColumn<RepeatedValueVecto
     } else {
       repeatedValuesInCurrentList = 0;
     }
-    // this should not fail
-    final UInt4Vector offsets = valueVec.getOffsetVector();
-    offsets.getMutator().setSafe(repeatedGroupsReadInCurrentPass + 1, offsets.getAccessor().get(repeatedGroupsReadInCurrentPass));
-    // This field is being referenced in the superclass determineSize method, so we need to set it here
-    // again going to make this the length in BYTES to avoid repetitive multiplication/division
+
+    /* this should not fail */
+
+    /*
+     * RepeatedValueVector (or ListVector) no longer has inner offsetVector.
+     * There is just the buffer that stores all offsets. In FixedWidthRepeatedReader
+     * we earlier had the liberty to get the offset vector and mutate it directly
+     * in a safe manner since the operations were carried out on the inner vector.
+     * We no longer have such provision of setting offsets in a safe manner. Hence
+     * we introduced helper methods as stubs to directly work on the offset buffer
+     * of the vector, do get/set operations and reallocation if needed.
+     *
+     * An alternative would be to introduce static methods in ListVector or
+     * BaseRepeatedValueVector interface for specifically setting data in
+     * inner offset buffer but that approach is going to pollute the public
+     * API in OSS.
+     */
+    BaseRepeatedValueVectorHelper.setOffsetHelper((BaseRepeatedValueVector)valueVec,
+      repeatedGroupsReadInCurrentPass, repeatedGroupsReadInCurrentPass + 1, valueVec.getAllocator());
+    /* This field is being referenced in the superclass determineSize method, so we
+     * need to set it hereagain going to make this the length in BYTES to avoid
+     * repetitive multiplication/division
+     */
     dataTypeLengthInBits = repeatedValuesInCurrentList * dataTypeLengthInBytes;
     return false;
   }
@@ -200,8 +222,8 @@ public class FixedWidthRepeatedReader extends VarLengthColumn<RepeatedValueVecto
     dataReader.valuesReadInCurrentPass = 0;
     dataReader.readValues(valuesToRead);
     valuesReadInCurrentPass += valuesToRead;
-    valueVec.getMutator().setValueCount(repeatedGroupsReadInCurrentPass);
-    valueVec.getDataVector().getMutator().setValueCount(valuesReadInCurrentPass);
+    valueVec.setValueCount(repeatedGroupsReadInCurrentPass);
+    valueVec.getDataVector().setValueCount(valuesReadInCurrentPass);
   }
 
   @Override

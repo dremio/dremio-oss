@@ -59,10 +59,10 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .unOrdered()
             .baselineValues(mapOf("type", "circle",
                     "radius", "10m",
-                    "coordinates", listOf(point[1], point[0])))
+                    "coordinates", listOf(point[0], point[1])))
             .baselineValues(mapOf("type", "circle",
                     "radius", "100m",
-                    "coordinates", listOf(point[1], point[0])))
+                    "coordinates", listOf(point[0], point[1])))
             .go();
   }
 
@@ -89,13 +89,13 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineValues(
                     mapOf("type", "envelope", "coordinates",
                             listOf(
-                                    listOf(points[0][1], points[0][0]),
-                                    listOf(points[1][1], points[1][0]))))
+                                    listOf(points[0][0], points[0][1]),
+                                    listOf(points[1][0], points[1][1]))))
             .baselineValues(
                     mapOf("type", "envelope", "coordinates",
                             listOf(
-                                    listOf(points2[0][1], points2[0][0]),
-                                    listOf(points2[1][1], points2[1][0]))))
+                                    listOf(points2[0][0], points2[0][1]),
+                                    listOf(points2[1][0], points2[1][1]))))
             .go();
   }
 
@@ -130,8 +130,8 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineValues(
                     mapOf("type", "geometrycollection", "geometries",
                             listOf(
-                                    mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])),
-                                    mapOf("type", "point", "coordinates", listOf(point2[1], point2[0])))))
+                                    mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])),
+                                    mapOf("type", "point", "coordinates", listOf(point2[0], point2[1])))))
             .go();
   }
 
@@ -204,51 +204,51 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point2[1], point2[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point2[0], point2[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point2[1], point2[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point2[0], point2[1]))))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1]))))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1]))))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1]))))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1]))))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1]))))))
             .go();
   }
 
@@ -301,18 +301,18 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
                     mapOf("type", "polygon", "coordinates",
                             listOf(
                                     listOf(
-                                            listOf(point1[1], point1[0]),
-                                            listOf(point2[1], point2[0]),
-                                            listOf(point3[1], point3[0]),
-                                            listOf(point4[1], point4[0]),
-                                            listOf(point5[1], point5[0])
+                                            listOf(point1[0], point1[1]),
+                                            listOf(point2[0], point2[1]),
+                                            listOf(point3[0], point3[1]),
+                                            listOf(point4[0], point4[1]),
+                                            listOf(point5[0], point5[1])
                                     ),
                                     listOf(
-                                            listOf(innerPoint1[1], innerPoint1[0]),
-                                            listOf(innerPoint2[1], innerPoint2[0]),
-                                            listOf(innerPoint3[1], innerPoint3[0]),
-                                            listOf(innerPoint4[1], innerPoint4[0]),
-                                            listOf(innerPoint5[1], innerPoint5[0])))))
+                                            listOf(innerPoint1[0], innerPoint1[1]),
+                                            listOf(innerPoint2[0], innerPoint2[1]),
+                                            listOf(innerPoint3[0], innerPoint3[1]),
+                                            listOf(innerPoint4[0], innerPoint4[1]),
+                                            listOf(innerPoint5[0], innerPoint5[1])))))
             .go();
   }
 
@@ -348,11 +348,11 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
                     mapOf("type", "polygon", "coordinates",
                             listOf(
                                     listOf(
-                                            listOf(point1[1], point1[0]),
-                                            listOf(point2[1], point2[0]),
-                                            listOf(point3[1], point3[0]),
-                                            listOf(point4[1], point4[0]),
-                                            listOf(point5[1], point5[0]))
+                                            listOf(point1[0], point1[1]),
+                                            listOf(point2[0], point2[1]),
+                                            listOf(point3[0], point3[1]),
+                                            listOf(point4[0], point4[1]),
+                                            listOf(point5[0], point5[1]))
                             )))
             .go();
   }
@@ -412,18 +412,18 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
                             listOf(
                                     listOf(
                                             listOf(
-                                                    listOf(point1[1], point1[0]),
-                                                    listOf(point2[1], point2[0]),
-                                                    listOf(point3[1], point3[0]),
-                                                    listOf(point4[1], point4[0]),
-                                                    listOf(point5[1], point5[0]))),
+                                                    listOf(point1[0], point1[1]),
+                                                    listOf(point2[0], point2[1]),
+                                                    listOf(point3[0], point3[1]),
+                                                    listOf(point4[0], point4[1]),
+                                                    listOf(point5[0], point5[1]))),
                                     listOf(
                                             listOf(
-                                                    listOf(point6[1], point6[0]),
-                                                    listOf(point7[1], point7[0]),
-                                                    listOf(point8[1], point8[0]),
-                                                    listOf(point9[1], point9[0]),
-                                                    listOf(point10[1], point10[0])))
+                                                    listOf(point6[0], point6[1]),
+                                                    listOf(point7[0], point7[1]),
+                                                    listOf(point8[0], point8[1]),
+                                                    listOf(point9[0], point9[1]),
+                                                    listOf(point10[0], point10[1])))
                             )))
             .go();
   }
@@ -454,10 +454,10 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineValues(
                     mapOf("type", "linestring", "coordinates",
                             listOf(
-                                    listOf(point1[1], point1[0]),
-                                    listOf(point2[1], point2[0]),
-                                    listOf(point3[1], point3[0]),
-                                    listOf(point4[1], point4[0]))))
+                                    listOf(point1[0], point1[1]),
+                                    listOf(point2[0], point2[1]),
+                                    listOf(point3[0], point3[1]),
+                                    listOf(point4[0], point4[1]))))
             .go();
   }
 
@@ -488,22 +488,22 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
                     mapOf("type", "multilinestring", "coordinates",
                             listOf(
                                     listOf(
-                                            listOf(line1[0][1], line1[0][0]),
-                                            listOf(line1[1][1], line1[1][0]),
-                                            listOf(line1[2][1], line1[2][0]),
-                                            listOf(line1[3][1], line1[3][0])
+                                            listOf(line1[0][0], line1[0][1]),
+                                            listOf(line1[1][0], line1[1][1]),
+                                            listOf(line1[2][0], line1[2][1]),
+                                            listOf(line1[3][0], line1[3][1])
                                     ),
                                     listOf(
-                                            listOf(line2[0][1], line2[0][0]),
-                                            listOf(line2[1][1], line2[1][0]),
-                                            listOf(line2[2][1], line2[2][0]),
-                                            listOf(line2[3][1], line2[3][0])
+                                            listOf(line2[0][0], line2[0][1]),
+                                            listOf(line2[1][0], line2[1][1]),
+                                            listOf(line2[2][0], line2[2][1]),
+                                            listOf(line2[3][0], line2[3][1])
                                     ),
                                     listOf(
-                                            listOf(line3[0][1], line3[0][0]),
-                                            listOf(line3[1][1], line3[1][0]),
-                                            listOf(line3[2][1], line3[2][0]),
-                                            listOf(line3[3][1], line3[3][0])
+                                            listOf(line3[0][0], line3[0][1]),
+                                            listOf(line3[1][0], line3[1][1]),
+                                            listOf(line3[2][0], line3[2][1]),
+                                            listOf(line3[3][0], line3[3][1])
                                     ))))
             .go();
   }
@@ -529,9 +529,9 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineColumns("location_field")
             .unOrdered()
             .baselineValues(
-                    mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])))
+                    mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])))
             .baselineValues(
-                    mapOf("type", "point", "coordinates", listOf(point2[1], point2[0])))
+                    mapOf("type", "point", "coordinates", listOf(point2[0], point2[1])))
             .go();
   }
 
@@ -557,8 +557,8 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineValues(
                     mapOf("type", "multipoint", "coordinates",
                             listOf(
-                                    listOf(point1[1], point1[0]),
-                                    listOf(point2[1], point2[0])
+                                    listOf(point1[0], point1[1]),
+                                    listOf(point2[0], point2[1])
                             )))
             .go();
   }
@@ -604,15 +604,15 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .unOrdered()
             .baselineValues(
                     listOf(
-                            mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])),
-                            mapOf("type", "point", "coordinates", listOf(point2[1], point2[0])),
-                            mapOf("type", "point", "coordinates", listOf(point3[1], point3[0]))
+                            mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])),
+                            mapOf("type", "point", "coordinates", listOf(point2[0], point2[1])),
+                            mapOf("type", "point", "coordinates", listOf(point3[0], point3[1]))
                     ))
             .baselineValues(
                     listOf(
-                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0])),
-                            mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0]))
+                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1])),
+                            mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1]))
                     ))
             .go();
   }
@@ -643,10 +643,10 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineColumns("location_field")
             .unOrdered()
             .baselineValues(
-                    mapOf("type", "point", "coordinates", listOf(point1[1], point1[0]))
+                    mapOf("type", "point", "coordinates", listOf(point1[0], point1[1]))
             )
             .baselineValues(
-                    mapOf("type", "circle", "radius", "10m", "coordinates", listOf(circleCenter[1], circleCenter[0]))
+                    mapOf("type", "circle", "radius", "10m", "coordinates", listOf(circleCenter[0], circleCenter[1]))
             )
             .go();
 
@@ -713,31 +713,31 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point2[1], point2[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point2[0], point2[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[1], point1[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point2[1], point2[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point1[0], point1[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point2[0], point2[1]))))))
             .baselineValues(
                     mapOf("type", "geometrycollection", "geometries",
-                            listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                    mapOf("type", "point", "coordinates", listOf(point4[1], point4[0])))))
+                            listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                    mapOf("type", "point", "coordinates", listOf(point4[0], point4[1])))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[1], point5[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point6[1], point6[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point5[0], point5[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point6[0], point6[1]))))))
             .baselineValues(
                     listOf(
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0])))),
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1])))),
                             mapOf("type", "geometrycollection", "geometries",
-                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[1], point3[0])),
-                                            mapOf("type", "point", "coordinates", listOf(point4[1], point4[0]))))))
+                                    listOf(mapOf("type", "point", "coordinates", listOf(point3[0], point3[1])),
+                                            mapOf("type", "point", "coordinates", listOf(point4[0], point4[1]))))))
             .go();
   }
 

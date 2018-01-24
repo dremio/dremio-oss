@@ -22,6 +22,7 @@ import { SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
 import * as QlikActions from 'actions/qlik';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
+
 import { openQlikSense, fetchQlikApp, checkDsnList, requestPassword, getConnectionConfig, DSN,
   getUniqueAppName, santizeAppName } from './qlik';
 
@@ -221,6 +222,8 @@ describe('qlik saga', () => {
       expect(action.type).to.eq(SHOW_CONFIRMATION_DIALOG);
       expect(action.showPrompt).to.be.true;
 
+      next = gen.next(); // select(getLocation)
+
       next = gen.next();
       expect(next.value.RACE).to.not.be.undefined;
       next = gen.next({password: 'thePassword'});
@@ -234,6 +237,8 @@ describe('qlik saga', () => {
       const action = next.value.PUT.action;
       expect(action.type).to.eq(SHOW_CONFIRMATION_DIALOG);
       expect(action.showPrompt).to.be.true;
+
+      next = gen.next(); // select(getLocation)
 
       next = gen.next();
       expect(next.value.RACE).to.not.be.undefined;

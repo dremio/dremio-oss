@@ -138,8 +138,8 @@ public class WritableBatch implements AutoCloseable {
 
     /* Set the record count in the value vector */
     for (VectorWrapper<?> v : container) {
-      ValueVector.Mutator m = v.getValueVector().getMutator();
-      m.setValueCount(def.getRecordCount());
+
+      v.getValueVector().setValueCount(def.getRecordCount());
     }
   }
 

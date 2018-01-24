@@ -23,20 +23,21 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.volcano.AbstractConverter.ExpandConversionRule;
-import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCalc;
 import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
-import org.apache.calcite.rel.rules.FilterJoinRule.FilterIntoJoinRule;
-import org.apache.calcite.rel.rules.FilterJoinRule.JoinConditionPushRule;
-import org.apache.calcite.rel.rules.FilterMergeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
@@ -60,6 +61,7 @@ import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FilterFlattenTransposeRule;
 import com.dremio.exec.planner.logical.FilterJoinRulesUtil;
+import com.dremio.exec.planner.logical.FilterMergeCrule;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.FilterRule;
 import com.dremio.exec.planner.logical.FlattenRule;
@@ -68,13 +70,10 @@ import com.dremio.exec.planner.logical.JoinRule;
 import com.dremio.exec.planner.logical.LimitRule;
 import com.dremio.exec.planner.logical.MergeProjectForFlattenRule;
 import com.dremio.exec.planner.logical.MergeProjectRule;
-import com.dremio.exec.planner.logical.OldPushProjectForFlattenIntoScanRule;
-import com.dremio.exec.planner.logical.OldPushProjectIntoScanRule;
-import com.dremio.exec.planner.logical.OldScanRelRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.ProjectRule;
-import com.dremio.exec.planner.logical.PushFiltersProjectPastFlattenRule;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
+import com.dremio.exec.planner.logical.PushFiltersProjectPastFlattenRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenIntoScanRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenPastProjectRule;
 import com.dremio.exec.planner.logical.PushProjectIntoScanRule;
@@ -100,7 +99,6 @@ import com.dremio.exec.planner.physical.ProjectPrule;
 import com.dremio.exec.planner.physical.PushLimitToTopN;
 import com.dremio.exec.planner.physical.SamplePrule;
 import com.dremio.exec.planner.physical.SampleToLimitPrule;
-import com.dremio.exec.planner.physical.ScanPrule;
 import com.dremio.exec.planner.physical.ScreenPrule;
 import com.dremio.exec.planner.physical.SortConvertPrule;
 import com.dremio.exec.planner.physical.SortPrule;
@@ -109,9 +107,7 @@ import com.dremio.exec.planner.physical.UnionAllPrule;
 import com.dremio.exec.planner.physical.ValuesPrule;
 import com.dremio.exec.planner.physical.WindowPrule;
 import com.dremio.exec.planner.physical.WriterPrule;
-import com.dremio.exec.store.AbstractStoragePlugin;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePlugin2;
 import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
 import com.dremio.exec.store.StoragePluginTypeRulesFactory;
 import com.dremio.service.namespace.StoragePluginId;
@@ -156,13 +152,12 @@ public enum PlannerPhase {
       return RuleSets.ofList(
           PushFiltersProjectPastFlattenRule.INSTANCE,
           PushProjectPastFlattenRule.INSTANCE,
-          OldPushProjectForFlattenIntoScanRule.INSTANCE,
           PushProjectForFlattenIntoScanRule.INSTANCE,
           PushProjectForFlattenPastProjectRule.INSTANCE,
           MergeProjectForFlattenRule.INSTANCE,
           PUSH_PROJECT_PAST_FILTER_INSTANCE,
           PushFilterPastProjectRule.INSTANCE,
-          PushProjectPastJoinRule.INSTANCE
+          PushProjectPastJoinRule.LOGICAL_INSTANCE
       );
     }
   },
@@ -252,26 +247,19 @@ public enum PlannerPhase {
 
 
     // add instance level rules.
-    for(StoragePlugin<?> plugin : plugins){
-      if(plugin.getStoragePlugin2() != null){
-        StoragePlugin2 registry = plugin.getStoragePlugin2();
-        StoragePluginId pluginId = registry.getId();
-        Class<?> typeRules = pluginId.getType().getRulesFactoryClass();
-        if(typeRules != null){
-          typeRulesFactories.put(pluginId.getType(), typeRules);
+    for(StoragePlugin plugin : plugins){
+      StoragePluginId pluginId = plugin.getId();
+      Class<?> typeRules = pluginId.getType().getRulesFactoryClass();
+      if(typeRules != null){
+        typeRulesFactories.put(pluginId.getType(), typeRules);
+      }
+      try {
+        if(plugin.getRulesFactoryClass() != null){
+          StoragePluginInstanceRulesFactory factory = plugin.getRulesFactoryClass().newInstance();
+          rules.addAll(factory.getRules(context, phase, pluginId));
         }
-        try {
-          if(registry.getRulesFactoryClass() != null){
-            StoragePluginInstanceRulesFactory factory = registry.getRulesFactoryClass().newInstance();
-            rules.addAll(factory.getRules(context, phase, pluginId));
-          }
-        } catch (InstantiationException | IllegalAccessException e) {
-          throw Throwables.propagate(e);
-        }
-      }else if(plugin instanceof AbstractStoragePlugin){
-        rules.addAll(((AbstractStoragePlugin<?>) plugin).getOptimizerRules(context, phase));
-      }else{
-        rules.addAll(plugin.getOptimizerRules(context));
+      } catch (InstantiationException | IllegalAccessException e) {
+        throw Throwables.propagate(e);
       }
     }
 
@@ -315,8 +303,7 @@ public enum PlannerPhase {
   /**
    * Planner rule that combines two {@link Filter}s.
    */
-  static final FilterMergeRule FILTER_MERGE_CALCITE_RULE =
-    new FilterMergeRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  static final FilterMergeCrule FILTER_MERGE_CALCITE_RULE = new FilterMergeCrule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
    * Planner rule that pushes a {@link Filter} past a
@@ -328,16 +315,45 @@ public enum PlannerPhase {
   /**
    * Planner rule that pushes predicates from a Filter into the Join below.
    */
-  public static final FilterJoinRule FILTER_INTO_JOIN_CALCITE_RULE =
-    new FilterIntoJoinRule(true, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
+
+  public static final FilterJoinRule FILTER_INTO_JOIN_CALCITE_RULE = new LogicalFilterJoinRule();
+
+  private static final class LogicalFilterJoinRule extends FilterJoinRule {
+    private LogicalFilterJoinRule() {
+      super(RelOptRule.operand(LogicalFilter.class, RelOptRule.operand(LogicalJoin.class, RelOptRule.any())),
+          "FilterJoinRule:filter", true, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+          FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
+    }
+
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+      Filter filter = call.rel(0);
+      Join join = call.rel(1);
+      perform(call, filter, join);
+    }
+
+  }
 
   /**
    * Planner rule that pushes predicates in a Join into the inputs to the Join.
    */
-  public static final FilterJoinRule JOIN_CONDITION_PUSH_CALCITE_RULE =
-    new JoinConditionPushRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
+  public static final FilterJoinRule JOIN_CONDITION_PUSH_CALCITE_RULE = new JoinConditionPushRule();
+
+  private static class JoinConditionPushRule extends FilterJoinRule {
+    public JoinConditionPushRule() {
+      super(RelOptRule.operand(LogicalJoin.class, RelOptRule.any()),
+          "FilterJoinRule:no-filter", true, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+          FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
+    }
+
+    @Override public void onMatch(RelOptRuleCall call) {
+      Join join = call.rel(0);
+      perform(call, null, join);
+    }
+  }
+
+  private static final JoinPushExpressionsRule JOIN_PUSH_EXPRESSIONS_RULE = new JoinPushExpressionsRule(LogicalJoin.class, RelFactories.LOGICAL_BUILDER);
+
 
   /**
    * Planner rule that pushes a {@link LogicalProject} past a {@link LogicalFilter}.
@@ -351,8 +367,8 @@ public enum PlannerPhase {
    * past a {@link org.apache.calcite.rel.core.Aggregate}.
    */
   static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE =
-    new FilterAggregateTransposeRule(Filter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      Aggregate.class);
+    new FilterAggregateTransposeRule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+      LogicalAggregate.class);
 
   /*
    * Planner rules that pushes a {@link LogicalFilter} past a {@link LogicalProject}.
@@ -421,17 +437,19 @@ public enum PlannerPhase {
       // Add support for WHERE style joins.
       FILTER_INTO_JOIN_CALCITE_RULE,
       JOIN_CONDITION_PUSH_CALCITE_RULE,
-      JoinPushExpressionsRule.INSTANCE,
+      JOIN_PUSH_EXPRESSIONS_RULE,
       // End support for WHERE style joins.
+
 
       /*
        Filter push-down related rules
        */
+      FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
+      FILTER_MERGE_CALCITE_RULE,
+      PushProjectPastJoinRule.CALCITE_INSTANCE,
       PushFilterPastProjectRule.CALCITE_INSTANCE,
       // Due to infinite loop in planning (DRILL-3257), temporarily disable this rule
       // FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
-      FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
-      FILTER_MERGE_CALCITE_RULE,
       AggregateRemoveRule.INSTANCE,
       //ProjectRemoveRule.INSTANCE,
       //SortRemoveRule.INSTANCE,
@@ -440,14 +458,12 @@ public enum PlannerPhase {
        Projection push-down related rules
        */
       PUSH_PROJECT_PAST_FILTER_CALCITE_RULE,
-      PushProjectPastJoinRule.CALCITE_INSTANCE,
       // Due to infinite loop in planning (DRILL-3257), temporarily disable this rule
       //ProjectSetOpTransposeRule.INSTANCE,
       ProjectWindowTransposeRule.INSTANCE,
-      OldPushProjectIntoScanRule.INSTANCE,
       PushProjectIntoScanRule.INSTANCE,
       ProjectRule.INSTANCE,
-      MergeProjectRule.INSTANCE,
+      MergeProjectRule.CALCITE_INSTANCE,
 
       /*
        Rewrite flatten rules
@@ -467,7 +483,6 @@ public enum PlannerPhase {
       JoinRule.INSTANCE,
       UnionAllRule.INSTANCE,
       ValuesRule.INSTANCE,
-      OldScanRelRule.INSTANCE,
 
       FlattenRule.INSTANCE
       ).build());
@@ -480,7 +495,6 @@ public enum PlannerPhase {
     ruleList.add(SortPrule.INSTANCE);
     ruleList.add(ProjectPrule.INSTANCE);
     ruleList.add(FlattenPrule.INSTANCE);
-    ruleList.add(ScanPrule.INSTANCE);
     ruleList.add(ScreenPrule.INSTANCE);
     ruleList.add(ExpandConversionRule.INSTANCE);
     ruleList.add(FilterPrule.INSTANCE);

@@ -26,6 +26,7 @@ import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.sabot.op.common.hashtable.HashTable;
 import com.dremio.sabot.op.common.ht2.Reallocators;
 import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Preconditions;
@@ -73,7 +74,7 @@ public class ConditionalFieldBufferCopier6 {
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
-          final int batchOffset = PlatformDependent.getShort(addr + 4);
+          final int batchOffset = PlatformDependent.getShort(addr + 4) & HashTable.BATCH_MASK;
           final long srcAddr = srcAddrs[batchIndex] + batchOffset * SIZE;
           PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(srcAddr));
         }
@@ -110,7 +111,7 @@ public class ConditionalFieldBufferCopier6 {
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
-          final int batchOffset = PlatformDependent.getShort(addr + 4);
+          final int batchOffset = PlatformDependent.getShort(addr + 4) & HashTable.BATCH_MASK;
           final long srcAddr = srcAddrs[batchIndex] + batchOffset * SIZE;
           PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr));
         }
@@ -146,7 +147,7 @@ public class ConditionalFieldBufferCopier6 {
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
-          final int batchOffset = PlatformDependent.getShort(addr + 4);
+          final int batchOffset = PlatformDependent.getShort(addr + 4) & HashTable.BATCH_MASK;
           final long srcAddr = srcAddrs[batchIndex] + batchOffset * SIZE;
           PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr));
           PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(srcAddr + 8));
@@ -197,7 +198,7 @@ public class ConditionalFieldBufferCopier6 {
         if(batchIndex == SKIP){
           PlatformDependent.putInt(dstOffsetAddr, lastOffset);
         } else {
-          final int batchOffset = PlatformDependent.getShort(offsetAddr + 4);
+          final int batchOffset = PlatformDependent.getShort(offsetAddr + 4) & HashTable.BATCH_MASK;
 
           final long startAndEnd = PlatformDependent.getLong(srcOffsetAddrs[batchIndex] + batchOffset * 4);
           final int firstOffset = (int) startAndEnd;
@@ -256,7 +257,7 @@ public class ConditionalFieldBufferCopier6 {
       for(; offsetAddr < maxAddr; offsetAddr += BUILD_RECORD_LINK_SIZE, targetIndex++){
         final int batchIndex = PlatformDependent.getInt(offsetAddr);
         if(batchIndex != SKIP){
-          final int batchOffset = PlatformDependent.getShort(offsetAddr + 4);
+          final int batchOffset = PlatformDependent.getShort(offsetAddr + 4) & HashTable.BATCH_MASK;
           final int byteValue = PlatformDependent.getByte(srcAddr[batchIndex] + (batchOffset >>> 3));
           final int bitVal = ((byteValue >>> (batchOffset & 7)) & 1) << (targetIndex & 7);
           final long addr = dstAddr + (targetIndex >>> 3);
@@ -292,7 +293,7 @@ public class ConditionalFieldBufferCopier6 {
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
-          final int batchOffset = PlatformDependent.getShort(addr + 4);
+          final int batchOffset = PlatformDependent.getShort(addr + 4) & HashTable.BATCH_MASK;
           transfer[batchIndex].copyValueSafe(batchOffset, target);
           target++;
         }

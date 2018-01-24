@@ -29,13 +29,13 @@ export const MYSQL = 'MYSQL';
 export const NAS = 'NAS';
 export const ORACLE = 'ORACLE';
 export const POSTGRESQL = 'POSTGRES';
+export const ADL = 'ADL';
 
 // These are not implemented in the backend yet.
 export const CASSANDRA = 'CASSANDRA';
 export const SALESFORCE = 'SALESFORCE';
 export const NETEZZA = 'NETEZZA';
 export const TERADATA = 'TERADATA';
-
 
 export const sourceProperties = [
   // todo: loc
@@ -51,5 +51,6 @@ export const sourceProperties = [
   {label: 'MySQL', sourceType: MYSQL},
   {label: 'NAS', sourceType: NAS},
   {label: 'Oracle', sourceType: ORACLE},
-  {label: 'PostgreSQL', sourceType: POSTGRESQL, beta: true}
+  {label: 'PostgreSQL', sourceType: POSTGRESQL, beta: true},
+  {label: 'Azure Data Lake Store', sourceType: ADL, beta: true}
 ];

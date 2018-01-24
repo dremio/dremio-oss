@@ -108,7 +108,7 @@ export default class ValueList extends Component {
   render() {
     const {fieldList, emptyLabel} = this.props;
     return (
-      <div>
+      <div className='field'>
         <FieldList
           style={{margin: '10px 0'}}
           items={fieldList}

@@ -69,16 +69,16 @@ public class TestDecimal extends PopUnitTestBase{
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
             // Check the output of decimal9
-            ValueVector.Accessor dec9Accessor = itr.next().getValueVector().getAccessor();
-            ValueVector.Accessor dec18Accessor = itr.next().getValueVector().getAccessor();
+            ValueVector dec9ValueVector = itr.next().getValueVector();
+            ValueVector dec18ValueVector = itr.next().getValueVector();
 
 
-            for (int i = 0; i < dec9Accessor.getValueCount(); i++) {
-                assertEquals(dec9Accessor.getObject(i).toString(), decimal9Output[i]);
-                assertEquals(dec18Accessor.getObject(i).toString(), decimal18Output[i]);
+            for (int i = 0; i < dec9ValueVector.getValueCount(); i++) {
+                assertEquals(dec9ValueVector.getObject(i).toString(), decimal9Output[i]);
+                assertEquals(dec18ValueVector.getObject(i).toString(), decimal18Output[i]);
             }
-            assertEquals(6, dec9Accessor.getValueCount());
-            assertEquals(6, dec18Accessor.getValueCount());
+            assertEquals(6, dec9ValueVector.getValueCount());
+            assertEquals(6, dec18ValueVector.getValueCount());
 
             batchLoader.clear();
             for (QueryDataBatch result : results) {
@@ -114,16 +114,16 @@ public class TestDecimal extends PopUnitTestBase{
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
             // Check the output of decimal9
-            ValueVector.Accessor dec9Accessor = itr.next().getValueVector().getAccessor();
-            ValueVector.Accessor dec38Accessor = itr.next().getValueVector().getAccessor();
+            ValueVector dec9ValueVector = itr.next().getValueVector();
+            ValueVector dec38ValueVector = itr.next().getValueVector();
 
 
-            for (int i = 0; i < dec9Accessor.getValueCount(); i++) {
-                assertEquals(dec9Accessor.getObject(i).toString(), decimal9Output[i]);
-                assertEquals(dec38Accessor.getObject(i).toString(), decimal38Output[i]);
+            for (int i = 0; i < dec9ValueVector.getValueCount(); i++) {
+                assertEquals(dec9ValueVector.getObject(i).toString(), decimal9Output[i]);
+                assertEquals(dec38ValueVector.getObject(i).toString(), decimal38Output[i]);
             }
-            assertEquals(6, dec9Accessor.getValueCount());
-            assertEquals(6, dec38Accessor.getValueCount());
+            assertEquals(6, dec9ValueVector.getValueCount());
+            assertEquals(6, dec38ValueVector.getValueCount());
 
             batchLoader.clear();
             for (QueryDataBatch result : results) {
@@ -161,19 +161,19 @@ public class TestDecimal extends PopUnitTestBase{
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
             // Check the output of add
-            ValueVector.Accessor addAccessor = itr.next().getValueVector().getAccessor();
-            ValueVector.Accessor subAccessor = itr.next().getValueVector().getAccessor();
-            ValueVector.Accessor mulAccessor = itr.next().getValueVector().getAccessor();
+            ValueVector addValueVector = itr.next().getValueVector();
+            ValueVector subValueVector = itr.next().getValueVector();
+            ValueVector mulValueVector = itr.next().getValueVector();
 
-            for (int i = 0; i < addAccessor.getValueCount(); i++) {
-                assertEquals(addAccessor.getObject(i).toString(), addOutput[i]);
-                assertEquals(subAccessor.getObject(i).toString(), subtractOutput[i]);
-                assertEquals(mulAccessor.getObject(i).toString(), multiplyOutput[i]);
+            for (int i = 0; i < addValueVector.getValueCount(); i++) {
+                assertEquals(addValueVector.getObject(i).toString(), addOutput[i]);
+                assertEquals(subValueVector.getObject(i).toString(), subtractOutput[i]);
+                assertEquals(mulValueVector.getObject(i).toString(), multiplyOutput[i]);
 
             }
-            assertEquals(6, addAccessor.getValueCount());
-            assertEquals(6, subAccessor.getValueCount());
-            assertEquals(6, mulAccessor.getValueCount());
+            assertEquals(6, addValueVector.getValueCount());
+            assertEquals(6, subValueVector.getValueCount());
+            assertEquals(6, mulValueVector.getValueCount());
 
             batchLoader.clear();
             for (QueryDataBatch result : results) {
@@ -211,15 +211,15 @@ public class TestDecimal extends PopUnitTestBase{
 
             Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
-            ValueVector.Accessor addAccessor = itr.next().getValueVector().getAccessor();
-            ValueVector.Accessor subAccessor = itr.next().getValueVector().getAccessor();
+            ValueVector addValueVector = itr.next().getValueVector();
+            ValueVector subValueVector = itr.next().getValueVector();
 
-            for (int i = 0; i < addAccessor.getValueCount(); i++) {
-                assertEquals(addAccessor.getObject(i).toString(), addOutput[i]);
-                assertEquals(subAccessor.getObject(i).toString(), subtractOutput[i]);
+            for (int i = 0; i < addValueVector.getValueCount(); i++) {
+                assertEquals(addValueVector.getObject(i).toString(), addOutput[i]);
+                assertEquals(subValueVector.getObject(i).toString(), subtractOutput[i]);
             }
-            assertEquals(7, addAccessor.getValueCount());
-            assertEquals(7, subAccessor.getValueCount());
+            assertEquals(7, addValueVector.getValueCount());
+            assertEquals(7, subValueVector.getValueCount());
 
             batchLoader.clear();
             for (QueryDataBatch result : results) {
@@ -264,12 +264,12 @@ public class TestDecimal extends PopUnitTestBase{
 
             // Check the output of sort
             VectorWrapper<?> v = itr.next();
-            ValueVector.Accessor accessor = v.getValueVector().getAccessor();
+            ValueVector vv = v.getValueVector();
 
-            for (int i = 0; i < accessor.getValueCount(); i++) {
-                assertEquals(sortOutput[i], accessor.getObject(i).toString());
+            for (int i = 0; i < vv.getValueCount(); i++) {
+                assertEquals(sortOutput[i], vv.getObject(i).toString());
             }
-            assertEquals(10, accessor.getValueCount());
+            assertEquals(10, vv.getValueCount());
 
             batchLoader.clear();
             for (QueryDataBatch result : results) {
@@ -302,9 +302,9 @@ public class TestDecimal extends PopUnitTestBase{
       Iterator<VectorWrapper<?>> itr = batchLoader.iterator();
 
       // Check the output of decimal18
-      ValueVector.Accessor dec18Accessor = itr.next().getValueVector().getAccessor();
+      ValueVector dec18ValueVector = itr.next().getValueVector();
 
-      assertEquals(6, dec18Accessor.getValueCount());
+      assertEquals(6, dec18ValueVector.getValueCount());
 
       batchLoader.clear();
       for (QueryDataBatch result : results) {

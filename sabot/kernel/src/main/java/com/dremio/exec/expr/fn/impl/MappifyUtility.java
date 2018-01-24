@@ -23,8 +23,8 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.vector.complex.MapUtility;
 import com.google.common.base.Charsets;
 
@@ -32,16 +32,19 @@ import io.netty.buffer.ArrowBuf;
 
 public class MappifyUtility {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MappifyUtility.class);
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MappifyUtility.class);
 
   // Default names used in the map.
   public static final String fieldKey = "key";
   public static final String fieldValue = "value";
 
-  public static ArrowBuf mappify(FieldReader reader, BaseWriter.ComplexWriter writer, ArrowBuf buffer) {
+  public static ArrowBuf mappify(FieldReader reader, BaseWriter.ComplexWriter writer, ArrowBuf buffer,
+                                 FunctionErrorContext errorContext) {
     // Currently we expect single map as input
     if (reader.getMinorType() != getArrowMinorType(MinorType.MAP)) {
-      throw UserException.functionError().message("The kvgen function can only be used when operating against maps.").build(logger);
+      throw errorContext.error()
+          .message("The kvgen function can only be used when operating against maps.")
+          .build();
     }
     BaseWriter.ListWriter listWriter = writer.rootAsList();
     listWriter.startList();
@@ -73,7 +76,12 @@ public class MappifyUtility {
       mapWriter.varChar(fieldKey).write(vh);
 
       // Write the value to the map
-      MapUtility.writeToMapFromReader(fieldReader, mapWriter);
+      try {
+        MapUtility.writeToMapFromReader(fieldReader, mapWriter);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+            .build();
+      }
 
       mapWriter.end();
     }

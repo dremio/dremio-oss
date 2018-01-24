@@ -17,6 +17,8 @@ package com.dremio.exec.expr.fn.impl;
 
 import java.text.DecimalFormat;
 
+import javax.inject.Inject;
+
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.Float8Holder;
@@ -29,6 +31,7 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 public class MathFunctions{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MathFunctions.class);
@@ -85,6 +88,7 @@ public class MathFunctions{
     @Workspace java.text.DecimalFormat inputFormat;
     @Workspace int decimalDigits;
     @Output Float8Holder out;
+    @Inject FunctionErrorContext errCtx;
 
     public void setup() {
       byte[] buf = new byte[right.end - right.start];
@@ -100,7 +104,9 @@ public class MathFunctions{
       try {
         out.value = inputFormat.parse(input).doubleValue();
       }  catch(java.text.ParseException e) {
-         throw new UnsupportedOperationException("Cannot parse input: " + input + " with pattern : " + inputFormat.toPattern());
+        throw errCtx.error()
+          .message("Cannot parse input: " + input + " with pattern : " + inputFormat.toPattern())
+          .build();
       }
 
       // Round the value
