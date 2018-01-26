@@ -78,6 +78,7 @@ class QueryProfileParser {
   public QueryProfileParser(final JobId jobId, final QueryProfile queryProfile) throws IOException {
     mapper = new ObjectMapper();
     mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+    mapper.configure(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS,true);//this is added for solved this issue. https://community.dremio.com/t/non-standard-token-nan/637
     operatorToTable = Maps.newHashMap();
     jobDetails = new JobDetails();
     jobStats = new JobStats();
