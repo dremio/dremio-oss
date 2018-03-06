@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,34 +20,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.exec.ExecConstants;
 import com.google.common.base.Function;
 
 public class Bug1735ResultSetCloseReleasesBuffersTest extends JdbcTestQueryBase {
-
-  // TODO: Move Jetty status server disabling to DremioTest.
-
-  private static final String STATUS_SERVER_PROPERTY_NAME =
-      ExecConstants.HTTP_ENABLE;
-
-  private static final String origStatusServerPropValue =
-      System.getProperty( STATUS_SERVER_PROPERTY_NAME, "true" );
-
-  // Disable Jetty status server so unit tests run (outside Maven setup).
-  // (TODO:  Move this to base test class and/or have Jetty try other ports.)
-  @BeforeClass
-  public static void setUpClass() {
-    System.setProperty( STATUS_SERVER_PROPERTY_NAME, "false" );
-  }
-
-  @AfterClass
-  public static void tearDownClass() {
-    System.setProperty( STATUS_SERVER_PROPERTY_NAME, origStatusServerPropValue );
-  }
 
   // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
   // conditions are fixed (not just DRILL-2245 fixes).
@@ -63,9 +40,10 @@ public class Bug1735ResultSetCloseReleasesBuffersTest extends JdbcTestQueryBase 
   @Test
   public void test() throws Exception {
     JdbcAssert
-    .withNoDefaultSchema()
+    .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
     .withConnection(
         new Function<Connection, Void>() {
+          @Override
           public Void apply( Connection connection ) {
             try {
               Statement statement = connection.createStatement();

@@ -74,7 +74,7 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} or {@code value} is {@code null}
    */
-  public static final SearchQuery newTermQuery(String field, Integer value) {
+  public static final SearchQuery newTermQuery(String field, int value) {
     return SearchQuery.newBuilder()
       .setType(SearchQuery.Type.TERM_INT)
       .setTermInt(SearchQuery.TermInt.newBuilder().setField(field).setValue(value))
@@ -84,12 +84,24 @@ public final class SearchQueryUtils {
   /**
    * Create a term query
    *
+   * @param indexKey the index key to scan
+   * @param value the value to look for
+   * @return a query instance
+   * @throws NullPointerException if {@code indexKey} is {@code null}
+   */
+  public static final SearchQuery newTermQuery(IndexKey indexKey, int value) {
+    return newTermQuery(indexKey.getIndexFieldName(), value);
+  }
+
+  /**
+   * Create a term query
+   *
    * @param field the field to scan
    * @param value the value to look for
    * @return a query instance
    * @throws NullPointerException if {@code field} or {@code value} is {@code null}
    */
-  public static final SearchQuery newTermQuery(String field, Long value) {
+  public static final SearchQuery newTermQuery(String field, long value) {
     return SearchQuery.newBuilder()
       .setType(SearchQuery.Type.TERM_LONG)
       .setTermLong(SearchQuery.TermLong.newBuilder().setField(field).setValue(value))
@@ -99,16 +111,13 @@ public final class SearchQueryUtils {
   /**
    * Create a term query
    *
-   * @param field the field to scan
+   * @param indexKey the index key to scan
    * @param value the value to look for
    * @return a query instance
-   * @throws NullPointerException if {@code field} or {@code value} is {@code null}
+   * @throws NullPointerException if {@code indexKey} is {@code null}
    */
-  public static final SearchQuery newTermQuery(String field, Float value) {
-    return SearchQuery.newBuilder()
-      .setType(SearchQuery.Type.TERM_FLOAT)
-      .setTermFloat(SearchQuery.TermFloat.newBuilder().setField(field).setValue(value))
-      .build();
+  public static final SearchQuery newTermQuery(IndexKey indexKey, long value) {
+    return newTermQuery(indexKey.getIndexFieldName(), value);
   }
 
   /**
@@ -119,11 +128,50 @@ public final class SearchQueryUtils {
    * @return a query instance
    * @throws NullPointerException if {@code field} or {@code value} is {@code null}
    */
-  public static final SearchQuery newTermQuery(String field, Double value) {
+  public static final SearchQuery newTermQuery(String field, float value) {
     return SearchQuery.newBuilder()
       .setType(SearchQuery.Type.TERM_FLOAT)
+      .setTermFloat(SearchQuery.TermFloat.newBuilder().setField(field).setValue(value))
+      .build();
+  }
+
+  /**
+   * Create a term query
+   *
+   * @param indexKey the index key to scan
+   * @param value the value to look for
+   * @return a query instance
+   * @throws NullPointerException if {@code indexKey} is {@code null}
+   */
+  public static final SearchQuery newTermQuery(IndexKey indexKey, float value) {
+    return newTermQuery(indexKey.getIndexFieldName(), value);
+  }
+
+  /**
+   * Create a term query
+   *
+   * @param field the field to scan
+   * @param value the value to look for
+   * @return a query instance
+   * @throws NullPointerException if {@code field} or {@code value} is {@code null}
+   */
+  public static final SearchQuery newTermQuery(String field, double value) {
+    return SearchQuery.newBuilder()
+      .setType(SearchQuery.Type.TERM_DOUBLE)
       .setTermDouble(SearchQuery.TermDouble.newBuilder().setField(field).setValue(value))
       .build();
+  }
+
+  /**
+   * Create a term query
+   *
+   * @param indexKey the index key to scan
+   * @param value the value to look for
+   * @return a query instance
+   * @throws NullPointerException if {@code indexKey} is {@code null}
+   */
+  public static final SearchQuery newTermQuery(IndexKey indexKey, double value) {
+    return newTermQuery(indexKey.getIndexFieldName(), value);
   }
 
   /**

@@ -16,6 +16,7 @@
 package org.apache.arrow.memory;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.memory.DremioRootAllocator;
 
 public class RootAllocatorFactory {
 
@@ -33,6 +34,6 @@ public class RootAllocatorFactory {
    * @return a new root allocator
    */
   public static BufferAllocator newRoot(final SabotConfig config) {
-    return new RootAllocator(Math.min(SabotConfig.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
+    return new DremioRootAllocator(Math.min(SabotConfig.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
   }
 }

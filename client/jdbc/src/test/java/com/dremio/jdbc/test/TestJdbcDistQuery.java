@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 package com.dremio.jdbc.test;
 
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -32,23 +30,19 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
-public class TestJdbcDistQuery extends JdbcTestBase {
+public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJdbcDistQuery.class);
-
 
   // Set a timeout unless we're debugging.
   @Rule public TestRule TIMEOUT = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
   private static final String WORKING_PATH;
-  static{
-    Driver.load();
+  static {
     WORKING_PATH = Paths.get("").toAbsolutePath().toString();
-
   }
 
   // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
@@ -191,14 +185,14 @@ public class TestJdbcDistQuery extends JdbcTestBase {
 
  private void testQuery(String sql) throws Exception{
     boolean success = false;
-    try (Connection c = DriverManager.getConnection("jdbc:dremio:zk=local", null);) {
+    try {
       // ???? TODO:  What is this currently redundant one-time loop for?  (If
       // it's kept around to make it easy to switch to looping multiple times
       // (e.g., for debugging) then define a constant field or local variable
       // for the number of iterations.)
       for (int x = 0; x < 1; x++) {
         Stopwatch watch = Stopwatch.createStarted();
-        Statement s = c.createStatement();
+        Statement s = getConnection().createStatement();
         ResultSet r = s.executeQuery(sql);
         boolean first = true;
         ResultSetMetaData md = r.getMetaData();
@@ -235,23 +229,21 @@ public class TestJdbcDistQuery extends JdbcTestBase {
   @Test
   public void testSchemaForEmptyResultSet() throws Exception {
     String query = "select fullname, occupation, postal_code from cp.`customer.json` where 0 = 1";
-    try (Connection c = DriverManager.getConnection("jdbc:dremio:zk=local", null);) {
-      Statement s = c.createStatement();
-      ResultSet r = s.executeQuery(query);
-      ResultSetMetaData md = r.getMetaData();
-      List<String> columns = Lists.newArrayList();
-      for (int i = 1; i <= md.getColumnCount(); i++) {
-        System.out.print(md.getColumnName(i));
-        System.out.print('\t');
-        columns.add(md.getColumnName(i));
-      }
-      String[] expected = {"fullname", "occupation", "postal_code"};
-      Assert.assertEquals(3, md.getColumnCount());
-      Assert.assertArrayEquals(expected, columns.toArray());
-      // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
-      // conditions are fixed (not just DRILL-2245 fixes).
-      nextUntilEnd(r);
+    Statement s = getConnection().createStatement();
+    ResultSet r = s.executeQuery(query);
+    ResultSetMetaData md = r.getMetaData();
+    List<String> columns = Lists.newArrayList();
+    for (int i = 1; i <= md.getColumnCount(); i++) {
+      System.out.print(md.getColumnName(i));
+      System.out.print('\t');
+      columns.add(md.getColumnName(i));
     }
+    String[] expected = {"fullname", "occupation", "postal_code"};
+    Assert.assertEquals(3, md.getColumnCount());
+    Assert.assertArrayEquals(expected, columns.toArray());
+    // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
+    // conditions are fixed (not just DRILL-2245 fixes).
+    nextUntilEnd(r);
   }
 
 }

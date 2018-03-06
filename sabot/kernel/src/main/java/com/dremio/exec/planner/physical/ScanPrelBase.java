@@ -38,7 +38,7 @@ import com.dremio.service.namespace.dataset.proto.Affinity;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 
 
-public abstract class ScanPrelBase extends ScanRelBase implements Prel, HasDistributionAffinity {
+public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel {
 
   public ScanPrelBase(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
       TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
@@ -46,10 +46,12 @@ public abstract class ScanPrelBase extends ScanRelBase implements Prel, HasDistr
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) != Rel.LOGICAL;
   }
 
+  @Override
   public int getMaxParallelizationWidth(){
     return tableMetadata.getSplitCount();
   }
 
+  @Override
   public int getMinParallelizationWidth() {
     if(getDistributionAffinity() != DistributionAffinity.HARD){
       return 1;
@@ -74,7 +76,7 @@ public abstract class ScanPrelBase extends ScanRelBase implements Prel, HasDistr
 
   @Override
   public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
-    return logicalVisitor.visitScan(this, value);
+    return logicalVisitor.visitLeaf(this, value);
   }
 
   @Override

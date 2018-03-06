@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,8 +41,7 @@ import org.slf4j.Logger;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
 /**
@@ -64,14 +62,13 @@ import com.dremio.jdbc.JdbcTestBase;
  * 103 UnsupportedOperationException in AvaticaResultSet
  * </pre>
  */
-public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcTestBase {
+public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServerTestBase {
   private static final Logger logger =
       getLogger(Drill2769UnsupportedReportsUseSqlExceptionTest.class);
 
   @Rule
   public TestRule TIMEOUT = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
-  private static Connection connection;
   private static Statement plainStatement;
   private static PreparedStatement preparedStatement;
   // No CallableStatement.
@@ -80,25 +77,22 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcTestBase
   private static DatabaseMetaData databaseMetaData;
 
   @BeforeClass
-  public static void setUpObjects() throws Exception {
-    // (Note: Can't use JdbcTest's connect(...) for this test class.)
+  public static void setUpConnection() throws SQLException {
+    JdbcWithServerTestBase.setUpConnection();
 
-    connection = new Driver().connect("jdbc:dremio:zk=local",
-                                      JdbcAssert.getDefaultProperties());
-
-    plainStatement = connection.createStatement();
+    plainStatement = getConnection().createStatement();
     preparedStatement =
-        connection.prepareStatement("VALUES 'PreparedStatement query'");
+        getConnection().prepareStatement("VALUES 'PreparedStatement query'");
 
     try {
-      connection.prepareCall("VALUES 'CallableStatement query'");
+      getConnection().prepareCall("VALUES 'CallableStatement query'");
       fail("Test seems to be out of date.  Was prepareCall(...) implemented?");
     }
     catch (SQLException | UnsupportedOperationException e) {
       // Expected.
     }
     try {
-      connection.createArrayOf("INTEGER", new Object[0]);
+      getConnection().createArrayOf("INTEGER", new Object[0]);
       fail("Test seems to be out of date.  Were arrays implemented?");
     }
     catch (SQLException | UnsupportedOperationException e) {
@@ -109,21 +103,16 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcTestBase
     resultSet.next();
 
     resultSetMetaData = resultSet.getMetaData();
-    databaseMetaData = connection.getMetaData();
+    databaseMetaData = getConnection().getMetaData();
 
     // Self-check that member variables are set:
-    assertFalse("Test setup error", connection.isClosed());
+    assertFalse("Test setup error", getConnection().isClosed());
     assertFalse("Test setup error", plainStatement.isClosed());
     assertFalse("Test setup error", preparedStatement.isClosed());
     assertFalse("Test setup error", resultSet.isClosed());
     // (No ResultSetMetaData.isClosed() or DatabaseMetaData.isClosed():)
     assertNotNull("Test setup error", resultSetMetaData);
     assertNotNull("Test setup error", databaseMetaData);
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws Exception {
-    connection.close();
   }
 
   /**
@@ -352,7 +341,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcTestBase
   @Test
   public void testConnectionMethodsThrowRight() {
     NoNonSqlExceptionsChecker<Connection> checker =
-        new NoNonSqlExceptionsChecker<>(Connection.class, connection);
+        new NoNonSqlExceptionsChecker<>(Connection.class, getConnection());
 
     checker.testMethods();
 
@@ -389,7 +378,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcTestBase
   @Test
   public void testPlainStatementMethodsThrowRight() {
     NoNonSqlExceptionsChecker<Statement> checker =
-        new PlainStatementChecker(connection);
+        new PlainStatementChecker(getConnection());
 
     checker.testMethods();
 
@@ -424,7 +413,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcTestBase
   @Test
   public void testPreparedStatementMethodsThrowRight() {
     NoNonSqlExceptionsChecker<PreparedStatement> checker =
-        new PreparedStatementChecker(connection);
+        new PreparedStatementChecker(getConnection());
 
     checker.testMethods();
 

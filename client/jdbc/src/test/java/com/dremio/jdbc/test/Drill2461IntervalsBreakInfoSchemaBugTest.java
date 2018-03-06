@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,39 +17,21 @@ package com.dremio.jdbc.test;
 
 import static org.junit.Assert.assertTrue;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.dremio.jdbc.JdbcTestBase;
-
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
+import org.junit.Test;
 
-public class Drill2461IntervalsBreakInfoSchemaBugTest extends JdbcTestBase {
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
+
+public class Drill2461IntervalsBreakInfoSchemaBugTest extends JdbcWithServerTestBase {
   private static final String VIEW_NAME =
       Drill2461IntervalsBreakInfoSchemaBugTest.class.getSimpleName() + "_View";
 
-  private static Connection connection;
-
-
-  @BeforeClass
-  public static void setUpConnection() throws Exception {
-    connection = connect( "jdbc:dremio:zk=local" );
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws Exception {
-    connection.close();
-  }
-
-
   @Test
   public void testIntervalInViewDoesntCrashInfoSchema() throws Exception {
-    final Statement stmt = connection.createStatement();
+    final Statement stmt = getConnection().createStatement();
     ResultSet util;
 
     // Create a view using an INTERVAL type:
@@ -70,7 +52,7 @@ public class Drill2461IntervalsBreakInfoSchemaBugTest extends JdbcTestBase {
     assertTrue( util.next() );
 
     // Clean up the test view:
-    util = connection.createStatement().executeQuery( "DROP VIEW " + VIEW_NAME );
+    util = getConnection().createStatement().executeQuery( "DROP VIEW " + VIEW_NAME );
     assertTrue( util.next() );
     assertTrue( "Error dropping temporary test-columns view " + VIEW_NAME + ": "
          + util.getString( 2 ), util.getBoolean( 1 ) );

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ import org.junit.Assert;
 
 import com.dremio.common.logical.LogicalPlan;
 import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.jdbc.ConnectionFactory;
 import com.dremio.jdbc.ConnectionInfo;
@@ -65,30 +64,25 @@ public class JdbcAssert {
    */
   public static Properties getDefaultProperties() {
     final Properties properties = new Properties();
-    properties.setProperty("dremioJDBCUnitTests", "true");
 
-    // Must set this to false to ensure that the tests ignore any existing
-    // plugin configurations stored in /tmp/dremio.
-
-    properties.setProperty(ExecConstants.HTTP_ENABLE, "false");
     return properties;
   }
 
-  public static ModelAndSchema withModel(final String model, final String schema) {
+  public static ModelAndSchema withModel(final String url, final String model, final String schema) {
     final Properties info = getDefaultProperties();
     info.setProperty("schema", schema);
     info.setProperty("model", "inline:" + model);
-    return new ModelAndSchema(info, factory);
+    return new ModelAndSchema(url, info, factory);
   }
 
-  public static ModelAndSchema withFull(final String schema) {
+  public static ModelAndSchema withFull(final String url, final String schema) {
     final Properties info = getDefaultProperties();
     info.setProperty("schema", schema);
-    return new ModelAndSchema(info, factory);
+    return new ModelAndSchema(url, info, factory);
   }
 
-  public static ModelAndSchema withNoDefaultSchema() {
-    return new ModelAndSchema(getDefaultProperties(), factory);
+  public static ModelAndSchema withNoDefaultSchema(final String url) {
+    return new ModelAndSchema(url, getDefaultProperties(), factory);
   }
 
   static String toString(ResultSet resultSet, int expectedRecordCount) throws SQLException {
@@ -162,12 +156,12 @@ public class JdbcAssert {
     private final Properties info;
     private final ConnectionFactoryAdapter adapter;
 
-    public ModelAndSchema(final Properties info, final ConnectionFactory factory) {
+    public ModelAndSchema(final String url, final Properties info, final ConnectionFactory factory) {
       this.info = info;
       this.adapter = new ConnectionFactoryAdapter() {
         @Override
         public Connection createConnection() throws Exception {
-          return factory.getConnection(new ConnectionInfo("jdbc:dremio:zk=local", ModelAndSchema.this.info));
+          return factory.getConnection(new ConnectionInfo(url, ModelAndSchema.this.info));
         }
       };
     }

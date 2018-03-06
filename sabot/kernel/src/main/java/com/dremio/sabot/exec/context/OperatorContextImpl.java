@@ -23,12 +23,15 @@ import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.service.namespace.NamespaceService;
@@ -54,6 +57,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final OptionManager optionManager;
   private final int targetBatchSize;
   private final NamespaceService ns;
+  private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public OperatorContextImpl(
       SabotConfig config,
@@ -68,6 +72,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ContextInformation contextInformation,
       OptionManager optionManager,
       NamespaceService namespaceService,
+      NodeDebugContextProvider nodeDebugContextProvider,
       int targetBatchSize) throws OutOfMemoryException {
     this.config = config;
     this.handle = handle;
@@ -80,6 +85,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.optionManager = optionManager;
     this.targetBatchSize = targetBatchSize;
     this.ns = namespaceService;
+    this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.producer = new ClassProducerImpl(compiler, functions, contextInformation, manager);
   }
 
@@ -89,7 +95,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       OptionManager optionManager,
       int targetBatchSize
       ) {
-    this(config, null, null, allocator, null, null, null, null, null, null, optionManager, null, targetBatchSize);
+    this(config, null, null, allocator, null, null, null, null, null, null,
+      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize);
   }
 
 
@@ -185,5 +192,10 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   @Override
   public NamespaceService getNamespaceService() {
     return ns;
+  }
+
+  @Override
+  public  NodeDebugContextProvider getNodeDebugContextProvider() {
+    return nodeDebugContextProvider;
   }
 }

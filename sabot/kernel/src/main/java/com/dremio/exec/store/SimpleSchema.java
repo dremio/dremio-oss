@@ -42,8 +42,8 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
 import com.dremio.exec.store.SchemaTreeProvider.MetadataStatsCollector;
+import com.dremio.exec.store.SchemaTreeProvider.SchemaType;
 import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -300,7 +300,7 @@ public class SimpleSchema extends AbstractSchema {
     }
 
     if (!isPartialState(datasetConfig)) {
-      final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), datasetConfig, schemaConfig.getUserName(), new SplitsPointerImpl(datasetConfig, ns)));
+      final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), datasetConfig, schemaConfig.getUserName(), DatasetSplitsPointer.of(ns, datasetConfig)));
       stopwatch.stop();
       metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
       return namespaceTable;
@@ -325,7 +325,7 @@ public class SimpleSchema extends AbstractSchema {
       // check permission again.
       if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey,
           newDatasetConfig, metadataParam == null ? null : metadataParam.getMetadataPolicy(), metadataStatsCollector)) {
-        TableMetadata metadata = new TableMetadataImpl(registry.getId(), newDatasetConfig, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size()));
+        TableMetadata metadata = new TableMetadataImpl(registry.getId(), newDatasetConfig, schemaConfig.getUserName(), new MaterializedSplitsPointer(splits, splits.size()));
         stopwatch.stop();
         metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.PARTIAL_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
         return new NamespaceTable(metadata);
@@ -384,7 +384,7 @@ public class SimpleSchema extends AbstractSchema {
         }
       }
       if (permissionsCache.hasAccess(registry, schemaConfig.getUserName(), canonicalKey, config, metadataParam == null ? null : metadataParam.getMetadataPolicy(), metadataStatsCollector)) {
-        final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), config, schemaConfig.getUserName(), new SplitsPointerImpl(splits, splits.size())));
+        final NamespaceTable namespaceTable = new NamespaceTable(new TableMetadataImpl(registry.getId(), config, schemaConfig.getUserName(), new MaterializedSplitsPointer(splits, splits.size())));
         stopwatch.stop();
         metadataStatsCollector.addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.SOURCE_METADATA.name(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
         return namespaceTable;

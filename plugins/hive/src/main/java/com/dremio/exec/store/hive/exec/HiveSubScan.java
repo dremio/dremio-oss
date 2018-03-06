@@ -54,7 +54,7 @@ public class HiveSubScan extends SubScanWithProjection {
       ) {
     super(userName, schema, tablePath, columns);
     this.splits = splits;
-    this.conditions = conditions;
+    this.conditions = conditions == null ? null : ImmutableList.copyOf(conditions);
     this.pluginId = pluginId;
     this.extendedProperty = extendedProperty;
     this.partitionColumns = partitionColumns != null ? ImmutableList.copyOf(partitionColumns) : null;

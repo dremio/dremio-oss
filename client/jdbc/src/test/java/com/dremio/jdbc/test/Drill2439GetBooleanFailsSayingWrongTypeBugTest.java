@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,38 +15,33 @@
  */
 package com.dremio.jdbc.test;
 
-import static org.junit.Assert.fail;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.hamcrest.CoreMatchers.*;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
-
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
-
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcTestBase {
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
-  private static Connection connection;
+
+public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServerTestBase {
   private static Statement statement;
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {
-    connection = new Driver().connect( "jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties() );
-    statement = connection.createStatement();
+    JdbcWithServerTestBase.setUpConnection();
+    statement = getConnection().createStatement();
   }
 
   @AfterClass
   public static void tearDownConnection() throws SQLException {
-    connection.close();
+    statement.close();
+    JdbcWithServerTestBase.tearDownConnection();
   }
 
   @Test

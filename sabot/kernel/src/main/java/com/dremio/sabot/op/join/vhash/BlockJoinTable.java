@@ -71,7 +71,7 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public void insert(long findAddr, int records) {
+  public void insert(final long findAddr, int records) {
     try(FixedBlockVector fbv = new FixedBlockVector(allocator, buildPivot.getBlockWidth());
         VariableBlockVector var = new VariableBlockVector(allocator, buildPivot.getVariableCount());
         ){
@@ -82,13 +82,15 @@ public class BlockJoinTable implements JoinTable {
       final long keyFixedAddr = fbv.getMemoryAddress();
       final long keyVarAddr = var.getMemoryAddress();
 
-      try(ArrowBuf offsets = allocator.buffer(records * 4)){
-        insertWatch.start();
-        for(int i =0 ; i < records; i++, findAddr += 4){
-          PlatformDependent.putInt(findAddr, table.add(keyFixedAddr, keyVarAddr, i));
-        }
-        insertWatch.stop();
+      table.traceInsertStart(records);
+      insertWatch.start();
+      long ordAddr = findAddr;
+      for(int i =0 ; i < records; i++, ordAddr += 4){
+        PlatformDependent.putInt(ordAddr, table.add(keyFixedAddr, keyVarAddr, i));
       }
+      insertWatch.stop();
+      table.traceOrdinals(findAddr, records);
+      table.traceInsertEnd();
     }
   }
 
@@ -196,5 +198,20 @@ public class BlockJoinTable implements JoinTable {
     table.close();
   }
 
+  @Override
+  public AutoCloseable traceStart(int numRecords) {
+    table.traceStart(numRecords);
+    return new AutoCloseable() {
+      @Override
+      public void close() throws Exception {
+        table.traceEnd();
+      }
+    };
+  }
+
+  @Override
+  public String traceReport() {
+    return table.traceReport();
+  }
 
 }

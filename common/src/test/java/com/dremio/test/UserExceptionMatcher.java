@@ -16,24 +16,34 @@
 package com.dremio.test;
 
 
+import java.util.Arrays;
+
+import javax.annotation.Nullable;
+
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 
 /**
  * Matcher for UserException that matches if expected type and actual type are the same, and expected message is
  * contained in the actual message.
+ *
+ * For usage, check out TestInboundImpersonation.invalidPolicy()
  */
 public class UserExceptionMatcher extends TypeSafeMatcher<UserException> {
 
   private final ErrorType expectedType;
   private final String expectedMessage;
+  private final String[] expectedContexts;
 
-  public UserExceptionMatcher(final ErrorType expectedType, final String expectedMessage) {
+  public UserExceptionMatcher(final ErrorType expectedType, final String expectedMessage, final String... expectedContexts) {
     this.expectedType = expectedType;
     this.expectedMessage = expectedMessage;
+    this.expectedContexts = expectedContexts;
   }
 
   public UserExceptionMatcher(final ErrorType expectedType) {
@@ -43,7 +53,19 @@ public class UserExceptionMatcher extends TypeSafeMatcher<UserException> {
   @Override
   protected boolean matchesSafely(final UserException e) {
     // Use .contains(...) to compare expected and actual message as the exact messages may differ.
-    return expectedType == e.getErrorType() && (expectedMessage == null || e.getMessage().contains(expectedMessage));
+    return (expectedType == e.getErrorType())
+      && (expectedMessage == null || e.getMessage().contains(expectedMessage))
+      && (expectedContexts == null || FluentIterable.from(Arrays.asList(expectedContexts)).filter(new Predicate<String>() {
+            @Override
+            public boolean apply(String input) {
+              for (String context : e.getContextStrings()) {
+                if (context.contains(input)) {
+                  return true;
+                }
+              }
+              return false;
+            }
+          }).size() == expectedContexts.length);
   }
 
   @Override
@@ -55,6 +77,9 @@ public class UserExceptionMatcher extends TypeSafeMatcher<UserException> {
         .appendText(expectedMessage)
         .appendText("\"");
     }
+    if (expectedContexts != null) {
+      description.appendValueList(" with contexts that contain every one of {", ",", "}", expectedContexts);
+    }
   }
 
   @Override
@@ -65,6 +90,9 @@ public class UserExceptionMatcher extends TypeSafeMatcher<UserException> {
       description.appendText(" with message: \"")
         .appendText(e.getMessage())
       .appendText("\"");
+    }
+    if (expectedContexts != null) {
+      description.appendValueList(" with contexts {", ",", "}", e.getContextStrings());
     }
   }
 }

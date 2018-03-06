@@ -54,6 +54,7 @@ import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
@@ -82,7 +83,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   private ColumnChunkIncReadStore pageReadStore;
   private RecordReader<Void> recordReader;
   private ParquetRecordMaterializer recordMaterializer;
-  private int recordCount;
+  private long recordCount;
   private OperatorContext operatorContext;
 
   // For columns not found in the file, we need to return a schema element with the correct number of values
@@ -263,7 +264,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
 
       BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
 
-      recordCount = (int) blockMetaData.getRowCount();
+      recordCount = blockMetaData.getRowCount();
 
       boolean schemaOnly = operatorContext == null;
 
@@ -329,44 +330,58 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   @Override
   public int next() {
     int count = 0;
-
-    // No columns found in the file were selected, simply return a full batch of null records for each column requested
-    if (noColumnsFound) {
-      if (mockRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount()) {
-        return 0;
+    long maxRecordCount = 0;
+    try {
+      // No columns found in the file were selected, simply return a full batch of null records for each column requested
+      if (noColumnsFound) {
+        if (mockRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount()) {
+          return 0;
+        }
+        long recordsToRead = 0;
+        recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
+        if (nullFilledVectors != null) {
+          for (ValueVector vv : nullFilledVectors) {
+            vv.setValueCount((int) recordsToRead);
+          }
+        }
+        mockRecordsRead += recordsToRead;
+        totalRead += recordsToRead;
+        return (int) recordsToRead;
       }
-      long recordsToRead = 0;
-      recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
+
+      maxRecordCount = numRowsPerBatch;
+      if (deltas != null) {
+        maxRecordCount = deltas.getValueCount();
+        vectorizedBasedFilter.reset();
+      }
+      while (count < maxRecordCount && totalRead < recordCount) {
+        recordMaterializer.setPosition(count);
+        recordReader.read();
+        count++;
+        totalRead++;
+      }
+      writer.setValueCount(count);
+      // if we have requested columns that were not found in the file fill their vectors with null
+      // (by simply setting the value counts inside of them, as they start null filled)
       if (nullFilledVectors != null) {
-        for (ValueVector vv : nullFilledVectors) {
-          vv.setValueCount((int) recordsToRead);
+        for (final ValueVector vv : nullFilledVectors) {
+          vv.setValueCount(count);
         }
       }
-      mockRecordsRead += recordsToRead;
-      totalRead += recordsToRead;
-      return (int) recordsToRead;
+      return count;
+    } catch (Throwable t) {
+      throw UserException.dataWriteError(t)
+          .message("Failed to read data from parquet file")
+          .addContext("File path", path)
+          .addContext("Rowgroup index", rowGroupIndex)
+          .addContext("Delta vector present, size (if present)", deltas != null ? "yes, " + deltas.getValueCount() : "no")
+          .addContext("Max no. of rows trying to read", maxRecordCount)
+          .addContext("No. of rows read so far in current iteration", count)
+          .addContext("No. of rows read so far in current rowgroup", totalRead)
+          .addContext("Max no. rows in current rowgroup", recordCount)
+          .addContext("Footer %s", footer)
+          .build(logger);
     }
-
-    long maxRecordCount = numRowsPerBatch;
-    if (deltas != null) {
-      maxRecordCount = deltas.getValueCount();
-      vectorizedBasedFilter.reset();
-    }
-    while (count < maxRecordCount && totalRead < recordCount) {
-      recordMaterializer.setPosition(count);
-      recordReader.read();
-      count++;
-      totalRead++;
-    }
-    writer.setValueCount(count);
-    // if we have requested columns that were not found in the file fill their vectors with null
-    // (by simply setting the value counts inside of them, as they start null filled)
-    if (nullFilledVectors != null) {
-      for (final ValueVector vv : nullFilledVectors) {
-        vv.setValueCount(count);
-      }
-    }
-    return count;
   }
 
   @Override

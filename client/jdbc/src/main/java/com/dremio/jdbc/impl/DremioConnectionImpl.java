@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.SQLNonTransientConnectionException;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Savepoint;
@@ -36,9 +35,7 @@ import java.util.Properties;
 import java.util.TimeZone;
 import java.util.concurrent.Executor;
 
-import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.AvaticaFactory;
 import org.apache.calcite.avatica.AvaticaStatement;
@@ -49,19 +46,13 @@ import org.apache.calcite.avatica.UnregisteredDriver;
 import org.slf4j.Logger;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.SabotNode;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.util.TestUtilities;
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.DremioConnection;
 import com.dremio.jdbc.DremioConnectionConfig;
 import com.dremio.jdbc.InvalidParameterSqlException;
 import com.dremio.jdbc.JdbcApiSqlException;
-import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.google.common.base.Throwables;
 
 /**
@@ -79,10 +70,6 @@ class DremioConnectionImpl extends AvaticaConnection
   final DremioConnectionConfig config;
 
   private final DremioClient client;
-  private final BufferAllocator allocator;
-  private SabotNode bit;
-  private ClusterCoordinator clusterCoordinator;
-
 
   protected DremioConnectionImpl(DriverImpl driver, AvaticaFactory factory,
                                 String url, Properties info) throws SQLException {
@@ -98,57 +85,18 @@ class DremioConnectionImpl extends AvaticaConnection
       final String connect;
 
       if (config.isLocal()) {
-        try {
-          Class.forName("org.eclipse.jetty.server.Handler");
-        } catch (final ClassNotFoundException e) {
-          throw new SQLNonTransientConnectionException(
-              "Running Dremio in embedded mode using Dremio's jdbc-all JDBC"
-              + " driver Jar file alone is not supported.",  e);
-        }
-
-        final SabotConfig dConfig = SabotConfig.create(info);
-        this.allocator = RootAllocatorFactory.newRoot(dConfig);
-        ClusterCoordinator coordinator = GlobalCoordinatorReference.COORDINATORS.get();
-        if (coordinator == null) {
-          // We're embedded; start a local Dremio node.
-          clusterCoordinator = new LocalClusterCoordinator();
-          coordinator = clusterCoordinator;
-          try {
-            coordinator.start();
-            bit = new SabotNode(dConfig, clusterCoordinator);
-            bit.run();
-          } catch (final UserException e) {
-            throw new SQLException(
-                "Failure in starting embedded SabotNode: " + e.getMessage(),
-                e);
-          } catch (Exception e) {
-            // (Include cause exception's text in wrapping exception's text so
-            // it's more likely to get to user (e.g., via SQLLine), and use
-            // toString() since getMessage() text doesn't always mention error:)
-            throw new SQLException("Failure in starting embedded SabotNode: " + e, e);
-          }
-        } else {
-          clusterCoordinator = null;
-          bit = null;
-        }
-
-        makeTmpSchemaLocationsUnique(bit.getContext().getStorage(), info);
-
-        this.client = new DremioClient(dConfig, coordinator);
-        connect =  null;
+        throw new UnsupportedOperationException("Dremio JDBC driver doesn't not support local mode operation");
       } else if(config.isDirect()) {
         final SabotConfig dConfig = SabotConfig.forClient();
-        this.allocator = RootAllocatorFactory.newRoot(dConfig);
         this.client = new DremioClient(dConfig, true); // Get a direct connection
         connect = config.getZookeeperConnectionString();
       } else {
         final SabotConfig dConfig = SabotConfig.forClient();
-        this.allocator = RootAllocatorFactory.newRoot(dConfig);
         // TODO:  Check:  Why does new DremioClient() create another SabotConfig,
         // with enableServerConfigs true, and cause scanning for function
         // implementations (needed by a server, but not by a client-only
         // process, right?)?  Probably pass dConfig to construction.
-        this.client = new DremioClient();
+        this.client = new DremioClient(dConfig, false);
         connect = config.getZookeeperConnectionString();
       }
       this.client.setClientName("Dremio JDBC Driver");
@@ -193,10 +141,6 @@ class DremioConnectionImpl extends AvaticaConnection
   @Override
   public DremioConnectionConfig getConfig() {
     return config;
-  }
-
-  BufferAllocator getAllocator() {
-    return allocator;
   }
 
   @Override
@@ -781,39 +725,5 @@ class DremioConnectionImpl extends AvaticaConnection
 
     // TODO all of these should use DeferredException when it is available from DRILL-2245
     closeOrWarn(client, "Exception while closing client.", logger);
-    closeOrWarn(allocator, "Exception while closing allocator.", logger);
-
-    if (bit != null) {
-      bit.close();
-    }
-
-    closeOrWarn(clusterCoordinator, "Exception while closing cluster coordinator.", logger);
-  }
-
-  // TODO: Eliminate this test-specific hack from production code.
-  // If we're not going to have tests themselves explicitly handle making names
-  // unique, then at least move this logic into a test base class, and have it
-  // go through DremioConnection.getClient().
-  /**
-   * Test only code to make JDBC tests run concurrently. If the property <i>dremioJDBCUnitTests</i> is set to
-   * <i>true</i> in connection properties:
-   *   - Update dfs_test.tmp workspace location with a temp directory. This temp is for exclusive use for test jvm.
-   *   - Update dfs.tmp workspace to immutable, so that test writer don't try to create views in dfs.tmp
-   * @param pluginRegistry
-   */
-  private static void makeTmpSchemaLocationsUnique(StoragePluginRegistry pluginRegistry, Properties props) {
-    try {
-      if (props != null && "true".equalsIgnoreCase(props.getProperty("dremioJDBCUnitTests"))) {
-        final String tmpDirPath = TestUtilities.createTempDir();
-        TestUtilities.updateDfsTestTmpSchemaLocation(pluginRegistry, tmpDirPath);
-      }
-    } catch(Throwable e) {
-      // Reason for catching Throwable is to capture NoSuchMethodError etc which depend on certain classed to be
-      // present in classpath which may not be available when just using the standalone JDBC. This is unlikely to
-      // happen, but just a safeguard to avoid failing user applications.
-      logger.warn("Failed to update tmp schema locations. This step is purely for testing purpose. " +
-          "Shouldn't be seen in production code.");
-      // Ignore the error and go with defaults
-    }
   }
 }

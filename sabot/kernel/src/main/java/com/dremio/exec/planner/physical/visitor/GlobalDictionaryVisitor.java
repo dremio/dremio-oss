@@ -43,6 +43,7 @@ import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashToMergeExchangePrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.JoinPrel;
+import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
@@ -81,7 +82,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
   }
 
   @Override
-  public PrelWithDictionaryInfo visitScan(ScanPrelBase prel, Void value) throws RuntimeException {
+  public PrelWithDictionaryInfo visitLeaf(LeafPrel prel, Void value) throws RuntimeException {
     if (!(prel instanceof ParquetScanPrel)) {
       return new PrelWithDictionaryInfo(prel);
     }

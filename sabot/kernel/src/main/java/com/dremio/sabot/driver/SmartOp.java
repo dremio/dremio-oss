@@ -18,10 +18,13 @@ package com.dremio.sabot.driver;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -111,22 +114,25 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     try {
       operatorName = getOperatorName(context.getStats().getOperatorType());
     }catch(Exception ex){
-      e.addSuppressed(e);
+      e.addSuppressed(ex);
     }
 
     try {
       operatorId = context.getStats().getOperatorId();
     }catch(Exception ex){
-      e.addSuppressed(e);
+      e.addSuppressed(ex);
     }
 
     final FragmentHandle h = context.getFragmentHandle();
-    UserException.Builder builder = UserException.systemError(e).message("General execution failure.");
-      return builder
-          .addContext("SqlOperatorImpl", operatorName)
-          .addContext("Location",
-              String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId))
-          .build(logger);
+    UserException.Builder builder = UserException.systemError(e).message("General execution failure.")
+      .addContext("SqlOperatorImpl", operatorName)
+      .addContext("Location",
+        String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
+    if (e instanceof OutOfMemoryException) {
+      context.getNodeDebugContextProvider().addMemoryContext(builder);
+    }
+
+    return builder.build(logger);
   }
 
   public static SmartSingleInput contextualize(SingleInputOperator operator,

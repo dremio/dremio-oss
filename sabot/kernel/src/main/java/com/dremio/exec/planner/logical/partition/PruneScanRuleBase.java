@@ -20,10 +20,11 @@ import static com.dremio.common.util.MajorTypeHelper.getFieldForNameAndMajorType
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -47,7 +48,6 @@ import org.apache.arrow.vector.NullableUInt4Vector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -72,6 +72,7 @@ import com.dremio.common.types.Types;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
+import com.dremio.exec.expr.HashVisitor;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.interpreter.InterpreterEvaluator;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -85,6 +86,7 @@ import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.store.SplitsKey;
 import com.dremio.exec.store.StoragePluginOptimizerRule;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.MetadataUtils;
@@ -106,8 +108,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import io.netty.buffer.ArrowBuf;
-
 /**
  * Prune partitions based on partition values
  */
@@ -117,6 +117,51 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   public static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
   final private OptimizerRulesContext optimizerContext;
   final protected StoragePluginType pluginType;
+
+  /**
+   * A logic expression and split holder which can be used as a key for map
+   */
+  private static class EvaluationPruningKey {
+    private final LogicalExpression expression;
+    private final SplitsKey splitsKey;
+
+    private EvaluationPruningKey(LogicalExpression expression, SplitsKey splitsKey) {
+      this.expression = expression;
+      this.splitsKey = splitsKey;
+    }
+
+
+    @Override
+    public int hashCode() {
+      int hash = expression.accept(new HashVisitor(), null);
+      return 31 * hash + Objects.hash(splitsKey);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof EvaluationPruningKey)) {
+        return false;
+      }
+
+      EvaluationPruningKey that = (EvaluationPruningKey) obj;
+
+      return Objects.equals(this.expression.toString(), that.expression.toString())
+          && Objects.equals(this.splitsKey, that.splitsKey);
+    }
+  }
+
+  private static class EvaluationPruningResult {
+    private final ImmutableList<DatasetSplit> finalSplits;
+    private final int totalRecords;
+
+    private EvaluationPruningResult(List<DatasetSplit> finalSplits, int allRecords) {
+      this.finalSplits = ImmutableList.copyOf(finalSplits);
+      this.totalRecords = allRecords;
+    }
+  }
+
+  // Local cache to speed multiple evaluations of the pruning
+  private final Map<EvaluationPruningKey, EvaluationPruningResult> evalutationPruningCache = new HashMap<>();
 
   private PruneScanRuleBase(StoragePluginType pluginType, RelOptRuleOperand operand, String id, OptimizerRulesContext optimizerContext) {
     super(operand, id);
@@ -237,7 +282,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
 
       datasetOutput.value = prunedDatasetPointer;
     } catch (NamespaceException ne) {
-      logger.error("Failed to prune partitions using parttiton values from namespace", ne);
+      logger.error("Failed to prune partitions using partition values from namespace", ne);
     }
 
     RelOptCluster cluster = filterRel.getCluster();
@@ -250,23 +295,51 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       final Map<Integer, String> fieldNameMap,
       final Map<String, Integer> partitionColumnsToIdMap,
       final BitSet partitionColumnBitSet,
-      final Iterator<DatasetSplit> splitIter,
+      final TableMetadata tableMetadata,
       PlannerSettings settings,
       RexNode pruneCondition,
       T scanRel,
       Pointer<List<DatasetSplit>> finalSplits){
     final int batchSize = PARTITION_BATCH_SIZE;
-    int totalSplitsProcessed = 0;
-    int batchIndex = 0;
-    LogicalExpression materializedExpr = null;
 
-    final Set<DatasetSplit> finalNewSplits = new HashSet<>();
+    final ImmutableList.Builder<DatasetSplit> selectedSplits = ImmutableList.builder();
     final Stopwatch miscTimer = Stopwatch.createUnstarted();
 
+
+
+    // Convert the condition into an expression
+    logger.debug("Attempting to prune {}", pruneCondition);
+    LogicalExpression pruningExpression = RexToExpr.toExpr(new ParseContext(settings), scanRel.getRowType(), scanRel.getCluster().getRexBuilder(), pruneCondition);
+
+    // Check cache if pruning condition was eval'ed against the same batch
+    final EvaluationPruningKey cacheKey = new EvaluationPruningKey(pruningExpression, tableMetadata.getSplitsKey());
+    final EvaluationPruningResult cacheResult = evalutationPruningCache.get(cacheKey);
+    if (cacheResult != null) {
+      logger.debug("Result found in cache, skipping evaluation");
+      logger.debug("In cache: total records: {}, qualified records: {}", cacheResult.totalRecords, cacheResult.finalSplits.size());
+
+      finalSplits.value = cacheResult.finalSplits;
+      return cacheResult.finalSplits.size() < cacheResult.totalRecords;
+    }
+
+    int batchIndex = 0;
     int recordCount = 0;
     int qualifiedCount = 0;
+    Iterator<DatasetSplit> splitIter = tableMetadata.getSplits();
+    LogicalExpression materializedExpr = null;
 
     do {
+      miscTimer.start();
+
+      List<DatasetSplit> splitsInBatch = new ArrayList<>();
+      for(int splitsLoaded = 0; splitsLoaded < batchSize && splitIter.hasNext(); ++splitsLoaded) {
+        final DatasetSplit split = splitIter.next();
+        splitsInBatch.add(split);
+      }
+
+      logger.debug("Elapsed time to get list of splits for the current batch: {} ms within batchIndex: {}", miscTimer.elapsed(TimeUnit.MILLISECONDS), batchIndex);
+      miscTimer.reset();
+
       try(final BufferAllocator allocator = optimizerContext.getAllocator().newChildAllocator("prune-scan-rule", 0, Long.MAX_VALUE);
       final NullableBitVector output = new NullableBitVector("", allocator);
       final VectorContainer container = new VectorContainer();
@@ -295,32 +368,30 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         miscTimer.start();
 
         int splitsLoaded = 0;
-        List<DatasetSplit> splitsInBatch = Lists.newArrayList();
-        while (splitsLoaded < batchSize && splitIter.hasNext()) {
-          final DatasetSplit split = splitIter.next();
+        for(DatasetSplit split: splitsInBatch) {
+          if (split.getPartitionValuesList() == null) {
+            ++splitsLoaded;
+            continue;
+          }
 
-          splitsInBatch.add(split);
           // load partition values
-          if(split.getPartitionValuesList() != null){
-            for (PartitionValue partitionValue : split.getPartitionValuesList()) {
-              final int columnIndex = partitionColumnsToIdMap.get(partitionValue.getColumn());
-              // TODO (AH) handle invisible columns partitionColumnIdToTypeMap is built from row data type which may or may not have $update column
-              if (partitionColumnIdToTypeMap.containsKey(columnIndex)) {
-                final ValueVector vv = vectors[columnIndex];
-                writePartitionValue(vv, splitsLoaded, partitionValue, partitionColumnIdToTypeMap.get(columnIndex), allocator);
-              }
+          for (PartitionValue partitionValue : split.getPartitionValuesList()) {
+            final int columnIndex = partitionColumnsToIdMap.get(partitionValue.getColumn());
+            // TODO (AH) handle invisible columns partitionColumnIdToTypeMap is built from row data type which may or may not have $update column
+            if (partitionColumnIdToTypeMap.containsKey(columnIndex)) {
+              final ValueVector vv = vectors[columnIndex];
+              writePartitionValue(vv, splitsLoaded, partitionValue, partitionColumnIdToTypeMap.get(columnIndex), allocator);
             }
           }
 
           ++splitsLoaded;
         }
-        totalSplitsProcessed += splitsLoaded;
         logger.debug("Elapsed time to populate partitioning column vectors: {} ms within batchIndex: {}", miscTimer.elapsed(TimeUnit.MILLISECONDS), batchIndex);
         miscTimer.reset();
 
         // materialize the expression; only need to do this once
         if (batchIndex == 0) {
-          materializedExpr = materializePruneExpr(pruneCondition, settings, scanRel, container);
+          materializedExpr = materializePruneExpr(pruningExpression, settings, scanRel, container);
           if (materializedExpr == null) {
             throw new IllegalStateException("Unable to materialize prune expression: " + pruneCondition.toString());
           }
@@ -339,19 +410,25 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
           if (!output.isNull(i) && output.get(i) == 1) {
             // select this partition
             qualifiedCount++;
-            finalNewSplits.add(splitsInBatch.get(i));
+            final DatasetSplit split = splitsInBatch.get(i);
+            selectedSplits.add(split);
           }
           recordCount++;
         }
+
         logger.debug("Within batch {}: total records: {}, qualified records: {}", batchIndex, recordCount, qualifiedCount);
         batchIndex++;
 
       }
     } while (splitIter.hasNext());
 
-    finalSplits.value = new ArrayList<>(finalNewSplits);
-    return qualifiedCount < recordCount;
+    List<DatasetSplit> finalNewSplits = selectedSplits.build();
 
+    // Store results in local cache
+    evalutationPruningCache.put(cacheKey, new EvaluationPruningResult(finalNewSplits, recordCount));
+
+    finalSplits.value = finalNewSplits;
+    return qualifiedCount < recordCount;
   }
 
   public void doOnMatch(RelOptRuleCall call, Filter filterRel, Project projectRel, T scanRel) {
@@ -434,7 +511,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         // do interpreter-based evaluation
         Pointer<List<DatasetSplit>> prunedOutput = new Pointer<>();
         stopwatch.start();
-        evalPruned = doEvalPruning(filterRel, fieldNameMap, partitionColumnsToIdMap, partitionColumnBitSet, dataset.value.getSplits(), settings, outputCondition.value, scanRel, prunedOutput);
+        evalPruned = doEvalPruning(filterRel, fieldNameMap, partitionColumnsToIdMap, partitionColumnBitSet, dataset.value, settings, outputCondition.value, scanRel, prunedOutput);
         stopwatch.stop();
         finalNewSplits = prunedOutput.value;
         logger.debug("Partition pruning using expression evaluation took {} ms", stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -653,16 +730,13 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     }
   }
 
-  private LogicalExpression materializePruneExpr(RexNode pruneCondition,
-                                                   PlannerSettings settings,
-                                                   RelNode scanRel,
-                                                   VectorContainer container) {
+  private LogicalExpression materializePruneExpr(LogicalExpression pruneCondition,
+                                                 PlannerSettings settings,
+                                                 RelNode scanRel,
+                                                 VectorContainer container) {
     // materialize the expression
-    logger.debug("Attempting to prune {}", pruneCondition);
-    final LogicalExpression expr = RexToExpr.toExpr(new ParseContext(settings), scanRel.getRowType(), scanRel.getCluster().getRexBuilder(), pruneCondition);
     container.buildSchema();
-
-    return ExpressionTreeMaterializer.materializeAndCheckErrors(expr, container.getSchema(), optimizerContext.getFunctionRegistry());
+    return ExpressionTreeMaterializer.materializeAndCheckErrors(pruneCondition, container.getSchema(), optimizerContext.getFunctionRegistry());
   }
 
 }

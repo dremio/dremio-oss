@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.dremio.jdbc.test;
 
 import java.nio.file.Paths;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
@@ -27,28 +26,25 @@ import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.jdbc.DremioResultSet;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import com.google.common.base.Stopwatch;
 
-public class JdbcTestQueryBase extends JdbcTestBase {
+public class JdbcTestQueryBase extends JdbcWithServerTestBase {
   // Set a timeout unless we're debugging.
   @Rule
   public TestRule TIMEOUT = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
 
   protected static final String WORKING_PATH;
   static{
-    Driver.load();
     WORKING_PATH = Paths.get("").toAbsolutePath().toString();
-
   }
 
   protected static void testQuery(String sql) throws Exception{
     boolean success = false;
-    try (Connection conn = connect("jdbc:dremio:zk=local")) {
+    try {
       for (int x = 0; x < 1; x++) {
         Stopwatch watch = Stopwatch.createStarted();
-        Statement s = conn.createStatement();
+        Statement s = getConnection().createStatement();
         ResultSet r = s.executeQuery(sql);
         System.out.println(String.format("QueryId: %s", r.unwrap(DremioResultSet.class).getQueryId()));
         boolean first = true;

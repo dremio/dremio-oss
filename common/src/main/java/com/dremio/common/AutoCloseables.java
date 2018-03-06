@@ -27,7 +27,10 @@ import com.google.common.collect.Lists;
 /**
  * Utilities for AutoCloseable classes.
  */
-public class AutoCloseables {
+public final class AutoCloseables {
+  // Utility class. Should not be instantiated
+  private AutoCloseables() {
+  }
 
   public static AutoCloseable all(final Collection<? extends AutoCloseable> autoCloseables) {
     return new AutoCloseable() {
@@ -173,5 +176,18 @@ public class AutoCloseables {
         throw new RuntimeException("Exception while closing: " + e.getMessage(), e);
       }
     }
+  }
+
+  private static final AutoCloseable noOpAutocloseable = new AutoCloseable() {
+    @Override
+    public void close() {
+    }
+  };
+
+  /**
+   * @return A do-nothing autocloseable
+   */
+  public static AutoCloseable noop() {
+    return noOpAutocloseable;
   }
 }

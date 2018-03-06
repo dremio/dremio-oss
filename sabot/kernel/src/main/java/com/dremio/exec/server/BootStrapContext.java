@@ -18,6 +18,8 @@ package com.dremio.exec.server;
 import java.util.concurrent.ExecutorService;
 
 import com.codahale.metrics.Gauge;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.store.sys.MemoryIterator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
@@ -39,6 +41,7 @@ public class BootStrapContext implements AutoCloseable {
   private final ScanResult classpathScan;
   private final CloseableThreadPool executor;
   private final LogicalPlanPersistence lpPersistance;
+  private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public BootStrapContext(SabotConfig config, ScanResult classpathScan) {
     this.config = config;
@@ -49,6 +52,10 @@ public class BootStrapContext implements AutoCloseable {
     this.lpPersistance = new LogicalPlanPersistence(config, classpathScan);
 
     registerMetrics();
+
+    this.nodeDebugContextProvider = (allocator instanceof DremioRootAllocator)
+      ? new NodeDebugContextProviderImpl((DremioRootAllocator)allocator)
+      : NodeDebugContextProvider.NOOP;
   }
 
   private void registerMetrics() {
@@ -91,6 +98,10 @@ public class BootStrapContext implements AutoCloseable {
     return lpPersistance;
   }
 
+  public NodeDebugContextProvider getNodeDebugContextProvider() {
+    return nodeDebugContextProvider;
+  }
+
   @Override
   public void close() {
     try {
@@ -102,5 +113,18 @@ public class BootStrapContext implements AutoCloseable {
     executor.close();
 
     AutoCloseables.closeNoChecked(allocator);
+  }
+
+  class NodeDebugContextProviderImpl implements NodeDebugContextProvider {
+    private final DremioRootAllocator rootAllocator;
+
+    NodeDebugContextProviderImpl(final DremioRootAllocator rootAllocator) {
+      this.rootAllocator = rootAllocator;
+    }
+
+    @Override
+    public void addMemoryContext(UserException.Builder exceptionBuilder) {
+      rootAllocator.addUsageToExceptionContext(exceptionBuilder);
+    }
   }
 }

@@ -23,6 +23,7 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.ExchangePrel;
+import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
@@ -66,7 +67,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
   }
 
   @Override
-  public Prel visitScan(ScanPrelBase prel, MajorFragmentStat s) throws RuntimeException {
+  public Prel visitLeaf(LeafPrel prel, MajorFragmentStat s) throws RuntimeException {
     s.addScan(prel);
     return prel;
   }
@@ -109,7 +110,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
       distributionAffinity = screenPrel.getDistributionAffinity();
     }
 
-    public void addScan(ScanPrelBase prel) {
+    public void addScan(LeafPrel prel) {
       maxWidth = Math.min(maxWidth, prel.getMaxParallelizationWidth());
       isMultiSubScan = prel.getMinParallelizationWidth() > 1;
       distributionAffinity = prel.getDistributionAffinity();

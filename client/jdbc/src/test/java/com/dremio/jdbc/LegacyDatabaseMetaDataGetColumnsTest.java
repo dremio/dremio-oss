@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,23 +33,14 @@ import com.dremio.jdbc.test.JdbcAssert;
  */
 @Ignore("DX-2490")
 public class LegacyDatabaseMetaDataGetColumnsTest extends DatabaseMetaDataGetColumnsTest {
-
   @BeforeClass
-  public static void setUpConnection() throws Exception {
-    // Get JDBC connection to Dremio:
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
+  public static void setUpConnection() throws SQLException {
     Properties defaultProperties = JdbcAssert.getDefaultProperties();
     defaultProperties.setProperty("server.metadata.disabled", "true");
 
-    connection = new Driver().connect( "jdbc:dremio:zk=local",
-                                       defaultProperties );
-    dbMetadata = connection.getMetaData();
-
-    DatabaseMetaDataGetColumnsTest.setUpMetadataToCheck();
+    setupConnection(defaultProperties );
+    setUpMetadataToCheck();
   }
-
 
   // Override because of DRILL-1959
 

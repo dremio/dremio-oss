@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
 
@@ -62,7 +63,7 @@ public class ParquetSubScan extends SubScanWithProjection {
     super(userName, schema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
-    this.conditions = conditions;
+    this.conditions = conditions == null ? null : ImmutableList.copyOf(conditions);
     this.pluginId = pluginId;
     this.partitionColumns = partitionColumns;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;

@@ -17,6 +17,8 @@ package com.dremio.sabot.op.join.vhash;
 
 import java.util.concurrent.TimeUnit;
 
+import io.netty.buffer.ArrowBuf;
+
 public interface JoinTable extends AutoCloseable {
   public void insert(final long outputAddr, final int records);
   public void find(final long outputAddr, final int records);
@@ -28,4 +30,18 @@ public interface JoinTable extends AutoCloseable {
   public long getProbeFindTime(TimeUnit unit);
   public long getBuildPivotTime(TimeUnit unit);
   public long getInsertTime(TimeUnit unit);
+
+  // Debugging methods
+
+  /**
+   * Start tracing this join table
+   * @param numRecords number of records in the current data batch
+   * @return an autocloseable that, when closed, will release the resources held by the trace
+   */
+  public AutoCloseable traceStart(int numRecords);
+
+  /**
+   * Report the details of the trace
+   */
+  public String traceReport();
 }

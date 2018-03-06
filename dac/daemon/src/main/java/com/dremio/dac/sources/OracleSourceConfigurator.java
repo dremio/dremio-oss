@@ -44,7 +44,7 @@ public class OracleSourceConfigurator extends SingleSourceToStoragePluginConfig<
     final Integer fetchSize = oracle.getFetchSize();
 
     final JdbcStorageConfig config = new JdbcStorageConfig(CompatCreator.ORACLE_DRIVER,
-        "jdbc:oracle:thin:" + username + "/" + password + "@" + hostname + ":"
+        "jdbc:oracle:thin:" + username + "/" + password + "@//" + hostname + ":"
             + port + "/" + instance,
         username,
         password,

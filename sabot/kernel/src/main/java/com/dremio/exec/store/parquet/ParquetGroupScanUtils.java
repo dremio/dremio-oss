@@ -159,7 +159,8 @@ public class ParquetGroupScanUtils {
    * potential partition column now no longer qualifies, so it needs to be removed from the list.
    * @return whether column is a potential partition column
    */
-  private boolean checkForPartitionColumn(ParquetFileMetadata fileMetadata, ColumnMetadata columnMetadata, boolean first, long rowCount) {
+  private boolean checkForPartitionColumn(ParquetFileMetadata fileMetadata, int rowGroupIdx,
+      ColumnMetadata columnMetadata, boolean first, long rowCount) {
     SchemaPath schemaPath = SchemaPath.getCompoundPath(columnMetadata.getName());
     if (schemaPath.getAsUnescapedPath().equals(UPDATE_COLUMN)) {
       return true;
@@ -169,9 +170,13 @@ public class ParquetGroupScanUtils {
 
     if (first) {
       if (hasSingleValue(columnMetadata, rowCount)) {
+        logger.debug("New partition {} added to list, table {}, file {}, rowgroup index {}",
+            schemaPath, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
         columnTypeMap.put(schemaPath, getType(primitiveType, originalType));
         return true;
       } else {
+        logger.debug("Column {} is determined to be non-partition column, table {}, file {}, rowgroup index {}",
+            schemaPath, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
         return false;
       }
     } else {
@@ -179,10 +184,18 @@ public class ParquetGroupScanUtils {
         return false;
       } else {
         if (!hasSingleValue(columnMetadata, rowCount)) {
+          logger.debug("Column {} is demoted to non-partition column due to non-unique values in new file/rowgroup, " +
+                  "table {}, file {}, rowgroup index {}",
+              schemaPath, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
           columnTypeMap.remove(schemaPath);
           return false;
         }
-        if (!getType(primitiveType, originalType).equals(columnTypeMap.get(schemaPath))) {
+        final MajorType newType = getType(primitiveType, originalType);
+        final MajorType existingType = columnTypeMap.get(schemaPath);
+        if (!newType.equals(existingType)) {
+          logger.debug("Column {} is demoted to non-partition column due to type change: existing: {}, new: {}, " +
+                  "table {}, file {}, rowgroup index {}",
+              schemaPath, existingType, newType, selectionRoot, fileMetadata.getPathString(), rowGroupIdx);
           columnTypeMap.remove(schemaPath);
           return false;
         }
@@ -375,6 +388,7 @@ public class ParquetGroupScanUtils {
     this.rowCount = 0;
     boolean first = true;
     for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
+      int rowGroupIdx = 0;
       for (RowGroupMetadata rowGroup : file.getRowGroups()) {
         long rowCount = rowGroup.getRowCount();
         for (ColumnMetadata column : rowGroup.getColumns()) {
@@ -398,27 +412,34 @@ public class ParquetGroupScanUtils {
               columnValueCounts.put(schemaPath, GroupScan.NO_COLUMN_STATS);
             }
           }
-          boolean partitionColumn = checkForPartitionColumn(file, column, first, rowCount);
+          boolean partitionColumn = checkForPartitionColumn(file, rowGroupIdx, column, first, rowCount);
           if (partitionColumn) {
             Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
             if (map == null) {
               map = Maps.newHashMap();
               partitionValueMap.put(file.getStatus(), map);
+
             }
             Object value = map.get(schemaPath);
             Object currentValue;
             // If all the values are null, then consider the partition value as null, otherwise get the partition value
             // from max.
-            if (column.getNulls() == rowCount) {
+            if (column.getNulls() != null && column.getNulls() == rowCount) {
               currentValue = null;
             } else {
               currentValue = column.getMaxValue();
             }
-            if (value != null) {
-              if (value != currentValue) {
+
+            if (rowGroupIdx > 0) {
+              // If this is not the first rowgroup in the file, make sure it matches the value in previous rowgroup(s)
+              if (!Objects.equal(value, currentValue)) {
+                logger.debug("Column {} is demoted to non-partition column due to different values across rowgroups" +
+                    " in same file, existing value: {}, new value: {}, table {}, file {}, rowgroup index {}",
+                    schemaPath, value, currentValue, selectionRoot, file.getPathString(), rowGroupIdx);
                 columnTypeMap.remove(schemaPath);
               }
             } else {
+              // as this is the first rowgroup in file, just insert it into map.
               map.put(schemaPath, currentValue);
             }
           } else {
@@ -427,6 +448,7 @@ public class ParquetGroupScanUtils {
         }
         this.rowCount += rowGroup.getRowCount();
         first = false;
+        rowGroupIdx++;
       }
 
       Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
@@ -437,6 +459,7 @@ public class ParquetGroupScanUtils {
       map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), file.getStatus().getModificationTime());
 
     }
+    logger.debug("Table: {}, partition columns {}", selectionRoot, columnTypeMap.keySet());
     logger.debug("Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
   }
 

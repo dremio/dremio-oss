@@ -17,6 +17,7 @@ package com.dremio.exec.planner.cost;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -49,7 +50,7 @@ public class RelMdRowCount extends  org.apache.calcite.rel.metadata.RelMdRowCoun
   // DX-3859:  Need to make sure that join row count is calculated in a reasonable manner.  Calcite's default
   // implementation is leftRowCount * rightRowCount * discountBySelectivity, which is too large (cartesian join).
   // Since we do not support cartesian join, we should just take the maximum of the two join input row counts.
-  public Double getRowCount(JoinRelBase rel, RelMetadataQuery mq) {
+  public Double getRowCount(Join rel, RelMetadataQuery mq) {
     if (rel.getCondition().isAlwaysTrue()) {
       return super.getRowCount(rel, mq);
     } else {

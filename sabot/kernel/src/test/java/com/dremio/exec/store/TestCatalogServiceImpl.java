@@ -101,20 +101,20 @@ public class TestCatalogServiceImpl {
     StoragePlugin mockStoragePlugin = mock(StoragePlugin.class);
     when(mockStoragePlugin.getDatasets(anyString(), anyBoolean())).thenReturn(Collections.<SourceTableDefinition>emptyList());
 
-    assertEquals(null, catalogServiceImpl.getSourceLastFullRefreshDate(sourceKey));
+    assertEquals(0L, catalogServiceImpl.getLastFullMetadataRefreshDateMs(sourceKey));
     catalogServiceImpl.registerSource(sourceKey, mockStoragePlugin);
     // Entry for 'sourceKey' exists, but it doesn't have any data yet
-    assertEquals(null, catalogServiceImpl.getSourceLastFullRefreshDate(sourceKey));
+    assertEquals(0L, catalogServiceImpl.getLastFullMetadataRefreshDateMs(sourceKey));
 
     catalogServiceImpl.refreshSource(sourceKey, CatalogService.DEFAULT_METADATA_POLICY);
     long t1 = System.currentTimeMillis();
-    assert(catalogServiceImpl.getSourceLastFullRefreshDate(sourceKey) <= t1);
+    assert(catalogServiceImpl.getLastFullMetadataRefreshDateMs(sourceKey) <= t1);
 
     // Next refresh will move the 'last full refresh' timestamp
     catalogServiceImpl.refreshSource(sourceKey, CatalogService.DEFAULT_METADATA_POLICY);
-    assert(catalogServiceImpl.getSourceLastFullRefreshDate(sourceKey) >= t1);
+    assert(catalogServiceImpl.getLastFullMetadataRefreshDateMs(sourceKey) >= t1);
 
     catalogServiceImpl.unregisterSource(sourceKey);
-    assertEquals(null, catalogServiceImpl.getSourceLastFullRefreshDate(sourceKey));
+    assertEquals(0L, catalogServiceImpl.getLastFullMetadataRefreshDateMs(sourceKey));
   }
 }

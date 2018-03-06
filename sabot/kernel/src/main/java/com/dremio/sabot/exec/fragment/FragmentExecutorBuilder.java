@@ -30,6 +30,7 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -38,6 +39,7 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.record.NamespaceUpdater;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.FragmentOptionManager;
 import com.dremio.exec.server.options.OptionList;
 import com.dremio.exec.server.options.OptionManager;
@@ -90,6 +92,7 @@ public class FragmentExecutorBuilder {
   private final Set<ClusterCoordinator.Role> roles;
   private final StoragePluginRegistry storagePluginRegistry;
   private final ContextInformationFactory contextInformationFactory;
+  private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public FragmentExecutorBuilder(
       QueriesClerk clerk,
@@ -105,6 +108,7 @@ public class FragmentExecutorBuilder {
       StoragePluginRegistry storagePluginRegistry,
       ContextInformationFactory contextInformationFactory,
       FunctionImplementationRegistry functions,
+      NodeDebugContextProvider nodeDebugContextProvider,
       Set<ClusterCoordinator.Role> roles) {
     this.clerk = clerk;
     this.config = config;
@@ -122,6 +126,7 @@ public class FragmentExecutorBuilder {
     this.roles = roles;
     this.storagePluginRegistry = storagePluginRegistry;
     this.contextInformationFactory = contextInformationFactory;
+    this.nodeDebugContextProvider = nodeDebugContextProvider;
   }
 
   public FragmentExecutor build(PlanFragment fragment, EventProvider eventProvider) throws Exception {
@@ -192,7 +197,8 @@ public class FragmentExecutorBuilder {
           namespace,
           fragmentOptions,
           executorService,
-          contextInfo);
+          contextInfo,
+          nodeDebugContextProvider);
 
       final ExecToCoordTunnel coordTunnel = execToCoord.getTunnel(fragment.getForeman());
       final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats, coordTunnel, allocator);

@@ -81,6 +81,13 @@ public interface CatalogService extends AutoCloseable, Service {
   void scheduleMetadataRefresh(NamespaceKey source, SourceConfig sourceConfig);
 
   /**
+   * Retrieve the last time when the metadata of 'source' was fully refreshed
+   * @param source source name
+   * @return milliseconds since start of epoch when 'source' was last fully refreshed. 0 if never refreshed
+   */
+  long getLastFullMetadataRefreshDateMs(NamespaceKey source);
+
+  /**
    * Refresh metadata cached for given source.
    * @param source source name
    * @param metadataPolicy Metadata update policy for 'source'

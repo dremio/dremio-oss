@@ -259,7 +259,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
     }
 
-    try(ArrowBuf offsets = context.getAllocator().buffer(records * 4)){
+    boolean debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
+
+    try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
+        AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
       long findAddr = offsets.memoryAddress();
       table.insert(findAddr, records);
 
@@ -288,6 +291,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   }
 
   private void setLinks(long indexAddr, final int buildBatch, final int records){
+    boolean debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
+
     for(int incomingRecordIndex = 0; incomingRecordIndex < records; incomingRecordIndex++, indexAddr+=4){
 
       final int hashTableIndex = PlatformDependent.getInt(indexAddr);
@@ -309,7 +314,18 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       int hashTableBatch  = hashTableIndex >>> 16;
       int hashTableOffset = hashTableIndex & BATCH_MASK;
 
-      final ArrowBuf startIndex = startIndices.get(hashTableBatch);
+      ArrowBuf startIndex;
+      try {
+        startIndex = startIndices.get(hashTableBatch);
+      } catch (IndexOutOfBoundsException e){
+        UserException.Builder b = UserException.functionError()
+          .message("Index out of bounds in VectorizedHashJoin. Index = %d, size = %d", hashTableBatch, startIndices.size())
+          .addContext("incomingRecordIndex=%d, hashTableIndex=%d", incomingRecordIndex, hashTableIndex);
+        if (debugInsertion) {
+          b.addContext(table.traceReport());
+        }
+        throw b.build(logger);
+      }
       final long startIndexMemStart = startIndex.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
 
       // If head of the list is empty, insert current index at this position

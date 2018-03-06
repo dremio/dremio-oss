@@ -35,6 +35,7 @@ import com.google.common.collect.Lists;
 public class TestRootSchemaAccess {
 
   private final NamespaceService ns = mock(NamespaceService.class);
+  private final CatalogService catalog = mock(CatalogService.class);
   final SabotContext sabotContext = mock(SabotContext.class);
 
   @Test
@@ -43,7 +44,7 @@ public class TestRootSchemaAccess {
         new SourceConfig().setName("notinternal")));
     when(ns.getSpaces()).thenReturn(new ArrayList<SpaceConfig>());
     when(ns.getHomeSpaces()).thenReturn(new ArrayList<HomeConfig>());
-    RootSchema schema = new RootSchema(ns, sabotContext, SchemaConfig.newBuilder("testuser").build(),
+    RootSchema schema = new RootSchema(ns, catalog, sabotContext, SchemaConfig.newBuilder("testuser").build(),
         new SchemaTreeProvider.MetadataStatsCollector());
     assertEquals(1, schema.getSubSchemaNames().size());
     assertTrue(schema.getSubSchemaNames().contains("notinternal"));
@@ -55,7 +56,7 @@ public class TestRootSchemaAccess {
         new SourceConfig().setName("notinternal")));
     when(ns.getSpaces()).thenReturn(new ArrayList<SpaceConfig>());
     when(ns.getHomeSpaces()).thenReturn(new ArrayList<HomeConfig>());
-    RootSchema schema = new RootSchema(ns, sabotContext, SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build(),
+    RootSchema schema = new RootSchema(ns, catalog, sabotContext, SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build(),
         new SchemaTreeProvider.MetadataStatsCollector());
     assertEquals(2, schema.getSubSchemaNames().size());
     assertTrue(schema.getSubSchemaNames().contains("notinternal"));
@@ -68,7 +69,7 @@ public class TestRootSchemaAccess {
         new SourceConfig().setName("notinternal")));
     when(ns.getSpaces()).thenReturn(new ArrayList<SpaceConfig>());
     when(ns.getHomeSpaces()).thenReturn(new ArrayList<HomeConfig>());
-    RootSchema schema = new RootSchema(ns, sabotContext,
+    RootSchema schema = new RootSchema(ns, catalog, sabotContext,
         SchemaConfig.newBuilder("testuser").exposeInternalSources(true).build(),
         new SchemaTreeProvider.MetadataStatsCollector());
     assertEquals(2, schema.getSubSchemaNames().size());
@@ -82,7 +83,7 @@ public class TestRootSchemaAccess {
         new SourceConfig().setName("notinternal"), new SourceConfig().setName("__home")));
     when(ns.getSpaces()).thenReturn(new ArrayList<SpaceConfig>());
     when(ns.getHomeSpaces()).thenReturn(new ArrayList<HomeConfig>());
-    RootSchema schema = new RootSchema(ns, sabotContext,
+    RootSchema schema = new RootSchema(ns, catalog, sabotContext,
         SchemaConfig.newBuilder("testuser").build(),
         new SchemaTreeProvider.MetadataStatsCollector());
     assertEquals(2, schema.getSubSchemaNames().size());

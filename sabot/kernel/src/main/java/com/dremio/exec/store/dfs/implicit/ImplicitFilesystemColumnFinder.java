@@ -277,7 +277,7 @@ public class ImplicitFilesystemColumnFinder {
     FileStatus fileStatus = fs.getFileStatus(new Path(selection.getSelectionRoot()));
 
     if (enableDirsFields && fileStatus.isDirectory()) {
-      int maxDepth = getMaxDepth(fileStatus, 0, fs);
+      int maxDepth = selection.getMaxDepth(fileStatus);
       for (int i = 0; i < maxDepth - 1; i++) {
         fields.add(new VarCharNameValuePair(partitionDesignator + i, "dir0"));
       }
@@ -295,19 +295,6 @@ public class ImplicitFilesystemColumnFinder {
     fields.add(new BigIntNameValuePair(IncrementalUpdateUtils.UPDATE_COLUMN, 0L));
 
     return fields;
-  }
-
-
-  private static int getMaxDepth(FileStatus fileStatus, int depth, FileSystemWrapper fs) throws IOException {
-    int newDepth = depth;
-    for (FileStatus child : fs.listStatus(fileStatus.getPath())) {
-      if (child.isDirectory()) {
-        newDepth = Math.max(newDepth, getMaxDepth(child, depth + 1, fs));
-      } else {
-        newDepth = Math.max(newDepth, depth+1);
-      }
-    }
-    return newDepth;
   }
 
   private static final class WorkAndComponent {

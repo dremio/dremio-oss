@@ -55,7 +55,6 @@ import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
 import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
 import com.google.common.base.Preconditions;
@@ -151,8 +150,10 @@ public class UnifiedParquetReader implements RecordReader {
       nonVectorizedMap.put(name, output.getVector(name));
     }
 
-    context.getStats().addLongStat(ScanOperator.Metric.NUM_VECTORIZED_COLUMNS, vectorizableReaderColumns.size());
-    context.getStats().addLongStat(ScanOperator.Metric.NUM_NON_VECTORIZED_COLUMNS, nonVectorizableReaderColumns.size());
+    context.getStats().setLongStat(Metric.PARQUET_EXEC_PATH, execPath.ordinal());
+    context.getStats().setLongStat(Metric.NUM_VECTORIZED_COLUMNS, vectorizableReaderColumns.size());
+    context.getStats().setLongStat(Metric.NUM_NON_VECTORIZED_COLUMNS, nonVectorizableReaderColumns.size());
+    context.getStats().setLongStat(Metric.FILTER_EXISTS, filterConditions != null && filterConditions.size() > 0 ? 1 : 0);
   }
 
   // No reason to use delegates since Parquet always uses the default schema change mutator.

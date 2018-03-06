@@ -82,7 +82,10 @@ public class ScanOperator implements ProducerOperator {
     NUM_VECTORIZED_COLUMNS,
     NUM_NON_VECTORIZED_COLUMNS,
     COPY_MS,
-    FILTER_MS;
+    FILTER_MS,
+    PARQUET_EXEC_PATH, // type of readers (vectorized, non-vectorized or combination used) in parquet
+    FILTER_EXISTS // Is there a filter pushed into scan?
+    ;
 
     @Override
     public int metricId() {

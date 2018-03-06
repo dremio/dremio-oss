@@ -22,6 +22,7 @@ import java.util.List;
 import com.dremio.common.JSONOptions;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Values;
+import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -36,7 +37,7 @@ import org.apache.calcite.rel.type.RelDataType;
 
 import com.google.common.collect.Iterators;
 
-public class ValuesPrel extends AbstractRelNode implements Prel {
+public class ValuesPrel extends AbstractRelNode implements LeafPrel {
 
   @SuppressWarnings("unused")
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValuesPrel.class);
@@ -99,4 +100,18 @@ public class ValuesPrel extends AbstractRelNode implements Prel {
   }
 
 
+  @Override
+  public int getMaxParallelizationWidth() {
+    return 1;
+  }
+
+  @Override
+  public int getMinParallelizationWidth() {
+    return 1;
+  }
+
+  @Override
+  public DistributionAffinity getDistributionAffinity() {
+    return DistributionAffinity.NONE;
+  }
 }

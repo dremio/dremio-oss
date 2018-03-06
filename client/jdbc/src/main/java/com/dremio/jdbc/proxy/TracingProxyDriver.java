@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,6 @@ import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
-
-import org.slf4j.Logger;
-
-import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * Proxy driver for tracing calls to a JDBC driver.
@@ -58,9 +54,9 @@ import static org.slf4j.LoggerFactory.getLogger;
  *       </li>
  *     </ul>
  *     <p>
- *       For example, for an original URL of "{@code jdbc:dremio:zk=local}", the
+ *       For example, for an original URL of "{@code jdbc:dremio:zk=localhost:2181}", the
  *       tracing URL is
- *       "{@code jdbc:proxy:com.dremio.jdbc.Driver:jdbc:dremio:zk=local}".
+ *       "{@code jdbc:proxy:com.dremio.jdbc.Driver:jdbc:dremio:zk=localhost:2181}".
  *     </p>
  *   </li>
  *   <li>

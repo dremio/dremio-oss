@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.junit.BeforeClass;
  * Test compatibility with older versions of the server
  */
 public class LegacyDatabaseMetaDataTest extends DatabaseMetaDataTest {
+
   @BeforeClass
   public static void setUpConnection() throws SQLException {
     Properties properties = new Properties();
@@ -33,8 +34,8 @@ public class LegacyDatabaseMetaDataTest extends DatabaseMetaDataTest {
     // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
     // Connection--and other JDBC objects--on test method failure, but this test
     // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", properties );
-    assertTrue(((DremioConnection) connection).getConfig().isServerMetadataDisabled());
-    dbmd = connection.getMetaData();
+    setupConnection(properties);
+    assertTrue(((DremioConnection) getConnection()).getConfig().isServerMetadataDisabled());
+    dbmd = getConnection().getMetaData();
   }
 }

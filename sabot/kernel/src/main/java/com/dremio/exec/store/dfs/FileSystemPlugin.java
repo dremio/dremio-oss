@@ -59,13 +59,13 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ClassPathFileSystem;
+import com.dremio.exec.store.DatasetSplitsPointer;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.SchemaEntity.SchemaEntityType;
 import com.dremio.exec.store.SplitsPointer;
-import com.dremio.exec.store.SplitsPointerImpl;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
 import com.dremio.exec.store.StoragePluginTypeRulesFactory;
@@ -524,7 +524,7 @@ public class FileSystemPlugin implements StoragePlugin {
 
   // Check if all splits are accessible
   private Collection<FsPermissionTask> getSplitPermissiomTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs, String user) {
-    final SplitsPointer splitsPointer = new SplitsPointerImpl(datasetConfig, context.getNamespaceService(user));
+    final SplitsPointer splitsPointer = DatasetSplitsPointer.of(context.getNamespaceService(user), datasetConfig);
     final boolean isParquet = datasetConfig.getPhysicalDataset().getFormatSettings().getType() == FileType.PARQUET;
     final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
     final List<Path> batch = Lists.newArrayList();

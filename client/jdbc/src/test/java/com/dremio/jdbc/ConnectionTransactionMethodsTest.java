@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,10 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Savepoint;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 
@@ -38,23 +35,7 @@ import org.junit.Test;
  * Test for Dremio's implementation of Connection's main transaction-related
  * methods.
  */
-public class ConnectionTransactionMethodsTest {
-
-  private static Connection connection;
-
-  @BeforeClass
-  public static void setUpConnection() throws SQLException {
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", null );
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    connection.close();
-  }
-
+public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
 
   ////////////////////////////////////////
   // Transaction mode methods:
@@ -64,12 +45,12 @@ public class ConnectionTransactionMethodsTest {
 
   @Test
   public void testGetTransactionIsolationSaysNone() throws SQLException {
-    assertThat( connection.getTransactionIsolation(), equalTo( TRANSACTION_NONE ) );
+    assertThat( getConnection().getTransactionIsolation(), equalTo( TRANSACTION_NONE ) );
   }
 
   @Test
   public void testSetTransactionIsolationNoneExitsNormally() throws SQLException {
-    connection.setTransactionIsolation( TRANSACTION_NONE );
+    getConnection().setTransactionIsolation( TRANSACTION_NONE );
   }
 
   // Test trying to set to unsupported isolation levels:
@@ -81,7 +62,7 @@ public class ConnectionTransactionMethodsTest {
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testSetTransactionIsolationReadUncommittedThrows() throws SQLException {
     try {
-      connection.setTransactionIsolation( TRANSACTION_READ_UNCOMMITTED );
+      getConnection().setTransactionIsolation( TRANSACTION_READ_UNCOMMITTED );
     }
     catch ( SQLFeatureNotSupportedException e ) {
       // Check a few things in an error message:
@@ -97,20 +78,20 @@ public class ConnectionTransactionMethodsTest {
 
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testSetTransactionIsolationReadCommittedThrows() throws SQLException {
-    connection.setTransactionIsolation( TRANSACTION_READ_COMMITTED );
+    getConnection().setTransactionIsolation( TRANSACTION_READ_COMMITTED );
   }
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testSetTransactionIsolationRepeatableReadThrows() throws SQLException {
-    connection.setTransactionIsolation( TRANSACTION_REPEATABLE_READ );
+    getConnection().setTransactionIsolation( TRANSACTION_REPEATABLE_READ );
   }
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testSetTransactionIsolationSerializableThrows() throws SQLException {
-    connection.setTransactionIsolation( TRANSACTION_SERIALIZABLE );
+    getConnection().setTransactionIsolation( TRANSACTION_SERIALIZABLE );
   }
 
   @Test( expected = JdbcApiSqlException.class )
   public void testSetTransactionIsolationBadIntegerThrows() throws SQLException {
-    connection.setTransactionIsolation( 15 );  // not any TRANSACTION_* value
+    getConnection().setTransactionIsolation( 15 );  // not any TRANSACTION_* value
   }
 
 
@@ -120,13 +101,13 @@ public class ConnectionTransactionMethodsTest {
   @Test
   public void testGetAutoCommitSaysAuto() throws SQLException {
     // Auto-commit should always be true.
-    assertThat( connection.getAutoCommit(), equalTo( true ) );
+    assertThat( getConnection().getAutoCommit(), equalTo( true ) );
   }
 
   @Test
   public void testSetAutoCommitTrueExitsNormally() throws SQLException {
     // Setting auto-commit true (redundantly) shouldn't throw exception.
-    connection.setAutoCommit( true );
+    getConnection().setAutoCommit( true );
   }
 
 
@@ -137,14 +118,14 @@ public class ConnectionTransactionMethodsTest {
   public void testCommitThrows() throws SQLException {
     // Should fail saying because in auto-commit mode (or maybe because not
     // supported).
-    connection.commit();
+    getConnection().commit();
   }
 
   @Test( expected = JdbcApiSqlException.class )
   public void testRollbackThrows() throws SQLException {
     // Should fail saying because in auto-commit mode (or maybe because not
     // supported).
-    connection.rollback();
+    getConnection().rollback();
   }
 
 
@@ -153,22 +134,22 @@ public class ConnectionTransactionMethodsTest {
 
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testSetSavepointUnamed() throws SQLException {
-    connection.setSavepoint();
+    getConnection().setSavepoint();
   }
 
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testSetSavepointNamed() throws SQLException {
-    connection.setSavepoint( "savepoint name" );
+    getConnection().setSavepoint( "savepoint name" );
   }
 
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testRollbackSavepoint() throws SQLException {
-    connection.rollback( (Savepoint) null );
+    getConnection().rollback( (Savepoint) null );
   }
 
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testReleaseSavepoint() throws SQLException {
-    connection.releaseSavepoint( (Savepoint) null );
+    getConnection().releaseSavepoint( (Savepoint) null );
   }
 
 }

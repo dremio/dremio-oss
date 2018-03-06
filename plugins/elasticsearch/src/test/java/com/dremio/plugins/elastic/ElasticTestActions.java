@@ -34,10 +34,14 @@ import com.google.common.base.Joiner;
 public class ElasticTestActions {
 
   public static class CreateIndex extends ElasticAction {
-    private String index;
+    private final String index;
+    private final int shards;
+    private final int replicas;
 
-    public CreateIndex(String index) {
+    public CreateIndex(String index, int shards, int replicas) {
       this.index = index;
+      this.shards = shards;
+      this.replicas = replicas;
     }
 
     @Override
@@ -50,7 +54,7 @@ public class ElasticTestActions {
     public String toString() {
       String format = "{\n\"settings\":{\n\"index\":{\n\"number_of_shards\":%d,\n\"number_of_replicas\":%d\n}\n}\n}";
       try {
-        return String.format(format, 1, 0);
+        return String.format(format, shards, replicas);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

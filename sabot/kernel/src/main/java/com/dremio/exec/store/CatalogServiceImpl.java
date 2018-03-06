@@ -248,6 +248,18 @@ public class CatalogServiceImpl implements CatalogService {
     }
   }
 
+  @Override
+  public long getLastFullMetadataRefreshDateMs(NamespaceKey source) {
+    SourceInternalData srcData = sourceDataStore.get(source);
+    if (srcData != null) {
+      Long lastFullRefreshDateMs = srcData.getLastFullRefreshDateMs();
+      if (lastFullRefreshDateMs != null) {
+        return lastFullRefreshDateMs.longValue();
+      }
+    }
+    return 0;
+  }
+
   /**
    * Update to 'sourceKey' started running
    */
@@ -804,19 +816,5 @@ public class CatalogServiceImpl implements CatalogService {
     for (NamespaceKey sourceKey : toBeRemoved) {
       unregisterSource(sourceKey);
     }
-  }
-
-  /**
-   * Get the last full refresh date for a given source
-   * @param sourceKey
-   * @return the last full refresh date for 'sourceKey', or NULL if no such source exists
-   */
-  @VisibleForTesting
-  Long getSourceLastFullRefreshDate(NamespaceKey sourceKey) {
-    SourceInternalData srcData = sourceDataStore.get(sourceKey);
-    if (srcData != null) {
-      return srcData.getLastFullRefreshDateMs();
-    }
-    return null;
   }
 }

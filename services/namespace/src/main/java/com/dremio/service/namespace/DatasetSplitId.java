@@ -23,6 +23,7 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.proto.EntityId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -105,10 +106,14 @@ public class DatasetSplitId {
 
   public static SearchQuery getSplitsQuery(DatasetConfig datasetConfig) {
     Preconditions.checkNotNull(datasetConfig.getReadDefinition());
-    Preconditions.checkNotNull(datasetConfig.getReadDefinition().getSplitVersion());
+    long splitVersion = Preconditions.checkNotNull(datasetConfig.getReadDefinition().getSplitVersion());
+    return getSplitsQuery(datasetConfig.getId(), splitVersion);
+  }
+
+  public static SearchQuery getSplitsQuery(EntityId datasetId, long splitVersion) {
     return SearchQueryUtils.and(
-      SearchQueryUtils.newTermQuery(DATASET_ID, datasetConfig.getId().getId()),
-      SearchQueryUtils.newTermQuery(SPLIT_VERSION.getIndexFieldName(), datasetConfig.getReadDefinition().getSplitVersion()));
+      SearchQueryUtils.newTermQuery(DATASET_ID, datasetId.getId()),
+      SearchQueryUtils.newTermQuery(SPLIT_VERSION, splitVersion));
   }
 
   public static Range<String> getSplitStringRange(DatasetConfig datasetConfig){
@@ -119,6 +124,15 @@ public class DatasetSplitId {
     // create start and end id with empty split identifier
     final String start = getStringId(datasetId, splitVersion);
     final String end = getStringId(datasetId, nextSplitVersion);
+    return Range.closedOpen(start, end);
+  }
+
+  public static Range<String> getSplitStringRange(EntityId datasetId, long splitVersion) {
+    final long nextSplitVersion = splitVersion + 1;
+
+    // create start and end id with empty split identifier
+    final String start = getStringId(datasetId.getId(), splitVersion);
+    final String end = getStringId(datasetId.getId(), nextSplitVersion);
     return Range.closedOpen(start, end);
   }
 
@@ -148,6 +162,16 @@ public class DatasetSplitId {
     Range<String> range = getSplitStringRange(datasetConfig);
     final DatasetSplitId start = new DatasetSplitId(datasetId, range.lowerEndpoint());
     final DatasetSplitId end = new DatasetSplitId(datasetId, range.upperEndpoint());
+
+    return new FindByRange<DatasetSplitId>()
+      .setStart(start, true)
+      .setEnd(end, false);
+  }
+
+  public static FindByRange<DatasetSplitId> getSplitsRange(EntityId datasetId, long splitVersionId) {
+    Range<String> range = getSplitStringRange(datasetId, splitVersionId);
+    final DatasetSplitId start = new DatasetSplitId(datasetId.getId(), range.lowerEndpoint());
+    final DatasetSplitId end = new DatasetSplitId(datasetId.getId(), range.upperEndpoint());
 
     return new FindByRange<DatasetSplitId>()
       .setStart(start, true)

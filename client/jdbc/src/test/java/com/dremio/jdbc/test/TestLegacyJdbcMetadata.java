@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ package com.dremio.jdbc.test;
 
 import static org.junit.Assert.assertTrue;
 
-import java.sql.DriverManager;
 import java.util.Properties;
 
 import org.junit.BeforeClass;
+
 import com.dremio.jdbc.DremioConnection;
 
 /**
@@ -28,12 +28,12 @@ import com.dremio.jdbc.DremioConnection;
  */
 public class TestLegacyJdbcMetadata extends TestJdbcMetadata {
   @BeforeClass
-  public static void openClient() throws Exception {
+  public static void setupConnection() throws Exception {
     Properties defaultProperties = JdbcAssert.getDefaultProperties();
     defaultProperties.setProperty("server.metadata.disabled", "true");
 
-    connection = DriverManager.getConnection("jdbc:dremio:zk=local", defaultProperties);
-    assertTrue(((DremioConnection) connection).getConfig().isServerMetadataDisabled());
+    setupConnection(defaultProperties);
+    assertTrue(((DremioConnection) getConnection()).getConfig().isServerMetadataDisabled());
   }
 
 }

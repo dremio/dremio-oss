@@ -31,6 +31,7 @@ import org.apache.calcite.util.graph.DirectedGraph;
 import org.apache.calcite.util.graph.Graphs;
 import org.apache.calcite.util.graph.TopologicalOrderIterator;
 
+import com.dremio.exec.store.TableMetadata;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -114,6 +115,13 @@ public final class SubstitutionUtils {
     return builder.build();
   }
 
+  public static String getReflectionId(TableMetadata tableMetadata) {
+    if (tableMetadata.getName().getPathComponents().size() == 3 &&
+      "__accelerator".equals(tableMetadata.getName().getPathComponents().get(0))) {
+      return tableMetadata.getName().getPathComponents().get(1);
+    }
+    return null;
+  }
 }
 
 

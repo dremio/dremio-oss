@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,12 +39,14 @@ import java.util.List;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
 
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.Driver;
 import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.SabotNodeRule;
 
 
 /**
@@ -66,6 +68,9 @@ import com.dremio.jdbc.JdbcTestBase;
  * </p>
  */
 public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
+  @ClassRule
+  public static final SabotNodeRule sabotNode = new SabotNodeRule();
+
   private static final Logger logger =
       getLogger(Drill2489CallsAfterCloseThrowExceptionsTest.class);
 
@@ -85,10 +90,10 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     // (Note: Can't use JdbcTest's connect(...) for this test class.)
 
     final Connection connToClose =
-        new Driver().connect("jdbc:dremio:zk=local",
+        new Driver().connect(sabotNode.getJDBCConnectionString(),
                              JdbcAssert.getDefaultProperties());
     final Connection connToKeep =
-        new Driver().connect("jdbc:dremio:zk=local",
+        new Driver().connect(sabotNode.getJDBCConnectionString(),
                              JdbcAssert.getDefaultProperties());
 
     final Statement plainStmtToClose = connToKeep.createStatement();

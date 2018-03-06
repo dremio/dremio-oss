@@ -25,10 +25,10 @@ import com.dremio.exec.planner.physical.AggPrelBase;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
+import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.TopNPrel;
 import com.dremio.exec.planner.physical.UnionDistinctPrel;
@@ -81,7 +81,7 @@ public class SimpleLimitExchangeRemover {
     }
 
     @Override
-    public Boolean visitScan(ScanPrelBase prel, Boolean isTrivial) {
+    public Boolean visitLeaf(LeafPrel prel, Boolean isTrivial) {
       if(prel.getDistributionAffinity() == DistributionAffinity.HARD){
         return false;
       }

@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A sorted key value store abstraction
@@ -198,6 +199,26 @@ public interface KVStore<K, V> {
     public boolean isEndInclusive() {
       return endInclusive;
     }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(start, end, startInclusive, endInclusive);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof FindByRange)) {
+        return false;
+      }
+
+      FindByRange<?> that = (FindByRange<?>) obj;
+      return this.startInclusive == that.startInclusive
+          && this.endInclusive == that.endInclusive
+          && Objects.equals(this.start, that.start)
+          && Objects.equals(this.end, that.end);
+    }
+
+
 
   }
 

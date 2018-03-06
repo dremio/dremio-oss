@@ -246,5 +246,19 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
     map.close();
   }
 
+  @Override
+  public AutoCloseable traceStart(int numRecords) {
+    return new AutoCloseable() {
+      @Override
+      public void close() throws Exception {
+      }
+    };
+  }
+
+  @Override
+  public String traceReport() {
+    return "";
+  }
+
 
 }

@@ -17,12 +17,16 @@ package com.dremio.plugins.elastic;
 
 import org.junit.Test;
 
+import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
 import static com.dremio.plugins.elastic.ElasticsearchType.STRING;
 
-public class TestAssignment extends ElasticBaseTestQuery {
+public class TestParallelization extends ElasticBaseTestQuery {
 
   @Test
   public void test() throws Exception {
+
+    String schema = schemaName();
+    elastic.schema(10, 0, schema);
 
     ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
             new ElasticsearchCluster.ColumnData("column", STRING, new Object[][]{
@@ -45,6 +49,8 @@ public class TestAssignment extends ElasticBaseTestQuery {
     testNoResult("set planner.width.max_per_query = 10");
     testNoResult("set planner.slice_target = 1");
 
-    test(String.format("select * from elasticsearch.%s.%s", schema, table));
+    String sql = String.format("select * from elasticsearch.%s.%s", schema, table);
+
+    testPhysicalPlan(sql, "UnionExchange");
   }
 }

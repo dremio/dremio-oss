@@ -82,6 +82,15 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     }
 
     @Override
+    public String toString() {
+      // return the info about the values than the actual values
+      if (value == null) {
+        return "Decimal:null";
+      }
+      return "Decimal";
+    }
+
+    @Override
     public void close() throws Exception {
       try{
         AutoCloseables.close(vector, buf);

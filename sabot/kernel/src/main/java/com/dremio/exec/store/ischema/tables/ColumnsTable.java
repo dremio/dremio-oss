@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -78,7 +79,14 @@ public class ColumnsTable extends BaseInfoSchemaTable<ColumnsTable.Column> {
         final String schemaName = input.getKey().getParent().toUnescapedString();
         final String tableName = input.getKey().getName();
 
-        return FluentIterable.from(rowType.getFieldList()).transform(new Function<RelDataTypeField, Column>(){
+        return FluentIterable.from(rowType.getFieldList())
+            .filter(new Predicate<RelDataTypeField>() {
+              @Override
+              public boolean apply(RelDataTypeField input) {
+                return !IncrementalUpdateUtils.UPDATE_COLUMN.equals(input.getName());
+              }
+            })
+            .transform(new Function<RelDataTypeField, Column>(){
           @Override
           public Column apply(RelDataTypeField field) {
             return new Column(catalogName, schemaName, tableName, field);

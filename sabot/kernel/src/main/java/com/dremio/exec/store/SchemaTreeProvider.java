@@ -68,7 +68,8 @@ public class SchemaTreeProvider {
   public SchemaPlus getRootSchema(SchemaConfig schemaConfig) {
     try (TimedBlock b = time("Create schema tree")) {
       final NamespaceService ns = dContext.getNamespaceService(schemaConfig.getUserName());
-      final SchemaPlus rootSchemaPlus = new ImplicitRootSchema(ns, dContext, schemaConfig, metadataStatsCollector).plus();
+      final CatalogService catalog = dContext.getCatalogService();
+      final SchemaPlus rootSchemaPlus = new ImplicitRootSchema(ns, catalog, dContext, schemaConfig, metadataStatsCollector).plus();
 
       if (schemaConfig.exposeSubSchemasAsTopLevelSchemas()) {
         final RootSchema rootSchema = rootSchemaPlus.unwrap(RootSchema.class);

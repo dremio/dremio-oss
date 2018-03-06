@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,10 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -56,22 +54,16 @@ import org.junit.Test;
  *   {@link com.dremio.jdbc.impl.TypeConvertingSqlAccessor}).
  * </p>
  */
-public class ResultSetGetMethodConversionsTest extends JdbcTestBase {
-
-  private static Connection connection;
+public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
   private static ResultSet testDataRow;
   private static ResultSet testDataRowWithNulls;
 
   @BeforeClass
   public static void setUpConnectionAndMetadataToCheck() throws SQLException {
-    // Get JDBC connection to Dremio:
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", null );
+    JdbcWithServerTestBase.setUpConnection();
 
     // Set up result row with values of various types.
-    final Statement stmt = connection.createStatement();
+    final Statement stmt = getConnection().createStatement();
     testDataRow = stmt.executeQuery(
         ""
         +   "SELECT  "
@@ -99,7 +91,7 @@ public class ResultSetGetMethodConversionsTest extends JdbcTestBase {
     // Note: Assertions must be enabled (as they have been so far in tests).
     assertTrue( testDataRow.next() );
 
-    final Statement stmtForNulls = connection.createStatement();
+    final Statement stmtForNulls = getConnection().createStatement();
     testDataRowWithNulls = stmtForNulls.executeQuery(
         ""
             +   "SELECT  "
@@ -125,11 +117,6 @@ public class ResultSetGetMethodConversionsTest extends JdbcTestBase {
             + "\nFROM (VALUES(1))" );
     // Note: Assertions must be enabled (as they have been so far in tests).
     assertTrue( testDataRowWithNulls.next() );
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    connection.close();
   }
 
 

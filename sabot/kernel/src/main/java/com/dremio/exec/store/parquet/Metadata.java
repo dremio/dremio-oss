@@ -178,6 +178,7 @@ public class Metadata {
       logger.debug(containsCorruptDates.toString());
     }
     final Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo = Maps.newHashMap();
+    int rowGroupIdx = 0;
     for (BlockMetaData rowGroup : metadata.getBlocks()) {
       List<ColumnMetadata> columnMetadataList = Lists.newArrayList();
       long length = 0;
@@ -207,6 +208,9 @@ public class Metadata {
           columnMetadata =
               new ColumnMetadata(columnTypeMetadata.name, mxValue, stats.getNumNulls());
         } else {
+          // log it under trace to avoid lot of log entries.
+          logger.trace("Stats are not available for column {}, rowGroupIdx {}, file {}",
+              columnSchemaName, rowGroupIdx, file.getPath());
           columnMetadata = new ColumnMetadata(columnTypeMetadata.name,null, null);
         }
         columnMetadataList.add(columnMetadata);
@@ -218,6 +222,7 @@ public class Metadata {
               getHostAffinity(file, rowGroup.getStartingPos(), length), columnMetadataList);
 
       rowGroupMetadataList.add(rowGroupMeta);
+      rowGroupIdx++;
     }
 
     return new ParquetFileMetadata(file, file.getLen(), rowGroupMetadataList, columnTypeInfo);

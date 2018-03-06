@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,26 +23,22 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.sql.Clob;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.Statement;
 import java.util.Properties;
 
 import org.hamcrest.Matcher;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.jdbc.test.JdbcAssert;
 
 /**
  * Test that prepared statements works even if not supported on server, to some extent.
  */
-public class LegacyPreparedStatementTest extends JdbcTestBase {
+public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
   /** Fuzzy matcher for parameters-not-supported message assertions.  (Based on
    *  current "Prepared-statement dynamic parameters are not supported.") */
   private static final Matcher<String> PARAMETERS_NOT_SUPPORTED_MSG_MATCHER =
@@ -50,26 +46,13 @@ public class LegacyPreparedStatementTest extends JdbcTestBase {
              containsString( "not" ),        // (could have false matches)
              containsString( "support" ) );  // allows "supported"
 
-  private static Connection connection;
-
   @BeforeClass
   public static void setUpConnection() throws SQLException {
-    Driver.load();
-    Properties properties = new Properties();
+    Properties properties = JdbcAssert.getDefaultProperties();
     properties.setProperty("server.preparedstatement.disabled", "true");
 
-    connection = DriverManager.getConnection( "jdbc:dremio:zk=local", properties);
-    assertTrue(((DremioConnection) connection).getConfig().isServerPreparedStatementDisabled());
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    if (connection != null) {
-      try (Statement stmt = connection.createStatement()) {
-        stmt.execute(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-      }
-    }
-    connection.close();
+    setupConnection(properties);
+    assertTrue(((DremioConnection) getConnection()).getConfig().isServerPreparedStatementDisabled());
   }
 
   //////////
@@ -78,7 +61,7 @@ public class LegacyPreparedStatementTest extends JdbcTestBase {
   /** Tests that basic executeQuery() (with query statement) works. */
   @Test
   public void testExecuteQueryBasicCaseWorks() throws SQLException {
-    try (PreparedStatement stmt = connection.prepareStatement( "VALUES 11" )) {
+    try (PreparedStatement stmt = getConnection().prepareStatement( "VALUES 11" )) {
       try(ResultSet rs = stmt.executeQuery()) {
         assertThat("Unexpected column count",
             rs.getMetaData().getColumnCount(), equalTo(1)
@@ -97,7 +80,7 @@ public class LegacyPreparedStatementTest extends JdbcTestBase {
    *  check. */
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = connection.prepareStatement( "VALUES 1" )) {
+    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
       try {
         prepStmt.setBytes(4, null);
       } catch (final SQLFeatureNotSupportedException e) {
@@ -114,7 +97,7 @@ public class LegacyPreparedStatementTest extends JdbcTestBase {
    *  check. */
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = connection.prepareStatement( "VALUES 1" )) {
+    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
       try {
         prepStmt.setClob(2, (Clob) null);
       } catch (final SQLFeatureNotSupportedException e) {

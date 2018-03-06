@@ -140,6 +140,16 @@ public class FileSelection {
     return getStatuses().get(0);
   }
 
+  public int getMaxDepth(FileStatus rootStatus) {
+    final int selectionDepth = rootStatus.getPath().depth();
+
+    int maxDepth = 0;
+    for (final FileStatus status : getStatuses()) {
+      maxDepth = Math.max(maxDepth, status.getPath().depth() - selectionDepth);
+    }
+    return maxDepth;
+  }
+
   public Optional<FileStatus> getFirstFile() throws IOException {
     return Iterables.tryFind(FluentIterable.from(statuses), new Predicate<FileStatus>() {
 

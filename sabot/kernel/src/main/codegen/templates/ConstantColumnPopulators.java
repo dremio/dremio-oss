@@ -167,6 +167,22 @@ public class ConstantColumnPopulators {
     public void close() throws Exception {
       AutoCloseables.close(vector);
     }
+
+    @Override
+    public String toString() {
+      // return the info about the values than the actual values
+      if (value == null) {
+        return "${minor.class}:null";
+      }
+  <#switch minor.class>
+  <#case "VarBinary">
+  <#case "VarChar">
+      return "${minor.class}:len:" + value.length;
+  <#break>
+  <#default>
+      return "{minor.class}";
+  </#switch>
+    }
   }
 
   public static class ${minor.class}NameValuePair extends NameValuePair<${javaType}> {

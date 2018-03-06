@@ -94,6 +94,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN_SPECIFIC = new BooleanValidator("exec.operator.join.vectorize.specific", false);
   BooleanValidator ENABLE_VECTORIZED_COPIER = new BooleanValidator("exec.operator.copier.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_PARTITIONER = new BooleanValidator("exec.operator.partitioner.vectorize", true);
+  BooleanValidator DEBUG_HASHJOIN_INSERTION = new BooleanValidator("exec.operator.join.debug-insertion", false);
 
   String OUTPUT_FORMAT_OPTION = "store.format";
   OptionValidator OUTPUT_FORMAT_VALIDATOR = new StringValidator(OUTPUT_FORMAT_OPTION, "parquet");

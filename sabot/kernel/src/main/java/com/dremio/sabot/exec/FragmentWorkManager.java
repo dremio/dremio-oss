@@ -28,6 +28,7 @@ import org.apache.curator.utils.CloseableExecutorService;
 import com.codahale.metrics.Gauge;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
@@ -279,6 +280,7 @@ public class FragmentWorkManager implements Service, SafeExit {
         storagePluginRegistry.get(),
         contextInformationFactory.get(),
         bitContext.getFunctionImplementationRegistry(),
+        context.getNodeDebugContextProvider(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()));
 
     // register coord/exec message handling.

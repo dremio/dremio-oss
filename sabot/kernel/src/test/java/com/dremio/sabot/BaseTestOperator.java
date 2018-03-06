@@ -76,6 +76,7 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
@@ -327,6 +328,7 @@ public class BaseTestOperator extends ExecTest {
           contextInformation,
           options,
           namespaceService,
+          NodeDebugContextProvider.NOOP,
           targetBatchSize);
     }
 

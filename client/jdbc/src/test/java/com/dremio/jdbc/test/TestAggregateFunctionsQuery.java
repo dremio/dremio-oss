@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import com.dremio.jdbc.Driver;
 
 
 public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
-
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
@@ -60,7 +59,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
 
     String result = String.format("MAX_DATE="+ t + "; " + "MIN_DATE=" + t1 + "\n");
 
-    JdbcAssert.withFull("cp")
+    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
         .sql(query)
         .returns(result);
   }
@@ -70,7 +69,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
     String query = new String("select max(date_diff(date'2014-5-2', cast(HIRE_DATE as date))) as MAX_DAYS,  min(date_diff(date'2014-5-2', cast(HIRE_DATE as date))) MIN_DAYS" +
         " FROM `employee.json`");
 
-    JdbcAssert.withFull("cp")
+    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
         .sql(query)
         .returns(
             "MAX_DAYS=+7671 00:00:00.000; " +
@@ -88,7 +87,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
         "max(cast(EMPLOYEE_ID as decimal(38, 11))) as MAX_DEC38, min(cast(EMPLOYEE_ID as decimal(38, 11))) as MIN_DEC38" +
         " FROM `employee.json`");
 
-    JdbcAssert.withFull("cp")
+    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
         .sql(query)
         .returns(
             "MAX_DEC9=1156.00; " +
@@ -108,7 +107,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
     String query = new String("select max(full_name) as MAX_NAME,  min(full_name) as MIN_NAME" +
         " FROM `employee.json`");
 
-    JdbcAssert.withFull("cp")
+    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
         .sql(query)
         .returns(
             "MAX_NAME=Zach Lovell; " +

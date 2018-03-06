@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.sql.Clob;
-import java.sql.Connection;
 import java.sql.Date;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -45,7 +43,6 @@ import java.sql.Timestamp;
 import java.util.List;
 
 import org.hamcrest.Matcher;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -62,7 +59,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Test for Dremio's implementation of PreparedStatement's methods.
  */
-public class PreparedStatementTest extends JdbcTestBase {
+public class PreparedStatementTest extends JdbcWithServerTestBase {
   private static final String SYS_VERSION_SQL = "select * from sys.version";
 
   /** Fuzzy matcher for parameters-not-supported message assertions.  (Based on
@@ -72,27 +69,13 @@ public class PreparedStatementTest extends JdbcTestBase {
              containsString( "not" ),        // (could have false matches)
              containsString( "support" ) );  // allows "supported"
 
-  private static Connection connection;
-
-
   @BeforeClass
   public static void setUpConnection() throws SQLException {
-    Driver.load();
-    connection = DriverManager.getConnection( "jdbc:dremio:zk=local" );
-    try(Statement stmt = connection.createStatement()) {
+    JdbcWithServerTestBase.setUpConnection();
+    try(Statement stmt = getConnection().createStatement()) {
       stmt.execute(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
       stmt.execute(String.format("alter session set `%s` = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
     }
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    if (connection != null) {
-      try (Statement stmt = connection.createStatement()) {
-        stmt.execute(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-      }
-    }
-    connection.close();
   }
 
   //////////
@@ -101,7 +84,7 @@ public class PreparedStatementTest extends JdbcTestBase {
   /** Tests that basic executeQuery() (with query statement) works. */
   @Test
   public void testExecuteQueryBasicCaseWorks() throws SQLException {
-    try (PreparedStatement stmt = connection.prepareStatement( "VALUES 11" )) {
+    try (PreparedStatement stmt = getConnection().prepareStatement( "VALUES 11" )) {
       try(ResultSet rs = stmt.executeQuery()) {
         assertThat("Unexpected column count",
             rs.getMetaData().getColumnCount(), equalTo(1)
@@ -115,7 +98,7 @@ public class PreparedStatementTest extends JdbcTestBase {
 
   @Test
   public void testQueryMetadataInPreparedStatement() throws SQLException {
-    try(PreparedStatement stmt = connection.prepareStatement(
+    try(PreparedStatement stmt = getConnection().prepareStatement(
         "SELECT " +
             "cast(1 as INTEGER ) as int_field, " +
             "cast(12384729 as BIGINT ) as bigint_field, " +
@@ -249,7 +232,7 @@ public class PreparedStatementTest extends JdbcTestBase {
   public void testSqlQueryWithParamNotSupported() throws SQLException {
 
     try {
-      connection.prepareStatement( "VALUES ?, ?" );
+      getConnection().prepareStatement( "VALUES ?, ?" );
     }
     catch ( final SQLException e ) {
       assertThat(
@@ -263,7 +246,7 @@ public class PreparedStatementTest extends JdbcTestBase {
    *  check. */
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = connection.prepareStatement( "VALUES 1" )) {
+    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
       try {
         prepStmt.setBytes(4, null);
       } catch (final SQLFeatureNotSupportedException e) {
@@ -280,7 +263,7 @@ public class PreparedStatementTest extends JdbcTestBase {
    *  check. */
   @Test( expected = SQLFeatureNotSupportedException.class )
   public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = connection.prepareStatement( "VALUES 1" )) {
+    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
       try {
         prepStmt.setClob(2, (Clob) null);
       } catch (final SQLFeatureNotSupportedException e) {
@@ -302,7 +285,7 @@ public class PreparedStatementTest extends JdbcTestBase {
   /** Tests that getQueryTimeout() indicates no timeout set. */
   @Test
   public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
-    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
       assertThat( statement.getQueryTimeout(), equalTo( 0 ) );
     }
   }
@@ -314,14 +297,14 @@ public class PreparedStatementTest extends JdbcTestBase {
    *  no-timeout mode. */
   @Test
   public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
-    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
       statement.setQueryTimeout( 0 );
     }
   }
 
 
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
-    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
       statement.setQueryTimeout( -2 );
     }
     catch ( SQLException e ) {
@@ -338,7 +321,7 @@ public class PreparedStatementTest extends JdbcTestBase {
    */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
-    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
       // Setting positive value
       statement.setQueryTimeout(1_000);
       assertThat( statement.getQueryTimeout(), equalTo( 1_000 ) );
@@ -351,12 +334,12 @@ public class PreparedStatementTest extends JdbcTestBase {
   @Test ( expected = SqlTimeoutException.class )
   public void testTriggeredQueryTimeout() throws SQLException {
     String queryId = null;
-    try(PreparedStatement statement = connection.prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
       // Prevent the server to complete the query to trigger a timeout
       // For prepared statement, two queries are made: one to create the plan and one to
       // execute. We only pause the execution one.
 
-      try(Statement controlStatement = connection.createStatement()) {
+      try(Statement controlStatement = getConnection().createStatement()) {
         final String controls = Controls.newBuilder()
             .addPause(AttemptManager.class, "foreman-cleanup", 0)
             .build();
@@ -383,7 +366,7 @@ public class PreparedStatementTest extends JdbcTestBase {
     } finally {
       // Do not forget to unpause to avoid memory leak.
       if (queryId != null) {
-        DremioClient client = ((DremioConnection) connection).getClient();
+        DremioClient client = ((DremioConnection) getConnection()).getClient();
         client.resumeQuery(QueryIdHelper.getQueryIdFromString(queryId));
       }
     }

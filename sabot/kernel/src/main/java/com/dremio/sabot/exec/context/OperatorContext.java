@@ -21,9 +21,11 @@ import java.util.concurrent.ExecutorService;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.service.namespace.NamespaceService;
@@ -59,6 +61,8 @@ public abstract class OperatorContext {
   public abstract ExecutorService getExecutor();
 
   public abstract NamespaceService getNamespaceService();
+
+  public abstract NodeDebugContextProvider getNodeDebugContextProvider();
 
   public static int getChildCount(PhysicalOperator popConfig) {
     Iterator<PhysicalOperator> iter = popConfig.iterator();

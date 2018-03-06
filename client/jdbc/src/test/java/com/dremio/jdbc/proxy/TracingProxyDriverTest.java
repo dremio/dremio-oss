@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,18 @@
  */
 package com.dremio.jdbc.proxy;
 
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -29,20 +41,18 @@ import java.sql.Statement;
 import java.util.Properties;
 
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.dremio.test.DremioTest;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.hamcrest.CoreMatchers.*;
+import com.dremio.exec.ExecTest;
+import com.dremio.jdbc.SabotNodeRule;
 
 /**
  * Test of TracingProxyDriver other than loading of driver classes.
  */
-public class TracingProxyDriverTest extends DremioTest {
+public class TracingProxyDriverTest extends ExecTest {
+  @ClassRule
+  public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
   private static Driver proxyDriver;
   private static Connection proxyConnection;
@@ -53,9 +63,9 @@ public class TracingProxyDriverTest extends DremioTest {
     Class.forName( "com.dremio.jdbc.proxy.TracingProxyDriver" );
     proxyDriver =
         DriverManager.getDriver(
-            "jdbc:proxy:com.dremio.jdbc.Driver:jdbc:dremio:zk=local" );
+            "jdbc:proxy:com.dremio.jdbc.Driver:" + sabotNode.getJDBCConnectionString() );
     proxyConnection =
-        DriverManager.getConnection( "jdbc:proxy::jdbc:dremio:zk=local" );
+        DriverManager.getConnection( "jdbc:proxy::" + sabotNode.getJDBCConnectionString() );
   }
 
   @Test
@@ -195,7 +205,7 @@ public class TracingProxyDriverTest extends DremioTest {
     proxyDriver.getMinorVersion();
     proxyDriver.jdbcCompliant();
     proxyDriver.getParentLogger();
-    proxyDriver.getPropertyInfo( "jdbc:proxy::jdbc:dremio:zk=local", new Properties() );
+    proxyDriver.getPropertyInfo( "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), new Properties() );
 
     final DatabaseMetaData dbMetaData = proxyConnection.getMetaData();
     assertThat( dbMetaData, instanceOf( DatabaseMetaData.class ) );

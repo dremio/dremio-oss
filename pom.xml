@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>1.4.4-201801230630490666-6d69d32</version>
+  <version>1.4.9-201802191836310213_7195059</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -43,7 +43,7 @@
 
     <arrow.version>0.8.0-201801160126180805-1bceda5-dremio</arrow.version>
     <avatica.version>1.9.0</avatica.version>
-    <calcite.version>1.12.0-201712102340200054-6e60422</calcite.version>
+    <calcite.version>1.12.0-201802162217200854-87dbbf1</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -120,7 +120,7 @@
         <hive.version>1.2.0-mapr-1703</hive.version>
         <hbase.version>1.1.8-mapr-1703</hbase.version>
         <hadoop.version>2.7.0-mapr-1703</hadoop.version>
-        <maprfs.version>5.2.1-mapr</maprfs.version>
+        <maprfs.version>5.2.2.201801021050-mapr</maprfs.version>
         <!-- This jar is a dependency of com.mapr.hadoop:maprfs jar.
              For some reason it is not packaged by the assembly plugin. Include it explicitly. -->
         <org.json.version>20080701</org.json.version>
@@ -142,6 +142,15 @@
           <url>http://repository.mapr.com/maven/</url>
         </repository>
       </repositories>
+      <dependencyManagement>
+        <dependencies>
+          <dependency>
+            <groupId>com.mapr.hadoop</groupId>
+            <artifactId>maprfs</artifactId>
+            <version>${maprfs.version}</version>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
     </profile>
     <profile>
       <id>community-build</id>
@@ -1390,6 +1399,11 @@ limitations under the License.
         <artifactId>avatica</artifactId>
         <version>${avatica.version}</version>
         <exclusions>
+          <!-- avatica artifact is a shaded version of avatica-core -->
+          <exclusion>
+            <groupId>org.apache.calcite.avatica</groupId>
+            <artifactId>avatica-core</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>

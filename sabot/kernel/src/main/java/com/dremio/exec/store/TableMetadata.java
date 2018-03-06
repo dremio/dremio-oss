@@ -62,6 +62,13 @@ public interface TableMetadata {
 
   TableMetadata prune(List<DatasetSplit> newSplits) throws NamespaceException;
 
+  /**
+   * Get an opaque key to perform comparison on splits
+   *
+   * @return the splits key
+   */
+  SplitsKey getSplitsKey();
+
   Iterator<DatasetSplit> getSplits();
 
   double getSplitRatio() throws NamespaceException;

@@ -901,7 +901,8 @@ public class ElasticsearchCluster implements Closeable {
         continue;
       }
 
-      CreateIndex createIndex = new CreateIndex(schema);
+      CreateIndex createIndex = new CreateIndex(schema, shards, replicas);
+
       createIndex.getResult(webTarget);
     }
     green();

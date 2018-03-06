@@ -16,28 +16,27 @@
 package com.dremio.exec.store;
 
 import com.dremio.datastore.SearchTypes;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.google.common.base.Predicate;
 
 /**
  * Interface for split pointer
  */
-public interface SplitsPointer {
+public interface SplitsPointer extends SplitsKey {
 
   /**
    * get splits ratio
    * @return
    * @throws NamespaceException
    */
-  double getSplitRatio() throws NamespaceException;
+  double getSplitRatio();
 
   /**
    * get total number of splits for the dataset
    * @return
    * @throws NamespaceException
    */
-  int getSplitsCount() throws NamespaceException;
+  int getSplitsCount();
 
   /**
    * Apply filter query and prune partitions.
@@ -45,7 +44,7 @@ public interface SplitsPointer {
    * @return
    * @throws NamespaceException
    */
-  SplitsPointer prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException;
+  SplitsPointer prune(SearchTypes.SearchQuery partitionFilterQuery);
 
 
   /**
@@ -77,5 +76,5 @@ public interface SplitsPointer {
 
   int getTotalSplitsCount();
 
-  boolean isPruned() throws NamespaceException;
+  boolean isPruned();
 }

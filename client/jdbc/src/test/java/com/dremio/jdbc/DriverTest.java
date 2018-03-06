@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,11 @@ package com.dremio.jdbc;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -124,27 +122,6 @@ public class DriverTest extends DremioTest {
     assertThat( uut.connect( "jdbc:dremio:x=y;z;;a=b=c=d;what=ever", null ),
                 nullValue() );
     fail( "Not implemented yet" );
-  }
-
-  @Test
-  public void test_connect_acceptsLocalZkDremioJdbcUrl()
-      throws SQLException
-  {
-    Connection connection = uut.connect( "jdbc:dremio:zk=local", null );
-    assertThat( connection, not( nullValue() ) );
-    connection.close();
-  }
-
-  @Test
-  public void test_connect_acceptsLocalViaProperties()
-      throws SQLException
-  {
-    Properties props = new Properties();
-    props.put( "zk", "local" );
-
-    Connection connection = uut.connect( "jdbc:dremio:", props );
-    assertThat( connection, not( nullValue() ) );
-    connection.close();
   }
 
   // TODO:  Determine which other cases to test, including cases of Properties

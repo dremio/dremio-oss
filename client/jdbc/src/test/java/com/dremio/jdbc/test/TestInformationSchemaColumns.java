@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -35,8 +34,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
 // NOTE: TestInformationSchemaColumns and DatabaseMetaDataGetColumnsTest
 // have identical sections.  (Cross-maintain them for now; factor out later.)
@@ -51,16 +49,10 @@ import com.dremio.jdbc.JdbcTestBase;
  * Test class for Dremio's INFORMATION_SCHEMA.COLUMNS implementation.
  */
 @Ignore("DX-2490")
-public class TestInformationSchemaColumns extends JdbcTestBase {
-
+public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   private static final String VIEW_SCHEMA = "dfs_test";
   private static final String VIEW_NAME =
       TestInformationSchemaColumns.class.getSimpleName() + "_View";
-
-
-  /** The one shared JDBC connection to Dremio. */
-  private static Connection connection;
-
 
   /** Result set metadata.  For checking columns themselves (not cell
    *  values or row order). */
@@ -149,7 +141,7 @@ public class TestInformationSchemaColumns extends JdbcTestBase {
                                      final String columnName ) throws SQLException
   {
     System.out.println( "(Setting up row for " + tableOrViewName + "." + columnName + ".)");
-    final Statement stmt = connection.createStatement();
+    final Statement stmt = getConnection().createStatement();
     final ResultSet mdrUnk =
         stmt.executeQuery(
             "SELECT * FROM INFORMATION_SCHEMA.COLUMNS "
@@ -164,14 +156,14 @@ public class TestInformationSchemaColumns extends JdbcTestBase {
   }
 
   @BeforeClass
-  public static void setUpConnectionAndMetadataToCheck() throws Exception {
+  public static void setUpConnection() throws SQLException {
 
     // Get JDBC connection to Dremio:
     // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
     // Connection--and other JDBC objects--on test method failure, but this test
     // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties() );
-    final Statement stmt = connection.createStatement();
+    JdbcWithServerTestBase.setUpConnection();
+    final Statement stmt = getConnection().createStatement();
 
     ResultSet util;
 
@@ -318,7 +310,7 @@ public class TestInformationSchemaColumns extends JdbcTestBase {
 
     // Get all columns for more diversity of values (e.g., nulls and non-nulls),
     // in case that affects metadata (e.g., nullability) (in future).
-    final Statement stmt2 = connection.createStatement();
+    final Statement stmt2 = getConnection().createStatement();
     final ResultSet allColumns =
             stmt2.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.COLUMNS " );
     rowsMetadata = allColumns.getMetaData();
@@ -327,11 +319,11 @@ public class TestInformationSchemaColumns extends JdbcTestBase {
   @AfterClass
   public static void tearDownConnection() throws SQLException {
     final ResultSet util =
-        connection.createStatement().executeQuery( "DROP VIEW " + VIEW_NAME + "" );
+        getConnection().createStatement().executeQuery( "DROP VIEW " + VIEW_NAME + "" );
     assertTrue( util.next() );
     assertTrue("Error dropping temporary test-columns view " + VIEW_NAME + ": "
          + util.getString( 2 ), util.getBoolean( 1 ) );
-    connection.close();
+    JdbcWithServerTestBase.tearDownConnection();
   }
 
 

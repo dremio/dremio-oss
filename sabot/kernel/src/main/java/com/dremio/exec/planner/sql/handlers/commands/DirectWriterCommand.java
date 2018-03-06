@@ -43,6 +43,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.AbstractSchema;
 import com.dremio.exec.store.SchemaConfig;
@@ -191,6 +192,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         null,
         context.getOptions(),
         context.getNamespaceService(),
+        NodeDebugContextProvider.NOOP,
         60000);
     return oc;
   }

@@ -18,7 +18,6 @@ package com.dremio.exec.store;
 import java.util.Iterator;
 import java.util.List;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceException;
@@ -36,14 +35,12 @@ import com.google.common.base.Predicate;
  * A pointer to a table exposed by the namespace service. May load lazily.
  */
 public class TableMetadataImpl implements TableMetadata {
-
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TableMetadataImpl.class);
-
-  private BatchSchema schema;
   private final StoragePluginId plugin;
   private final DatasetConfig config;
   private final SplitsPointer splits;
   private final String user;
+
+  private BatchSchema schema;
 
   public TableMetadataImpl(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits) {
     this.plugin = plugin;
@@ -60,6 +57,11 @@ public class TableMetadataImpl implements TableMetadata {
   @Override
   public NamespaceKey getName() {
     return new NamespaceKey(config.getFullPathList());
+  }
+
+  @Override
+  public SplitsKey getSplitsKey() {
+    return splits;
   }
 
   @Override
@@ -85,10 +87,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public TableMetadata prune(List<DatasetSplit> newSplits) throws NamespaceException {
-    if(newSplits != splits){
-      return new TableMetadataImpl(plugin, config, user, new SplitsPointerImpl(newSplits, splits.getTotalSplitsCount()));
-    }
-    return this;
+    return new TableMetadataImpl(plugin, config, user, new MaterializedSplitsPointer(newSplits, splits.getTotalSplitsCount()));
   }
 
   @Override
@@ -108,11 +107,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public int getSplitCount() {
-    try{
-      return splits.getSplitsCount();
-    }catch(NamespaceException ex){
-      throw UserException.dataReadError(ex).message("Failure determining split count for dataset %s.", getName()).build(logger);
-    }
+    return splits.getSplitsCount();
   }
 
   @Override

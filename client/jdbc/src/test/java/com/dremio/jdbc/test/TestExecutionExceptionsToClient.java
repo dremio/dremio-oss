@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,45 +15,36 @@
  */
 package com.dremio.jdbc.test;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
-import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.AfterClass;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
-public class TestExecutionExceptionsToClient extends JdbcTestBase {
-
-  private static Connection connection;
-
+public class TestExecutionExceptionsToClient extends JdbcWithServerTestBase {
   @BeforeClass
-  public static void setUpConnection() throws Exception {
-    connection = new Driver().connect( "jdbc:dremio:zk=local", null );
-    try(Statement stmt = connection.createStatement()) {
+  public static void setUpConnection() throws SQLException {
+    JdbcWithServerTestBase.setUpConnection();
+    try(Statement stmt = getConnection().createStatement()) {
       stmt.execute(String.format("alter session set `%s` = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
     }
   }
 
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    connection.close();
-  }
-
   @Test
   public void testExecuteQueryThrowsRight1() throws Exception {
-    final Statement statement = connection.createStatement();
+    final Statement statement = getConnection().createStatement();
     try {
       statement.executeQuery( "SELECT one case of syntax error" );
     }
@@ -79,7 +70,7 @@ public class TestExecutionExceptionsToClient extends JdbcTestBase {
 
   @Test
   public void testExecuteThrowsRight1() throws Exception {
-    final Statement statement = connection.createStatement();
+    final Statement statement = getConnection().createStatement();
     try {
       statement.execute( "SELECT one case of syntax error" );
     }
@@ -100,7 +91,7 @@ public class TestExecutionExceptionsToClient extends JdbcTestBase {
 
   @Test
   public void testExecuteUpdateThrowsRight1() throws Exception {
-    final Statement statement = connection.createStatement();
+    final Statement statement = getConnection().createStatement();
     try {
       statement.executeUpdate( "SELECT one case of syntax error" );
     }
@@ -121,7 +112,7 @@ public class TestExecutionExceptionsToClient extends JdbcTestBase {
 
   @Test
   public void testExecuteQueryThrowsRight2() throws Exception {
-    final Statement statement = connection.createStatement();
+    final Statement statement = getConnection().createStatement();
     try {
       statement.executeQuery( "BAD QUERY 1" );
     }
@@ -142,7 +133,7 @@ public class TestExecutionExceptionsToClient extends JdbcTestBase {
 
   @Test
   public void testExecuteThrowsRight2() throws Exception {
-    final Statement statement = connection.createStatement();
+    final Statement statement = getConnection().createStatement();
     try {
       statement.execute( "worse query 2" );
     }
@@ -163,7 +154,7 @@ public class TestExecutionExceptionsToClient extends JdbcTestBase {
 
   @Test
   public void testExecuteUpdateThrowsRight2() throws Exception {
-    final Statement statement = connection.createStatement();
+    final Statement statement = getConnection().createStatement();
     try {
       statement.executeUpdate( "naughty, naughty query 3" );
     }

@@ -20,10 +20,10 @@ import java.util.List;
 
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
@@ -43,7 +43,6 @@ public class PartialTableMetadata implements TableMetadata {
   private final String user;
 
   private DatasetConfig datasetConfig;
-  private BatchSchema schema;
   private TableMetadataImpl datasetPointer;
 
 
@@ -62,7 +61,7 @@ public class PartialTableMetadata implements TableMetadata {
 
     SplitsPointer splitsPointer;
     if(datasetConfig.getReadDefinition() != null) {
-      splitsPointer = new SplitsPointerImpl(datasetConfig, ns);
+      splitsPointer = DatasetSplitsPointer.of(ns, datasetConfig);
     } else {
       try{
         final DatasetConfig newDatasetConfig = datasetAccessor.getDataset();
@@ -71,7 +70,7 @@ public class PartialTableMetadata implements TableMetadata {
         List<DatasetSplit> splits = datasetAccessor.getSplits();
         ns.addOrUpdateDataset(getName(), newDatasetConfig, splits);
         datasetConfig = newDatasetConfig;
-        splitsPointer = new SplitsPointerImpl(splits, splits.size());
+        splitsPointer = MaterializedSplitsPointer.of(splits, splits.size());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -99,6 +98,12 @@ public class PartialTableMetadata implements TableMetadata {
   public String computeDigest() {
     loadIfNecessary();
     return datasetPointer.computeDigest();
+  }
+
+  @Override
+  public SplitsKey getSplitsKey() {
+    loadIfNecessary();
+    return datasetPointer.getSplitsKey();
   }
 
   @Override

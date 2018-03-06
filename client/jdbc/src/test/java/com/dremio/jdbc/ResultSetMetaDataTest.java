@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,8 +45,7 @@ import com.dremio.jdbc.test.JdbcAssert;
  *   Based on JDBC 4.1 (Java 7).
  * </p>
  */
-public class ResultSetMetaDataTest extends JdbcTestBase {
-
+public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   private static final String VIEW_SCHEMA = "dfs_test";
   private static final String VIEW_NAME =
       ResultSetMetaDataTest.class.getSimpleName() + "_View";
@@ -119,7 +118,7 @@ public class ResultSetMetaDataTest extends JdbcTestBase {
     // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
     // Connection--and other JDBC objects--on test method failure, but this test
     // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local",
+    connection = new Driver().connect( sabotNode.getJDBCConnectionString(),
                                        JdbcAssert.getDefaultProperties() );
     final Statement stmt = connection.createStatement();
 

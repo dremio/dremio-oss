@@ -49,6 +49,7 @@ import com.google.common.collect.ImmutableSet;
 public class RootSchema extends AbstractSchema {
 
   private final NamespaceService ns;
+  private final CatalogService catalog;
   private final SchemaConfig schemaConfig;
   private final SabotContext sabotContext;
   private final Supplier<Map<String, SourceConfig>> sources;
@@ -58,10 +59,11 @@ public class RootSchema extends AbstractSchema {
   private final MetadataStatsCollector metadataStatsCollector;
   private final boolean isSystemUser;
 
-  public RootSchema(final NamespaceService ns, final SabotContext sabotContext, final SchemaConfig schemaConfig,
+  public RootSchema(final NamespaceService ns, final CatalogService catalog, final SabotContext sabotContext, final SchemaConfig schemaConfig,
                     final MetadataStatsCollector metadataStatsCollector) {
     super(Collections.<String>emptyList(), "");
     this.ns = ns;
+    this.catalog = catalog;
     this.sabotContext = sabotContext;
     this.schemaConfig = schemaConfig;
     this.metadataStatsCollector = metadataStatsCollector;
@@ -157,7 +159,7 @@ public class RootSchema extends AbstractSchema {
       }
       SourceConfig config = sources.get().get(nameLC);
       MetadataPolicy policy = config.getMetadataPolicy() != null ? config.getMetadataPolicy() : CatalogService.DEFAULT_METADATA_POLICY;
-      SimpleSchema.MetadataParam metadataParam = new SimpleSchema.MetadataParam(policy, config.getLastRefreshDate());
+      SimpleSchema.MetadataParam metadataParam = new SimpleSchema.MetadataParam(policy, catalog.getLastFullMetadataRefreshDateMs(new NamespaceKey(nameLC)));
 
       final SchemaMutability mutability;
       if(plugin != null && plugin instanceof FileSystemPlugin) {

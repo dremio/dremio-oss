@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,54 +21,36 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
 /**
  * Basic (spot-check/incomplete) tests for DRILL-2128 bugs (many
  * DatabaseMetaData.getColumns(...) result table problems).
  */
-public class Drill2128GetColumnsDataTypeNotTypeCodeIntBugsTest extends JdbcTestBase {
-
-  private static Connection connection;
+public class Drill2128GetColumnsDataTypeNotTypeCodeIntBugsTest extends JdbcWithServerTestBase {
   private static DatabaseMetaData dbMetadata;
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @BeforeClass
-  public static void setUpConnection() throws Exception {
-    // Get JDBC connection to Dremio:
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses connection (and dependent DatabaseMetaData object) across
-    // methods.)
-    Driver.load();
-    connection = DriverManager.getConnection( "jdbc:dremio:zk=local" );
-    dbMetadata = connection.getMetaData();
+  public static void setUpConnection() throws SQLException {
+    JdbcWithServerTestBase.setUpConnection();
+    dbMetadata = getConnection().getMetaData();
   }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    connection.close();
-  }
-
 
   /**
    * Basic test that column DATA_TYPE is integer type codes (not strings such

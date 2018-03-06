@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,48 +15,27 @@
  */
  package com.dremio.jdbc.test;
 
-import static org.junit.Assert.*;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertThat;
 
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.jdbc.Driver;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
 /**
  * Tests from DRILL-2288, in which schema information wasn't propagated when a
  * scan yielded an empty (zero-row) result set.
  */
-public class Drill2288GetColumnsMetadataWhenNoRowsTest {
-
-  private static Connection connection;
-
-
-  @BeforeClass
-  public static void setUpConnection() throws SQLException {
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", null );
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    connection.close();
-  }
-
-
-  /**
+public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTestBase {
+    /**
    * Tests that an empty JSON file (having zero records) no longer triggers
    * breakage in schema propagation.  (Case failed before; columns a, b and c
    * didn't show up.)
@@ -64,7 +43,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   @Test
   @Ignore
   public void testEmptyJsonFileDoesntSuppressNetSchema1() throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results = stmt.executeQuery( "SELECT a, b, c, * FROM cp.`empty.json`" );
 
     // Result set should still have columns even though there are no rows:
@@ -79,7 +58,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   @Test
   @Ignore
   public void testEmptyJsonFileDoesntSuppressNetSchema2() throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results = stmt.executeQuery( "SELECT a FROM cp.`empty.json`" );
 
     // Result set should still have columns even though there are no rows:
@@ -99,7 +78,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
    */
   @Test
   public void testInfoSchemaTablesZeroRowsBy_TABLE_SCHEMA_works() throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.`TABLES`"
                            + " WHERE TABLE_SCHEMA = ''" );
@@ -116,7 +95,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   /** (Worked before (because TABLE_CATALOG test not pushed down).) */
   @Test
   public void testInfoSchemaTablesZeroRowsBy_TABLE_CATALOG_works() throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.`TABLES`"
                            + " WHERE TABLE_CATALOG = ''" );
@@ -134,7 +113,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   @Test
   public void testInfoSchemaTablesZeroRowsBy_TABLE_NAME_works()
       throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery(
             "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_NAME = ''" );
@@ -151,7 +130,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   /** (Worked before.) */
   @Test
   public void testInfoSchemaTablesZeroRowsByLimitWorks() throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery(
             "SELECT * FROM INFORMATION_SCHEMA.`TABLES` LIMIT 0" );
@@ -168,7 +147,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   /** (Worked before.) */
   @Test
   public void testInfoSchemaTablesZeroRowsByWhereFalseWorks() throws Exception {
-    Statement stmt = connection.createStatement();
+    Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery(
             "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE FALSE" );
@@ -185,7 +164,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest {
   /** (Failed before (because table schema and name tests are pushed down).) */
   @Test
   public void testGetTablesZeroRowsByTableSchemaOrNameWorks() throws Exception {
-    DatabaseMetaData dbMetadata = connection.getMetaData();
+    DatabaseMetaData dbMetadata = getConnection().getMetaData();
 
     ResultSet results = dbMetadata.getTables( "NoSuchCatalog", "NoSuchSchema",
                                               "NoSuchTable", new String[0] );

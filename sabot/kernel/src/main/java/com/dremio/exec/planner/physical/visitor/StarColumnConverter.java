@@ -31,6 +31,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
@@ -188,7 +189,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
   }
 
   @Override
-  public Prel visitScan(ScanPrelBase scanPrel, Void value) throws RuntimeException {
+  public Prel visitLeaf(LeafPrel scanPrel, Void value) throws RuntimeException {
     if (StarColumnHelper.containsStarColumn(scanPrel.getRowType()) && prefixedForStar ) {
 
       List<RexNode> exprs = Lists.newArrayList();

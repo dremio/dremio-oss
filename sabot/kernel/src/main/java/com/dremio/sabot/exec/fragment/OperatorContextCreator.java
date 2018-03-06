@@ -29,6 +29,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
@@ -37,6 +38,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -61,11 +63,13 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final OptionManager options;
   private final ExecutorService executor;
   private final ContextInformation contextInformation;
+  private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
-      SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
-      FunctionLookupContext funcRegistry, NamespaceService namespaceService, OptionManager options,
-      ExecutorService executor, ContextInformation contextInformation) {
+                                SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
+                                FunctionLookupContext funcRegistry, NamespaceService namespaceService, OptionManager options,
+                                ExecutorService executor, ContextInformation contextInformation,
+                                NodeDebugContextProvider nodeDebugContextProvider) {
     super();
     this.stats = stats;
     this.allocator = allocator;
@@ -78,35 +82,37 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.options = options;
     this.executor = executor;
     this.contextInformation = contextInformation;
+    this.nodeDebugContextProvider = nodeDebugContextProvider;
   }
 
   @Override
   public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception {
 
     final String allocatorName = String.format("op:%s:%d:%s",
-        QueryIdHelper.getFragmentId(handle),
-        popConfig.getOperatorId(),
-        popConfig.getClass().getSimpleName());
+      QueryIdHelper.getFragmentId(handle),
+      popConfig.getOperatorId(),
+      popConfig.getClass().getSimpleName());
 
     final BufferAllocator operatorAllocator =
-        allocator.newChildAllocator(allocatorName, popConfig.getInitialAllocation(), popConfig.getMaxAllocation());
-    try(RollbackCloseable closeable = AutoCloseables.rollbackable(operatorAllocator)) {
+      allocator.newChildAllocator(allocatorName, popConfig.getInitialAllocation(), popConfig.getMaxAllocation());
+    try (RollbackCloseable closeable = AutoCloseables.rollbackable(operatorAllocator)) {
       final OpProfileDef def = new OpProfileDef(popConfig.getOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig));
       final OperatorStats stats = this.stats.newOperatorStats(def, operatorAllocator);
       OperatorContextImpl context = new OperatorContextImpl(
-          config,
-          handle,
-          popConfig,
-          operatorAllocator,
-          compiler,
-          stats,
-          executionControls,
-          executor,
-          funcRegistry,
-          contextInformation,
-          options,
-          namespaceService,
-          calculateTargetRecordSize(popConfig));
+        config,
+        handle,
+        popConfig,
+        operatorAllocator,
+        compiler,
+        stats,
+        executionControls,
+        executor,
+        funcRegistry,
+        contextInformation,
+        options,
+        namespaceService,
+        nodeDebugContextProvider,
+        calculateTargetRecordSize(popConfig));
       operatorContexts.add(context);
       closeable.commit();
       return context;
@@ -137,7 +143,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     final int maxBatchSizeBytes = (int) options.getOption(ExecConstants.TARGET_BATCH_SIZE_BYTES);
 
     final int targetBatchSize = max(minTargetBatchCount,
-        min(maxTargetBatchCount, maxBatchSizeBytes/estimatedRecordSize));
+      min(maxTargetBatchCount, maxBatchSizeBytes / estimatedRecordSize));
 
     // TODO: may be we should get the closest 2^x - 1
     return Math.max(1, Numbers.nextPowerOfTwo(targetBatchSize) - 1);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -37,8 +36,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.jdbc.test.JdbcAssert;
 
 // NOTE: TestInformationSchemaColumns and DatabaseMetaDataGetColumnsTest
 // have identical sections.  (Cross-maintain them for now; factor out later.)
@@ -81,14 +78,10 @@ import com.dremio.jdbc.test.JdbcAssert;
  * </p>
  */
 @Ignore("DX-2490")
-public class DatabaseMetaDataGetColumnsTest extends JdbcTestBase {
-
+public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
   private static final String VIEW_SCHEMA = "dfs_test";
   private static final String VIEW_NAME =
       DatabaseMetaDataGetColumnsTest.class.getSimpleName() + "_View";
-
-  /** The one shared JDBC connection to Dremio. */
-  protected static Connection connection;
 
   /** Overall (connection-level) metadata. */
   protected static DatabaseMetaData dbMetadata;
@@ -181,20 +174,15 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcTestBase {
   }
 
   @BeforeClass
-  public static void setupConnection() throws Exception {
-
-    // Get JDBC connection to Dremio:
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local",
-                                       JdbcAssert.getDefaultProperties() );
-    dbMetadata = connection.getMetaData();
+  public static void setUpConnection() throws SQLException {
+    JdbcWithServerTestBase.setUpConnection();
     setUpMetadataToCheck();
   }
 
-  protected static void setUpMetadataToCheck() throws Exception {
-    final Statement stmt = connection.createStatement();
+  protected static void setUpMetadataToCheck() throws SQLException {
+    dbMetadata = getConnection().getMetaData();
+
+    final Statement stmt = getConnection().createStatement();
 
     ResultSet util;
 
@@ -351,11 +339,11 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcTestBase {
   @AfterClass
   public static void tearDownConnection() throws SQLException {
     final ResultSet util =
-        connection.createStatement().executeQuery( "DROP VIEW " + VIEW_NAME + "" );
+        getConnection().createStatement().executeQuery( "DROP VIEW " + VIEW_NAME + "" );
     assertTrue( util.next() );
     assertTrue( "Error dropping temporary test-columns view " + VIEW_NAME + ": "
                 + util.getString( 2 ), util.getBoolean( 1 ) );
-    connection.close();
+    JdbcWithServerTestBase.tearDownConnection();
   }
 
 

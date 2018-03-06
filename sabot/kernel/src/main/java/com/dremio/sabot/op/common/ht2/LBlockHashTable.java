@@ -17,6 +17,7 @@ package com.dremio.sabot.op.common.ht2;
 
 
 
+import java.util.Formatter;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -32,6 +33,8 @@ import com.google.common.primitives.Longs;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHashCapacities;
+
+import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -80,6 +83,9 @@ public final class LBlockHashTable implements AutoCloseable {
   private int rehashCount = 0;
   private Stopwatch rehashTimer = Stopwatch.createUnstarted();
   private Stopwatch initTimer = Stopwatch.createUnstarted();
+
+  private ArrowBuf traceBuf;
+  private long traceBufNext;
 
   public LBlockHashTable(HashConfig config, PivotDef pivot, BufferAllocator allocator, int initialSize, int defaultVariableLengthSize, ResizeListener listener) {
     this.pivot = pivot;
@@ -185,6 +191,11 @@ public final class LBlockHashTable implements AutoCloseable {
   }
 
   private int insert(final long blockWidth, long tableControlAddr, final int keyHash, final int dataWidth, final long keyFixedAddr, final long keyVarAddr, final int keyVarLen){
+
+    long traceBufAddr = 0;
+    if (traceBuf != null) {
+      traceBufAddr = traceBuf.memoryAddress();
+    }
 
     final int insertedOrdinal = currentOrdinal;
 
@@ -481,6 +492,137 @@ public final class LBlockHashTable implements AutoCloseable {
     Unpivots.unpivot(pivot, fixedBlocks[batchIndex], variableBlocks[batchIndex], count);
   }
 
+  // Tracing support
+  // When tracing is started, the hashtable allocates an ArrowBuf that will contain the following information:
+  // 1. hashtable state before the insertion (recorded at {@link #traceStartInsert()})
+  //       | int capacityMask | int capacity | int maxSize | int batches | int currentOrdinal | int rehashCount |
+  //               4B                4B             4B            4B              4B                   4B
+  //
+  // 2. insertion record:
+  //    - an int containing the count of insertions
+  //       | int numInsertions |
+  //               4B
+  //    - an entry for each record being inserted into the hash table
+  //       | match? |  batch# | ordinal-within-batch |      4 bytes
+  //          1 bit    15 bits               16 bits
+  // Please note that the batch# and ordinal-within-batch together form the hash table's currentOrdinal
+  //
+  // 3. hashtable state after the insertion
+  //    (same structure as #1)
 
+  /**
+   * Start tracing the insert() operation of this table
+   */
+  public void traceStart(int numRecords) {
+    int numEntries = 6 * 2 + 1 + numRecords;
+    traceBuf = allocator.buffer(numEntries * 4);
+    traceBufNext = traceBuf.memoryAddress();
+  }
+
+  /**
+   * Stop tracing the insert(), and release any buffers that were allocated
+   */
+  public void traceEnd() {
+    traceBuf.release();
+    traceBuf = null;
+    traceBufNext = 0;
+  }
+
+  public void traceOrdinals(final long indexes, final int numRecords) {
+    if (traceBuf == null) {
+      return;
+    }
+    PlatformDependent.copyMemory(indexes, traceBufNext, 4 * numRecords);
+    traceBufNext += 4 * numRecords;
+  }
+
+  /**
+   * Start of insertion. Record the state before insertion
+   */
+  public void traceInsertStart(int numRecords) {
+    if (traceBuf == null) {
+      return;
+    }
+    PlatformDependent.putInt(traceBufNext + 0 * 4, capacityMask);
+    PlatformDependent.putInt(traceBufNext + 1 * 4, capacity);
+    PlatformDependent.putInt(traceBufNext + 2 * 4, maxSize);
+    PlatformDependent.putInt(traceBufNext + 3 * 4, batches);
+    PlatformDependent.putInt(traceBufNext + 4 * 4, currentOrdinal);
+    PlatformDependent.putInt(traceBufNext + 5 * 4, rehashCount);
+
+    PlatformDependent.putInt(traceBufNext + 6 * 4, numRecords);
+    traceBufNext += 7 * 4;
+  }
+
+  /**
+   * End of insertion. Record the state after insertion
+   */
+  public void traceInsertEnd() {
+    if (traceBuf == null) {
+      return;
+    }
+    PlatformDependent.putInt(traceBufNext + 0 * 4, capacityMask);
+    PlatformDependent.putInt(traceBufNext + 1 * 4, capacity);
+    PlatformDependent.putInt(traceBufNext + 2 * 4, maxSize);
+    PlatformDependent.putInt(traceBufNext + 3 * 4, batches);
+    PlatformDependent.putInt(traceBufNext + 4 * 4, currentOrdinal);
+    PlatformDependent.putInt(traceBufNext + 5 * 4, rehashCount);
+    traceBufNext += 6 * 4;
+  }
+
+    /**
+     * Report results from the tracing. Typically invoked when there was an error, since it generates a boatload of log messages
+     */
+  public String traceReport() {
+    if (traceBuf == null) {
+      return "";
+    }
+
+    long traceBufAddr = traceBuf.memoryAddress();
+    int numEntries = PlatformDependent.getInt(traceBufAddr + 6 * 4);
+
+    int reportSize = 17 * numEntries + 1024;  // it's really 16 bytes tops per entry, with a newline every 16 entries
+    StringBuilder sb = new StringBuilder(reportSize);
+    Formatter formatter = new Formatter(sb);
+    int origOrdinal = PlatformDependent.getInt(traceBufAddr + 4 * 4) - 1;
+    formatter.format("Pre-insert: capacity: %1$d, capacityMask: %2$#X, maxSize: %3$d, batches: %4$d (%4$#X), currentOrdinal: %5$d, rehashCount: %6$d %n",
+      PlatformDependent.getInt(traceBufAddr + 0 * 4),
+      PlatformDependent.getInt(traceBufAddr + 1 * 4),
+      PlatformDependent.getInt(traceBufAddr + 2 * 4),
+      PlatformDependent.getInt(traceBufAddr + 3 * 4),
+      PlatformDependent.getInt(traceBufAddr + 4 * 4),
+      PlatformDependent.getInt(traceBufAddr + 5 * 4));
+
+    long traceBufCurr = traceBufAddr + 7 * 4;
+    long traceBufLast = traceBufCurr + numEntries * 4;
+    formatter.format("Number of entries: %1$d%n", numEntries);
+    for (int i = 0; traceBufCurr < traceBufLast; traceBufCurr += 4, i++) {
+      int traceValue = PlatformDependent.getInt(traceBufCurr);
+      boolean isInsert = false;
+      if (traceValue > origOrdinal) {
+        isInsert = true;
+        origOrdinal = traceValue;
+      }
+      formatter.format("%1$c(%2$d,%3$d)",
+        isInsert ? 'i' : 'm', (traceValue & 0xffff0000) >>> 16, (traceValue & 0x0000ffff));
+      if ((i % 16) == 15) {
+        formatter.format("%n");
+      } else if (traceBufCurr < traceBufLast - 4) {
+        formatter.format(", ");
+      }
+    }
+    if ((numEntries % 16) != 0) {
+      formatter.format("%n");
+    }
+
+    formatter.format("Post-insert: capacity: %1$d, capacityMask: %2$#X, maxSize: %3$d, batches: %4$d (%4$#X), currentOrdinal: %5$d, rehashCount: %6$d %n",
+      PlatformDependent.getInt(traceBufLast + 0 * 4),
+      PlatformDependent.getInt(traceBufLast + 1 * 4),
+      PlatformDependent.getInt(traceBufLast + 2 * 4),
+      PlatformDependent.getInt(traceBufLast + 3 * 4),
+      PlatformDependent.getInt(traceBufLast + 4 * 4),
+      PlatformDependent.getInt(traceBufLast + 5 * 4));
+    return sb.toString();
+  }
 
 }

@@ -25,6 +25,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.TranslatableTable;
+
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.record.BatchSchema;
@@ -91,7 +92,7 @@ public class MaterializedDatasetTable implements TranslatableTable {
                                       DatasetConfig config,
                                       String user,
                                       List<DatasetSplit> splits) {
-      super(plugin, config, user, new SplitsPointerImpl(splits, splits.size()));
+      super(plugin, config, user, MaterializedSplitsPointer.of(splits, splits.size()));
     }
 
     /**

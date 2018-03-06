@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -39,23 +37,13 @@ import org.junit.Test;
  * those tested separately, e.g., {@code getColumn(...)}, tested in
  * {@link DatabaseMetaDataGetColumnsTest})).
  */
-public class DatabaseMetaDataTest {
-
-  protected static Connection connection;
+public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
   protected static DatabaseMetaData dbmd;
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", null );
-    dbmd = connection.getMetaData();
-  }
-
-  @AfterClass
-  public static void tearDownConnection() throws SQLException {
-    connection.close();
+    JdbcWithServerTestBase.setUpConnection();
+    dbmd = getConnection().getMetaData();
   }
 
 

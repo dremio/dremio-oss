@@ -25,12 +25,15 @@ import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 
 public class AdditionalColumnsRecordReader implements RecordReader {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdditionalColumnsRecordReader.class);
 
   private final RecordReader inner;
   private final Populator[] populators;
@@ -78,10 +81,22 @@ public class AdditionalColumnsRecordReader implements RecordReader {
   @Override
   public int next() {
     final int count = inner.next();
-    for(Populator p : populators){
-      p.populate(count);
+    try {
+      for (Populator p : populators) {
+        p.populate(count);
+      }
+    } catch (Throwable t) {
+      throw userExceptionWithDiagnosticInfo(t, count);
     }
     return count;
+  }
+
+  private UserException userExceptionWithDiagnosticInfo(final Throwable t, final int count) {
+    return UserException.dataReadError(t)
+        .message("Failed to populate partition column values")
+        .addContext("Partition value characteristics", populators != null ? Joiner.on(",").join(populators) : "null")
+        .addContext("Number of rows trying to populate", count)
+        .build(logger);
   }
 
   public interface Populator extends AutoCloseable {

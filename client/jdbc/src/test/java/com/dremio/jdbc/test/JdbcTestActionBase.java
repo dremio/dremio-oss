@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,15 @@
  */
 package com.dremio.jdbc.test;
 
-import java.io.IOException;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
@@ -35,10 +31,10 @@ import org.junit.runner.Description;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import com.google.common.base.Stopwatch;
 
-public class JdbcTestActionBase extends JdbcTestBase {
+public class JdbcTestActionBase extends JdbcWithServerTestBase {
   // Set a timeout unless we're debugging.
   @Rule
   public TestRule TIMEOUT = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
@@ -70,7 +66,7 @@ public class JdbcTestActionBase extends JdbcTestBase {
   protected void testAction(JdbcAction action, long rowcount) throws Exception {
     int rows = 0;
     Stopwatch watch = Stopwatch.createStarted();
-    ResultSet r = action.getResult(connection);
+    ResultSet r = action.getResult(getConnection());
     boolean first = true;
     while (r.next()) {
       rows++;
@@ -106,20 +102,8 @@ public class JdbcTestActionBase extends JdbcTestBase {
   }
 
   static void resetConnection() throws Exception {
-    closeClient();
-    openClient();
-  }
-
-  static Connection connection;
-
-  @BeforeClass
-  public static void openClient() throws Exception {
-    connection = DriverManager.getConnection("jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties());
-  }
-
-  @AfterClass
-  public static void closeClient() throws IOException, SQLException {
-    connection.close();
+    JdbcWithServerTestBase.tearDownConnection();
+    JdbcWithServerTestBase.setUpConnection();
   }
 
   public final TestRule resetWatcher = new TestWatcher() {

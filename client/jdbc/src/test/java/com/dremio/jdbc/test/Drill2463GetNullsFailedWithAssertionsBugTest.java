@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,40 +15,35 @@
  */
 package com.dremio.jdbc.test;
 
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertTrue;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.JdbcTestBase;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
-public class Drill2463GetNullsFailedWithAssertionsBugTest extends JdbcTestBase {
-
-  private static Connection connection;
+public class Drill2463GetNullsFailedWithAssertionsBugTest extends JdbcWithServerTestBase {
   private static Statement statement;
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties() );
-    statement = connection.createStatement();
+    JdbcWithServerTestBase.setUpConnection();
+    statement = getConnection().createStatement();
   }
 
   @AfterClass
   public static void tearDownConnection() throws SQLException {
-    connection.close();
+    statement.close();
+    JdbcWithServerTestBase.tearDownConnection();
   }
 
   // Test primitive types vs. non-primitive types:

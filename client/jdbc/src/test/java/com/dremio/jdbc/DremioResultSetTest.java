@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,51 +22,19 @@ import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.jdbc.Driver;
-import com.dremio.jdbc.InvalidCursorStateSqlException;
-import com.dremio.jdbc.test.JdbcAssert;
-import com.dremio.test.DremioTest;
 
-
-public class DremioResultSetTest extends DremioTest {
-
-  // TODO: Move Jetty status server disabling to DremioTest.
-  private static final String STATUS_SERVER_PROPERTY_NAME =
-      ExecConstants.HTTP_ENABLE;
-
-  private static final String origStatusServerPropValue =
-      System.getProperty( STATUS_SERVER_PROPERTY_NAME, "true" );
-
-  // Disable Jetty status server so unit tests run (outside Maven setup).
-  // (TODO:  Move this to base test class and/or have Jetty try other ports.)
-  @BeforeClass
-  public static void setUpClass() {
-    System.setProperty( STATUS_SERVER_PROPERTY_NAME, "false" );
-  }
-
-  @AfterClass
-  public static void tearDownClass() {
-    System.setProperty( STATUS_SERVER_PROPERTY_NAME, origStatusServerPropValue );
-  }
-
-
+public class DremioResultSetTest extends JdbcWithServerTestBase {
   @Test
   public void test_next_blocksFurtherAccessAfterEnd()
       throws SQLException
   {
-    Connection connection =
-        new Driver().connect( "jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties() );
-    Statement statement = connection.createStatement();
+    Statement statement = getConnection().createStatement();
     ResultSet resultSet =
         statement.executeQuery( "SELECT 1 AS x \n" +
                                 "FROM cp.`donuts.json` \n" +
@@ -105,9 +73,7 @@ public class DremioResultSetTest extends DremioTest {
   public void test_next_blocksFurtherAccessWhenNoRows()
     throws Exception
   {
-    Connection connection =
-        new Driver().connect( "jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties() );
-    Statement statement = connection.createStatement();
+    Statement statement = getConnection().createStatement();
     ResultSet resultSet =
         statement.executeQuery( "SELECT 'Hi' AS x \n" +
                                 "FROM cp.`donuts.json` \n" +
@@ -140,9 +106,7 @@ public class DremioResultSetTest extends DremioTest {
   public void test_getRow_isOneBased()
     throws Exception
   {
-    Connection connection =
-        new Driver().connect( "jdbc:dremio:zk=local", JdbcAssert.getDefaultProperties() );
-    Statement statement = connection.createStatement();
+    Statement statement = getConnection().createStatement();
     ResultSet resultSet =
         statement.executeQuery( "VALUES (1), (2)" );
 

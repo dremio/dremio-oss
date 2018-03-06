@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,10 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.exec.ExecConstants;
@@ -39,26 +36,8 @@ import com.dremio.exec.work.foreman.AttemptManager;
 /**
  * Test for Dremio's implementation of Statement's methods (most).
  */
-public class StatementTest extends JdbcTestBase {
-
-  private static Connection connection;
-
+public class StatementTest extends JdbcWithServerTestBase {
   private static final String SYS_VERSION_SQL = "select * from sys.version";
-
-  @BeforeClass
-  public static void setUpStatement() throws SQLException {
-    // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
-    // Connection--and other JDBC objects--on test method failure, but this test
-    // class uses some objects across methods.)
-    connection = new Driver().connect( "jdbc:dremio:zk=local", null );
-  }
-
-  @AfterClass
-  public static void tearDownStatement() throws SQLException {
-    connection.close();
-  }
-
-
   ////////////////////////////////////////
   // Query timeout methods:
 
@@ -68,7 +47,7 @@ public class StatementTest extends JdbcTestBase {
   /** Tests that getQueryTimeout() indicates no timeout set. */
   @Test
   public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
-    try(Statement statement = connection.createStatement()) {
+    try(Statement statement = getConnection().createStatement()) {
       assertThat( statement.getQueryTimeout(), equalTo( 0 ) );
     }
   }
@@ -80,14 +59,14 @@ public class StatementTest extends JdbcTestBase {
    *  no-timeout mode. */
   @Test
   public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
-    try(Statement statement = connection.createStatement()) {
+    try(Statement statement = getConnection().createStatement()) {
       statement.setQueryTimeout( 0 );
     }
   }
 
 
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
-    try(Statement statement = connection.createStatement()) {
+    try(Statement statement = getConnection().createStatement()) {
       statement.setQueryTimeout( -2 );
     }
     catch ( SQLException e ) {
@@ -104,7 +83,7 @@ public class StatementTest extends JdbcTestBase {
    */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
-    try(Statement statement = connection.createStatement()) {
+    try(Statement statement = getConnection().createStatement()) {
       // Setting positive value
       statement.setQueryTimeout(1_000);
       assertThat( statement.getQueryTimeout(), equalTo( 1_000 ) );
@@ -121,7 +100,7 @@ public class StatementTest extends JdbcTestBase {
       .addPause(AttemptManager.class, "foreman-cleanup", 0)
       .build();
 
-    try(Statement statement = connection.createStatement()) {
+    try(Statement statement = getConnection().createStatement()) {
       assertThat(
           statement.execute(String.format(
               "ALTER session SET `%s` = '%s'",
@@ -130,7 +109,7 @@ public class StatementTest extends JdbcTestBase {
           equalTo(true));
     }
     String queryId = null;
-    try(Statement statement = connection.createStatement()) {
+    try(Statement statement = getConnection().createStatement()) {
       int timeoutDuration = 3;
       //Setting to a very low value (3sec)
       statement.setQueryTimeout(timeoutDuration);
@@ -147,7 +126,7 @@ public class StatementTest extends JdbcTestBase {
     } finally {
       // Do not forget to unpause to avoid memory leak.
       if (queryId != null) {
-        DremioClient client = ((DremioConnection) connection).getClient();
+        DremioClient client = ((DremioConnection) getConnection()).getClient();
         client.resumeQuery(QueryIdHelper.getQueryIdFromString(queryId));
       }
     }
