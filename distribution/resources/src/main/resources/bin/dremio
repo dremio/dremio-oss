@@ -27,7 +27,7 @@
 #
 
 usage="Usage: dremio [--config <conf-dir>]\
- (start|stop|status|restart|autorestart)"
+ (run|start|stop|status|restart|autorestart)"
 
 # if no args specified, show usage
 if [ $# -lt 1 ]; then
@@ -72,6 +72,19 @@ waitForProcessEnd() {
   fi
   # Add a CR after we're done w/ dots.
   echo
+}
+
+set_env_vars ()
+{
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}m"
+    if echo "$JAVA_VERSION_STRING" | grep '1.7' > /dev/null ; then
+      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxPermSize=${DREMIO_MAX_PERMGEN_MEMORY_SIZE_MB:-512}m"
+    fi
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
 }
 
 dremio_rotate_log ()
@@ -154,6 +167,23 @@ args=$@
 
 case $startStopStatus in
 
+(run)
+    check_before_start
+    echo starting $command
+
+    dremio_rotate_log $loggc
+
+	set_env_vars
+
+    # Add to the command log file vital stats on our environment.
+    echo "`date` Starting $command on `hostname`"
+    echo "`ulimit -a`" 2>&1
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon \
+        $command "$@" start 2>&1
+    echo $! > "$pid"
+    wait
+  ;;
+
 (start)
     check_before_start
     echo starting $command, logging to $logout
@@ -164,15 +194,7 @@ case $startStopStatus in
 (internal_start)
     dremio_rotate_log $loggc
 
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}m"
-    if echo "$JAVA_VERSION_STRING" | grep '1.7' > /dev/null ; then
-      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxPermSize=${DREMIO_MAX_PERMGEN_MEMORY_SIZE_MB:-512}m"
-    fi
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
+	set_env_vars
 
     # Add to the command log file vital stats on our environment.
     echo "`date` Starting $command on `hostname`" >> $logout
