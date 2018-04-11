@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,12 @@ import org.junit.runners.Parameterized.Parameters;
 import org.threeten.bp.DayOfWeek;
 import org.threeten.bp.Instant;
 import org.threeten.bp.LocalTime;
+import org.threeten.bp.ZoneId;
 
 import com.google.common.collect.ImmutableList;
 
 /**
- * Unit test for {@link NewSchedule}
+ * Unit test for {@link Schedule}
  */
 @RunWith(Parameterized.class)
 public class TestSchedule {
@@ -50,7 +51,7 @@ public class TestSchedule {
 
   @Parameters(name = "{index}: {0}")
   public static Iterable<Object[]> data() {
-    return Arrays.<Object[]>asList(
+    return Arrays.asList(
         newTestCase(
             "hourly schedule",
             Schedule.Builder.everyHours(1).startingAt(Instant.parse("2016-03-24T21:13:47Z")).build(),
@@ -78,7 +79,11 @@ public class TestSchedule {
         newTestCase(
             "last day of month",
             Schedule.Builder.everyMonths(1, 31, LocalTime.parse("13:17:00")).startingAt(Instant.parse("2016-01-01T11:12:13Z")).build(),
-            new String[] { "2016-01-31T13:17:00Z", "2016-02-29T13:17:00Z", "2016-03-31T13:17:00Z", "2016-04-30T13:17:00Z" })
+            new String[] { "2016-01-31T13:17:00Z", "2016-02-29T13:17:00Z", "2016-03-31T13:17:00Z", "2016-04-30T13:17:00Z" }),
+        newTestCase(
+            "daily schedule in a specified time zone",
+            Schedule.Builder.everyDays(1, LocalTime.MIDNIGHT).withTimeZone(ZoneId.of("UTC-8")).startingAt(Instant.parse("2016-01-01T11:12:13Z")).build(),
+            new String[] { "2016-01-02T08:00:00Z", "2016-01-03T08:00:00Z", "2016-01-04T08:00:00Z", "2016-01-05T08:00:00Z" })
         );
   }
   public TestSchedule(String name, Schedule schedule, List<Instant> expected) {

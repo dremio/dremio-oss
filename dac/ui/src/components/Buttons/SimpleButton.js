@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ export default class SimpleButton extends Component {
       return null;
     }
     const loader = buttonStyle === 'primary' ? 'LoaderWhite' : 'Loader';
-    return <FontIcon type={loader + ' fa-spin'} theme={styles.spinner} />;
+    return <FontIcon type={loader + ' spinner'} theme={styles.spinner} />;
   }
 
   render() {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,21 +16,17 @@
     limitations under the License.
 
 -->
-<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg">
     <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
     <title>Source/Amazon</title>
     <desc>Created with Sketch.</desc>
     <defs>
-        <circle id="path-1" cx="24" cy="24" r="24"></circle>
-        <mask id="mask-2" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="48" height="48" fill="white">
-            <use xlink:href="#path-1"></use>
-        </mask>
     </defs>
     <g id="Elements" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="Source/Amazon">
-            <g id="Source/S3" stroke="#E2E2E2" stroke-width="2">
-                <use id="Oval" mask="url(#mask-2)" xlink:href="#path-1"></use>
-            </g>
+           <g id="Source.2f.S3">
+             <circle id="Oval" cx="24" cy="24" r="23.5" style="fill:#fff;stroke:#e5e5e5;stroke-width:1.02px;"/>
+           </g>
             <g id="Compute_AmazonEC2" transform="translate(7.000000, 3.000000)">
                 <g id="Layer_1">
                     <polygon id="Shape" fill="#9D5025" points="2.15 8.29285714 0.45 9.16309524 0.45 33.8369048 2.15 34.7071429 9.1 22.1654762"></polygon>

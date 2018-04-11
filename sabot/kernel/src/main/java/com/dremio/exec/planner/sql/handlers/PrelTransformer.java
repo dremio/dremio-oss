@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 package com.dremio.exec.planner.sql.handlers;
+
+import static com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFORMER;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -150,11 +152,14 @@ public class PrelTransformer {
   }
 
   public static ConvertedRelNode validateAndConvert(SqlHandlerConfig config, SqlNode sqlNode) throws ForemanSetupException, RelConversionException, ValidationException {
+    return validateAndConvert(config, sqlNode, NO_OP_TRANSFORMER);
+  }
+
+  public static ConvertedRelNode validateAndConvert(SqlHandlerConfig config, SqlNode sqlNode, RelTransformer relTransformer) throws ForemanSetupException, RelConversionException, ValidationException {
     final Pair<SqlNode, RelDataType> validatedTypedSqlNode = validateNode(config, sqlNode);
     final SqlNode validated = validatedTypedSqlNode.getKey();
-    final RelNode rel = convertToRel(config, validated);
+    final RelNode rel = convertToRel(config, validated, relTransformer);
     final RelNode preprocessedRel = preprocessNode(config, rel);
-    assert preprocessedRel.getRowType().getFieldCount() == validatedTypedSqlNode.getValue().getFieldCount();
     return new ConvertedRelNode(preprocessedRel, validatedTypedSqlNode.getValue());
   }
 
@@ -316,7 +321,7 @@ public class PrelTransformer {
    *          Whether to log the planning phase.
    * @return The transformed relnode.
    */
-  static RelNode transform(SqlHandlerConfig config,
+  public static RelNode transform(SqlHandlerConfig config,
                            PlannerType plannerType,
                            PlannerPhase phase,
                            final RelNode input,
@@ -490,7 +495,7 @@ public class PrelTransformer {
     phyRelNode = phyRelNode.accept(
         new SplitUpComplexExpressions.SplitUpComplexExpressionsVisitor(
             context.getOperatorTable(),
-            context.getPlannerSettings().functionImplementationRegistry),
+            context.getFunctionRegistry()),
         null);
 
     /*
@@ -599,6 +604,7 @@ public class PrelTransformer {
       textPlan = "";
     }
 
+    config.getObserver().finalPrel(phyRelNode);
     return Pair.of(phyRelNode, textPlan);
   }
 
@@ -634,24 +640,24 @@ public class PrelTransformer {
 
   }
 
-  private static RelRoot toConvertibleRelRoot(SqlHandlerConfig config, final SqlNode validatedNode, boolean expand) {
+  private static RelNode toConvertibleRelRoot(SqlHandlerConfig config, final SqlNode validatedNode, boolean expand, RelTransformer relTransformer) {
     final Stopwatch stopwatch = Stopwatch.createStarted();
     final RelRoot convertible = config.getConverter().toConvertibleRelRoot(validatedNode, expand);
     config.getObserver().planConvertedToRel(convertible.rel, stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    final RelNode reduced = transform(config, PlannerType.HEP, PlannerPhase.REDUCE_EXPRESSIONS, convertible.rel, convertible.rel.getTraitSet(), true);
+    final RelNode reduced = relTransformer.transform(transform(config, PlannerType.HEP, PlannerPhase.REDUCE_EXPRESSIONS, convertible.rel, convertible.rel.getTraitSet(), true));
     config.getObserver().planSerializable(reduced);
-    return RelRoot.of(reduced, convertible.kind);
+    return reduced;
   }
 
-  private static RelNode convertToRelRootAndJdbc(SqlHandlerConfig config, SqlNode node) throws RelConversionException {
+  private static RelNode convertToRelRootAndJdbc(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
 
     // First try and convert without "expanding" exists/in/subqueries
-    final RelRoot convertible = toConvertibleRelRoot(config, node, false);
+    final RelNode convertible = toConvertibleRelRoot(config, node, false, relTransformer);
 
     // convert scans
     // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
     // rel node with RexSubQuery have the same JDBC convention.
-    final RelNode convertedNodeNotExpanded = convertible.rel;
+    final RelNode convertedNodeNotExpanded = convertible;
     RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(null);
     checker.visit(convertedNodeNotExpanded);
 
@@ -663,7 +669,7 @@ public class PrelTransformer {
       convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
     } else {
       // If there is a rexSubQuery, then get the ones without (don't pass in SqlHandlerConfig here since we don't want to record it twice)
-      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, node, true).rel;
+      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, node, true, relTransformer);
       if (!checker.canPushdownRexSubQuery()) {
         // if there are RexSubQuery nodes with none-jdbc convention, abandon and expand the entire tree
         convertedNode = convertedNodeWithoutRexSubquery;
@@ -704,8 +710,8 @@ public class PrelTransformer {
     return finalConvertedNode;
   }
 
-  public static RelNode convertToRel(SqlHandlerConfig config, SqlNode node) throws RelConversionException {
-    final RelNode rel = convertToRelRootAndJdbc(config, node);
+  public static RelNode convertToRel(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
+    final RelNode rel = convertToRelRootAndJdbc(config, node, relTransformer);
     log("INITIAL", rel, logger, null);
     return transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
   }

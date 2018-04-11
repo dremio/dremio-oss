@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,17 @@
  */
 package com.dremio.exec.planner;
 
+import javax.inject.Provider;
+
 import org.mockito.Mockito;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.config.LogicalPlanPersistence;
+import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.service.DirectProvider;
 
 public class PhysicalPlanReaderTestFactory {
 
@@ -33,14 +35,15 @@ public class PhysicalPlanReaderTestFactory {
 
   public static PhysicalPlanReader defaultPhysicalPlanReader(
       SabotConfig c,
-      ScanResult scanResult, StoragePluginRegistry storageRegistry) {
+      ScanResult scanResult,
+      Provider<CatalogService> catalogService) {
     return new PhysicalPlanReader(
         c, scanResult, new LogicalPlanPersistence(c, scanResult),
         CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-        storageRegistry, Mockito.mock(SabotContext.class));
+        catalogService, Mockito.mock(SabotContext.class));
   }
   public static PhysicalPlanReader defaultPhysicalPlanReader(SabotConfig c, ScanResult scanResult) {
-    return defaultPhysicalPlanReader(c, scanResult, null);
+    return defaultPhysicalPlanReader(c, scanResult, DirectProvider.<CatalogService>wrap(null));
   }
 
   public static PhysicalPlanReader defaultPhysicalPlanReader(SabotContext c) {
@@ -49,13 +52,13 @@ public class PhysicalPlanReaderTestFactory {
 
   public static PhysicalPlanReader defaultPhysicalPlanReader(
       SabotContext c,
-      StoragePluginRegistry storageRegistry) {
+      Provider<CatalogService> catalogService) {
     return new PhysicalPlanReader(
         c.getConfig(),
         c.getClasspathScan(),
         c.getLpPersistence(),
         CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-        storageRegistry,
+        catalogService,
         Mockito.mock(SabotContext.class));
   }
 

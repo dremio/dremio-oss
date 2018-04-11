@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package exec.bit;
 option java_package = "com.dremio.exec.proto";
 option java_outer_classname = "ExecProtos";
 option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
 
 import "Coordination.proto";
 import "UserBitShared.proto";
@@ -26,7 +27,7 @@ message FragmentHandle {
 	optional exec.shared.QueryId query_id = 1;
 	optional int32 major_fragment_id = 2;
 	optional int32 minor_fragment_id = 3;
-	optional exec.shared.QueryId parent_query_id = 4;
+	optional exec.shared.QueryId parent_query_id = 4 [deprecated=true];
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ export class S3Form extends Component {
             <div style={section}>
               <h2 style={sectionTitle}>{la('Advanced Options')}</h2>
               <AdvancedOptionsExpandable>
-                <MetadataRefresh fields={fields} hideObjectNames/>
+                <MetadataRefresh fields={fields} />
               </AdvancedOptionsExpandable>
             </div>
           </General>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ export default class TabsNavigation extends Component {
 
     this.tabHash = Immutable.fromJS([
       {name: 'overview', label: props.intl.formatMessage({ id: 'Common.Overview' })},
-      {name: 'details', label: props.intl.formatMessage({ id: 'Job.Details' })},
+      {name: 'details', label: props.intl.formatMessage({ id: 'Common.Details' })},
       {name: 'acceleration', label: props.intl.formatMessage({ id: 'Acceleration.Acceleration' })},
       {name: 'profiles', label: props.intl.formatMessage({ id: 'Job.Profiles' })},
       {name: 'profile', label: props.intl.formatMessage({ id: 'Job.Profile' })}

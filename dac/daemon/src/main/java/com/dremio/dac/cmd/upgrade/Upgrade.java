@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,6 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.cmd.upgrade.namespace_canonicalize_keys.NormalizeNamespace;
-import com.dremio.dac.cmd.upgrade.namespace_canonicalize_keys.ValidateNamespace;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.support.SupportService;
@@ -39,6 +37,7 @@ import com.dremio.dac.support.SupportService.SupportStoreCreator;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
@@ -56,18 +55,15 @@ public class Upgrade {
    * The list of registered upgrade tasks
    */
   public static final List<UpgradeTask> TASKS = ImmutableList.of(
-      new ValidateNamespace(),
-      new SetLayoutVersion(),
-      new FixAccelerationId(),
-      new FixHiveMetadata(),
-      new NormalizeNamespace(),
       new ReIndexStores(),
-      new FixMySqlSourceConfig(),
-      new ReplanAllAccelerations(),
-      new FixAccelerationVersion(),
       new SetDatasetExpiry(),
       new SetAccelerationRefreshGrace(),
-      new ReplanHomeBasedAccelerations()
+      new MarkOldMaterializationsAsDeprecated(),
+      new MoveFromAccelerationsToReflections(),
+      new ReIndexDatasets(),
+      new DeleteInternalSources(),
+      new MoveFromAccelerationSettingsToReflectionSettings(),
+      new ConvertJoinInfo()
   );
 
   /**
@@ -139,7 +135,7 @@ public class Upgrade {
 
     final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
-    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true, false, true)) {
+    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true)) {
       storeProvider.start();
 
       return upgrade(sabotConfig, classpathScan, storeProvider);
@@ -155,14 +151,15 @@ public class Upgrade {
     System.out.println("KVStore version is " + kvStoreVersion.getVersion());
     ensureUpgradeSupported(kvStoreVersion);
 
-
     final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
+    final ConnectionReader connectionReader = new ConnectionReader(classpathScan);
+
     final UpgradeContext context = new UpgradeContext(new Provider<KVStoreProvider>() {
       @Override
       public KVStoreProvider get() {
         return storeProvider;
       }
-    }, lpPersistence);
+    }, lpPersistence, connectionReader);
     for (UpgradeTask task : TASKS) {
       if (kvStoreVersion.compareTo(task.getMaxVersion()) < 0) {
         System.out.println(task);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ public class TestDateTypes extends PopUnitTestBase {
     @Test
     public void testDate() throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -83,7 +83,7 @@ public class TestDateTypes extends PopUnitTestBase {
     @Test
     public void testSortDate() throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -117,7 +117,7 @@ public class TestDateTypes extends PopUnitTestBase {
     @Test
     public void testTimeStamp() throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -152,7 +152,7 @@ public class TestDateTypes extends PopUnitTestBase {
     @Ignore("interval")
     public void testInterval() throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -210,7 +210,7 @@ public class TestDateTypes extends PopUnitTestBase {
     @Ignore("interval")
     public void testLiterals() throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -248,7 +248,7 @@ public class TestDateTypes extends PopUnitTestBase {
     @Ignore("interval")
     public void testDateAdd() throws Exception {
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.

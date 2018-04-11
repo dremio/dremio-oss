@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,8 @@ public interface NamespaceService {
 
   SpaceConfig getSpaceById(String id) throws NamespaceNotFoundException;
 
+  NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException;
+
   /**
    * Returns {@link DatasetConfig configuration} corresponding to given path.
    *
@@ -125,6 +127,14 @@ public interface NamespaceService {
   //// DELETE
   void deleteSource(NamespaceKey sourcePath, long version) throws NamespaceException;
 
+  /**
+   * Delete all of a sources children but leave the source intact.
+   * @param sourcePath
+   * @param version
+   * @throws NamespaceException
+   */
+  void deleteSourceChildren(final NamespaceKey sourcePath, long version) throws NamespaceException;
+
   void deleteSpace(NamespaceKey spacePath, long version) throws NamespaceException;
 
   void deleteEntity(NamespaceKey entityPath) throws NamespaceException;
@@ -132,6 +142,8 @@ public interface NamespaceService {
   void deleteDataset(NamespaceKey datasetPath, long version) throws NamespaceException;
 
   void deleteFolder(NamespaceKey folderPath, long version) throws NamespaceException;
+
+  void deleteHome(final NamespaceKey sourcePath, long version) throws NamespaceException;
 
   //// RENAME
   DatasetConfig renameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath) throws NamespaceException;

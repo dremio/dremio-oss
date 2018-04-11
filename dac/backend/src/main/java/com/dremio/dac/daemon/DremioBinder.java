@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.daemon;
 
+import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 
 import org.glassfish.hk2.api.Factory;
@@ -27,10 +28,13 @@ import com.dremio.dac.explore.join.JobsBasedRecommender;
 import com.dremio.dac.explore.join.JoinRecommender;
 import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.SchemaTreeProvider;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.BinderImpl.Binding;
 import com.dremio.service.BinderImpl.InstanceBinding;
 import com.dremio.service.BinderImpl.SingletonBinding;
@@ -73,26 +77,39 @@ public class DremioBinder extends AbstractBinder {
     bindToSelf(SampleDataPopulator.class);
     bindToSelf(DatasetVersionMutator.class);
     bindToSelf(SourceService.class);
+    bindToSelf(ReflectionServiceHelper.class);
+    bindToSelf(CatalogServiceHelper.class);
     bind(JobsBasedRecommender.class).to(JoinRecommender.class);
     bind(DACSecurityContext.class).in(RequestScoped.class).to(SecurityContext.class);
-    bindFactory(new SchemaTreeFactory()).in(RequestScoped.class).to(SchemaTreeProvider.class);
+    bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(Catalog.class);
   }
 
   private <T> ServiceBindingBuilder<T> bindToSelf(Class<T> serviceType) {
     return bind(serviceType).to(serviceType);
   }
 
-  private final class SchemaTreeFactory implements Factory<SchemaTreeProvider> {
-    private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SchemaTreeFactory.class);
-    @Override
-    public SchemaTreeProvider provide() {
-      return new SchemaTreeProvider(bindings.lookup(SabotContext.class));
+  /**
+   * Factory for Catalog creation.
+   */
+  public static class CatalogFactory implements Factory<Catalog> {
+    private final CatalogService catalogService;
+    private final SecurityContext context;
+
+    @Inject
+    public CatalogFactory(CatalogService catalogService, SecurityContext context) {
+      super();
+      this.catalogService = catalogService;
+      this.context = context;
     }
 
     @Override
-    public void dispose(SchemaTreeProvider instance) {
-      // no-op
+    @RequestScoped
+    public Catalog provide() {
+      return catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
     }
 
+    @Override
+    public void dispose(Catalog catalog) {
+    }
   }
 }

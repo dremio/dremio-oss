@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import com.dremio.common.SerializedExecutor;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -72,6 +73,26 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
       @Override
       public void doRun() {
         innerObserver.planText(text, millisTaken);
+      }
+    });
+  }
+
+  @Override
+  public void finalPrel(final Prel prel) {
+    serializedExec.execute(new DeferredRunnable() {
+        @Override
+        public void doRun() {
+          innerObserver.finalPrel(prel);
+        }
+      });
+  }
+
+  @Override
+  public void recordExtraInfo(final String name, final byte[] bytes) {
+    serializedExec.execute(new DeferredRunnable() {
+      @Override
+      public void doRun() {
+        innerObserver.recordExtraInfo(name, bytes);
       }
     });
   }

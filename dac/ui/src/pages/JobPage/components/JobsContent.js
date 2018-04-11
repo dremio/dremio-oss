@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@ export default class JobsContent extends Component {
     jobs.forEach((job) => {
       const jobId = job.get('id');
       const jobState = job.get('state');
-      if (isStop || jobState === 'RUNNING' || jobState === 'PENDING') {
+      if (isStop || ['NOT_SUBMITTED', 'STARTING', 'RUNNING', 'ENQUEUED', 'CANCELLATION_REQUESTED'].includes(jobState)) {
         return callback(jobId);
       }
     });

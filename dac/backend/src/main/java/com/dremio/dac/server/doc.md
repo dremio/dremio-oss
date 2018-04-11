@@ -7,29 +7,6 @@
 ## Resource defined by class com.dremio.dac.server.TimingApplicationEventListener
 
 
-## Resource defined by class com.dremio.dac.resource.AccelerationResource
-
- - POST /accelerations   
-   > `=>` [com.dremio.dac.explore.model.DatasetPath](#class-comdremiodacexploremodeldatasetpath)   
-   > `<=` [com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor](#class-comdremiodacprotomodelaccelerationaccelerationapidescriptor)   
-
- - GET /accelerations/dataset/{path} (path params: path={com.dremio.dac.explore.model.DatasetPath})   
-   > `<=` [com.dremio.dac.proto.model.acceleration.AccelerationInfoApiDescriptor](#class-comdremiodacprotomodelaccelerationaccelerationinfoapidescriptor)   
-
- - GET /accelerations/job/{id} (path params: id={com.dremio.service.job.proto.JobId})   
-   > `<=` [com.dremio.dac.proto.model.acceleration.AccelerationInfoApiDescriptor](#class-comdremiodacprotomodelaccelerationaccelerationinfoapidescriptor)   
-
- - DELETE /accelerations/{id} (path params: id={com.dremio.service.accelerator.proto.AccelerationId})   
-   > `<=` void   
-
- - GET /accelerations/{id} (path params: id={com.dremio.service.accelerator.proto.AccelerationId})   
-   > `<=` [com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor](#class-comdremiodacprotomodelaccelerationaccelerationapidescriptor)   
-
- - PUT /accelerations/{id} (path params: id={com.dremio.service.accelerator.proto.AccelerationId})   
-   > `=>` [com.dremio.service.accelerator.proto.AccelerationDescriptor](#class-comdremioserviceacceleratorprotoaccelerationdescriptor)   
-   > `<=` [com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor](#class-comdremiodacprotomodelaccelerationaccelerationapidescriptor)   
-
-
 ## Resource defined by class com.dremio.dac.resource.BackupResource
 
  - POST /backup   
@@ -223,15 +200,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.DevelopmentOptionsResource
 
- - POST /development_options/acceleration/build   
-   > `=>`   
-   > `<=` void   
-
  - POST /development_options/acceleration/clearall   
-   > `=>`   
-   > `<=` void   
-
- - POST /development_options/acceleration/compact   
    > `=>`   
    > `<=` void   
 
@@ -242,8 +211,12 @@
    > `=>` String   
    > `<=` String   
 
- - GET /development_options/acceleration/graph   
-   > `<=` String   
+ - GET /development_options/acceleration/settings   
+   > `<=` [com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor](#class-comdremiodacprotomodelaccelerationsystemsettingsapidescriptor)   
+
+ - PUT /development_options/acceleration/settings   
+   > `=>` [com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor](#class-comdremiodacprotomodelaccelerationsystemsettingsapidescriptor)   
+   > `<=` void   
 
 
 ## Resource defined by class com.dremio.dac.resource.HomeResource
@@ -483,10 +456,6 @@
    > `=>` [com.dremio.service.namespace.file.FileFormat](#class-comdremioservicenamespacefilefileformat)   
    > `<=` [com.dremio.dac.model.job.JobDataFragment](#class-comdremiodacmodeljobjobdatafragment)   
 
- - POST /source/{sourceName}/rename?renameTo={String}   
-   > `=>`   
-   > `<=` [com.dremio.dac.model.sources.Source](#class-comdremiodacmodelsourcessource)   
-
  - POST /source/{sourceName}/new_untitled_from_file/{path: .*} (path params: path={String})   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
@@ -504,6 +473,10 @@
 
  - GET /sources   
    > `<=` [com.dremio.dac.model.sources.Sources](#class-comdremiodacmodelsourcessources)   
+
+ - POST /sources/isMetadataImpacting   
+   > `=>` [com.dremio.dac.model.sources.SourceUI](#class-comdremiodacmodelsourcessourceui)   
+   > `<=` [com.dremio.dac.resource.SourcesResource$MetadataImpactingResponse](#class-comdremiodacresourcesourcesresource$metadataimpactingresponse)   
 
 
 ## Resource defined by class com.dremio.dac.resource.PutSpaceResource
@@ -880,12 +853,6 @@
 }
 ```
 
-## `class com.dremio.dac.explore.model.DatasetPath`
-- Example:
-```
-"abc"
-```
-
 ## `class com.dremio.dac.explore.model.DatasetSearchUIs`
 - Example:
 ```
@@ -1205,7 +1172,7 @@
     version: 1,
   },
   error: {
-    code: "abc",
+    code: "INITIAL_PREVIEW_ERROR" | "NEW_DATASET_QUERY_EXCEPTION" | "INVALID_QUERY",
     details: any,
     errorMessage: "abc",
     moreInfo: "abc",
@@ -1741,20 +1708,6 @@
     physicalDatasets: [
       {
         datasetConfig: {
-          accelerationSettings: {
-            accelerationGracePeriod: 1,
-            accelerationRefreshPeriod: 1,
-            accelerationTTL: {
-              duration: 1,
-              unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-            },
-            fieldList: [
-              "abc",
-              ...
-            ],
-            method: "FULL" | "INCREMENTAL",
-            refreshField: "abc",
-          },
           formatSettings: {
             ctime: 1,
             extendedConfig: { /** ByteString **/
@@ -1901,9 +1854,10 @@
           name: "abc",
           state: "ACTIVE" | "FAILED",
           totalByteSize: 1,
-          type: "RAW" | "AGGREGATION",
+          type: "RAW" | "AGGREGATION" | "EXTERNAL",
         },
         relationship: "CONSIDERED" | "MATCHED" | "CHOSEN",
+        snowflake: true | false,
       },
       ...
     ],
@@ -1927,7 +1881,22 @@
   description: "abc",
   downloadUrl: "abc",
   endTime: 1,
-  failureInfo: "abc",
+  failureInfo: {
+    errors: [
+      {
+        message: "abc",
+        range: {
+          endColumn: 1,
+          endLine: 1,
+          startColumn: 1,
+          startLine: 1,
+        },
+      },
+      ...
+    ],
+    message: "abc",
+    type: "UNKNOWN" | "PARSE" | "VALIDATION" | "EXECUTION",
+  },
   fsDatasetProfiles: [
     {
       dataVolumeInBytes: 1,
@@ -1960,10 +1929,10 @@
     name: "abc",
   },
   materializationFor: {
-    accelerationId: "abc",
-    layoutId: "abc",
+    datasetId: "abc",
     layoutVersion: 1,
     materializationId: "abc",
+    reflectionId: "abc",
   },
   outputRecords: 1,
   paginationUrl: "abc",
@@ -1982,12 +1951,14 @@
   queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW",
   requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
   resultsAvailable: true | false,
+  snowflakeAccelerated: true | false,
   sql: "abc",
   startTime: 1,
   state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
   stats: {
     inputBytes: 1,
     inputRecords: 1,
+    isOutputLimited: true | false,
     outputBytes: 1,
     outputRecords: 1,
   },
@@ -2135,6 +2106,7 @@
             id: {
               accelerationId: "abc",
               layoutId: "abc",
+              materializationId: "abc",
             },
             originalCost: 1.0,
             speedup: 1.0,
@@ -2154,6 +2126,20 @@
       ],
       datasetVersion: "abc",
       description: "abc",
+      detailedFailureInfo: {
+        errorsList: [
+          {
+            endColumn: 1,
+            endLine: 1,
+            message: "abc",
+            startColumn: 1,
+            startLine: 1,
+          },
+          ...
+        ],
+        message: "abc",
+        type: "UNKNOWN" | "PARSE" | "PLAN" | "VALIDATION" | "EXECUTION",
+      },
       downloadInfo: {
         downloadId: "abc",
         fileName: "abc",
@@ -2192,6 +2178,38 @@
         id: "abc",
         name: "abc",
       },
+      joinAnalysis: {
+        joinStatsList: [
+          {
+            buildInputCount: 1,
+            joinConditionsList: [
+              {
+                buildSideColumn: "abc",
+                buildSideTableId: 1,
+                probeSideColumn: "abc",
+                probeSideTableId: 1,
+              },
+              ...
+            ],
+            joinType: "Inner" | "LeftOuter" | "RightOuter" | "FullOuter",
+            outputRecords: 1,
+            probeInputCount: 1,
+            unmatchedBuildCount: 1,
+            unmatchedProbeCount: 1,
+          },
+          ...
+        ],
+        joinTablesList: [
+          {
+            tableId: 1,
+            tableSchemaPathList: [
+              "abc",
+              ...
+            ],
+          },
+          ...
+        ],
+      },
       joinsList: [
         {
           conditionsList: [
@@ -2223,11 +2241,12 @@
         ...
       ],
       materializationFor: {
-        accelerationId: "abc",
-        layoutId: "abc",
+        datasetId: "abc",
         layoutVersion: 1,
         materializationId: "abc",
+        reflectionId: "abc",
       },
+      originalCost: 1.0,
       parentsList: [
         {
           datasetPathList: [
@@ -2236,6 +2255,10 @@
           ],
           type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
+        ...
+      ],
+      partitionsList: [
+        "abc",
         ...
       ],
       queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW",
@@ -2285,16 +2308,26 @@
         },
         ...
       ],
+      scanPathsList: [
+        {
+          pathList: [
+            "abc",
+            ...
+          ],
+        },
+        ...
+      ],
       space: "abc",
       sql: "abc",
       startTime: 1,
       user: "abc",
     },
-    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE",
+    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA",
     state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
     stats: {
       inputBytes: 1,
       inputRecords: 1,
+      isOutputLimited: true | false,
       outputBytes: 1,
       outputRecords: 1,
     },
@@ -2321,9 +2354,26 @@
       datasetVersion: "abc",
       description: "abc",
       endTime: 1,
+      failureInfo: {
+        errors: [
+          {
+            message: "abc",
+            range: {
+              endColumn: 1,
+              endLine: 1,
+              startColumn: 1,
+              startLine: 1,
+            },
+          },
+          ...
+        ],
+        message: "abc",
+        type: "UNKNOWN" | "PARSE" | "VALIDATION" | "EXECUTION",
+      },
       id: "abc",
       isComplete: true | false,
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+      snowflakeAccelerated: true | false,
       startTime: 1,
       state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
       user: "abc",
@@ -2362,20 +2412,6 @@
 ```
 {
   datasetConfig: {
-    accelerationSettings: {
-      accelerationGracePeriod: 1,
-      accelerationRefreshPeriod: 1,
-      accelerationTTL: {
-        duration: 1,
-        unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-      },
-      fieldList: [
-        "abc",
-        ...
-      ],
-      method: "FULL" | "INCREMENTAL",
-      refreshField: "abc",
-    },
     formatSettings: {
       ctime: 1,
       extendedConfig: {
@@ -2410,19 +2446,14 @@
 }
 ```
 
-## `class com.dremio.dac.model.sources.Source`
-- Example:
-```
-any
-```
-
 ## `class com.dremio.dac.model.sources.SourceUI`
 - Example:
 ```
 {
   accelerationGracePeriod: 1,
   accelerationRefreshPeriod: 1,
-  config: any,
+  config: {
+  },
   contents: { /** NamespaceTree **/
     datasets: [
       {
@@ -2661,20 +2692,6 @@ any
     physicalDatasets: [
       {
         datasetConfig: {
-          accelerationSettings: {
-            accelerationGracePeriod: 1,
-            accelerationRefreshPeriod: 1,
-            accelerationTTL: {
-              duration: 1,
-              unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-            },
-            fieldList: [
-              "abc",
-              ...
-            ],
-            method: "FULL" | "INCREMENTAL",
-            refreshField: "abc",
-          },
           formatSettings: {
             ctime: 1,
             extendedConfig: { /** ByteString **/
@@ -2753,7 +2770,8 @@ any
     {
       accelerationGracePeriod: 1,
       accelerationRefreshPeriod: 1,
-      config: any,
+      config: {
+      },
       contents: { /** NamespaceTree **/
         datasets: [
           {
@@ -2992,20 +3010,6 @@ any
         physicalDatasets: [
           {
             datasetConfig: {
-              accelerationSettings: {
-                accelerationGracePeriod: 1,
-                accelerationRefreshPeriod: 1,
-                accelerationTTL: {
-                  duration: 1,
-                  unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-                },
-                fieldList: [
-                  "abc",
-                  ...
-                ],
-                method: "FULL" | "INCREMENTAL",
-                refreshField: "abc",
-              },
               formatSettings: {
                 ctime: 1,
                 extendedConfig: { /** ByteString **/
@@ -3321,20 +3325,6 @@ any
     physicalDatasets: [
       {
         datasetConfig: {
-          accelerationSettings: {
-            accelerationGracePeriod: 1,
-            accelerationRefreshPeriod: 1,
-            accelerationTTL: {
-              duration: 1,
-              unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-            },
-            fieldList: [
-              "abc",
-              ...
-            ],
-            method: "FULL" | "INCREMENTAL",
-            refreshField: "abc",
-          },
           formatSettings: {
             ctime: 1,
             extendedConfig: { /** ByteString **/
@@ -3640,20 +3630,6 @@ any
     physicalDatasets: [
       {
         datasetConfig: {
-          accelerationSettings: {
-            accelerationGracePeriod: 1,
-            accelerationRefreshPeriod: 1,
-            accelerationTTL: {
-              duration: 1,
-              unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-            },
-            fieldList: [
-              "abc",
-              ...
-            ],
-            method: "FULL" | "INCREMENTAL",
-            refreshField: "abc",
-          },
           formatSettings: {
             ctime: 1,
             extendedConfig: { /** ByteString **/
@@ -3949,20 +3925,6 @@ any
         physicalDatasets: [
           {
             datasetConfig: {
-              accelerationSettings: {
-                accelerationGracePeriod: 1,
-                accelerationRefreshPeriod: 1,
-                accelerationTTL: {
-                  duration: 1,
-                  unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-                },
-                fieldList: [
-                  "abc",
-                  ...
-                ],
-                method: "FULL" | "INCREMENTAL",
-                refreshField: "abc",
-              },
               formatSettings: {
                 ctime: 1,
                 extendedConfig: { /** ByteString **/
@@ -4101,231 +4063,15 @@ any
 }
 ```
 
-## `class com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor`
+## `class com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor`
 - Example:
 ```
 {
-  aggregationLayouts: { /** LayoutContainerApiDescriptor **/
-    enabled: true | false,
-    layoutList: [
-      {
-        currentByteSize: 1,
-        details: {
-          dimensionFieldList: [
-            {
-              granularity: "DATE" | "NORMAL",
-              name: "abc",
-            },
-            ...
-          ],
-          displayFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          distributionFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          measureFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
-          partitionFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          sortFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-        },
-        error: { /** ApiErrorDetails **/
-          code: "PIPELINE_FAILURE" | "MATERIALIZATION_FAILURE" | "OTHER",
-          materializationFailure: {
-            jobId: "abc",
-            materializationId: "abc",
-          },
-          message: "abc",
-          stackTrace: "abc",
-        },
-        hasValidMaterialization: true | false,
-        id: "abc",
-        latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
-        name: "abc",
-        state: "ACTIVE" | "FAILED",
-        totalByteSize: 1,
-        type: "RAW" | "AGGREGATION",
-      },
-      ...
-    ],
-    type: "RAW" | "AGGREGATION",
-  },
-  context: {
-    dataset: {
-      createdAt: 1,
-      pathList: [
-        "abc",
-        ...
-      ],
-      type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-      version: 1,
-      virtualDataset: {
-        parentList: [
-          {
-            pathList: [
-              "abc",
-              ...
-            ],
-            type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-          },
-          ...
-        ],
-        sql: "abc",
-      },
-    },
-    datasetSchema: {
-      fieldList: [
-        {
-          name: "abc",
-          type: "TEXT" | "BINARY" | "BOOLEAN" | "FLOAT" | "INTEGER" | "BIGINT" | "MIXED" | "DATE" | "TIME" | "DATETIME" | "LIST" | "MAP" | "GEO" | "OTHER" | "ANY",
-          typeFamily: "abc",
-        },
-        ...
-      ],
-    },
-    jobId: {
-      id: "abc",
-      name: "abc",
-    },
-    logicalAggregation: {
-      dimensionList: [
-        { /** LayoutFieldApiDescriptor **/
-          name: "abc",
-        },
-        ...
-      ],
-      measureList: [
-        { /** LayoutFieldApiDescriptor **/
-          name: "abc",
-        },
-        ...
-      ],
-    },
-  },
-  errorList: [
-    { /** ApiErrorDetails **/
-      code: "PIPELINE_FAILURE" | "MATERIALIZATION_FAILURE" | "OTHER",
-      materializationFailure: {
-        jobId: "abc",
-        materializationId: "abc",
-      },
-      message: "abc",
-      stackTrace: "abc",
-    },
-    ...
-  ],
-  footprint: 1,
-  hits: 1,
-  id: {
-    id: "abc",
-  },
-  mode: "AUTO" | "MANUAL",
-  rawLayouts: { /** LayoutContainerApiDescriptor **/
-    enabled: true | false,
-    layoutList: [
-      {
-        currentByteSize: 1,
-        details: {
-          dimensionFieldList: [
-            {
-              granularity: "DATE" | "NORMAL",
-              name: "abc",
-            },
-            ...
-          ],
-          displayFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          distributionFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          measureFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
-          partitionFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          sortFieldList: [
-            { /** LayoutFieldApiDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-        },
-        error: { /** ApiErrorDetails **/
-          code: "PIPELINE_FAILURE" | "MATERIALIZATION_FAILURE" | "OTHER",
-          materializationFailure: {
-            jobId: "abc",
-            materializationId: "abc",
-          },
-          message: "abc",
-          stackTrace: "abc",
-        },
-        hasValidMaterialization: true | false,
-        id: "abc",
-        latestMaterializationState: "NEW" | "RUNNING" | "DONE" | "FAILED" | "DELETED",
-        name: "abc",
-        state: "ACTIVE" | "FAILED",
-        totalByteSize: 1,
-        type: "RAW" | "AGGREGATION",
-      },
-      ...
-    ],
-    type: "RAW" | "AGGREGATION",
-  },
-  state: "NEW" | "REQUESTED" | "ENABLED" | "DISABLED" | "ERROR" | "ENABLED_SYSTEM" | "OUT_OF_DATE",
-  totalRequests: 1,
-  type: "DATASET" | "JOB",
-  version: 1,
-}
-```
-
-## `class com.dremio.dac.proto.model.acceleration.AccelerationInfoApiDescriptor`
-- Example:
-```
-{
-  aggregationEnabled: true | false,
-  id: {
-    id: "abc",
-  },
-  rawAccelerationEnabled: true | false,
-  selfRequested: true | false,
-  state: "NEW" | "REQUESTED" | "ENABLED" | "DISABLED" | "ERROR" | "ENABLED_SYSTEM" | "OUT_OF_DATE",
-  totalRequests: 1,
+  accelerateAggregation: true | false,
+  accelerateRaw: true | false,
+  layoutRefreshMaxAttempts: 1,
+  limit: 1,
+  orphanCleanupInterval: 1,
 }
 ```
 
@@ -4406,6 +4152,14 @@ any
 {
   message: "abc",
   type: "OK" | "INFO" | "WARN" | "ERROR",
+}
+```
+
+## `class com.dremio.dac.resource.SourcesResource$MetadataImpactingResponse`
+- Example:
+```
+{
+  isMetadataImpacting: true | false,
 }
 ```
 
@@ -4506,6 +4260,7 @@ any
   subPropertyList: [
     {
       key: "abc",
+      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
       value: "abc",
     },
     ...
@@ -4532,6 +4287,7 @@ any
   subPropertyList: [
     {
       key: "abc",
+      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
       value: "abc",
     },
     ...
@@ -4554,6 +4310,7 @@ any
         containerPropertyList: [
           { /** Property **/
             key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
             value: "abc",
           },
           ...
@@ -4569,6 +4326,7 @@ any
         containerPropertyList: [
           { /** Property **/
             key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
             value: "abc",
           },
           ...
@@ -4593,6 +4351,7 @@ any
   subPropertyList: [
     { /** Property **/
       key: "abc",
+      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
       value: "abc",
     },
     ...
@@ -4617,6 +4376,7 @@ any
             containerPropertyList: [
               { /** Property **/
                 key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
                 value: "abc",
               },
               ...
@@ -4632,6 +4392,7 @@ any
             containerPropertyList: [
               { /** Property **/
                 key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
                 value: "abc",
               },
               ...
@@ -4656,6 +4417,7 @@ any
       subPropertyList: [
         { /** Property **/
           key: "abc",
+          type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
           value: "abc",
         },
         ...
@@ -4673,184 +4435,6 @@ any
 ```
 {
   containerCount: 1,
-}
-```
-
-## `class com.dremio.service.accelerator.proto.AccelerationDescriptor`
-- Example:
-```
-{
-  aggregationLayouts: { /** LayoutContainerDescriptor **/
-    enabled: true | false,
-    layoutList: [
-      {
-        details: {
-          dimensionFieldList: [
-            {
-              granularity: "DATE" | "NORMAL",
-              name: "abc",
-            },
-            ...
-          ],
-          displayFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          distributionFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          measureFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
-          partitionFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          sortFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-        },
-        id: {
-          id: "abc",
-        },
-        name: "abc",
-      },
-      ...
-    ],
-    type: "RAW" | "AGGREGATION",
-  },
-  context: {
-    dataset: {
-      createdAt: 1,
-      pathList: [
-        "abc",
-        ...
-      ],
-      type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-      version: 1,
-      virtualDataset: {
-        parentList: [
-          {
-            pathList: [
-              "abc",
-              ...
-            ],
-            type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-          },
-          ...
-        ],
-        sql: "abc",
-      },
-    },
-    datasetSchema: {
-      fieldList: [
-        {
-          endUnit: "abc",
-          fractionalSecondPrecision: 1,
-          isNullable: true | false,
-          name: "abc",
-          precision: 1,
-          scale: 1,
-          startUnit: "abc",
-          type: "abc",
-          typeFamily: "abc",
-        },
-        ...
-      ],
-    },
-    jobId: {
-      id: "abc",
-      name: "abc",
-    },
-    logicalAggregation: {
-      dimensionList: [
-        { /** LayoutFieldDescriptor **/
-          name: "abc",
-        },
-        ...
-      ],
-      measureList: [
-        { /** LayoutFieldDescriptor **/
-          name: "abc",
-        },
-        ...
-      ],
-    },
-  },
-  id: {
-    id: "abc",
-  },
-  mode: "AUTO" | "MANUAL",
-  rawLayouts: { /** LayoutContainerDescriptor **/
-    enabled: true | false,
-    layoutList: [
-      {
-        details: {
-          dimensionFieldList: [
-            {
-              granularity: "DATE" | "NORMAL",
-              name: "abc",
-            },
-            ...
-          ],
-          displayFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          distributionFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          measureFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          partitionDistributionStrategy: "CONSOLIDATED" | "STRIPED",
-          partitionFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-          sortFieldList: [
-            { /** LayoutFieldDescriptor **/
-              name: "abc",
-            },
-            ...
-          ],
-        },
-        id: {
-          id: "abc",
-        },
-        name: "abc",
-      },
-      ...
-    ],
-    type: "RAW" | "AGGREGATION",
-  },
-  state: "NEW" | "REQUESTED" | "ENABLED" | "DISABLED" | "ERROR" | "ENABLED_SYSTEM" | "OUT_OF_DATE",
-  type: "DATASET" | "JOB",
-  version: 1,
 }
 ```
 
@@ -4888,6 +4472,7 @@ any
       method: "FULL" | "INCREMENTAL",
       refreshField: "abc",
       refreshPeriod: 1,
+      version: 1,
     },
     deprecatedDatasetSchema: { /** ByteString **/
       empty: true | false,

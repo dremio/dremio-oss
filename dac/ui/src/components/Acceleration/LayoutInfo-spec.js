@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ describe('LayoutInfo', () => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
+      showValidity: true,
       layout: Immutable.fromJS({
         id:'a',
         // should be able to render without: currentByteSize
@@ -52,6 +53,16 @@ describe('LayoutInfo', () => {
       layout: commonProps.layout.set('latestMaterializationState', 'DONE').set('hasValidMaterialization', false)
     };
     const wrapper = shallow(<LayoutInfo {...props}/>);
-    expect(wrapper.find('FontIcon').props().type).to.equal('Warning-Solid');
+    const result = wrapper.find('ValidityIndicator');
+    expect(result.props().isValid).to.equal(false);
+  });
+
+  it('should render override text', () => {
+    const props = {...commonProps, overrideTextMessage: 'override'};
+    const wrapper = shallow(<LayoutInfo {...props}/>);
+    expect(wrapper.find('ValidityIndicator').length).to.be.empty;
+    const message = wrapper.find('[data-qa="message"]');
+    expect(message.length).to.be.equal(1);
+    expect(message.first().text()).to.be.equal('override');
   });
 });

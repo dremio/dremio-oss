@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,12 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.google.common.collect.ImmutableMap;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.ManagedStoragePlugin;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.io.Files;
 
 /**
@@ -68,14 +72,19 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   }
 
   private static void addSubPathDfsPlugin() throws Exception {
-    final StoragePluginRegistry pluginRegistry = getSabotContext().getStorage();
-    final FileSystemConfig lfsPluginConfig = pluginRegistry.getPlugin("dfs_test").getId().getConfig();
+    final CatalogServiceImpl pluginRegistry = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    final ManagedStoragePlugin msp = pluginRegistry.getManagedSource("dfs_test");
+    StoragePluginId pluginId = msp.getId();
+    InternalFileConf nasConf = pluginId.getConnectionConf();
+    nasConf.path = storageBase.getPath();
+    nasConf.mutability = SchemaMutability.ALL;
 
-    final FileSystemConfig subPathPluginConfig =
-        new FileSystemConfig("file:///", storageBase.getPath(), ImmutableMap.<String, String>of(),
-            lfsPluginConfig.getFormats(), false, SchemaMutability.ALL);
-
-    pluginRegistry.createOrUpdate("subPathDfs", subPathPluginConfig, true);
+    SourceConfig config = pluginId.getConfig();
+    config.setId(null);
+    config.setVersion(null);
+    config.setName("subPathDfs");
+    config.setConfig(nasConf.toBytesString());
+    pluginRegistry.getSystemUserCatalog().createSource(config);
   }
 
   @Test
@@ -122,6 +131,7 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
 
   @AfterClass
   public static void shutdown() throws Exception {
-    getSabotContext().getStorage().deletePlugin("subPathDfs");
+    SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey("subPathDfs"));
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@ import java.util.Set;
 
 import org.apache.calcite.plan.RelOptRule;
 
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
-import com.dremio.service.namespace.StoragePluginType;
+import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.google.common.collect.ImmutableSet;
 
-public class HBaseRulesFactory implements StoragePluginTypeRulesFactory {
+public class HBaseRulesFactory extends StoragePluginTypeRulesFactory {
 
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, StoragePluginType pluginType) {
+  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
     if(phase == PlannerPhase.PHYSICAL) {
       return ImmutableSet.<RelOptRule>of(
           HBaseScanPrule.INSTANCE,

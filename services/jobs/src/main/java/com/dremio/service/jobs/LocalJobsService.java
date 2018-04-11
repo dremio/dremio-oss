@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.common.utils.Protos.listNotNull;
-import static com.dremio.service.job.proto.JobState.RUNNING;
+import static com.dremio.service.job.proto.JobState.ENQUEUED;
+import static com.dremio.service.job.proto.JobState.STARTING;
 import static com.dremio.service.job.proto.QueryType.UI_INITIAL_PREVIEW;
 import static com.dremio.service.jobs.JobIndexKeys.ALL_DATASETS;
 import static com.dremio.service.jobs.JobIndexKeys.DATASET;
@@ -88,12 +89,14 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.RootSchemaFinder;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
+import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AbstractQueryObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
+import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.SchemaUserBitShared;
@@ -139,13 +142,14 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.job.proto.Acceleration;
+import com.dremio.service.job.proto.ExtraInfo;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
-import com.dremio.service.job.proto.JoinInfo;
+import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -256,28 +260,7 @@ public class LocalJobsService implements JobsService {
     this.jobResultsStore = new JobResultsStore(fileSystemPlugin, store, allocator);
 
     if (isMaster) { // if Dremio process died, clean up
-      final Set<Entry<JobId, JobResult>> apparentlyAbandoned =
-          FluentIterable.from(store.find(new FindByCondition()
-              .setCondition(SearchQueryUtils.newTermQuery(JOB_STATE, JobState.RUNNING.name()))))
-          .toSet();
-      for (final Entry<JobId, JobResult> entry : apparentlyAbandoned) {
-        final List<JobAttempt> attempts = entry.getValue().getAttemptsList();
-        final int numAttempts = attempts.size();
-        if (numAttempts > 0) {
-          final JobAttempt lastAttempt = attempts.get(numAttempts - 1);
-          // .. check again; the index may not be updated, but the store maybe
-          if (lastAttempt.getState() == JobState.RUNNING) {
-            final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
-                .setInfo(lastAttempt.getInfo()
-                    .setFinishTime(System.currentTimeMillis())
-                    .setFailureInfo("Query failed as Dremio was restarted. Details and profile information " +
-                        "for this job may be missing."));
-            attempts.remove(numAttempts - 1);
-            attempts.add(newLastAttempt);
-            store.put(entry.getKey(), entry.getValue());
-          }
-        }
-      }
+      setAbandonedJobsToFailedState(store);
     }
 
     // register to listen to query lifecycle
@@ -309,6 +292,32 @@ public class LocalJobsService implements JobsService {
     }
 
     logger.info("JobsService is up");
+  }
+
+  @VisibleForTesting
+  static void setAbandonedJobsToFailedState(IndexedStore<JobId, JobResult> jobStore) {
+    final Set<Entry<JobId, JobResult>> apparentlyAbandoned =
+        FluentIterable.from(jobStore.find(new FindByCondition()
+            .setCondition(JobsServiceUtil.getApparentlyAbandonedQuery())))
+            .toSet();
+    for (final Entry<JobId, JobResult> entry : apparentlyAbandoned) {
+      final List<JobAttempt> attempts = entry.getValue().getAttemptsList();
+      final int numAttempts = attempts.size();
+      if (numAttempts > 0) {
+        final JobAttempt lastAttempt = attempts.get(numAttempts - 1);
+        // .. check again; the index may not be updated, but the store maybe
+        if (JobsServiceUtil.isNonFinalState(lastAttempt.getState())) {
+          final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
+              .setInfo(lastAttempt.getInfo()
+                  .setFinishTime(System.currentTimeMillis())
+                  .setFailureInfo("Query failed as Dremio was restarted. Details and profile information " +
+                      "for this job may be missing."));
+          attempts.remove(numAttempts - 1);
+          attempts.add(newLastAttempt);
+          jobStore.put(entry.getKey(), entry.getValue());
+        }
+      }
+    }
   }
 
   @Override
@@ -355,7 +364,7 @@ public class LocalJobsService implements JobsService {
     final JobAttempt jobAttempt = new JobAttempt()
         .setInfo(jobInfo)
         .setEndpoint(identity)
-        .setState(RUNNING)
+        .setState(STARTING)
         .setDetails(new JobDetails());
     final Job job = new Job(jobId, jobAttempt);
 
@@ -365,6 +374,7 @@ public class LocalJobsService implements JobsService {
     final LocalExecutionConfig config =
         LocalExecutionConfig.newBuilder()
             .setEnableLeafLimits(enableLeafLimits)
+            .setEnableOutputLimits(QueryTypeUtils.isQueryFromUI(queryType))
             // for UI queries, we should allow reattempts even if data has been returned from query
             .setFailIfNonEmptySent(!QueryTypeUtils.isQueryFromUI(queryType))
             .setUsername(jobRequest.getUsername())
@@ -423,12 +433,22 @@ public class LocalJobsService implements JobsService {
       return listener.getJob();
     }
 
+    return getJobFromStore(jobId);
+  }
+
+  @Override
+  public Job getJobFromStore(JobId jobId) throws JobNotFoundException {
     JobResult jobResult = store.get(jobId);
     if (jobResult == null) {
       throw new JobNotFoundException(jobId);
     }
 
     return new Job(jobId, jobResult, jobResultsStore);
+  }
+
+  @Override
+  public Job getJob(JobId jobId, String userName) throws JobNotFoundException {
+    return getJob(jobId);
   }
 
   @VisibleForTesting
@@ -789,7 +809,7 @@ public class LocalJobsService implements JobsService {
             .setInfo(jobInfo)
             .setEndpoint(identity)
             .setDetails(new JobDetails())
-            .setState(JobState.RUNNING);
+            .setState(STARTING);
 
       final Job job = new Job(jobId, jobAttempt);
 
@@ -854,6 +874,7 @@ public class LocalJobsService implements JobsService {
         final JobInfo jobInfo = ProtostuffUtil.copy(job.getJobAttempt().getInfo())
           .setStartTime(System.currentTimeMillis()) // use different startTime for every attempt
           .setFailureInfo(null)
+          .setDetailedFailureInfo(null)
           .setResultMetadataList(new ArrayList<ArrowFileMetadata>());
 
         final JobAttempt jobAttempt = new JobAttempt()
@@ -861,7 +882,7 @@ public class LocalJobsService implements JobsService {
                 .setReason(reason)
                 .setEndpoint(identity)
                 .setDetails(new JobDetails())
-                .setState(JobState.RUNNING);
+                .setState(STARTING);
 
         job.addAttempt(jobAttempt);
       }
@@ -869,7 +890,7 @@ public class LocalJobsService implements JobsService {
       job.getJobAttempt().setAttemptId(AttemptIdUtils.toString(attemptId));
 
       if (isInternal) {
-        attemptObserver = new JobResultListener(attemptId, job, allocator, statusListener);
+        attemptObserver = new JobResultListener(attemptId, job, allocator, statusListener, listeners);
       } else {
         attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator);
       }
@@ -931,7 +952,6 @@ public class LocalJobsService implements JobsService {
       listeners.close(job);
     }
   }
-
 
   private static class ExternalJobLoader implements JobLoader {
 
@@ -1063,9 +1083,10 @@ public class LocalJobsService implements JobsService {
     private final JobStatusListener statusListener;
     private final QueryMetadata.Builder builder;
     private final AccelerationDetailsPopulator detailsPopulator;
+    private final ExternalListenerManager externalListenerManager;
 
     JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator,
-        JobStatusListener statusListener) {
+        JobStatusListener statusListener, ExternalListenerManager externalListenerManager) {
       Preconditions.checkNotNull(jobResultsStore);
       this.attemptId = attemptId;
       this.job = job;
@@ -1074,6 +1095,11 @@ public class LocalJobsService implements JobsService {
       this.builder = QueryMetadata.builder(namespaceService);
       this.statusListener = statusListener;
       this.detailsPopulator = contextProvider.get().getAccelerationManager().newPopulator();
+      this.externalListenerManager = externalListenerManager;
+    }
+
+    public JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator, JobStatusListener instance) {
+      this(attemptId, job, allocator, instance, null);
     }
 
     Exception getException() {
@@ -1082,8 +1108,13 @@ public class LocalJobsService implements JobsService {
 
     @Override
     public void queryStarted(UserRequest query, String user) {
+      job.getJobAttempt().setState(STARTING);
+      storeJob(job);
 
-      job.getJobAttempt().setState(RUNNING);
+      if (externalListenerManager != null) {
+        externalListenerManager.queryUpdate(job);
+      }
+
       job.getJobAttempt().getInfo().setRequestType(query.getRequestType());
       job.getJobAttempt().getInfo().setSql(query.getSql());
       job.getJobAttempt().getInfo().setDescription(query.getDescription());
@@ -1120,7 +1151,9 @@ public class LocalJobsService implements JobsService {
             @Override
             public Acceleration.Substitution apply(@Nullable final SubstitutionInfo.Substitution sub) {
               final Acceleration.Substitution.Identifier id = new Acceleration.Substitution.Identifier(
-                  sub.getMaterialization().getAccelerationId(), sub.getMaterialization().getLayoutId());
+                  "", sub.getMaterialization().getLayoutId());
+
+              id.setMaterializationId(sub.getMaterialization().getMaterializationId());
 
               return new Acceleration.Substitution(id, sub.getMaterialization().getOriginalCost(), sub.getSpeedup())
                 .setTablePathList(sub.getMaterialization().getPath());
@@ -1144,6 +1177,14 @@ public class LocalJobsService implements JobsService {
       }
       job.getJobAttempt().setAccelerationDetails(
         ByteString.copyFrom(detailsPopulator.computeAcceleration()));
+
+      job.getJobAttempt().setState(ENQUEUED);
+      storeJob(job);
+
+      if (externalListenerManager != null) {
+        externalListenerManager.queryUpdate(job);
+      }
+
       // plan is parallelized after physical planning is done so we need to finalize metadata here
       finalizeMetadata();
     }
@@ -1156,7 +1197,13 @@ public class LocalJobsService implements JobsService {
         final JobInfo jobInfo = job.getJobAttempt().getInfo();
         if(profile != null){
           jobInfo.setStartTime(profile.getStart());
+
           job.getJobAttempt().setState(JobState.RUNNING);
+          storeJob(job);
+
+          if (externalListenerManager != null) {
+            externalListenerManager.queryUpdate(job);
+          }
 
           final QueryProfileParser profileParser = new QueryProfileParser(jobId, profile);
           job.getJobAttempt().setStats(profileParser.getJobStats());
@@ -1175,10 +1222,6 @@ public class LocalJobsService implements JobsService {
         if (parents.isPresent()) {
           jobInfo.setParentsList(parents.get());
         }
-        Optional<List<JoinInfo>> joins = metadata.getJoins();
-        if (joins.isPresent()) {
-          jobInfo.setJoinsList(joins.get());
-        }
         Optional<List<FieldOrigin>> fieldOrigins = metadata.getFieldOrigins();
         if (fieldOrigins.isPresent()) {
           jobInfo.setFieldOriginsList(fieldOrigins.get());
@@ -1187,6 +1230,21 @@ public class LocalJobsService implements JobsService {
         if (grandParents.isPresent()) {
           jobInfo.setGrandParentsList(grandParents.get());
         }
+        final Optional<RelOptCost> cost = metadata.getCost();
+        if (cost.isPresent()) {
+          final double aggCost = DremioCost.aggregateCost(cost.get());
+          jobInfo.setOriginalCost(aggCost);
+        }
+        final Optional<PlanningSet> planningSet = metadata.getPlanningSet();
+        if (planningSet.isPresent()) {
+          final List<String> partitions = JobsServiceUtil.getPartitions(planningSet.get());
+          jobInfo.setPartitionsList(partitions);
+        }
+
+        if (metadata.getScanPaths() != null) {
+          jobInfo.setScanPathsList(metadata.getScanPaths());
+        }
+
         storeJob(job);
         statusListener.metadataCollected(metadata);
       }catch(Exception ex){
@@ -1195,11 +1253,24 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
+    public void recordExtraInfo(String name, byte[] bytes) {
+      if(job.getJobAttempt().getExtraInfoList() == null) {
+        job.getJobAttempt().setExtraInfoList(new ArrayList<ExtraInfo>());
+      }
+
+      job.getJobAttempt().getExtraInfoList().add(new ExtraInfo()
+          .setData(ByteString.copyFrom(bytes))
+          .setName(name));
+      storeJob(job);
+      super.recordExtraInfo(name, bytes);
+    }
+
+    @Override
     public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       statusListener.planRelTransform(phase, before, after, millisTaken);
       switch(phase){
       case LOGICAL:
-        builder.addLogicalPlan(before);
+        builder.addLogicalPlan(before, after);
         // set final pre-accelerated cost
         final RelOptCost cost = after.getCluster().getMetadataQuery().getCumulativeCost(after);
         builder.addCost(cost);
@@ -1213,9 +1284,22 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
+    public void finalPrel(Prel prel) {
+      detailsPopulator.finalPrel(prel);
+    }
+
+    @Override
     public void attemptCompletion(UserResult result) {
       try {
         final QueryState queryState = result.getState();
+        if (queryState == QueryState.COMPLETED) {
+          detailsPopulator.attemptCompleted(result.getProfile());
+          JoinAnalyzer joinAnalyzer = new JoinAnalyzer(result.getProfile(), detailsPopulator.getFinalPrel());
+          JoinAnalysis joinAnalysis = joinAnalyzer.computeJoinAnalysis();
+          if (joinAnalysis != null) {
+            job.getJobAttempt().getInfo().setJoinAnalysis(joinAnalysis);
+          }
+        }
         addAttemptToJob(job, queryState, result.getProfile());
       } catch (IOException e) {
         exception.addException(e);
@@ -1261,8 +1345,13 @@ public class LocalJobsService implements JobsService {
       final QueryProfileParser profileParser = new QueryProfileParser(job.getJobId(), profile);
       jobInfo.setStartTime(profile.getStart());
       jobInfo.setFinishTime(profile.getEnd());
-      if (state == QueryState.FAILED && profile.hasError()) {
-        jobInfo.setFailureInfo(profile.getError());
+      if (state == QueryState.FAILED) {
+        if (profile.hasError()) {
+          jobInfo.setFailureInfo(profile.getError());
+        }
+        if (profile.hasVerboseError()) {
+          jobInfo.setDetailedFailureInfo(JobsServiceUtil.toFailureInfo(profile.getVerboseError()));
+        }
       }
       job.getJobAttempt().setStats(profileParser.getJobStats());
       job.getJobAttempt().setDetails(profileParser.getJobDetails());

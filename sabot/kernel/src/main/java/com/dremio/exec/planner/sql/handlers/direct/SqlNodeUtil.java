@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ public class SqlNodeUtil {
 
   private static final Pattern MATCH_ALL = Pattern.compile(".*", Pattern.DOTALL);
 
+  @SuppressWarnings("unchecked")
   public static <T> T unwrap(Object o, Class<T> clazz) throws ForemanSetupException {
     if (clazz.isAssignableFrom(o.getClass())) {
       return (T) o;

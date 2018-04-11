@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
     limitations under the License.
 
 -->
-
 <!-- Copyright 2016 Dremio Corporation -->
 
 <!DOCTYPE module PUBLIC
   "-//Puppy Crawl//DTD Check Configuration 1.2//EN"
   "http://www.puppycrawl.com/dtds/configuration_1_2.dtd">
 
-<!--  Checkstyle configuration for mongo plugin -->
+<!--  Checkstyle configuration for elasticsearch plugin -->
 
 <module name="Checker">
 
@@ -31,7 +30,7 @@
 
     <module name="IllegalImport">
       <!-- For "org.apache.commons.lang.*" classes use the corresponding class from "org.apache.commons.lang3.*" -->
-      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang"/>
+      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded"/>
     </module>
 
     <module name="AvoidStarImport">

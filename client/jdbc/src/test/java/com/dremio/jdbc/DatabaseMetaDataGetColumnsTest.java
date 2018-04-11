@@ -167,8 +167,8 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
                    dbMetadata );
     final ResultSet testRow =
         dbMetadata.getColumns( "DREMIO", schemaName, tableOrViewName, columnName );
-    assertTrue( "Test setup error:  No row for column DREMIO . `" + schemaName
-                + "` . `" + tableOrViewName + "` . `" + columnName + "`",
+    assertTrue( "Test setup error:  No row for column DREMIO . \"" + schemaName
+                + "\" . \"" + tableOrViewName + "\" . \"" + columnName + "\"",
                 testRow.next() );
     return testRow;
   }

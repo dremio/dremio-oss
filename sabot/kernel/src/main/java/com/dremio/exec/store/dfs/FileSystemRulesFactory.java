@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.logical.Rel;
@@ -30,12 +31,11 @@ import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRule
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnScan;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.exec.store.dfs.easy.EasyScanPrel;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
-import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableSet;
@@ -43,12 +43,11 @@ import com.google.common.collect.ImmutableSet;
 /**
  * Rules for file system sources.
  */
-public class FileSystemRulesFactory implements StoragePluginTypeRulesFactory {
-
+public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
 
   private static class FileSystemDrule extends SourceLogicalConverter {
 
-    public FileSystemDrule(StoragePluginType pluginType) {
+    public FileSystemDrule(SourceType pluginType) {
       super(pluginType);
     }
 
@@ -59,10 +58,10 @@ public class FileSystemRulesFactory implements StoragePluginTypeRulesFactory {
   }
 
   private static class ParquetFilesystemScanPrule extends ConverterRule {
-    private final StoragePluginType pluginType;
+    private final SourceType pluginType;
 
-    public ParquetFilesystemScanPrule(StoragePluginType pluginType) {
-      super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.generateRuleName("ParquetFileSystemScanPrule"));
+    public ParquetFilesystemScanPrule(SourceType pluginType) {
+      super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "ParquetFileSystemScanPrule");
       this.pluginType = pluginType;
     }
 
@@ -76,14 +75,14 @@ public class FileSystemRulesFactory implements StoragePluginTypeRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       FilesystemScanDrel drel = (FilesystemScanDrel) call.rel(0);
-      return drel.getPluginId().getType().equals(pluginType) && isParquetDataset(drel.getTableMetadata());
+      return pluginType.equals(drel.getPluginId().getType()) && isParquetDataset(drel.getTableMetadata());
     }
   }
 
   private static class EasyFilesystemScanPrule extends ConverterRule {
 
-    public EasyFilesystemScanPrule(StoragePluginType pluginType) {
-      super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.generateRuleName("EasyFileSystemScanPrule"));
+    public EasyFilesystemScanPrule(SourceType pluginType) {
+      super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "EasyFileSystemScanPrule");
     }
 
     @Override
@@ -104,7 +103,7 @@ public class FileSystemRulesFactory implements StoragePluginTypeRulesFactory {
 
 
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, StoragePluginType pluginType) {
+  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
 
     switch(phase){
       case LOGICAL:
@@ -112,8 +111,8 @@ public class FileSystemRulesFactory implements StoragePluginTypeRulesFactory {
         builder.add(new FileSystemDrule(pluginType));
 
         if(optimizerContext.getPlannerSettings().isPartitionPruningEnabled()){
-          builder.add(new PruneScanRuleFilterOnProject<FilesystemScanDrel>(pluginType, FilesystemScanDrel.class, optimizerContext));
-          builder.add(new PruneScanRuleFilterOnScan<FilesystemScanDrel>(pluginType, FilesystemScanDrel.class, optimizerContext));
+          builder.add(new PruneScanRuleFilterOnProject<>(pluginType, FilesystemScanDrel.class, optimizerContext));
+          builder.add(new PruneScanRuleFilterOnScan<>(pluginType, FilesystemScanDrel.class, optimizerContext));
         }
 
         return builder.build();

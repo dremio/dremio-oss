@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -346,7 +346,7 @@ message FromSubQuery {
 
 message VirtualDatasetState {
   repeated Column columns = 1;
-  required From from = 2;
+  optional From from = 2;
   repeated Order orders = 3;
   repeated Join joins = 4;
   repeated Filter filters = 5;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,11 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
+import org.apache.calcite.util.Pair;
+
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
+import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
+import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -29,50 +33,45 @@ import com.google.common.collect.ImmutableList;
  * A wrapper around materialized SQL query, replacement and a handle that points to acceleration entry in persistent store.
  */
 public class MaterializationDescriptor {
-  private final String accelerationId;
-  private final LayoutInfo layout;
+  protected final ReflectionInfo reflection;
+  protected final List<String> path;
+
   private final String materializationId;
-  private final Long updateId;
+  private final long version;
   private final long expirationTimestamp;
   private final byte[] planBytes;
-  private final List<String> path;
   private final double originalCost;
+  private final long jobStart;
+  private final List<String> partition;
   private final IncrementalUpdateSettings incrementalUpdateSettings;
-  private final boolean complete;
+  private final JoinDependencyProperties joinDependencyProperties;
 
-  @VisibleForTesting
-  public MaterializationDescriptor(final String accelerationId,
-                                   final LayoutInfo layout,
+  public MaterializationDescriptor(final ReflectionInfo reflection,
                                    final String materializationId,
-                                   final Long updateId,
+                                   final long version,
                                    final long expirationTimestamp,
                                    final byte[] planBytes,
                                    final List<String> path,
                                    final @Nullable Double originalCost,
-                                   final boolean complete) {
-    this(accelerationId, layout, materializationId, updateId, expirationTimestamp, planBytes, path, originalCost, IncrementalUpdateSettings.NON_INCREMENTAL, complete);
-  }
-
-  public MaterializationDescriptor(final String accelerationId,
-                                   final LayoutInfo layout,
-                                   final String materializationId,
-                                   final Long updateId,
-                                   final long expirationTimestamp,
-                                   final byte[] planBytes,
-                                   final List<String> path,
-                                   final @Nullable Double originalCost,
+                                   final long jobStart,
+                                   final List<String> partition,
                                    final IncrementalUpdateSettings incrementalUpdateSettings,
-                                   final boolean complete) {
-    this.accelerationId = Preconditions.checkNotNull(accelerationId, "acceleration id is required");
-    this.layout = Preconditions.checkNotNull(layout, "layout is required");
+                                   final JoinDependencyProperties joinDependencyProperties) {
+    this.reflection = Preconditions.checkNotNull(reflection, "reflection info required");
     this.materializationId = Preconditions.checkNotNull(materializationId, "materialization id is required");
-    this.updateId = updateId;
+    this.version = version;
     this.expirationTimestamp = expirationTimestamp;
-    this.planBytes = Preconditions.checkNotNull(planBytes, "plan is required");
+    this.planBytes = planBytes;
     this.path = ImmutableList.copyOf(Preconditions.checkNotNull(path, "path is required"));
     this.originalCost = originalCost == null ? 0 : originalCost;
+    this.jobStart = jobStart;
+    this.partition = partition;
     this.incrementalUpdateSettings = incrementalUpdateSettings;
-    this.complete = complete;
+    this.joinDependencyProperties = joinDependencyProperties;
+  }
+
+  public long getVersion() {
+    return version;
   }
 
   public long getExpirationTimestamp() {
@@ -83,20 +82,12 @@ public class MaterializationDescriptor {
     return materializationId;
   }
 
-  public Long getUpdateId() {
-    return updateId;
-  }
-
-  public String getAccelerationId() {
-    return accelerationId;
-  }
-
   public String getLayoutId() {
-    return layout.getLayoutId();
+    return reflection.getReflectionId();
   }
 
-  public LayoutInfo getLayoutInfo(){
-    return layout;
+  public ReflectionInfo getLayoutInfo(){
+    return reflection;
   }
 
   public byte[] getPlan() {
@@ -111,8 +102,8 @@ public class MaterializationDescriptor {
     return incrementalUpdateSettings;
   }
 
-  public boolean isComplete() {
-    return complete;
+  public JoinDependencyProperties getJoinDependencyProperties() {
+    return joinDependencyProperties;
   }
 
   /**
@@ -132,15 +123,14 @@ public class MaterializationDescriptor {
     }
     final MaterializationDescriptor that = (MaterializationDescriptor) o;
     return Double.compare(that.originalCost, originalCost) == 0 &&
-        Objects.equals(accelerationId, that.accelerationId) &&
-        Objects.equals(layout, that.layout) &&
+        Objects.equals(reflection, that.reflection) &&
         Objects.deepEquals(planBytes, that.planBytes) &&
         Objects.equals(path, that.path);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(accelerationId, layout, planBytes, path, originalCost);
+    return Objects.hash(reflection, planBytes, path, originalCost);
   }
 
   public DremioRelOptMaterialization getMaterializationFor(SqlConverter converter) {
@@ -148,8 +138,17 @@ public class MaterializationDescriptor {
     return expander.expand(this).orNull();
   }
 
-  public static class LayoutInfo {
-    private final String layoutId;
+  public long getJobStart() {
+    return jobStart;
+  }
+
+  public List<String> getPartition() {
+    return partition;
+  }
+
+  public static class ReflectionInfo {
+    private final String reflectionId;
+    private final ReflectionType type;
     private final String name;
     private final List<String> sortColumns;
     private final List<String> partitionColumns;
@@ -158,8 +157,9 @@ public class MaterializationDescriptor {
     private final List<String> measures;
     private final List<String> displayColumns;
 
-    public LayoutInfo(
-        String layoutId,
+    public ReflectionInfo(
+        String reflectionId,
+        ReflectionType type,
         String name,
         List<String> sortColumns,
         List<String> partitionColumns,
@@ -169,17 +169,18 @@ public class MaterializationDescriptor {
         List<String> displayColumns) {
       super();
       this.name = name;
-      this.layoutId = layoutId;
-      this.sortColumns = sortColumns == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(sortColumns);
-      this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(partitionColumns);;
-      this.distributionColumns = distributionColumns == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(distributionColumns);
-      this.dimensions = dimensions == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(dimensions);
-      this.measures = measures == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(measures);
-      this.displayColumns = displayColumns == null ? ImmutableList.<String>of() : ImmutableList.<String>copyOf(displayColumns);
+      this.type = type;
+      this.reflectionId = reflectionId;
+      this.sortColumns = sortColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(sortColumns);
+      this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(partitionColumns);
+      this.distributionColumns = distributionColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(distributionColumns);
+      this.dimensions = dimensions == null ? ImmutableList.<String>of() : ImmutableList.copyOf(dimensions);
+      this.measures = measures == null ? ImmutableList.<String>of() : ImmutableList.copyOf(measures);
+      this.displayColumns = displayColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(displayColumns);
     }
 
-    public String getLayoutId() {
-      return layoutId;
+    public String getReflectionId() {
+      return reflectionId;
     }
 
     public List<String> getDimensions() {
@@ -202,6 +203,10 @@ public class MaterializationDescriptor {
       return name;
     }
 
+    public ReflectionType getType() {
+      return type;
+    }
+
     public List<String> getPartitionColumns() {
       return partitionColumns;
     }
@@ -218,9 +223,9 @@ public class MaterializationDescriptor {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      final LayoutInfo that = (LayoutInfo) o;
+      final ReflectionInfo that = (ReflectionInfo) o;
       return
-          Objects.equals(layoutId, that.layoutId) &&
+          Objects.equals(reflectionId, that.reflectionId) &&
           Objects.equals(sortColumns, that.sortColumns) &&
           Objects.deepEquals(partitionColumns, that.partitionColumns) &&
           Objects.equals(distributionColumns, that.distributionColumns) &&
@@ -231,7 +236,7 @@ public class MaterializationDescriptor {
 
     @Override
     public int hashCode() {
-      return Objects.hash(layoutId, sortColumns, partitionColumns, distributionColumns, name);
+      return Objects.hash(reflectionId, sortColumns, partitionColumns, distributionColumns, name);
     }
 
   }

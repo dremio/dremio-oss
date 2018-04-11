@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import ReactModal from 'react-modal';
+import ReactDOMServer from 'react-dom/server';
 
 import {smallModal, largeModal, smallestModal, modalBody} from 'uiTheme/radium/modal';
 
@@ -31,7 +32,7 @@ export default class Modal extends Component {
     onClickCloseButton: PropTypes.func, // optional. defaults to props.hide
     hide: PropTypes.func,
     children: PropTypes.node,
-    title: PropTypes.string,
+    title: PropTypes.node.isRequired,
     modalHeight: PropTypes.string,
     className: PropTypes.string,
     classQa: PropTypes.string,
@@ -57,9 +58,17 @@ export default class Modal extends Component {
     const largeModalUpdated = { ...largeModal, content: { ...largeModal.content, ...style}};
     const styles = {small: smallModalUpdated, large: largeModalUpdated, smallest: smallestModal};
 
+    let stringTitle = title;
+    if (typeof stringTitle === 'object') {
+      const html = ReactDOMServer.renderToStaticMarkup(stringTitle);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      stringTitle = tmp.textContent;
+    }
+
     return (
       <ReactModal
-        contentLabel={title}
+        contentLabel={stringTitle}
         overlayClassName={`${size}-modal qa-${classQa}`}
         isOpen={isOpen}
         onRequestClose={hide}
@@ -67,8 +76,8 @@ export default class Modal extends Component {
         closeTimeoutMS={150}
         className={className}
       >
-        {title ?
-          <ModalHeader title={title} hide={onClickCloseButton || hide} hideCloseButton={hideCloseButton}/> : null}
+        {stringTitle ?
+          <ModalHeader title={stringTitle} hide={onClickCloseButton || hide} hideCloseButton={hideCloseButton}/> : null}
         <div style={modalBody}>
           {children}
         </div>

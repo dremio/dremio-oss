@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ package com.dremio.dac.explore.model;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.curator.shaded.com.google.common.collect.ImmutableMap;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.folder.FolderPath;
@@ -40,6 +38,8 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
+
 
 /**
  * Minimal info of Dataset needed by UI.

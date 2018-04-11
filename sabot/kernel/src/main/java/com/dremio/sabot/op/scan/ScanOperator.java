@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
@@ -60,6 +60,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ArrowBuf;
@@ -75,7 +76,8 @@ public class ScanOperator implements ProducerOperator {
   private final VectorContainer outgoing;
 
   public enum Metric implements MetricDef {
-    SETUP_NS, // we need this as we currently track scan setup as processing time
+    @Deprecated
+    SETUP_NS, // @deprecated use stats time in OperatorStats instead.
     NUM_READERS, // tracks how many readers were opened so far
     NUM_REMOTE_READERS, // tracks how many readers are non-local
     NUM_ROW_GROUPS, // number of rowGroups for the FileSplitParquetRecordReader
@@ -105,7 +107,7 @@ public class ScanOperator implements ProducerOperator {
   private final ImmutableList<SchemaPath> selectedColumns;
   private final UserGroupInformation readerUGI;
   private final SchemaChangeListener schemaUpdater;
-  private final ImmutableList<String> tableSchemaPath;
+  private final List<String> tableSchemaPath;
   private final SubScan config;
   private final GlobalDictionaries globalDictionaries;
   private final Stopwatch readTime = Stopwatch.createUnstarted();
@@ -123,7 +125,11 @@ public class ScanOperator implements ProducerOperator {
     this.context = context;
     this.config = config;
     this.schema = config.getSchema();
-    this.tableSchemaPath = config.getTableSchemaPath() == null ? null : ImmutableList.copyOf(config.getTableSchemaPath());
+    // Arbitrarily take the first element of the referenced tables list.
+    // Currently, the only way to have multiple entries in the referenced table list is to write a
+    // Join across multiple JDBC tables. This scenario doesn't use checkAndLearnSchema(). If a schema
+    // change happens there, it gets corrected in the Foreman (when an InvalidMetadataError is thrown).
+    this.tableSchemaPath = Iterables.getFirst(config.getReferencedTables(), null);
     this.selectedColumns = config.getColumns() == null ? null : ImmutableList.copyOf(config.getColumns());
     this.schemaUpdater = schemaUpdater;
 
@@ -150,21 +156,12 @@ public class ScanOperator implements ProducerOperator {
 
   @Override
   public VectorAccessible setup() throws Exception {
-    final Stopwatch stopwatch = Stopwatch.createStarted();
-    final OperatorStats stats = context.getStats();
-    try {
-      stats.stopSetup();
-      schema.maskAndReorder(config.getColumns()).materializeVectors(selectedColumns, mutator);
-      outgoing.buildSchema(SelectionVectorMode.NONE);
-      callBack.getSchemaChangedAndReset();
-      setupReader(currentReader);
+    schema.maskAndReorder(config.getColumns()).materializeVectors(selectedColumns, mutator);
+    outgoing.buildSchema(SelectionVectorMode.NONE);
+    callBack.getSchemaChangedAndReset();
+    setupReader(currentReader);
 
-      state = State.CAN_PRODUCE;
-    } finally {
-      stats.addLongStat(Metric.SETUP_NS, stopwatch.elapsed(TimeUnit.NANOSECONDS));
-      stats.startSetup();
-    }
-
+    state = State.CAN_PRODUCE;
     return outgoing;
   }
 
@@ -207,6 +204,7 @@ public class ScanOperator implements ProducerOperator {
     // get the next reader.
     readTime.start();
 
+    final OperatorStats stats = context.getStats();
     while ((recordCount = currentReader.next()) == 0) {
 
       readTime.stop();
@@ -219,22 +217,27 @@ public class ScanOperator implements ProducerOperator {
         outgoing.zeroVectors();
         state = ProducerOperator.State.DONE;
         outgoing.setRecordCount(0);
-        context.getStats().batchReceived(0, 0, 0);
+        stats.batchReceived(0, 0, 0);
         return 0;
       }
 
       // There are more readers, let's close the previous one and get the next one.
       currentReader.close();
       currentReader = readers.next();
-      setupReader(currentReader);
-      currentReader.allocate(fieldVectorMap);
+      try {
+        stats.startSetup();
+        setupReader(currentReader);
+      } finally {
+        stats.stopSetup();
+      }
 
-      context.getStats().addLongStat(Metric.NUM_READERS, 1);
+      currentReader.allocate(fieldVectorMap);
+      stats.addLongStat(Metric.NUM_READERS, 1);
     }
 
     readTime.stop();
 
-    context.getStats().batchReceived(0, recordCount, VectorUtil.getSize(outgoing));
+    stats.batchReceived(0, recordCount, VectorUtil.getSize(outgoing));
 
     checkAndLearnSchema();
     return outgoing.setAllCount(recordCount);
@@ -244,8 +247,7 @@ public class ScanOperator implements ProducerOperator {
     if (mutator.isSchemaChanged()) {
       outgoing.buildSchema(SelectionVectorMode.NONE);
       final BatchSchema newSchema = mutator.transformFunction.apply(outgoing.getSchema());
-      // if we have a name for this scan, let's make sure we update the schema in the central store.
-      if(this.tableSchemaPath != null){
+      if (config.mayLearnSchema() && tableSchemaPath != null) {
         try {
           schemaUpdater.observedSchemaChange(tableSchemaPath, config.getSchema(), newSchema, currentReader.getSchemaChangeMutator());
         } catch(Exception ex){

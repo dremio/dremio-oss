@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@ import com.dremio.exec.proto.UserBitShared;
 public class TestSystemTable extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSystemTable.class);
 
+  private static final int NUM_NODES = 3;
+
   @BeforeClass
   public static void setupMultiNodeCluster() throws Exception {
-    updateTestCluster(3, null);
+    updateTestCluster(NUM_NODES, null);
   }
 
   @Test
@@ -76,6 +78,16 @@ public class TestSystemTable extends BaseTestQuery {
   @Test
   public void fragmentsTable() throws Exception {
     test("select * from sys.fragments");
+  }
+
+  @Test
+  public void verifyNumNodes() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT COUNT(*) AS num_nodes FROM SYS.NODES")
+        .ordered()
+        .baselineColumns("num_nodes")
+        .baselineValues((long) NUM_NODES)
+        .go();
   }
 
   /**

@@ -73,8 +73,8 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   public static void setUpConnection() throws SQLException {
     JdbcWithServerTestBase.setUpConnection();
     try(Statement stmt = getConnection().createStatement()) {
-      stmt.execute(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-      stmt.execute(String.format("alter session set `%s` = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
+      stmt.execute(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      stmt.execute(String.format("alter session set \"%s\" = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
     }
   }
 
@@ -345,7 +345,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
             .build();
         assertThat(
             controlStatement.execute(String.format(
-                "ALTER session SET `%s` = '%s'",
+                "ALTER session SET \"%s\" = '%s'",
                 ExecConstants.NODE_CONTROL_INJECTIONS,
                 controls)),
             equalTo(true));

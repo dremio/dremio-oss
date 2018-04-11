@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ public class ReflectionRelationshipUI {
   private final DatasetDetailsUI dataset;
   private final AccelerationSettingsUI accelerationSettings;
   private final LayoutApiDescriptor reflection;
+  private final boolean snowflake;
 
   @JsonCreator
   ReflectionRelationshipUI(
@@ -40,12 +41,14 @@ public class ReflectionRelationshipUI {
     @JsonProperty("materialization") MaterializationDetailsUI materialization,
     @JsonProperty("dataset") DatasetDetailsUI dataset,
     @JsonProperty("accelerationSettings") AccelerationSettingsUI accelerationSettings,
-    @JsonProperty("reflection") LayoutApiDescriptor reflection) {
+    @JsonProperty("reflection") LayoutApiDescriptor reflection,
+    @JsonProperty("snowflake") boolean snowflake) {
     this.relationship = relationship;
     this.materialization = materialization;
     this.dataset = dataset;
     this.accelerationSettings = accelerationSettings;
     this.reflection = reflection;
+    this.snowflake = snowflake;
   }
 
   ReflectionRelationshipUI(ReflectionRelationship reflectionRelationship) {
@@ -53,7 +56,8 @@ public class ReflectionRelationshipUI {
       toUI(reflectionRelationship.getMaterialization()),
       toUI(reflectionRelationship.getDataset()),
       toUI(reflectionRelationship.getAccelerationSettings()),
-      toApiMessage(reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()));
+      toApiMessage(reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()),
+      reflectionRelationship.getSnowflake());
   }
 
   public SubstitutionState getRelationship() {
@@ -74,5 +78,9 @@ public class ReflectionRelationshipUI {
 
   public LayoutApiDescriptor getReflection() {
     return reflection;
+  }
+
+  public boolean isSnowflake() {
+    return snowflake;
   }
 }

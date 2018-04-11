@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
@@ -177,7 +178,9 @@ public final class MoreRelOptUtil {
    */
   public static boolean areRowTypesEqual(
     RelDataType rowType1,
-    RelDataType rowType2) {
+    RelDataType rowType2,
+    boolean compareNames,
+    boolean compareNullability) {
     if (rowType1 == rowType2) {
       return true;
     }
@@ -191,9 +194,21 @@ public final class MoreRelOptUtil {
       final RelDataType type1 = pair.left.getType();
       final RelDataType type2 = pair.right.getType();
 
-      // Compare row type names.
-      if (!type1.equals(type2)) {
-        return false;
+      if (compareNullability) {
+        if (!type1.equals(type2)) {
+          return false;
+        }
+      } else {
+        // Compare row type names.
+        if (!type1.getSqlTypeName().equals(type2.getSqlTypeName())) {
+          return false;
+        }
+      }
+
+      if (compareNames) {
+        if (!pair.left.getName().equalsIgnoreCase(pair.right.getName())) {
+          return false;
+        }
       }
     }
     return true;
@@ -231,7 +246,7 @@ public final class MoreRelOptUtil {
     RelFactories.ProjectFactory projectFactory) {
     assert projectFactory != null;
     RelDataType rowType = rel.getRowType();
-    if (areRowTypesEqual(rowType, castRowType)) {
+    if (areRowTypesEqual(rowType, castRowType, false, true)) {
       // nothing to do
       return rel;
     }
@@ -763,4 +778,27 @@ public final class MoreRelOptUtil {
     return node;
   }
 
+  /**
+   * RexVisitor which returns an ImmutableBitSet of the columns referenced by a list of RexNodes
+   */
+  public static class InputRefFinder extends RexVisitorImpl<Void> {
+    private final ImmutableBitSet.Builder setBuilder = ImmutableBitSet.builder();
+
+    public InputRefFinder() {
+      super(true);
+    }
+
+    @Override
+    public Void visitInputRef(RexInputRef inputRef) {
+      setBuilder.set(inputRef.getIndex());
+      return null;
+    }
+
+    public ImmutableBitSet getInputRefs(List<RexNode> rexNodes) {
+      for (RexNode rexNode : rexNodes) {
+        rexNode.accept(this);
+      }
+      return setBuilder.build();
+    }
+  }
 }

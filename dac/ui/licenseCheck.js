@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ npm install
 
 
 const fs = require('fs');
+
+const checkNodeVersion = require('check-node-version');
 
 const checker = require('license-checker');
 require('isomorphic-fetch');
@@ -375,4 +377,16 @@ function exitWithError() {
   process.exit(-1);
 }
 
-main();
+checkNodeVersion({ npm: '<= 5.5.1' }, (error, results) => {
+  if (error) {
+    exitWithError(error);
+    return;
+  }
+
+  if (!results.isSatisfied) {
+    exitWithError('NPM must be v5.5.1 or less due to https://github.com/npm/npm/issues/19596');
+    return;
+  }
+
+  main();
+});

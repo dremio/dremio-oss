@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,7 +97,8 @@ public class QuerySemantics {
   protected VirtualDatasetState fallback(String message, String sql, Throwable t) {
     // When we don't understand the query we just fall back to wrapping
     logger.debug(message + "\nfalling back to wrapping:\n" + sql, t);
-    return new VirtualDatasetState(new FromSQL(sql).setAlias("nested_0").wrap());
+    return new VirtualDatasetState()
+        .setFrom(new FromSQL(sql).setAlias("nested_0").wrap());
   }
 
   private VirtualDatasetState extract(String sql, SqlNode node, final RelDataType relDataType) {
@@ -135,7 +136,11 @@ public class QuerySemantics {
     SqlSelect select = (SqlSelect)node;
 
     // From table
-    FromNode from = extractFrom(select);
+    final SqlNode fromNode = select.getFrom();
+    if (fromNode == null) {
+      return fallback("without FROM clause", node, sql);
+    }
+    final FromNode from = extractFrom(fromNode);
 
     // Selected columns
     List<Column> columns = extractColumns(relDataType, select, from);
@@ -170,7 +175,8 @@ public class QuerySemantics {
     if (from.alias != null) {
       fromTable.setAlias(from.getAliasToString());
     }
-    return new VirtualDatasetState(fromTable.wrap())
+    return new VirtualDatasetState()
+        .setFrom(fromTable.wrap())
         .setColumnsList(columns)
         .setOrdersList(orders);
   }
@@ -212,8 +218,7 @@ public class QuerySemantics {
     return orders;
   }
 
-  private FromNode extractFrom(SqlSelect select) {
-    SqlNode from = select.getFrom();
+  private FromNode extractFrom(final SqlNode from) {
     return from.accept(new BaseSqlVisitor<FromNode>() {
       @Override
       public FromNode visit(SqlIdentifier id) {

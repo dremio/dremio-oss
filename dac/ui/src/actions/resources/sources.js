@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ import { CALL_API } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 import { arrayOf } from 'normalizr';
 
-import {makeUncachebleURL} from 'ie11.js';
+import { makeUncachebleURL } from 'ie11.js';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
@@ -126,9 +126,13 @@ export const REMOVE_SOURCE_FAILURE = 'REMOVE_SOURCE_FAILURE';
 function fetchRemoveSource(source) {
   const name = source.get('name');
   const meta = {
+    id: source.get('id'),
     name,
     invalidateViewIds: ['AllSources']
   };
+
+  const entityRemovePaths = [['source', source.get('id')]];
+
   const errorMessage = la('There was an error removing the source.');
   return {
     [CALL_API]: {
@@ -138,7 +142,7 @@ function fetchRemoveSource(source) {
         },
         {
           type: REMOVE_SOURCE_SUCCESS,
-          meta: {...meta, success: true}
+          meta: {...meta, success: true, entityRemovePaths, emptyEntityCache: name}
         },
         {
           type: REMOVE_SOURCE_FAILURE,

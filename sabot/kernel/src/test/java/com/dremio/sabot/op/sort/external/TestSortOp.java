@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ public class TestSortOp extends BaseTestOperator {
   private ClassProducer producer;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
 
   @Before
   public void prepare() {
@@ -69,11 +69,12 @@ public class TestSortOp extends BaseTestOperator {
     try {
       ExternalSort sort = new ExternalSort(null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
       sort.setInitialAllocation(1_000_000); // this can't go below sort's initialAllocation (20K)
-      sort.setMaxAllocation(1_000_000); // this can't go below sort's initialAllocation (20K)
+      sort.setMaxAllocation(2_000_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {
-      assertEquals("Target Batch Size (in bytes) 76000", uex.getContextStrings().get(2));
+      assertEquals("DiskRunManager: Unable to secure enough memory to merge spilled sort data.", uex.getContextStrings().get(1));
+      assertEquals("Target Batch Size (in bytes) 236000", uex.getContextStrings().get(2));
       assertEquals("Target Batch Size 4000", uex.getContextStrings().get(3));
       assertEquals(34, uex.getContextStrings().size());
     }
@@ -88,7 +89,8 @@ public class TestSortOp extends BaseTestOperator {
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 10000);
     } catch (UserException uex) {
-      assertEquals("Target Batch Size (in bytes) 190000", uex.getContextStrings().get(1));
+      assertEquals("Memory failed due to not enough memory to sort even one batch of records.", uex.getContextStrings().get(0));
+      assertEquals("Target Batch Size (in bytes) 590000", uex.getContextStrings().get(1));
       assertEquals("Target Batch Size 10000", uex.getContextStrings().get(2));
       assertEquals(33, uex.getContextStrings().size());
     }

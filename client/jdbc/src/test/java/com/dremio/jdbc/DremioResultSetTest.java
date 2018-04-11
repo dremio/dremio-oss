@@ -37,7 +37,7 @@ public class DremioResultSetTest extends JdbcWithServerTestBase {
     Statement statement = getConnection().createStatement();
     ResultSet resultSet =
         statement.executeQuery( "SELECT 1 AS x \n" +
-                                "FROM cp.`donuts.json` \n" +
+                                "FROM cp.\"donuts.json\" \n" +
                                 "LIMIT 2" );
 
     // Advance to first row; confirm can access data.
@@ -76,7 +76,7 @@ public class DremioResultSetTest extends JdbcWithServerTestBase {
     Statement statement = getConnection().createStatement();
     ResultSet resultSet =
         statement.executeQuery( "SELECT 'Hi' AS x \n" +
-                                "FROM cp.`donuts.json` \n" +
+                                "FROM cp.\"donuts.json\" \n" +
                                 "WHERE false" );
 
     // Do initial next(). (Advance from before results to next possible

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,9 @@ import java.util.List;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.NullableIntVector;
 import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
@@ -39,6 +42,8 @@ import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Generator;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.JsonStringArrayList;
 
 /**
  * Generates 2 integer fields: ID and VALUE that are randomly set in a way it makes it easy to assert
@@ -48,13 +53,18 @@ public class CustomGenerator implements Generator {
 
   final public static Field ID = CompleteType.INT.toField("ID");
   final public static Field VALUE = CompleteType.VARCHAR.toField("FIELD");
+  final static Field MYLIST = CompleteType.BIGINT.asList().toField("MYLIST");
+
+  private static final int INNER_LIST_SIZE = 3;
 
   private final List<Integer> rowIds;
   private final List<String> values;
+  private final List<JsonStringArrayList<Long>> listValues;
 
   private final VectorContainer container;
   private final NullableIntVector id;
   private final NullableVarCharVector value;
+  private final ListVector list;
 
   private int position;
 
@@ -62,15 +72,32 @@ public class CustomGenerator implements Generator {
     Preconditions.checkState(numRows > 0);
     values = listOfStrings(numRows);
     rowIds = randomListOfInts(numRows);
+    listValues = listOfLists(numRows);
 
     BatchSchema schema = BatchSchema.newBuilder()
             .addField(ID)
             .addField(VALUE)
+            .addField(MYLIST)
             .build();
 
     container = VectorContainer.create(allocator, schema);
-    id = (NullableIntVector) container.addOrGet(ID);
-    value = (NullableVarCharVector) container.addOrGet(VALUE);
+    id = container.addOrGet(ID);
+    value = container.addOrGet(VALUE);
+    list = container.addOrGet(MYLIST);
+    Types.MinorType type = Types.MinorType.BIGINT;
+    list.addOrGetVector(FieldType.nullable(type.getType()));
+  }
+
+  private static List<JsonStringArrayList<Long>> listOfLists(int size) {
+    List<JsonStringArrayList<Long>> listOfLists = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      final JsonStringArrayList<Long> list = new JsonStringArrayList<>(INNER_LIST_SIZE);
+      for (int j = 0; j < INNER_LIST_SIZE; j++) {
+        list.add((long)j + i);
+      }
+      listOfLists.add(list);
+    }
+    return listOfLists;
   }
 
   @Override
@@ -91,6 +118,7 @@ public class CustomGenerator implements Generator {
     if (position == values.size()) {
       return 0; // no more data available
     }
+    UnionListWriter listWriter = list.getWriter();
     int returned = Math.min(records, values.size() - position);
 
     container.allocateNew();
@@ -99,6 +127,14 @@ public class CustomGenerator implements Generator {
       id.setSafe(i, rowId);
       byte[] valueBytes = values.get(rowId).getBytes();
       value.setSafe(i, valueBytes, 0, valueBytes.length);
+
+      listWriter.setPosition(i);
+      listWriter.startList();
+      List<Long> list = listValues.get(rowId);
+      for (int j = 0; j < INNER_LIST_SIZE; j++) {
+        listWriter.bigInt().writeBigInt(list.get(j));
+      }
+      listWriter.endList();
     }
     container.setAllCount(returned);
     position += returned;
@@ -109,9 +145,9 @@ public class CustomGenerator implements Generator {
   public Fixtures.Table getExpectedSortedTable() {
     final DataRow[] rows = new DataRow[rowIds.size()];
     for (int i = 0; i < rowIds.size(); i++) {
-      rows[i] = tr(i, values.get(i));
+      rows[i] = tr(i, values.get(i), listValues.get(i));
     }
-    return t(th("ID", "FIELD"), rows);
+    return t(th("ID", "FIELD", "MYLIST"), rows);
   }
 
   @Override
@@ -120,7 +156,7 @@ public class CustomGenerator implements Generator {
   }
 
   private static List<String> listOfStrings(int size) {
-    List<String> strings = new ArrayList<>(size);
+    List<String> strings = new JsonStringArrayList<>(size);
     for (int i = 0; i < size; i++) {
       strings.add(String.format("%d", System.currentTimeMillis()));
     }
@@ -150,10 +186,8 @@ public class CustomGenerator implements Generator {
     }
 
     public void assertIsSorted(VectorContainer container, int startIndex) {
-      final NullableIntVector idVector =
-              (NullableIntVector) container.addOrGet(ID);
-      final NullableVarCharVector valueVector =
-              (NullableVarCharVector) container.addOrGet(VALUE);
+      final NullableIntVector idVector = container.addOrGet(ID);
+      final NullableVarCharVector valueVector = container.addOrGet(VALUE);
 
       int recordCount = container.getRecordCount();
       int index = startIndex;

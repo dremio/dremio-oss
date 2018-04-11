@@ -33,13 +33,13 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   // status(?) server so unit tests run (without Maven setup).
   @BeforeClass
   public static void setUpClass() throws Exception {
-    testQuery(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    testQuery(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
     System.setProperty( "dremio.exec.http.enabled", "false" );
   }
 
   @AfterClass
   public static void resetDefaults() throws Exception {
-    testQuery(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    testQuery(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
 
@@ -51,7 +51,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 ASC NULLS FIRST, id" )
         .returns( "id=0005; topping3=null\n" +
                   "id=0002; topping3=Chocolate\n" +
@@ -65,7 +65,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
      JdbcAssert
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-               "FROM cp.`donuts.json` AS tbl \n" +
+               "FROM cp.\"donuts.json\" AS tbl \n" +
                "ORDER BY topping3 ASC NULLS LAST, id" )
          .returns( "id=0002; topping3=Chocolate\n" +
                    "id=0003; topping3=Maple\n" +
@@ -80,7 +80,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 ASC, id" )
         .returns( "id=0002; topping3=Chocolate\n" +
                   "id=0003; topping3=Maple\n" +
@@ -94,7 +94,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 DESC NULLS FIRST, id" )
         .returns( "id=0005; topping3=null\n" +
                   "id=0001; topping3=Powdered Sugar\n" +
@@ -108,7 +108,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 DESC NULLS LAST, id" )
         .returns( "id=0001; topping3=Powdered Sugar\n" +
                   "id=0004; topping3=Powdered Sugar\n" +
@@ -122,7 +122,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 DESC, id" )
         .returns( "id=0005; topping3=null\n" +
                   "id=0001; topping3=Powdered Sugar\n" +
@@ -136,7 +136,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 NULLS FIRST, id" )
         .returns( "id=0005; topping3=null\n" +
                   "id=0002; topping3=Chocolate\n" +
@@ -149,7 +149,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   public void testOrderDonutsTopping3DefaultedAscNullsLast() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3 NULLS LAST, id" )
         .returns( "id=0002; topping3=Chocolate\n" +
                   "id=0003; topping3=Maple\n" +
@@ -163,7 +163,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, tbl.topping[3].type AS topping3 \n" +
-              "FROM cp.`donuts.json` AS tbl \n" +
+              "FROM cp.\"donuts.json\" AS tbl \n" +
               "ORDER BY topping3, id" )
         .returns( "id=0002; topping3=Chocolate\n" +
                   "id=0003; topping3=Maple\n" +
@@ -182,7 +182,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR ASC NULLS FIRST" )
         .returns( "id=2; as_VARCHAR=null\n" +
                   "id=3; as_VARCHAR=A\n" +
@@ -195,7 +195,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_VARCHAR ASC NULLS LAST" )
          .returns( "id=3; as_VARCHAR=A\n" +
                    "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
@@ -209,7 +209,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR ASC" )
         .returns( "id=3; as_VARCHAR=A\n" +
                   "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
@@ -222,7 +222,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR DESC NULLS FIRST" )
         .returns( "id=2; as_VARCHAR=null\n" +
                   "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
@@ -235,7 +235,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR DESC NULLS LAST" )
         .returns( "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
                   "id=3; as_VARCHAR=A\n" +
@@ -248,7 +248,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR DESC" )
         .returns( "id=2; as_VARCHAR=null\n" +
                   "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
@@ -261,7 +261,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR NULLS FIRST" )
         .returns( "id=2; as_VARCHAR=null\n" +
                   "id=3; as_VARCHAR=A\n" +
@@ -273,7 +273,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR NULLS LAST" )
         .returns( "id=3; as_VARCHAR=A\n" +
                   "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
@@ -286,7 +286,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_VARCHAR" )
         .returns( "id=3; as_VARCHAR=A\n" +
                   "id=1; as_VARCHAR=B\n" +  // TODO: Revisit VARCHAR's acting as VARCHAR(1)
@@ -303,7 +303,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT ASC NULLS FIRST" )
         .returns( "id=2; as_INT=null\n" +
                   "id=3; as_INT=19\n" +
@@ -316,7 +316,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_INT ASC NULLS LAST" )
          .returns( "id=3; as_INT=19\n" +
                    "id=1; as_INT=180\n" +
@@ -330,7 +330,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT ASC" )
         .returns( "id=3; as_INT=19\n" +
                   "id=1; as_INT=180\n" +
@@ -343,7 +343,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT DESC NULLS FIRST" )
         .returns( "id=2; as_INT=null\n" +
                   "id=1; as_INT=180\n" +
@@ -356,7 +356,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT DESC NULLS LAST" )
         .returns( "id=1; as_INT=180\n" +
                   "id=3; as_INT=19\n" +
@@ -369,7 +369,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT DESC" )
         .returns( "id=2; as_INT=null\n" +
                   "id=1; as_INT=180\n" +
@@ -382,7 +382,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT NULLS FIRST" )
         .returns( "id=2; as_INT=null\n" +
                   "id=3; as_INT=19\n" +
@@ -394,7 +394,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT NULLS LAST" )
         .returns( "id=3; as_INT=19\n" +
                   "id=1; as_INT=180\n" +
@@ -407,7 +407,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Int AS INT ) AS as_INT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INT" )
         .returns( "id=3; as_INT=19\n" +
                   "id=1; as_INT=180\n" +
@@ -424,7 +424,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT ASC NULLS FIRST" )
         .returns( "id=2; as_FLOAT=null\n" +
                   "id=3; as_FLOAT=19.0\n" +
@@ -437,7 +437,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_FLOAT ASC NULLS LAST" )
          .returns( "id=3; as_FLOAT=19.0\n" +
                    "id=1; as_FLOAT=180.0\n" +
@@ -451,7 +451,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT ASC" )
         .returns( "id=3; as_FLOAT=19.0\n" +
                   "id=1; as_FLOAT=180.0\n" +
@@ -464,7 +464,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT DESC NULLS FIRST" )
         .returns( "id=2; as_FLOAT=null\n" +
                   "id=1; as_FLOAT=180.0\n" +
@@ -477,7 +477,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT DESC NULLS LAST" )
         .returns( "id=1; as_FLOAT=180.0\n" +
                   "id=3; as_FLOAT=19.0\n" +
@@ -490,7 +490,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT DESC" )
         .returns( "id=2; as_FLOAT=null\n" +
                   "id=1; as_FLOAT=180.0\n" +
@@ -503,7 +503,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT NULLS FIRST" )
         .returns( "id=2; as_FLOAT=null\n" +
                   "id=3; as_FLOAT=19.0\n" +
@@ -515,7 +515,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT NULLS LAST" )
         .returns( "id=3; as_FLOAT=19.0\n" +
                   "id=1; as_FLOAT=180.0\n" +
@@ -528,7 +528,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_FLOAT" )
         .returns( "id=3; as_FLOAT=19.0\n" +
                   "id=1; as_FLOAT=180.0\n" +
@@ -545,7 +545,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT ASC NULLS FIRST" )
         .returns( "id=2; as_BIGINT=null\n" +
                   "id=3; as_BIGINT=19\n" +
@@ -558,7 +558,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_BIGINT ASC NULLS LAST" )
          .returns( "id=3; as_BIGINT=19\n" +
                    "id=1; as_BIGINT=180\n" +
@@ -572,7 +572,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT ASC" )
         .returns( "id=3; as_BIGINT=19\n" +
                   "id=1; as_BIGINT=180\n" +
@@ -585,7 +585,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT DESC NULLS FIRST" )
         .returns( "id=2; as_BIGINT=null\n" +
                   "id=1; as_BIGINT=180\n" +
@@ -598,7 +598,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT DESC NULLS LAST" )
         .returns( "id=1; as_BIGINT=180\n" +
                   "id=3; as_BIGINT=19\n" +
@@ -611,7 +611,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT DESC" )
         .returns( "id=2; as_BIGINT=null\n" +
                   "id=1; as_BIGINT=180\n" +
@@ -624,7 +624,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT NULLS FIRST" )
         .returns( "id=2; as_BIGINT=null\n" +
                   "id=3; as_BIGINT=19\n" +
@@ -636,7 +636,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT NULLS LAST" )
         .returns( "id=3; as_BIGINT=19\n" +
                   "id=1; as_BIGINT=180\n" +
@@ -649,7 +649,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_BIGINT" )
         .returns( "id=3; as_BIGINT=19\n" +
                   "id=1; as_BIGINT=180\n" +
@@ -666,7 +666,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE ASC NULLS FIRST" )
         .returns( "id=2; as_DATE=null\n" +
                   "id=3; as_DATE=2014-01-01\n" +
@@ -679,7 +679,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_DATE ASC NULLS LAST" )
          .returns( "id=3; as_DATE=2014-01-01\n" +
                    "id=1; as_DATE=2014-12-31\n" +
@@ -693,7 +693,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE ASC" )
         .returns( "id=3; as_DATE=2014-01-01\n" +
                   "id=1; as_DATE=2014-12-31\n" +
@@ -706,7 +706,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE DESC NULLS FIRST" )
         .returns( "id=2; as_DATE=null\n" +
                   "id=1; as_DATE=2014-12-31\n" +
@@ -719,7 +719,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE DESC NULLS LAST" )
         .returns( "id=1; as_DATE=2014-12-31\n" +
                   "id=3; as_DATE=2014-01-01\n" +
@@ -732,7 +732,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE DESC" )
         .returns( "id=2; as_DATE=null\n" +
                   "id=1; as_DATE=2014-12-31\n" +
@@ -745,7 +745,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE NULLS FIRST" )
         .returns( "id=2; as_DATE=null\n" +
                   "id=3; as_DATE=2014-01-01\n" +
@@ -757,7 +757,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE NULLS LAST" )
         .returns( "id=3; as_DATE=2014-01-01\n" +
                   "id=1; as_DATE=2014-12-31\n" +
@@ -770,7 +770,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DATE" )
         .returns( "id=3; as_DATE=2014-01-01\n" +
                   "id=1; as_DATE=2014-12-31\n" +
@@ -787,7 +787,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL ASC NULLS FIRST" )
         .returns( "id=2; as_INTERVAL=null\n" +
                   "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
@@ -800,7 +800,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_INTERVAL ASC NULLS LAST" )
          .returns( "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
                    "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
@@ -814,7 +814,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL ASC" )
         .returns( "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
                   "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
@@ -827,7 +827,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL DESC NULLS FIRST" )
         .returns( "id=2; as_INTERVAL=null\n" +
                   "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
@@ -840,7 +840,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL DESC NULLS LAST" )
         .returns( "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
                   "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
@@ -853,7 +853,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL DESC" )
         .returns( "id=2; as_INTERVAL=null\n" +
                   "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
@@ -866,7 +866,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL NULLS FIRST" )
         .returns( "id=2; as_INTERVAL=null\n" +
                   "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
@@ -878,7 +878,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL NULLS LAST" )
         .returns( "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
                   "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
@@ -891,7 +891,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_INTERVAL" )
         .returns( "id=3; as_INTERVAL=" + ONE_DAY_STR + "\n" +
                   "id=1; as_INTERVAL=" + TWO_DAYS_STR + "\n" +
@@ -909,7 +909,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL ASC NULLS FIRST" )
         .returns( "id=2; as_DECIMAL=null\n" +
                   "id=3; as_DECIMAL=19\n" +
@@ -923,7 +923,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_DECIMAL ASC NULLS LAST" )
          .returns( "id=3; as_DECIMAL=19\n" +
                    "id=1; as_DECIMAL=180\n" +
@@ -938,7 +938,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL ASC" )
         .returns( "id=3; as_DECIMAL=19\n" +
                   "id=1; as_DECIMAL=180\n" +
@@ -952,7 +952,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL DESC NULLS FIRST" )
         .returns( "id=2; as_DECIMAL=null\n" +
                   "id=1; as_DECIMAL=180\n" +
@@ -966,7 +966,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL DESC NULLS LAST" )
         .returns( "id=1; as_DECIMAL=180\n" +
                   "id=3; as_DECIMAL=19\n" +
@@ -980,7 +980,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL DESC" )
         .returns( "id=2; as_DECIMAL=null\n" +
                   "id=1; as_DECIMAL=180\n" +
@@ -994,7 +994,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL NULLS FIRST" )
         .returns( "id=2; as_DECIMAL=null\n" +
                   "id=3; as_DECIMAL=19\n" +
@@ -1007,7 +1007,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL NULLS LAST" )
         .returns( "id=3; as_DECIMAL=19\n" +
                   "id=1; as_DECIMAL=180\n" +
@@ -1021,7 +1021,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL" )
         .returns( "id=3; as_DECIMAL=19\n" +
                   "id=1; as_DECIMAL=180\n" +
@@ -1041,7 +1041,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 ASC NULLS FIRST" )
         .returns( "id=2; as_DECIMAL5=null\n" +
                   "id=3; as_DECIMAL5=1235\n" +
@@ -1055,7 +1055,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_DECIMAL5 ASC NULLS LAST" )
          .returns( "id=3; as_DECIMAL5=1235\n" +
                    "id=1; as_DECIMAL5=9877\n" +
@@ -1070,7 +1070,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 ASC" )
         .returns( "id=3; as_DECIMAL5=1235\n" +
                   "id=1; as_DECIMAL5=9877\n" +
@@ -1084,7 +1084,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 DESC NULLS FIRST" )
         .returns( "id=2; as_DECIMAL5=null\n" +
                   "id=1; as_DECIMAL5=9877\n" +
@@ -1098,7 +1098,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 DESC NULLS LAST" )
         .returns( "id=1; as_DECIMAL5=9877\n" +
                   "id=3; as_DECIMAL5=1235\n" +
@@ -1112,7 +1112,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 DESC" )
         .returns( "id=2; as_DECIMAL5=null\n" +
                   "id=1; as_DECIMAL5=9877\n" +
@@ -1126,7 +1126,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 NULLS FIRST" )
         .returns( "id=2; as_DECIMAL5=null\n" +
                   "id=3; as_DECIMAL5=1235\n" +
@@ -1139,7 +1139,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5 NULLS LAST" )
         .returns( "id=3; as_DECIMAL5=1235\n" +
                   "id=1; as_DECIMAL5=9877\n" +
@@ -1153,7 +1153,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL5" )
         .returns( "id=3; as_DECIMAL5=1235\n" +
                   "id=1; as_DECIMAL5=9877\n" +
@@ -1173,7 +1173,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 ASC NULLS FIRST" )
         .returns( "id=2; as_DECIMAL35=null\n" +
                   "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
@@ -1187,7 +1187,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
          .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-               "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+               "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
                "ORDER BY as_DECIMAL35 ASC NULLS LAST" )
          .returns( "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
                    "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +
@@ -1202,7 +1202,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 ASC" )
         .returns( "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
                   "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +
@@ -1216,7 +1216,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 DESC NULLS FIRST" )
         .returns( "id=2; as_DECIMAL35=null\n" +
                   "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +
@@ -1230,7 +1230,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 DESC NULLS LAST" )
         .returns( "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +
                   "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
@@ -1244,7 +1244,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 DESC" )
         .returns( "id=2; as_DECIMAL35=null\n" +
                   "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +
@@ -1258,7 +1258,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 NULLS FIRST" )
         .returns( "id=2; as_DECIMAL35=null\n" +
                   "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
@@ -1271,7 +1271,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35 NULLS LAST" )
         .returns( "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
                   "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +
@@ -1285,7 +1285,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
               "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n" +
-              "FROM cp.`null_ordering_and_grouping_data.json` AS tbl \n" +
+              "FROM cp.\"null_ordering_and_grouping_data.json\" AS tbl \n" +
               "ORDER BY as_DECIMAL35" )
         .returns( "id=3; as_DECIMAL35=12345678901234567890123456789012345\n" +
                   "id=1; as_DECIMAL35=43210987654321098765432109876543210\n" +

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import { FormattedMessage } from 'react-intl';
 
 const SampleDataMessage = () => (
   <span style={styles.warntext} data-qa='sample-data-message'>
-    <FontIcon type='Warning-Solid' style={styles.iconStyle} />
+    <FontIcon type='WarningSolid' style={styles.iconStyle} />
     <FormattedMessage id='Dataset.SampleDatasetWarn'/>
   </span>
 );

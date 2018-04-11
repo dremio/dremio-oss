@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,11 +52,11 @@ export function showConflictConfirmationDialog({text, confirm} = {}) {
   }));
 }
 
-export function showClearReflectionsDialog({confirm} = {}) {
+export function showClearReflectionDialog({confirm, reflectionName} = {}) {
   return (dispatch) => dispatch(showConfirmationDialog({
-    title: la('Clear All Reflections'),
-    confirmText: la('Clear'),
-    text: la('Are you sure you want to clear all the Reflections for this dataset?'),
+    title: la('Remove Reflection'),
+    confirmText: la('Remove'),
+    text: la(`Are you sure you want to remove Reflection “${reflectionName}”?`), // todo: sub loc
     confirm
   }));
 }

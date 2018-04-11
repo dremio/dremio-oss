@@ -150,8 +150,8 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
             + "  AND TABLE_NAME    = " + encodeAsSqlCharStrLiteral( tableOrViewName )
             + "  AND COLUMN_NAME   = " + encodeAsSqlCharStrLiteral( columnName )
             );
-    assertTrue( "Test setup error:  No row for column DREMIO . `" + schemaName + "` . `"
-                + tableOrViewName + "` . `" + columnName + "`", mdrUnk.next() );
+    assertTrue( "Test setup error:  No row for column DREMIO . \"" + schemaName + "\" . \""
+                + tableOrViewName + "\" . \"" + columnName + "\"", mdrUnk.next() );
     return mdrUnk;
   }
 

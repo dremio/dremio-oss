@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,6 +111,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private int buildBatchIndex = 0;
   private State state = State.NEEDS_SETUP;
   private boolean finishedProbe = false;
+  private long outputRecords = 0;
+  private boolean debugInsertion = false;
 
   public VectorizedHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -226,6 +228,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       throw new UnsupportedOperationException();
     }
 
+    debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
+
     state = State.CAN_CONSUME_R;
     return outgoing;
   }
@@ -259,8 +263,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
     }
 
-    boolean debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
-
     try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
         AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
       long findAddr = offsets.memoryAddress();
@@ -291,8 +293,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   }
 
   private void setLinks(long indexAddr, final int buildBatch, final int records){
-    boolean debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
-
     for(int incomingRecordIndex = 0; incomingRecordIndex < records; incomingRecordIndex++, indexAddr+=4){
 
       final int hashTableIndex = PlatformDependent.getInt(indexAddr);
@@ -393,6 +393,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.PROBE_COPY_NANOS, probe.getProbeCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NANOS, probe.getBuildCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NOMATCH_NANOS, probe.getBuildNonMatchCopyTime());
+      stats.setLongStat(Metric.UNMATCHED_BUILD_COUNT, probe.getUnmatchedBuildCount());
+      stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, probe.getUnmatchedProbeCount());
+      stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
     }
   }
 
@@ -443,6 +446,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     if(!finishedProbe){
       final int probedRecords = probe.probeBatch(left.getRecordCount());
+      outputRecords += Math.abs(probedRecords);
       if (probedRecords > -1) {
         state = State.CAN_CONSUME_L;
         return outgoing.setAllCount(probedRecords);
@@ -453,6 +457,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       }
     } else {
       final int unmatched = probe.projectBuildNonMatches();
+      outputRecords += Math.abs(unmatched);
       if (unmatched > -1) {
         state = State.DONE;
         return outgoing.setAllCount(unmatched);

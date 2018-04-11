@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +43,8 @@ public class TestNewAggregateFunctions extends PopUnitTestBase {
   public void runTest(String physicalPlan, String inputDataFile,
       Object[] expected) throws Exception {
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG,
+         SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG,
             clusterCoordinator)) {
 
       // run query.

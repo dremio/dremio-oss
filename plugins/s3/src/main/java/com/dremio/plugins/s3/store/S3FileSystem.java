@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,33 +15,22 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
-import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
 import org.apache.directory.api.util.Strings;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.Constants;
-import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,28 +39,27 @@ import com.amazonaws.Protocol;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.Region;
+import com.dremio.plugins.util.ContainerFileSystem;
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
+import com.google.common.collect.FluentIterable;
+
 /**
  * FileSystem implementation that treats multiple s3 buckets as a unified namespace
  */
-public class S3FileSystem extends FileSystem {
+public class S3FileSystem extends ContainerFileSystem {
+
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);
   private static final String S3_URI_SCHEMA = "s3a://";
 
-  private Map<String,FileSystem> bucketFileSystemMap = Maps.newConcurrentMap();
   private AmazonS3 s3;
 
+  // TODO: why static?
   private static final LoadingCache<S3ClientKey, AmazonS3Client> clientCache = CacheBuilder
           .newBuilder()
           .expireAfterAccess(1,TimeUnit.HOURS)
@@ -100,113 +88,137 @@ public class S3FileSystem extends FileSystem {
             }
           }); // Looks like there is no close/cleanup for AmazonS3Client
 
+
+  public S3FileSystem() {
+    super("dremioS3", "bucket", ELIMINATE_PARENT_DIRECTORY);
+  }
+
+  // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169
+  private static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY = new Predicate<CorrectableFileStatus>() {
+    @Override
+    public boolean apply(@Nullable CorrectableFileStatus input) {
+      final FileStatus status = input.getStatus();
+
+      if (!status.isDirectory()) {
+        return true;
+      }
+      return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName()).equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
+    }
+  };
+
   @Override
-  public void initialize(URI name, Configuration conf) throws IOException {
-    super.initialize(name, conf);
-    final Map<String,FileSystem> bucketFileSystemMapTemp = Maps.newHashMap();
+  protected void setup(Configuration conf) throws IOException {
     try {
       s3 = clientCache.get(S3ClientKey.create(conf));
+    } catch (ExecutionException e) {
+      if(e.getCause() != null && e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+    }
+  }
 
-      if(conf.get(ACCESS_KEY) != null){
-        List<Bucket> buckets = s3.listBuckets();
-        for (Bucket b : buckets) {
+  @Override
+  protected Iterable<ContainerCreator> getContainerCreators() throws IOException {
+
+    String externalBucketList = getConf().get(S3PluginConfig.EXTERNAL_BUCKETS);
+    FluentIterable<String> buckets = externalBucketList == null ? FluentIterable.of(new String[0]) :
+      FluentIterable.of(externalBucketList.split(","))
+      .transform(new Function<String, String>(){
+
+        @Override
+        public String apply(String input) {
+          return input.trim();
+        }})
+
+      .filter(new Predicate<String>() {
+          @Override
+          public boolean apply(String input) {
+            return !Strings.isEmpty(input.trim());
+          }});
+
+
+    if(getConf().get(Constants.ACCESS_KEY) != null){
+      // if we have an access key, add in owner buckets.
+      buckets = buckets.append(FluentIterable.from(s3.listBuckets())
+          .transform(new Function<Bucket, String>(){
+            @Override
+            public String apply(Bucket input) {
+              return input.getName();
+            }}));
+    }
+
+    return FluentIterable.from(buckets.toSet()).transform(new Function<String, ContainerCreator>(){
+      @Override
+      public ContainerCreator apply(String input) {
+        return new BucketCreator(getConf(), input);
+      }});
+  }
+
+  @Override
+  protected ContainerHolder getUnknownContainer(String name) {
+    // no lazy loading
+
+    // Per docs, if invalid security credentials are used to execute
+    // AmazonS3#doesBucketExist method, the client is not able to distinguish
+    // between bucket permission errors and invalid credential errors, and the
+    // method could return an incorrect result.
+
+    // New S3 buckets will be visible on the next refresh.
+
+    return null;
+  }
+
+  private class BucketCreator extends ContainerCreator {
+    private final Configuration parentConf;
+    private final String bucketName;
+
+    public BucketCreator(Configuration parentConf, String bucketName) {
+      super();
+      this.parentConf = parentConf;
+      this.bucketName = bucketName;
+    }
+
+    @Override
+    protected String getName() {
+      return bucketName;
+    }
+
+    @Override
+    protected ContainerHolder toContainerHolder() throws IOException {
+
+      return new ContainerHolder(bucketName, new FileSystemSupplier() {
+        @Override
+        public FileSystem create() throws IOException {
+          final String bucketRegion = s3.getBucketLocation(bucketName);
+          final String projectedBucketEndPoint = "s3." + bucketRegion + ".amazonaws.com";
+          String regionEndPoint = projectedBucketEndPoint;
           try {
-            bucketFileSystemMapTemp.put(b.getName(), addBucketFSEntry(s3, conf, b.getName()));
-          } catch (AmazonS3Exception as3ex) {
-            logger.info("Unable to process bucket: {} with error: {}", b.getName(), as3ex.getLocalizedMessage());
-          } catch (Exception ex) {
-            logger.info("Unable to process bucket: {} with error: {}", b.getName(), ex);
+            Region region = Region.fromValue(bucketRegion);
+            com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
+            if (awsRegion != null) {
+              regionEndPoint = awsRegion.getServiceEndpoint("s3");
+            }
+          } catch (IllegalArgumentException iae) {
+            // try heuristic mapping if not found
+            regionEndPoint = projectedBucketEndPoint;
+            logger.warn("Unknown or unmapped region {} for bucket {}. Will use following fs.s3a.endpoint: {}",
+              bucketRegion, bucketName, regionEndPoint);
           }
+          // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
+          // not sure if latter is possible
+          if (regionEndPoint == null) {
+            logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
+              bucketName, projectedBucketEndPoint);
+          }
+          String location = S3_URI_SCHEMA + bucketName + "/";
+          final Configuration bucketConf = new Configuration(parentConf);
+          bucketConf.set(ENDPOINT, (regionEndPoint != null) ? regionEndPoint : projectedBucketEndPoint);
+          FileSystem.setDefaultUri(bucketConf, new Path(location).toUri());
+          return FileSystem.get(bucketConf);
         }
-      }
-
-      String externalBucketString = conf.get(S3PluginConfig.EXTERNAL_BUCKETS);
-      if (externalBucketString != null) {
-        for (String bucket : externalBucketString.split(",")) {
-          final String trimmedBucket = bucket.trim();
-          if (Strings.isEmpty(trimmedBucket)) {
-            continue;
-          }
-          try {
-            bucketFileSystemMapTemp.put(trimmedBucket, addBucketFSEntry(s3, conf, trimmedBucket));
-          } catch (AmazonS3Exception as3ex) {
-            logger.info("Unable to process bucket: {} with error: {}", trimmedBucket, as3ex.getLocalizedMessage());
-          } catch (Exception ex) {
-            logger.info("Unable to process bucket: {} with error: {}", trimmedBucket, ex);
-          }
-        }
-      }
-      bucketFileSystemMap = bucketFileSystemMapTemp;
-    } catch (final Exception e) {
-      throw new RuntimeException("Failed to create workspaces for buckets owned by the account.", e);
+      });
     }
-  }
 
-  /**
-   * To reuse code for accountbased and external buckets
-   * @param s3
-   * @param parentConf
-   * @param bucketName
-   * @throws IOException
-   */
-  private FileSystem addBucketFSEntry(AmazonS3 s3, Configuration parentConf, String bucketName) throws AmazonS3Exception, IOException {
-    final String bucketRegion = s3.getBucketLocation(bucketName);
-    final String projectedBucketEndPoint = "s3." + bucketRegion + ".amazonaws.com";
-    String regionEndPoint = projectedBucketEndPoint;
-    try {
-      Region region = Region.fromValue(bucketRegion);
-      com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
-      if (awsRegion != null) {
-        regionEndPoint = awsRegion.getServiceEndpoint("s3");
-      }
-    } catch (IllegalArgumentException iae) {
-      // try heuristic mapping if not found
-      regionEndPoint = projectedBucketEndPoint;
-      logger.warn("Unknown or unmapped region {} for bucket {}. Will use following fs.s3a.endpoint: {}",
-        bucketRegion, bucketName, regionEndPoint);
-    }
-    // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
-    // not sure if latter is possible
-    if (regionEndPoint == null) {
-      logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
-        bucketName, projectedBucketEndPoint);
-    }
-    String location = S3_URI_SCHEMA + bucketName + "/";
-    Configuration bucketConf = new Configuration(parentConf);
-    bucketConf.set(ENDPOINT, (regionEndPoint != null) ? regionEndPoint : projectedBucketEndPoint);
-    FileSystem.setDefaultUri(bucketConf, new Path(location).toUri());
-    return FileSystem.get(bucketConf);
-  }
-
-  private boolean isRoot(Path path) {
-    List<String> pathComponents = Arrays.asList(Path.getPathWithoutSchemeAndAuthority(path).toString().split(Path.SEPARATOR));
-    return pathComponents.size() == 0;
-  }
-
-  private String getBucket(Path path) {
-    List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
-    return pathComponents.get(0);
-  }
-
-  private Path pathWithoutBucket(Path path) {
-    List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
-    return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
-  }
-
-  private FileSystem getFileSystemForPath(Path path) throws IOException {
-    String bucket = getBucket(path);
-    FileSystem fs = bucketFileSystemMap.get(bucket);
-    if (fs == null) {
-      try {
-        fs = addBucketFSEntry(s3, getConf(), bucket);
-      } catch (AmazonS3Exception as3ex) {
-        throw new IOException(as3ex.getLocalizedMessage(), as3ex);
-      } catch (Exception ex) {
-        throw new FileNotFoundException(String.format("%s not found", path));
-      }
-      bucketFileSystemMap.put(bucket, fs);
-    }
-    return fs;
   }
 
   /**
@@ -265,116 +277,5 @@ public class S3FileSystem extends FileSystem {
     }
   }
 
-  @Override
-  public URI getUri() {
-    try {
-      return new URI("dremioS3:///");
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
-  }
 
-  @Override
-  public FSDataInputStream open(Path f, int bufferSize) throws IOException {
-    return getFileSystemForPath(f).open(pathWithoutBucket(f), bufferSize);
-  }
-
-  @Override
-  public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize, short replication, long blockSize, Progressable progress) throws IOException {
-    return getFileSystemForPath(f).create(pathWithoutBucket(f), permission, overwrite, bufferSize, replication, blockSize, progress);
-  }
-
-  @Override
-  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
-    return getFileSystemForPath(f).append(pathWithoutBucket(f), bufferSize, progress);
-  }
-
-  @Override
-  public boolean rename(Path src, Path dst) throws IOException {
-    Preconditions.checkArgument(getBucket(src).equals(getBucket(dst)), "Cannot rename files across buckets");
-    return getFileSystemForPath(src).rename(pathWithoutBucket(src), pathWithoutBucket(dst));
-  }
-
-  @Override
-  public boolean delete(Path f, boolean recursive) throws IOException {
-    return getFileSystemForPath(f).delete(pathWithoutBucket(f), recursive);
-  }
-
-  @Override
-  public FileStatus[] listStatus(final Path f) throws FileNotFoundException, IOException {
-    if (isRoot(f)) {
-      return Iterables.toArray(Iterables.transform(bucketFileSystemMap.keySet(), new Function<String,FileStatus>() {
-
-        @Nullable
-        @Override
-        public FileStatus apply(@Nullable String bucketName) {
-          return new FileStatus(0, true, 0, 0, 0, new Path(bucketName));
-        }
-      }), FileStatus.class);
-    }
-    final String bucket = getBucket(f);
-    final Path pathWithoutBucket = pathWithoutBucket(f);
-    // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169
-    Iterable<FileStatus> correctedFiles = Iterables.filter(Arrays.asList(getFileSystemForPath(f).listStatus(pathWithoutBucket)), new Predicate<FileStatus>() {
-      @Override
-      public boolean apply(@Nullable FileStatus input) {
-        if (!input.isDirectory()) {
-          return true;
-        }
-        return !Path.getPathWithoutSchemeAndAuthority(pathWithoutBucket).equals(Path.getPathWithoutSchemeAndAuthority(input.getPath()));
-      }
-    });
-    return Iterables.toArray(Iterables.transform(correctedFiles, new Function<FileStatus, FileStatus>() {
-      @Nullable
-      @Override
-      public FileStatus apply(@Nullable FileStatus input) {
-        return transform(input, bucket);
-      }
-    }), FileStatus.class);
-  }
-
-  private static FileStatus transform(FileStatus input, String bucket) {
-    String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(input.getPath()).toString());
-    Path bucketPath  = new Path(Path.SEPARATOR + bucket);
-    Path fullPath = Strings.isEmpty(relativePath) ? bucketPath : new Path(bucketPath, relativePath);
-    return new FileStatus(input.getLen(),
-            input.isDirectory(),
-            input.getReplication(),
-            input.getBlockSize(),
-            input.getModificationTime(),
-            input.getAccessTime(),
-            input.getPermission(),
-            input.getOwner(),
-            input.getGroup(),
-            fullPath);
-  }
-
-  @Override
-  public void setWorkingDirectory(Path new_dir) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Path getWorkingDirectory() {
-    return new Path("/");
-  }
-
-  @Override
-  public boolean mkdirs(Path f, FsPermission permission) throws IOException {
-    return getFileSystemForPath(f).mkdirs(f, permission);
-  }
-
-  @Override
-  public FileStatus getFileStatus(Path f) throws IOException {
-    if (isRoot(f)) {
-      return new FileStatus(0, true, 0, 0, 0, f);
-    }
-    FileStatus fileStatus = getFileSystemForPath(f).getFileStatus(pathWithoutBucket(f));
-    return transform(fileStatus, getBucket(f));
-  }
-
-  @Override
-  public String getScheme() {
-    return "dremioS3";
-  }
 }

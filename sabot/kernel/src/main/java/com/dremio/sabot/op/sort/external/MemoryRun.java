@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,8 +61,6 @@ class MemoryRun implements AutoCloseable {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryRun.class);
 
-  private static final int BATCH_SIZE_MULTIPLIER = 2;
-
   private final ExternalSort sortConfig;
   private final ClassProducer classProducer;
   private final BufferAllocator allocator;
@@ -82,13 +80,15 @@ class MemoryRun implements AutoCloseable {
   private BufferAllocator copyTargetAllocator;
   private long copyTargetSize;
   private final ExternalSortTracer tracer;
+  private final int batchsizeMultiplier;
 
   public MemoryRun(
       ExternalSort sortConfig,
       ClassProducer classProducer,
       BufferAllocator allocator,
       Schema schema,
-      ExternalSortTracer tracer
+      ExternalSortTracer tracer,
+      int batchsizeMultiplier
       ) {
     this.schema = schema;
     this.sortConfig = sortConfig;
@@ -97,21 +97,22 @@ class MemoryRun implements AutoCloseable {
     this.splayTreeBuffer = allocator.buffer(4096 * SplayTree.NODE_SIZE);
     splayTreeBuffer.setZero(0, splayTreeBuffer.capacity());
     this.tracer = tracer;
+    this.batchsizeMultiplier = batchsizeMultiplier;
     updateProtectedSize(1 << 16);
   }
 
   private boolean updateProtectedSize(long needed) {
     Preconditions.checkArgument(needed > 0);
     BufferAllocator oldAllocator = copyTargetAllocator;
-    logger.debug("Memory Run: attempting to update resserved memory for spill copy with new size as: " + needed);
+    logger.debug("Memory Run: attempting to update resserved memory for spill copy with new size as {}", needed);
     try {
-      copyTargetAllocator = allocator.newChildAllocator("sort-copy-target", needed, needed);
+      copyTargetAllocator = allocator.newChildAllocator("sort-copy-target", needed, Long.MAX_VALUE);
       copyTargetSize = needed;
       if (oldAllocator != null) {
         oldAllocator.close();
       }
     } catch (OutOfMemoryException ex) {
-      tracer.reserveMemoryForSpillOOMEvent(needed, needed, oldAllocator);
+      tracer.reserveMemoryForSpillOOMEvent(needed, Long.MAX_VALUE, oldAllocator);
       logger.debug("Memory Run: failed to reserve memory for spill copy");
       return false;
     }
@@ -150,9 +151,9 @@ class MemoryRun implements AutoCloseable {
     // be careful of memory rounding. sv4 for sort output vector is the total
     // number of records x4 bytes per sv4 value. we need to reserve this here
     // (but not allocate so we always guarantee that we can allocate later.
-    final long needed = batchSize * BATCH_SIZE_MULTIPLIER + nextPowerOfTwo((recordLength + incoming.getRecordCount()) * 4);
+    final long needed = batchSize * batchsizeMultiplier + nextPowerOfTwo((recordLength + incoming.getRecordCount()) * 4);
     if (copyTargetSize < needed) {
-      logger.debug("Memory Run: new size needed to reserve for spill: " + needed + " current target copy size: " + copyTargetSize);
+      logger.debug("Memory Run: new size needed to reserve for spill {} current target copy size {}", needed, copyTargetSize);
       if (!updateProtectedSize(needed)) {
         logger.debug("Memory Run: failed to reserve space");
         return false;

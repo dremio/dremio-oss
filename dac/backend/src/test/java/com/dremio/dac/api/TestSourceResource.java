@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 package com.dremio.dac.api;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
@@ -25,12 +28,15 @@ import javax.ws.rs.core.Response;
 import org.junit.Test;
 
 import com.dremio.dac.model.sources.SourcePath;
-import com.dremio.dac.proto.model.source.NASConfig;
-import com.dremio.dac.proto.model.source.S3Config;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.service.APrivateSource;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
+import com.dremio.test.DremioTest;
 
 /**
  * Tests {@link SourceResource} API
@@ -38,23 +44,26 @@ import com.dremio.service.namespace.source.proto.SourceType;
 public class TestSourceResource extends BaseTestServer {
   private static final String SOURCES_PATH = "/source/";
 
+  private final ConnectionReader reader = new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT);
+
   @Test
   public void testListSources() throws Exception {
-    ResponseList<Source> sources = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildGet(), new GenericType<ResponseList<Source>>() {});
+    ResponseList<SourceResource.SourceDeprecated> sources = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildGet(), new GenericType<ResponseList<SourceResource.SourceDeprecated>>() {});
     assertEquals(sources.getData().size(), newSourceService().getSources().size());
   }
 
   @Test
   public void testAddSource() throws Exception {
-    Source newSource = new Source();
+    SourceResource.SourceDeprecated newSource = new SourceResource.SourceDeprecated();
     newSource.setName("Foopy");
     newSource.setType("NAS");
-    NASConfig config = new NASConfig();
-    config.setPath("/");
+    NASConf config = new NASConf();
+    config.path = "/";
     newSource.setConfig(config);
 
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)), Source.class);
+    SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)), SourceResource.SourceDeprecated.class);
     assertEquals(source.getName(), newSource.getName());
+    assertNotNull(source.getState());
 
     newNamespaceService().deleteSource(new SourcePath(source.getName()).toNamespaceKey(), 0);
   }
@@ -62,15 +71,11 @@ public class TestSourceResource extends BaseTestServer {
   @Test
   public void testAddSourceErrors() throws Exception {
     // test invalid sources
-    Source newSource = new Source();
+    SourceResource.SourceDeprecated newSource = new SourceResource.SourceDeprecated();
 
     // no config
     newSource.setName("Foobar");
     newSource.setType("NAS");
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)));
-
-    // invalid name
-    newSource.setName("f");
     expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildPost(Entity.entity(newSource, JSON)));
   }
 
@@ -78,22 +83,27 @@ public class TestSourceResource extends BaseTestServer {
   public void testUpdateSource() throws Exception {
     SourceConfig sourceConfig = new SourceConfig();
     sourceConfig.setName("Foopy2");
-    sourceConfig.setType(SourceType.NAS);
 
-    NASConfig nasConfig = new NASConfig();
-    nasConfig.setPath("/");
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
 
-    sourceConfig.setConfig(nasConfig.toByteString());
+    sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig, nasConfig);
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
 
-    Source updatedSource = new Source(createdSourceConfig);
+    final AccelerationSettings settings = new AccelerationSettings()
+      .setMethod(RefreshMethod.FULL)
+      .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
+      .setGracePeriod(TimeUnit.HOURS.toMillis(6));
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
     updatedSource.setDescription("Desc");
 
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)), Source.class);
+    SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)), SourceResource.SourceDeprecated.class);
 
     assertEquals(source.getDescription(), "Desc");
     assertEquals(source.getTag(), "1");
+    assertNotNull(source.getState());
 
     newNamespaceService().deleteSource(new SourcePath(source.getName()).toNamespaceKey(), 1);
   }
@@ -102,16 +112,19 @@ public class TestSourceResource extends BaseTestServer {
   public void testUpdateSourceErrors() throws Exception {
     SourceConfig sourceConfig = new SourceConfig();
     sourceConfig.setName("Foopy5");
-    sourceConfig.setType(SourceType.NAS);
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
 
-    NASConfig nasConfig = new NASConfig();
-    nasConfig.setPath("/");
+    sourceConfig.setConfig(nasConfig.toBytesString());
 
-    sourceConfig.setConfig(nasConfig.toByteString());
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig, nasConfig);
-
-    Source updatedSource = new Source(createdSourceConfig);
+    final AccelerationSettings settings = new AccelerationSettings()
+      .setMethod(RefreshMethod.FULL)
+      .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
+      .setGracePeriod(TimeUnit.HOURS.toMillis(6));
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
 
     // test updating non-existent source
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("badid")).buildPut(Entity.entity(updatedSource, JSON)));
@@ -124,20 +137,72 @@ public class TestSourceResource extends BaseTestServer {
   }
 
   @Test
+  public void testUpdateSourceNegativeDatasetRefresh() throws Exception {
+    SourceConfig sourceConfig = new SourceConfig();
+    sourceConfig.setName("Foopy2");
+
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
+
+    sourceConfig.setConfig(nasConfig.toBytesString());
+
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+
+    final AccelerationSettings settings = new AccelerationSettings()
+      .setMethod(RefreshMethod.FULL)
+      .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
+      .setGracePeriod(TimeUnit.HOURS.toMillis(6));
+
+    // Negative data refresh interval -- should trigger a bad request.
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+    updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(-1L);
+
+    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
+    newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
+  }
+
+  @Test
+  public void testUpdateSourceNegativeNameRefresh() throws Exception {
+    SourceConfig sourceConfig = new SourceConfig();
+    sourceConfig.setName("Foopy2");
+
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
+
+    sourceConfig.setConfig(nasConfig.toBytesString());
+
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+
+    final AccelerationSettings settings = new AccelerationSettings()
+      .setMethod(RefreshMethod.FULL)
+      .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
+      .setGracePeriod(TimeUnit.HOURS.toMillis(6));
+
+    // Negative name refresh interval -- should trigger a bad request.
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+    updatedSource.getMetadataPolicy().setNamesRefreshMs(-1L);
+
+    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
+    newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
+  }
+
+  @Test
   public void testGetSource() throws Exception {
     SourceConfig sourceConfig = new SourceConfig();
     sourceConfig.setName("Foopy4");
-    sourceConfig.setType(SourceType.NAS);
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
 
-    NASConfig nasConfig = new NASConfig();
-    nasConfig.setPath("/");
+    sourceConfig.setConfig(nasConfig.toBytesString());
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
 
-    sourceConfig.setConfig(nasConfig.toByteString());
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig, nasConfig);
-
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildGet(), Source.class);
+    SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildGet(), SourceResource.SourceDeprecated.class);
 
     assertEquals(source.getName(), sourceConfig.getName());
+    assertNotNull(source.getState());
   }
 
   @Test
@@ -149,14 +214,14 @@ public class TestSourceResource extends BaseTestServer {
   public void testDeleteSource() throws Exception {
     SourceConfig sourceConfig = new SourceConfig();
     sourceConfig.setName("Foopy3");
-    sourceConfig.setType(SourceType.NAS);
 
-    NASConfig nasConfig = new NASConfig();
-    nasConfig.setPath("/");
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
 
-    sourceConfig.setConfig(nasConfig.toByteString());
+    sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig, nasConfig);
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
 
     expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildDelete());
   }
@@ -174,19 +239,16 @@ public class TestSourceResource extends BaseTestServer {
     config.setVersion(0L);
     config.setAccelerationGracePeriod(0L);
     config.setAccelerationRefreshPeriod(0L);
-    config.setType(SourceType.S3);
 
-    S3Config s3Config = new S3Config();
-    s3Config.setAccessKey("accesskey");
-    s3Config.setAccessSecret("supersecret");
-    config.setConfig(s3Config.toByteString());
+    APrivateSource priv = new APrivateSource();
+    priv.password = "hello";
+    config.setConnectionConf(priv);
 
     SourceResource sourceResource = new SourceResource(newSourceService());
-    Source source = sourceResource.fromSourceConfig(config);
-    S3Config newConfig = (S3Config) source.getConfig();
+    SourceResource.SourceDeprecated source = sourceResource.fromSourceConfig(config);
+    APrivateSource newConfig = (APrivateSource) source.getConfig();
 
     // make sure the sensitive fields have been removed
-    assertNull(newConfig.getAccessKey());
-    assertNull(newConfig.getAccessSecret());
+    assertNull(newConfig.password);
   }
 }

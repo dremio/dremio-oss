@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,8 @@ package com.dremio.exec.planner.logical.serialization.serializers;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.calcite.prepare.CalciteCatalogReader;
-import org.apache.calcite.prepare.RelOptTableImpl;
-
+import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.NamespaceException;
@@ -34,9 +33,9 @@ import com.google.common.base.Throwables;
 
 public class TableMetadataSerializer extends Serializer<TableMetadata> {
 
-  private final CalciteCatalogReader catalog;
+  private final DremioCatalogReader catalog;
 
-  public TableMetadataSerializer(final CalciteCatalogReader catalog) {
+  public TableMetadataSerializer(final DremioCatalogReader catalog) {
     this.catalog = Preconditions.checkNotNull(catalog, "catalog is required");
   }
 
@@ -54,7 +53,7 @@ public class TableMetadataSerializer extends Serializer<TableMetadata> {
   @Override
   public TableMetadata read(final Kryo kryo, final Input input, final Class<TableMetadata> type) {
     final List<String> path = kryo.readObject(input, ArrayList.class);
-    final RelOptTableImpl relOptTable = catalog.getTable(path);
+    final DremioPrepareTable relOptTable = catalog.getTable(path);
     NamespaceTable namespace = relOptTable.unwrap(NamespaceTable.class);
     return namespace.getDataset();
   }

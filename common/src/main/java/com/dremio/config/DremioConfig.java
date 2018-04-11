@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,6 +107,7 @@ public class DremioConfig extends NestedConfig {
   public static final String YARN_HEAP_SIZE = "provisioning.yarn.heapsize";
   public static final String YARN_JVM_OPTIONS = "provisioning.yarn.jvmoptions";
   public static final String YARN_APP_CLASSPATH = "provisioning.yarn.classpath";
+  public static final String EXECUTOR_CPU = "dremio.executor.cores";
   public static final String DEBUG_ENABLED_BOOL = "debug.enabled";
   public static final String DEBUG_PREPOPULATE_BOOL = "debug.prepopulate";
   public static final String DEBUG_AUTOPORT_BOOL = "debug.autoPort";
@@ -196,14 +197,6 @@ public class DremioConfig extends NestedConfig {
   }
 
   private static Config inverseMerge(Config userConfig, Config fallback){
-
-    // create a userConfig the resolves using fallbacks.
-    Config resolveUser = userConfig.resolveWith(fallback.resolve());
-
-    // now create a fallback that resolves any unresolved items using the user configuration.
-    fallback = fallback.resolveWith(resolveUser.withFallback(fallback));
-
-    // finally, return the original userConfig with fallbacks.
     return userConfig.withFallback(fallback).resolve();
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,11 +62,11 @@ public class TestSupportService extends BaseTestServer {
   @BeforeClass
   public static void init() throws Exception {
     // set the log path so we can read logs and confirm that is working.
-    oldLogPath = System.getProperty(SupportService.DREMIO_ENV_LOG_PATH);
+    oldLogPath = System.getProperty(SupportService.DREMIO_LOG_PATH_PROPERTY);
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
     Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
-    System.setProperty(SupportService.DREMIO_ENV_LOG_PATH, temp.getRoot().toString());
+    System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
 
     // now start server.
     BaseTestServer.init();
@@ -76,7 +76,7 @@ public class TestSupportService extends BaseTestServer {
   public static void teardown(){
     // revert log path.
     if(oldLogPath != null){
-      System.setProperty(SupportService.DREMIO_ENV_LOG_PATH, oldLogPath);
+      System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, oldLogPath);
     }
 
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -230,25 +230,30 @@ public class TestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select _uid from elasticsearch." + schema + "." + table + " where _uid is not null and _uid <> 'ABC'";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"must_not\" : {\n" +
-      "        \"match\" : {\n" +
-      "          \"_uid\" : {\n" +
-      "            \"query\" : \"ABC\",\n" +
-      "            \"type\" : \"boolean\"\n" +
-      "          }\n" +
-      "        }\n" +
-      "      }\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [ \"_uid\" ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : {\n" +
+        "        \"exists\" : {\n" +
+        "          \"field\" : \"_uid\"\n" +
+        "        }\n" +
+        "      },\n" +
+        "      \"must_not\" : {\n" +
+        "        \"match\" : {\n" +
+        "          \"_uid\" : {\n" +
+        "            \"query\" : \"ABC\",\n" +
+        "            \"type\" : \"boolean\"\n" +
+        "          }\n" +
+        "        }\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [ \"_uid\" ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     assertEquals(5, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
   }
@@ -1210,40 +1215,45 @@ public class TestProjectionsAndFilter extends ElasticBaseTestQuery {
             + " where t.review_count <> 11";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"must\" : [ {\n" +
-      "        \"bool\" : {\n" +
-      "          \"must\" : {\n" +
-      "            \"bool\" : {\n" +
-      "              \"must_not\" : {\n" +
-      "                \"match\" : {\n" +
-      "                  \"review_count\" : {\n" +
-      "                    \"query\" : 11,\n" +
-      "                    \"type\" : \"boolean\"\n" +
-      "                  }\n" +
-      "                }\n" +
-      "              }\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      }, {\n" +
-      "        \"script\" : {\n" +
-      "          \"script\" : {\n" +
-      "            \"inline\" : \"(doc[\\\"city\\\"].empty || doc[\\\"review_count\\\"].empty) ? null : ( ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ) && ( doc[\\\"review_count\\\"].value != 11 ) )\",\n" +
-      "            \"lang\" : \"groovy\"\n" +
-      "          }\n" +
-      "        }\n" +
-      "      } ]\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [ \"city\", \"review_count\", \"state\" ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : [ {\n" +
+        "        \"bool\" : {\n" +
+        "          \"must\" : {\n" +
+        "            \"bool\" : {\n" +
+        "              \"must\" : {\n" +
+        "                \"exists\" : {\n" +
+        "                  \"field\" : \"review_count\"\n" +
+        "                }\n" +
+        "              },\n" +
+        "              \"must_not\" : {\n" +
+        "                \"match\" : {\n" +
+        "                  \"review_count\" : {\n" +
+        "                    \"query\" : 11,\n" +
+        "                    \"type\" : \"boolean\"\n" +
+        "                  }\n" +
+        "                }\n" +
+        "              }\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      }, {\n" +
+        "        \"script\" : {\n" +
+        "          \"script\" : {\n" +
+        "            \"inline\" : \"(doc[\\\"city\\\"].empty || doc[\\\"review_count\\\"].empty) ? null : ( ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ) && ( doc[\\\"review_count\\\"].value != 11 ) )\",\n" +
+        "            \"lang\" : \"groovy\"\n" +
+        "          }\n" +
+        "        }\n" +
+        "      } ]\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [ \"city\", \"review_count\", \"state\" ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("state", "city", "review_count")
             .baselineValues("CA", "San Diego", 33)

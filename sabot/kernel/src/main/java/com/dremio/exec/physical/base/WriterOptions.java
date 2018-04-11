@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,8 @@ public class WriterOptions {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
 
   public static final WriterOptions DEFAULT = new WriterOptions(null, ImmutableList.<String>of(),
-      ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, false);
+      ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, false,
+      Long.MAX_VALUE);
 
   private final Integer ringCount;
   private final List<String> partitionColumns;
@@ -47,21 +48,24 @@ public class WriterOptions {
   private final List<String> distributionColumns;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final boolean singleWriter;
+  private final long recordLimit;
 
   @JsonCreator
   public WriterOptions(
-      @JsonProperty("ringCount") Integer ringCount,
-      @JsonProperty("partitionColumns") List<String> partitionColumns,
-      @JsonProperty("sortColumns") List<String> sortColumns,
-      @JsonProperty("distributionColumns") List<String> distributionColumns,
-      @JsonProperty("partitionDistributionStrategy") PartitionDistributionStrategy partitionDistributionStrategy,
-      @JsonProperty("singleWriter") boolean singleWriter) {
+    @JsonProperty("ringCount") Integer ringCount,
+    @JsonProperty("partitionColumns") List<String> partitionColumns,
+    @JsonProperty("sortColumns") List<String> sortColumns,
+    @JsonProperty("distributionColumns") List<String> distributionColumns,
+    @JsonProperty("partitionDistributionStrategy") PartitionDistributionStrategy partitionDistributionStrategy,
+    @JsonProperty("singleWriter") boolean singleWriter,
+    @JsonProperty("recordLimit") long recordLimit) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
     this.distributionColumns = distributionColumns;
     this.partitionDistributionStrategy = partitionDistributionStrategy;
     this.singleWriter = singleWriter;
+    this.recordLimit = recordLimit;
   }
 
   public Integer getRingCount() {
@@ -84,6 +88,8 @@ public class WriterOptions {
     return singleWriter;
   }
 
+  public long getRecordLimit() { return recordLimit; }
+
   public boolean hasDistributions() {
     return distributionColumns != null && !distributionColumns.isEmpty();
   }
@@ -94,6 +100,11 @@ public class WriterOptions {
 
   public boolean hasSort() {
     return sortColumns != null && !sortColumns.isEmpty();
+  }
+
+  public WriterOptions withRecordLimit(long recordLimit) {
+    return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
+      this.partitionDistributionStrategy, this.singleWriter, recordLimit);
   }
 
   public RelTraitSet inferTraits(final RelTraitSet inputTraitSet, final RelDataType inputRowType) {

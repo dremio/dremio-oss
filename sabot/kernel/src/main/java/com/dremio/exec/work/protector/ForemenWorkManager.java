@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,10 +83,17 @@ import io.netty.util.concurrent.GenericFutureListener;
 public class ForemenWorkManager implements Service, SafeExit {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForemenWorkManager.class);
 
+  // Not making this a system/session option as we initialize this in the beginning of the node start and
+  // changing system/session option is not going to have any effect.
+  private static final String PREPARE_HANDLE_TIMEOUT_MS = "dremio.prepare.handle.timeout_ms";
+
   // cache of prepared statement queries.
   private final Cache<Long, PreparedPlan> preparedHandles = CacheBuilder.newBuilder()
       .maximumSize(1000)
-      .expireAfterWrite(3, TimeUnit.MINUTES)
+      // Prepared statement handles are memory intensive. If there is memory pressure,
+      // let GC release them as last resort before running OOM.
+      .softValues()
+      .expireAfterWrite(Long.getLong(PREPARE_HANDLE_TIMEOUT_MS, 60_000L), TimeUnit.MILLISECONDS)
       .build();
 
   // single map of currently running queries, mapped by their external ids.

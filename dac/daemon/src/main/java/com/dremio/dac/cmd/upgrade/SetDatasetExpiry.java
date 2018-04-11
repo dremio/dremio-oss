@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public class SetDatasetExpiry extends UpgradeTask {
   private static final long ORIGINAL_DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(30, TimeUnit.MINUTES);
 
   SetDatasetExpiry() {
-    super("Setting dataset expiry", VERSION_106, VERSION_111);
+    super("Setting dataset expiry", VERSION_109, VERSION_111);
   }
 
   @Override

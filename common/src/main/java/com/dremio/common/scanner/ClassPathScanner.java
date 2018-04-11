@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -305,7 +305,7 @@ public final class ClassPathScanner {
   /**
    * @return paths that have a Sabot config file in them
    */
-  static Set<URL> getMarkedPaths() {
+  static Collection<URL> getMarkedPaths() {
     return forResource(CommonConstants.SABOT_JAR_MARKER_FILE_RESOURCE_PATHNAME, true);
   }
 
@@ -325,10 +325,12 @@ public final class ClassPathScanner {
    *           class loader and {@link Reflections}'s class loader
    * @returns  ...; empty set if none
    */
-  public static Set<URL> forResource(final String resourcePathname, final boolean returnRootPathname) {
+  public static Collection<URL> forResource(final String resourcePathname, final boolean returnRootPathname) {
     logger.debug("Scanning classpath for resources with pathname \"{}\".",
                  resourcePathname);
-    final Set<URL> resultUrlSet = Sets.newHashSet();
+    // Okay to use a set to remove duplicate but ordering is important
+    // and need to be consistent with classpath ordering
+    final Set<URL> resultUrlSet = Sets.newLinkedHashSet();
     final ClassLoader classLoader = ClassPathScanner.class.getClassLoader();
     try {
       final Enumeration<URL> resourceUrls = classLoader.getResources(resourcePathname);

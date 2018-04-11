@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,6 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.Service;
 import com.dremio.service.SingletonRegistry;
-import com.dremio.service.accelerator.AccelerationService;
 import com.dremio.service.jobs.JobsService;
 
 import ch.qos.logback.access.jetty.RequestLogImpl;
@@ -193,8 +192,7 @@ public class WebServer implements Service {
     servletContextHandler.setMimeTypes(mimeTypes);
 
     // WebSocket API
-    final SocketServlet servlet = new SocketServlet(registry.lookup(JobsService.class),
-        registry.lookup(AccelerationService.class), registry.lookup(TokenManager.class));
+    final SocketServlet servlet = new SocketServlet(registry.lookup(JobsService.class), registry.lookup(TokenManager.class));
     final ServletHolder wsHolder = new ServletHolder(servlet);
     wsHolder.setInitOrder(3);
     servletContextHandler.addServlet(wsHolder, "/apiv2/socket");

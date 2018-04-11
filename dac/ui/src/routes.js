@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import { UserIsAuthenticated, UserIsAdmin } from 'utils/authWrappers';
 
 import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
+import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
 
 import App from './containers/App';
 
@@ -115,6 +116,7 @@ export default (
           <Route path='/admin/usersv2' component={UsersV2} />
           <Route path='/admin/provisioning' component={Provisioning} />
           <Route path='/admin/support' component={Support} />
+          <Route path='/admin/votes' component={Votes} />
         </Route>
       </Route>
     </Route>

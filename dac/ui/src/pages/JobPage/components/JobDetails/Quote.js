@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Immutable  from 'immutable';
+import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import jobsUtils from 'utils/jobsUtils';
 import FileUtils from 'utils/FileUtils';
+import HoverHelp from 'components/HoverHelp';
 
 @Radium
 @pureRender
@@ -66,10 +67,14 @@ class Quote extends Component {
               <tr className='quote-wrap' style={styles.row}>
                 <td style={styles.fieldOutput}>Output Bytes:</td>
                 <td style={styles.value}>{FileUtils.getFormattedBytes(jobIOData.get('outputBytes'))}</td>
+                <td></td>
               </tr>
               <tr className='quote-wrap' style={styles.row}>
                 <td style={styles.fieldOutput}>Output Records:</td>
                 <td style={styles.value}>{jobsUtils.getFormattedRecords(jobIOData.get('outputRecords'))}</td>
+                <td style={styles.truncated}> {jobIOData.get('isOutputLimited') ?
+                  <div style={styles.truncatedText}>&nbsp; Automatic Truncation <HoverHelp style={styles.truncatedHover} content={la('UI Jobs are automatically truncated.')}/></div> : ''}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -93,6 +98,22 @@ const styles = {
     width: 100,
     paddingBottom: 5,
     color: '#999'
+  },
+  truncated: {
+    paddingBottom: 5,
+    color: '#999',
+    position: 'relative'
+  },
+  truncatedText: {
+    display: 'flex',
+    alignItems: 'center'
+  },
+  truncatedHover: {
+    display: 'inline-block',
+    position: 'absolute',
+    top: -5,
+    right: -24,
+    color: 'black'
   },
   inputRecords: {
     marginRight: 2

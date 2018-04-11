@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,18 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Set;
 
-import org.apache.commons.io.IOUtils;
+import javax.inject.Provider;
+
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.serde.ProtobufByteStringSerDe;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.FragmentRoot;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -40,9 +44,8 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.MajorTypeSerDe;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionList;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.service.coordinator.NodeEndpointSerDe;
-import com.fasterxml.jackson.core.JsonGenerationException;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -50,17 +53,16 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.io.CharStreams;
-import com.google.protobuf.ByteString.Output;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 
 import io.protostuff.ByteString;
 
+@SuppressWarnings("serial")
 public class PhysicalPlanReader {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalPlanReader.class);
 
@@ -70,8 +72,13 @@ public class PhysicalPlanReader {
   private final ObjectReader operatorReader;
   private final LogicalPlanPersistence lpPersistance;
 
-  public PhysicalPlanReader(SabotConfig config, ScanResult scanResult, LogicalPlanPersistence lpPersistance, final NodeEndpoint endpoint,
-                            final StoragePluginRegistry pluginRegistry, SabotContext context) {
+  public PhysicalPlanReader(
+      SabotConfig config,
+      ScanResult scanResult,
+      LogicalPlanPersistence lpPersistance,
+      final NodeEndpoint endpoint,
+      final Provider<CatalogService> catalogService,
+      SabotContext context) {
 
     this.lpPersistance = lpPersistance;
 
@@ -80,22 +87,27 @@ public class PhysicalPlanReader {
     // automatic serialization of protobuf.
     lpMapper.registerModule(new ProtobufModule());
 
-    // Endpoint serializer/deserializer.
-    final SimpleModule deserModule = new SimpleModule("PhysicalOperatorModule")
-        .addSerializer(NodeEndpoint.class, new NodeEndpointSerDe.Se())
-        .addDeserializer(NodeEndpoint.class, new NodeEndpointSerDe.De())
+    final SimpleModule deserModule = new SimpleModule("CustomSerializers")
         .addSerializer(MajorType.class, new MajorTypeSerDe.Se())
         .addSerializer(ByteString.class, new ByteStringSer())
         .addDeserializer(ByteString.class, new ByteStringDeser())
         .addDeserializer(MajorType.class, new MajorTypeSerDe.De());
 
+
+    ProtoSerializers.registerSchema(deserModule, SourceConfig.getSchema());
+
+
     lpMapper.registerModule(deserModule);
+
+    ConnectionConf.registerSubTypes(lpMapper, scanResult);
+
     Set<Class<? extends PhysicalOperator>> subTypes = PhysicalOperatorUtil.getSubTypes(scanResult);
     for (Class<? extends PhysicalOperator> subType : subTypes) {
       lpMapper.registerSubtypes(subType);
     }
     final InjectableValues injectables = new InjectableValues.Std()
-        .addValue(StoragePluginRegistry.class, pluginRegistry)
+        .addValue(CatalogService.class, catalogService.get())
+        .addValue(ConnectionReader.class, new ConnectionReader(scanResult))
         .addValue(SabotContext.class, context)
         .addValue(NodeEndpoint.class, endpoint);
 
@@ -141,34 +153,30 @@ public class PhysicalPlanReader {
   }
 
   private com.google.protobuf.ByteString writeValueAsByteString(Object value, FragmentCodec codec) throws JsonProcessingException{
-    final Output output = com.google.protobuf.ByteString.newOutput();
+    return ProtobufByteStringSerDe.writeValue(mapper, value, toSerDeCodec(codec));
+  }
 
-    try {
-      final OutputStream os;
-      switch(codec) {
-      case NONE:
-        os = output;
-        break;
-
-      case SNAPPY:
-        os = new SnappyOutputStream(output);
-        break;
-
-      default:
-        throw new UnsupportedOperationException("Do not know how to compress using " + codec + " algorithm.");
-      }
-      try {
-        mapper.writer().without(SerializationFeature.INDENT_OUTPUT).writeValue(os, value);
-      } finally {
-        os.close();
-      }
-    } catch (IOException e) {
-      // Should not happen but...
-      throw new JsonGenerationException(e, null);
+  private static final ProtobufByteStringSerDe.Codec SNAPPY = new ProtobufByteStringSerDe.Codec() {
+    @Override
+    public OutputStream compress(OutputStream output) {
+      return new SnappyOutputStream(output);
     }
 
-    // Javadoc says data is copied, but it's more of a transfer of ownership!
-    return output.toByteString();
+    @Override
+    public InputStream decompress(InputStream input) throws IOException {
+      return new SnappyInputStream(input);
+    }
+  };
+
+  private static ProtobufByteStringSerDe.Codec toSerDeCodec(FragmentCodec codec) {
+    switch (codec) {
+    case NONE:
+      return ProtobufByteStringSerDe.Codec.NONE;
+    case SNAPPY:
+      return SNAPPY;
+    default:
+      throw new UnsupportedOperationException("Do not know how to compress using " + codec + " algorithm.");
+    }
   }
 
   public PhysicalPlan readPhysicalPlan(String json) throws JsonProcessingException, IOException {
@@ -193,34 +201,13 @@ public class PhysicalPlanReader {
     }
   }
 
-  private <T> T readValue(ObjectReader reader, com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
-    final InputStream is = toInputStream(json, codec);
-
-    if (logger.isDebugEnabled()) {
-      // Costly conversion to UTF-8. Avoid if possible
-      final String value;
-      switch(codec) {
-      case NONE:
-        value = json.toStringUtf8();
-        break;
-
-      case SNAPPY:
-        value = IOUtils.toString(toInputStream(json, codec));
-        break;
-
-      default:
-        throw new UnsupportedOperationException("Do not know how to uncompress using " + codec + " algorithm.");
-      }
-      logger.debug("Attempting to read {}", value);
-    }
-
-    try {
-      return reader.readValue(is);
-    } finally {
-      is.close();
-    }
+  private <T> T readValue(ObjectReader reader, com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws IOException {
+    codec = codec != null ? codec : FragmentCodec.NONE;
+    return ProtobufByteStringSerDe.readValue(reader, json, toSerDeCodec(codec), logger);
   }
 
+  // TODO: move to using ProtobufByteStringSerDe#toInputStream
   public static InputStream toInputStream(com.google.protobuf.ByteString json, FragmentCodec codec) throws IOException {
     final FragmentCodec c = codec != null ? codec : FragmentCodec.NONE;
 

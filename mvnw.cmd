@@ -1,5 +1,5 @@
 @REM
-@REM Copyright (C) 2017 Dremio Corporation
+@REM Copyright (C) 2017-2018 Dremio Corporation
 @REM
 @REM Licensed under the Apache License, Version 2.0 (the "License");
 @REM you may not use this file except in compliance with the License.

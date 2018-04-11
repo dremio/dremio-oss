@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ public class AvroFormatConfig implements FormatPluginConfig {
 
   @Override
   public int hashCode() {
-    return 101; // XXX - WHAT IS THIS SUPPOSED TO BE?
+    // Pick a random hash code so that the format config is always the same.
+    return 101;
   }
 
   @Override

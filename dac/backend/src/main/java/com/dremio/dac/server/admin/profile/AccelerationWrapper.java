@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Wrapper class for {@link AccelerationDetails}
@@ -38,6 +39,9 @@ public class AccelerationWrapper {
   }
 
   private static Map<String, ReflectionRelationship> computeRelationships(AccelerationDetails details) {
+    if (details.getReflectionRelationshipsList() == null) {
+      return ImmutableMap.of();
+    }
     return FluentIterable.from(details.getReflectionRelationshipsList())
       .uniqueIndex(new Function<ReflectionRelationship, String>() {
         @Override
@@ -54,6 +58,10 @@ public class AccelerationWrapper {
       logger.warn("failed to get reflection dataset path", e);
       return "";
     }
+  }
+
+  public Long getRefreshChainStartTime(String layoutId) {
+    return relationshipMap.get(layoutId).getMaterialization().getRefreshChainStartTime();
   }
 
   public boolean hasRelationship(String layoutId) {

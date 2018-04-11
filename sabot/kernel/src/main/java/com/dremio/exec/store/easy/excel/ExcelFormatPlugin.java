@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.Path;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
@@ -45,8 +44,8 @@ public class ExcelFormatPlugin extends EasyFormatPlugin<ExcelFormatPluginConfig>
   public static final String NAME = "excel";
 
   public ExcelFormatPlugin(String name, SabotContext context,
-      StoragePluginConfig storageConfig, ExcelFormatPluginConfig formatConfig, FileSystemPlugin fsPlugin) {
-    super(name, context, storageConfig, formatConfig,
+      ExcelFormatPluginConfig formatConfig, FileSystemPlugin fsPlugin) {
+    super(name, context, formatConfig,
         true, false, /* splittable = */ false, /* compressible = */ false,
         formatConfig.getExtensions(), NAME, fsPlugin);
   }

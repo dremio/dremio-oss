@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,10 +66,37 @@ message DownloadInfo {
 }
 
 message MaterializationSummary {
-  optional string accelerationId = 1;
-  optional string layoutId = 2;
+  optional string datasetId = 1;
+  optional string reflectionId = 2;
   optional int32 layoutVersion = 3;
   optional string materializationId = 4;
+}
+
+message ScanPath {
+  repeated string path = 1;
+}
+
+message JobFailureInfo {
+  enum Type {
+    UNKNOWN = 0;
+    PARSE = 1;
+    PLAN = 2;
+    VALIDATION = 3;
+    EXECUTION = 4;
+  }
+
+  message Error {
+    optional string message = 1;
+    // All indexes are 1-bases and inclusive
+    optional int32  start_line = 3;
+    optional int32  start_column = 4;
+    optional int32  end_line = 5;
+    optional int32  end_column = 6;
+  }
+
+  optional string message = 1;
+  optional Type type = 2;
+  repeated Error errors = 3;
 }
 
 message JobInfo {
@@ -87,8 +114,9 @@ message JobInfo {
   required QueryType queryType = 12 [DEFAULT = UNKNOWN];
   optional string appId = 13;
   optional string failureInfo = 14;
+  optional JobFailureInfo detailedFailureInfo = 26;
   repeated com.dremio.service.namespace.dataset.proto.FieldOrigin fieldOrigins = 15;
-  repeated JoinInfo joins = 16;
+  repeated JoinInfo joins = 16 [deprecated = true];
   repeated arrow.fileformat.ArrowFileMetadata resultMetadata = 17;
   optional Acceleration acceleration = 18;
   // list of all parents of parents.
@@ -96,6 +124,38 @@ message JobInfo {
   optional DownloadInfo downloadInfo = 20; // link to download data for UI_EXPORT jobs
   optional string description = 21;
   optional MaterializationSummary materializationFor = 22;
+  optional double original_cost = 23 [default = 1.0];
+  repeated string partitions = 24;
+  repeated ScanPath scanPaths = 25;
+  optional JoinAnalysis joinAnalysis = 27;
+}
+
+message JoinTable {
+  optional int32 tableId = 1; // used to distinguish multiple instances of the same table in the query
+  repeated string tableSchemaPath = 2;
+}
+
+// represents an equality condition
+message JoinCondition {
+  optional string buildSideColumn = 1;
+  optional string probeSideColumn = 2;
+  optional int32 buildSideTableId = 3;
+  optional int32 probeSideTableId = 4;
+}
+
+message JoinStats {
+  optional JoinType joinType = 1;
+  repeated JoinCondition joinConditions = 2;
+  optional int64 buildInputCount = 3; // number input records on build side
+  optional int64 probeInputCount = 4; // number of input records on probe side
+  optional int64 unmatchedBuildCount = 5; // number of records on build side with no match
+  optional int64 unmatchedProbeCount = 6; // number of records on probe side with no match
+  optional int64 outputRecords = 7; // total records output by join
+}
+
+message JoinAnalysis {
+  repeated JoinTable joinTables = 1;
+  repeated JoinStats joinStats = 2;
 }
 
 // an equality condition: tableA.columnA == tableB.columnB
@@ -147,6 +207,7 @@ message JobStats {
   optional int64 outputBytes = 2;
   optional int64 inputRecords = 3;
   optional int64 outputRecords = 4;
+  optional bool isOutputLimited = 5; // If true, the output was limited based on `planner.output_limit_size`
 }
 
 message JobResult {
@@ -162,6 +223,13 @@ message JobAttempt {
   optional string attemptId = 6;
   optional exec.NodeEndpoint endpoint = 7;
   optional bytes acceleration_details = 8;
+  optional bytes snowflake_details = 9;
+  repeated ExtraInfo extra_info = 10;
+}
+
+message ExtraInfo {
+  optional string name = 1;
+  optional bytes data = 2;
 }
 
 message DatasetPathUI {
@@ -236,6 +304,7 @@ message Acceleration {
     message Identifier {
       required string accelerationId = 1;
       required string layoutId = 2;
+      optional string materializationId = 3;
     }
 
     required Identifier id = 1;

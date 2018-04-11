@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ public class JobResource {
   @Produces(APPLICATION_JSON)
   public JobUI getJob(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     try {
-      return new JobUI(jobsService.getJob(new JobId(jobId)));
+      return new JobUI(jobsService.getJob(new JobId(jobId), securityContext.getUserPrincipal().getName()));
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
@@ -123,12 +123,12 @@ public class JobResource {
     JobId id = new JobId(jobId);
     final Job job;
     try {
-      job = jobsService.getJob(id);
+      job = jobsService.getJob(id, securityContext.getUserPrincipal().getName());
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
-    return new JobDetailsUI(job);
+    return JobDetailsUI.of(job);
   }
 
   public static String getPaginationURL(JobId jobId) {
@@ -148,7 +148,7 @@ public class JobResource {
 
     final Job job;
     try {
-      job = jobsService.getJob(jobId);
+      job = jobsService.getJob(jobId, securityContext.getUserPrincipal().getName());
     } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -170,7 +170,7 @@ public class JobResource {
 
     final Job job;
     try {
-      job = jobsService.getJob(jobId);
+      job = jobsService.getJob(jobId, securityContext.getUserPrincipal().getName());
     } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -192,7 +192,7 @@ public class JobResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response downloadData(@PathParam("jobId") JobId jobId)
       throws IOException, JobResourceNotFoundException, JobNotFoundException {
-    final Job job = jobsService.getJob(jobId);
+    final Job job = jobsService.getJob(jobId, securityContext.getUserPrincipal().getName());
     final JobInfo jobInfo = job.getJobAttempt().getInfo();
 
     if (jobInfo.getQueryType() == QueryType.UI_EXPORT) {

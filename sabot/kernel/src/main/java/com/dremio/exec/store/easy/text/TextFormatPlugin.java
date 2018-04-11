@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import org.apache.hadoop.mapred.FileSplit;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.ScanStats.GroupScanProperty;
@@ -55,14 +54,13 @@ import com.google.common.collect.ImmutableList;
 public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextFormatConfig> {
   private final static String DEFAULT_NAME = "text";
 
-  public TextFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig, FileSystemPlugin fsPlugin) {
-    super(name, context, storageConfig, new TextFormatConfig(), true, false, true, true,
+  public TextFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin) {
+    super(name, context, new TextFormatConfig(), true, false, true, true,
         Collections.<String>emptyList(), DEFAULT_NAME, fsPlugin);
   }
 
-  public TextFormatPlugin(String name, SabotContext context, StoragePluginConfig config,
-      TextFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
-    super(name, context, config, formatPluginConfig, true, false, true, true,
+  public TextFormatPlugin(String name, SabotContext context, TextFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
+    super(name, context, formatPluginConfig, true, false, true, true,
         formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
   }
 
@@ -98,7 +96,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
 
     public List<String> extensions = ImmutableList.of("txt");
     public String lineDelimiter = "\n";
-    public char fieldDelimiter = '\n';
+    public char fieldDelimiter = '\u0000';
     public char quote = '"';
     public char escape = '"';
     public char comment = '#';

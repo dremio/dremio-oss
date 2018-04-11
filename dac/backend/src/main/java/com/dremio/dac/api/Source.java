@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,61 +15,24 @@
  */
 package com.dremio.dac.api;
 
-import com.dremio.dac.proto.model.source.ADLConfig;
-import com.dremio.dac.proto.model.source.AZBConfig;
-import com.dremio.dac.proto.model.source.DB2Config;
-import com.dremio.dac.proto.model.source.ElasticConfig;
-import com.dremio.dac.proto.model.source.GCSConfig;
-import com.dremio.dac.proto.model.source.HBaseConfig;
-import com.dremio.dac.proto.model.source.HdfsConfig;
-import com.dremio.dac.proto.model.source.HiveConfig;
-import com.dremio.dac.proto.model.source.MSSQLConfig;
-import com.dremio.dac.proto.model.source.MapRFSConfig;
-import com.dremio.dac.proto.model.source.MongoConfig;
-import com.dremio.dac.proto.model.source.MySQLConfig;
-import com.dremio.dac.proto.model.source.NASConfig;
-import com.dremio.dac.proto.model.source.OracleConfig;
-import com.dremio.dac.proto.model.source.PostgresConfig;
-import com.dremio.dac.proto.model.source.RedshiftConfig;
-import com.dremio.dac.proto.model.source.S3Config;
-import com.dremio.dac.proto.model.source.UnknownConfig;
+import java.util.List;
+
+import com.dremio.dac.server.InputValidation;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * Source model for the public REST API.
  */
-@JsonIgnoreProperties(value={ "_type" }, allowGetters=true)
-public class Source {
+public class Source implements CatalogEntity {
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
-  @JsonSubTypes({
-    @JsonSubTypes.Type(value = NASConfig.class, name = "NAS"),
-    @JsonSubTypes.Type(value = HdfsConfig.class, name = "HDFS"),
-    @JsonSubTypes.Type(value = MapRFSConfig.class, name = "MAPRFS"),
-    @JsonSubTypes.Type(value = S3Config.class, name = "S3"),
-    @JsonSubTypes.Type(value = MongoConfig.class, name = "MONGO"),
-    @JsonSubTypes.Type(value = ElasticConfig.class, name = "ELASTIC"),
-    @JsonSubTypes.Type(value = OracleConfig.class, name = "ORACLE"),
-    @JsonSubTypes.Type(value = MySQLConfig.class, name = "MYSQL"),
-    @JsonSubTypes.Type(value = MSSQLConfig.class, name = "MSSQL"),
-    @JsonSubTypes.Type(value = PostgresConfig.class, name = "POSTGRES"),
-    @JsonSubTypes.Type(value = RedshiftConfig.class, name = "REDSHIFT"),
-    @JsonSubTypes.Type(value = HBaseConfig.class, name = "HBASE"),
-    @JsonSubTypes.Type(value = HiveConfig.class, name = "HIVE"),
-    @JsonSubTypes.Type(value = DB2Config.class, name = "DB2"),
-    @JsonSubTypes.Type(value = UnknownConfig.class, name = "UNKNOWN"),
-    @JsonSubTypes.Type(value = GCSConfig.class, name = "GCS"),
-    @JsonSubTypes.Type(value = AZBConfig.class, name = "AZB"),
-    @JsonSubTypes.Type(value = ADLConfig.class, name = "ADL")
-  })
-  private com.dremio.dac.model.sources.Source config;
+  private ConnectionConf<?, ?> config;
   private SourceState state;
   private String id;
   private String tag;
@@ -81,14 +44,17 @@ public class Source {
   private MetadataPolicy metadataPolicy;
   private long accelerationGracePeriodMs;
   private long accelerationRefreshPeriodMs;
+  private List<CatalogItem> children;
+
+  private static final InputValidation validator = new InputValidation();
 
   public Source() {
   }
 
-  public Source(SourceConfig config) {
+  public Source(SourceConfig config, AccelerationSettings settings, ConnectionReader reader) {
     this.id = config.getId().getId();
     this.tag = String.valueOf(config.getVersion());
-    this.type = config.getType().name();
+    this.type = config.getType() == null ? config.getLegacySourceTypeEnum().name() : config.getType();
     this.name = config.getName();
     this.description = config.getDescription();
 
@@ -103,11 +69,13 @@ public class Source {
       this.metadataPolicy = new MetadataPolicy(configMetadataPolicy);
     }
 
-    this.accelerationGracePeriodMs = config.getAccelerationGracePeriod();
-    this.accelerationRefreshPeriodMs = config.getAccelerationRefreshPeriod();
+    validator.validate(this.metadataPolicy);
+
+    this.accelerationGracePeriodMs = settings.getGracePeriod();
+    this.accelerationRefreshPeriodMs = settings.getRefreshPeriod();
 
     // TODO: use our own config classes
-    this.config = com.dremio.dac.model.sources.Source.fromByteString(config.getType(), config.getConfig());
+    this.config = reader.getConnectionConf(config);
   }
 
   public String getId() {
@@ -148,11 +116,15 @@ public class Source {
     return createdAt;
   }
 
-  public com.dremio.dac.model.sources.Source getConfig() {
+  public void setCreatedAt(long createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public ConnectionConf<?, ?> getConfig() {
     return this.config;
   }
 
-  public void setConfig(com.dremio.dac.model.sources.Source config) {
+  public void setConfig(ConnectionConf<?, ?> config) {
     this.config = config;
   }
 
@@ -202,8 +174,8 @@ public class Source {
       sourceConfig.setVersion(Long.valueOf(tag));
     }
 
-    sourceConfig.setType(SourceType.valueOf(getType()));
-    sourceConfig.setConfig(getConfig().toByteString());
+    sourceConfig.setType(getConfig().getType());
+    sourceConfig.setConfig(getConfig().toBytesString());
     sourceConfig.setName(getName());
     sourceConfig.setDescription(getDescription());
     sourceConfig.setCtime(this.createdAt);
@@ -213,8 +185,11 @@ public class Source {
     return sourceConfig;
   }
 
-  @JsonProperty("_type")
-  public String getEntityType() {
-    return "source";
+  public List<CatalogItem> getChildren() {
+    return children;
+  }
+
+  public void setChildren(List<CatalogItem> children) {
+    this.children = children;
   }
 }

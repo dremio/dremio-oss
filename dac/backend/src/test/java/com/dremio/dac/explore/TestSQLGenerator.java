@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,7 +83,8 @@ public class TestSQLGenerator {
   @Test
   public void testGenSQL() {
 
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression value = new ExpColumnReference("parentFoo").wrap();
 
     validate(
@@ -100,17 +101,48 @@ public class TestSQLGenerator {
 
     validate(
         "SELECT *\nFROM myspace.parentDS",
-        new VirtualDatasetState(nameDSRef));
+        new VirtualDatasetState()
+            .setFrom(nameDSRef));
 
     validate(
         sqlDSRef.getSql().getSql(),
-        new VirtualDatasetState(sqlDSRef));
+        new VirtualDatasetState()
+            .setFrom(sqlDSRef));
+  }
+
+  @Test
+  public void selectConstant() {
+    final String query = "SELECT 1729 AS special";
+    final From sqlDSRef = new FromSQL(query).wrap();
+
+    validate(query,
+        new VirtualDatasetState()
+            .setFrom(sqlDSRef));
+
+    validate(sqlDSRef.getSql().getSql(),
+        new VirtualDatasetState()
+            .setFrom(sqlDSRef));
+  }
+
+  @Test
+  public void selectConstantNested() {
+    final String query = "SELECT * FROM (SELECT 87539319 AS special ORDER BY 1 LIMIT 1)";
+    final From sqlDSRef = new FromSQL(query).wrap();
+
+    validate(query,
+        new VirtualDatasetState()
+            .setFrom(sqlDSRef));
+
+    validate(sqlDSRef.getSql().getSql(),
+        new VirtualDatasetState()
+            .setFrom(sqlDSRef));
   }
 
   @Test
   public void testTitleCase() {
 
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression column = new ExpColumnReference("parentFoo").wrap();
     Expression title = new ExpConvertCase(ConvertCase.TITLE_CASE, column).wrap();
 
@@ -130,7 +162,8 @@ public class TestSQLGenerator {
     // user is a special keyword
     // https://issues.apache.org/jira/browse/DRILL-3435
 
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression column = new ExpColumnReference("user").wrap();
     Expression title = new ExpConvertCase(ConvertCase.TITLE_CASE, column).wrap();
 
@@ -142,7 +175,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testMultipleFilters() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("count").wrap();
     validate(
@@ -166,7 +200,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testFilterRange() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("count").wrap();
     validate(
@@ -225,7 +260,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testExcludeText() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("user").wrap();
 
@@ -256,7 +292,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testExcludeValue() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("user").wrap();
 
@@ -293,7 +330,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testJoin() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     validate(
         "SELECT *\n" +
@@ -319,7 +357,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testNumberToDate() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 = new FieldConvertNumberToDate()
@@ -346,7 +385,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testFromJSON() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 = new FieldConvertFromJSON();
@@ -357,38 +397,44 @@ public class TestSQLGenerator {
 
   @Test
   public void testTableNameEnquoting() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromTable("myhome.tables.1234.test").wrap());
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromTable("myhome.tables.1234.test").wrap());
     validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test", state);
   }
 
   @Test
   public void testTableNameWithAliasQuoting() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromTable("myhome.tables.1234.test").setAlias("my.tbl").wrap());
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromTable("myhome.tables.1234.test").setAlias("my.tbl").wrap());
     validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test AS \"my.tbl\"", state);
   }
 
   @Test
   public void testSubQuery() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromSQL("SELECT * FROM cp.\"region.json\"").wrap());
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromSQL("SELECT * FROM cp.\"region.json\"").wrap());
     validate("SELECT * FROM cp.\"region.json\"", state);
   }
 
   @Test
   public void testSubQuerySelectColumns() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromSQL("SELECT * FROM cp.\"region.json\"").setAlias("region").wrap())
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromSQL("SELECT * FROM cp.\"region.json\"").setAlias("region").wrap())
         .setColumnsList(asList(new Column("foo", new ExpColumnReference("my.foo").wrap())));
     validate("SELECT \"my.foo\" AS foo\nFROM (\n  SELECT * FROM cp.\"region.json\"\n) region", state);
   }
 
   @Test
   public void testSubQueryNameWithAliasEnquoting() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromTable("myhome.tables.1234.test").setAlias("my.tbl").wrap());
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromTable("myhome.tables.1234.test").setAlias("my.tbl").wrap());
     validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test AS \"my.tbl\"", state);
   }
 
   @Test
   public void testOrderBy() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromTable("myhome.tables.1234.test").wrap())
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromTable("myhome.tables.1234.test").wrap())
         // user is a reserved keyword, make sure it is escaped in generated SQL
         .setOrdersList(asList(new Order("user", OrderDirection.ASC)));
     validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test\nORDER BY \"user\" ASC", state);
@@ -396,7 +442,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testMultipleOrderBys() {
-    VirtualDatasetState state = new VirtualDatasetState(new FromTable("myhome.tables.1234.test").wrap())
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(new FromTable("myhome.tables.1234.test").wrap())
         // home.dir contains a special identifier character, make sure it is escaped in generated SQL
         .setOrdersList(asList(new Order("home.dir", OrderDirection.DESC), new Order("join_date", OrderDirection.ASC)));
     validate("SELECT *\nFROM myhome.\"tables\".\"1234\".test\nORDER BY \"home.dir\" DESC, join_date ASC", state);
@@ -404,7 +451,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceValueDateTypeCol() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -427,7 +475,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceValueTimestampTypeCol() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -450,7 +499,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceValueTimeTypeCol() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -473,7 +523,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceValueIncludingNullDateTypeCol() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -498,7 +549,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceValueWithNullDateTypeCol() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -522,7 +574,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplacementValueGivenAsNull() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -545,7 +598,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceNullInList() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldTransformationBase transf1 =
@@ -570,7 +624,8 @@ public class TestSQLGenerator {
   public void testReplaceInvalidReplacedValues() {
     boolean exThrown = false;
     try {
-      VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+      VirtualDatasetState state = new VirtualDatasetState()
+          .setFrom(nameDSRef);
       Expression exp0 = new ExpColumnReference("bar").wrap();
 
       FieldTransformationBase transf1 =
@@ -594,7 +649,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testReplaceRange() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
     Expression exp0 = new ExpColumnReference("bar").wrap();
 
     FieldReplaceRange transf1 =
@@ -727,7 +783,7 @@ public class TestSQLGenerator {
     TransformActor actor = new TransformActor(state, false, "test_user", executor){
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
-        return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null);
+        return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null, null);
       }
 
       @Override
@@ -742,7 +798,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testFilterSummed() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     Expression a = new ExpColumnReference("a").wrap();
     Expression b = new ExpColumnReference("b").wrap();
@@ -777,7 +834,8 @@ public class TestSQLGenerator {
 
   @Test
   public void testNullFilterExcludeKeepOnly() {
-    VirtualDatasetState state = new VirtualDatasetState(nameDSRef);
+    VirtualDatasetState state = new VirtualDatasetState()
+        .setFrom(nameDSRef);
 
     Expression column = new ExpColumnReference("user").wrap();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.metrics.Metrics;
@@ -77,7 +77,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   private final Provider<SabotContext> dbContext;
   private final BindingCreator bindingCreator;
   private final Provider<FabricService> fabricServiceProvider;
-  private final Provider<StoragePluginRegistry> storagePluginRegistry;
+  private final Provider<CatalogService> sources;
   private final Provider<ContextInformationFactory> contextInformationFactory;
 
   private FragmentStatusThread statusThread;
@@ -100,14 +100,14 @@ public class FragmentWorkManager implements Service, SafeExit {
       Provider<NodeEndpoint> identity,
       final Provider<SabotContext> dbContext,
       final Provider<FabricService> fabricServiceProvider,
-      final Provider<StoragePluginRegistry> storagePluginRegistry,
+      final Provider<CatalogService> sources,
       final Provider<ContextInformationFactory> contextInformationFactory,
       final BindingCreator bindingCreator
       ) {
     this.context = context;
     this.config = config;
     this.identity = identity;
-    this.storagePluginRegistry = storagePluginRegistry;
+    this.sources = sources;
     this.fabricServiceProvider = fabricServiceProvider;
     this.dbContext = dbContext;
     this.bindingCreator = bindingCreator;
@@ -277,7 +277,7 @@ public class FragmentWorkManager implements Service, SafeExit {
         bitContext.getClasspathScan(),
         bitContext.getPlanReader(),
         bitContext.getNamespaceService(SystemUser.SYSTEM_USERNAME),
-        storagePluginRegistry.get(),
+        sources.get(),
         contextInformationFactory.get(),
         bitContext.getFunctionImplementationRegistry(),
         context.getNodeDebugContextProvider(),

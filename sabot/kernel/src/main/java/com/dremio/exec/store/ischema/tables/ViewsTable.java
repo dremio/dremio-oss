@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@ import java.util.Map.Entry;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Function;
@@ -39,34 +40,41 @@ public class ViewsTable extends BaseInfoSchemaTable<ViewsTable.View> {
   public static final ViewsTable DEFINITION = new ViewsTable();
 
   @Override
-  public Iterable<View> asIterable(final String catalogName, NamespaceService service, SearchQuery query) {
-    return FluentIterable.from(service.find(query == null ? null : new FindByCondition().setCondition(query)))
-        .filter(new Predicate<Entry<NamespaceKey, NameSpaceContainer>>(){
+  public Iterable<View> asIterable(final String catalogName, String username, DatasetListingService service, SearchQuery query) {
+    final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
+    try {
+      searchResults = service.find(username, query == null ? null : new FindByCondition().setCondition(query));
+    } catch (NamespaceException e) {
+      throw new RuntimeException(e);
+    }
+    return FluentIterable.from(searchResults)
+        .filter(new Predicate<Entry<NamespaceKey, NameSpaceContainer>>() {
           @Override
           public boolean apply(Entry<NamespaceKey, NameSpaceContainer> input) {
             final NameSpaceContainer c = input.getValue();
 
-            if(c.getType() != NameSpaceContainer.Type.DATASET) {
+            if (c.getType() != NameSpaceContainer.Type.DATASET) {
               return false;
             }
 
-            if(c.getDataset().getType() != DatasetType.VIRTUAL_DATASET) {
+            if (c.getDataset().getType() != DatasetType.VIRTUAL_DATASET) {
               return false;
             }
 
-            if(input.getKey().getRoot().startsWith("__")) {
+            if (input.getKey().getRoot().startsWith("__")) {
               return false;
             }
 
             return true;
-          }})
+          }
+        })
         .transform(new Function<Entry<NamespaceKey, NameSpaceContainer>, View>() {
-      @Override
-      public View apply(Entry<NamespaceKey, NameSpaceContainer> input) {
-        final String viewDefinition = input.getValue().getDataset().getVirtualDataset().getSql();
-        return new View(catalogName, input.getKey().getParent().toUnescapedString(), input.getKey().getName(), viewDefinition);
-      }
-    });
+          @Override
+          public View apply(Entry<NamespaceKey, NameSpaceContainer> input) {
+            final String viewDefinition = input.getValue().getDataset().getVirtualDataset().getSql();
+            return new View(catalogName, input.getKey().getParent().toUnescapedString(), input.getKey().getName(), viewDefinition);
+          }
+        });
   }
 
   /** Pojo object for a record in INFORMATION_SCHEMA.VIEWS */

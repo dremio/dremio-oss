@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -203,7 +203,7 @@ public class ServerMetaProvider {
       final ServerMeta.Builder metaBuilder = session.getRecordBatchFormat() != RecordBatchFormat.DRILL_1_0
           ? ServerMeta.newBuilder(DEFAULT)
           : ServerMeta.newBuilder(DRILL_1_0_DEFAULT);
-      PlannerSettings plannerSettings = new PlannerSettings(session.getOptions(), dContext.getFunctionImplementationRegistry(), dContext.getClusterResourceInformation());
+      PlannerSettings plannerSettings = new PlannerSettings(dContext.getConfig(), session.getOptions(), dContext.getClusterResourceInformation());
 
       ParserConfig config = ParserConfig.newInstance(session, plannerSettings);
 

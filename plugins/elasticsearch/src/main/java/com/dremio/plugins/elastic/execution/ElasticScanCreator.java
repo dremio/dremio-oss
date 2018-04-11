@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
@@ -68,7 +69,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
 
         readers.add(new ElasticsearchRecordReader(
             plugin,
-            subScan.getTableSchemaPath(),
+            Iterables.getOnlyElement(subScan.getReferencedTables()),
             tableAttributes,
             context,
             spec,

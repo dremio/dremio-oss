@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 package com.dremio.hbase;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -27,12 +25,12 @@ import org.junit.runner.RunWith;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.hbase.HBaseConstants;
+import com.dremio.exec.store.hbase.HBaseConf;
 import com.dremio.exec.store.hbase.HBaseStoragePlugin;
-import com.dremio.exec.store.hbase.HBaseStoragePluginConfig;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
@@ -45,7 +43,7 @@ public class BaseHBaseTest extends BaseTestQuery {
 
   private static final String HBASE_STORAGE_PLUGIN_NAME = "hbase";
 
-  protected static HBaseStoragePluginConfig storagePluginConfig;
+  protected static HBaseConf storagePluginConfig;
   protected static HBaseStoragePlugin storagePlugin;
 
   @BeforeClass
@@ -57,13 +55,17 @@ public class BaseHBaseTest extends BaseTestQuery {
     HBaseTestsSuite.configure(true /*manageHBaseCluster*/, true /*createTables*/);
     HBaseTestsSuite.initCluster();
 
-    final StoragePluginRegistry pluginRegistry = getSabotContext().getStorage();
-    Map<String,String> properties = new HashMap<>();
-    properties.put(HBaseConstants.HBASE_ZOOKEEPER_QUORUM, "localhost");
-    properties.put(HBaseConstants.HBASE_ZOOKEEPER_PORT, String.valueOf(HBaseTestsSuite.getZookeeperPort()));
-    storagePluginConfig = new HBaseStoragePluginConfig(properties, null);
-    pluginRegistry.createOrUpdate(HBASE_STORAGE_PLUGIN_NAME, storagePluginConfig, true);
-    storagePlugin = (HBaseStoragePlugin) pluginRegistry.getPlugin(HBASE_STORAGE_PLUGIN_NAME);
+    final CatalogServiceImpl catalog = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    HBaseConf conf = new HBaseConf();
+    conf.port = HBaseTestsSuite.getZookeeperPort();
+    conf.zkQuorum = "localhost";
+    storagePluginConfig = conf;
+    SourceConfig sc = new SourceConfig();
+    sc.setConfig(conf.toBytesString());
+    sc.setType(conf.getType());
+    sc.setName(HBASE_STORAGE_PLUGIN_NAME);
+    catalog.getSystemUserCatalog().createSource(sc);
+    storagePlugin = catalog.getSource(HBASE_STORAGE_PLUGIN_NAME);
   }
 
   @AfterClass

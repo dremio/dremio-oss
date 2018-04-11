@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package com.dremio.exec.store.ischema.tables;
 
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
-import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.listing.DatasetListingService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -46,7 +46,7 @@ public class CatalogsTable extends BaseInfoSchemaTable<CatalogsTable.Catalog> {
   }
 
   @Override
-  public Iterable<Catalog> asIterable(String catalogName, NamespaceService service, SearchQuery query) {
+  public Iterable<Catalog> asIterable(String catalogName, String username, DatasetListingService service, SearchQuery query) {
     Preconditions.checkArgument(query == null);
     return ImmutableList.of(new Catalog(catalogName, InfoSchemaConstants.IS_CATALOG_DESCR, InfoSchemaConstants.IS_CATALOG_CONNECT));
   }

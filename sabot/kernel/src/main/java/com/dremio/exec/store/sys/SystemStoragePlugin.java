@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,11 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -39,9 +38,6 @@ import com.google.common.collect.ImmutableSet;
 import io.protostuff.ByteString;
 
 public class SystemStoragePlugin implements StoragePlugin {
-
-  static StoragePluginType TYPE = new StoragePluginType("sys", SystemTableRulesFactory.class);
-  static StoragePluginId ID = new StoragePluginId("sys", SystemTablePluginConfig.INSTANCE, TYPE);
 
   static final ImmutableSet<String> TABLES = FluentIterable.of(SystemTable.values()).transform(new Function<SystemTable, String>(){
     @Override
@@ -58,10 +54,6 @@ public class SystemStoragePlugin implements StoragePlugin {
 
   private final SabotContext context;
   private final Predicate<String> userPredicate;
-
-  public SystemStoragePlugin(SystemTablePluginConfig config, SabotContext context, String name) {
-    this(context, name);
-  }
 
   public SystemStoragePlugin(SabotContext context, String name) {
     this(context, name, Predicates.<String>alwaysTrue());
@@ -82,7 +74,7 @@ public class SystemStoragePlugin implements StoragePlugin {
     return FluentIterable.of(SystemTable.values()).transform(new Function<SystemTable, SourceTableDefinition>(){
       @Override
       public SourceTableDefinition apply(SystemTable input) {
-        return input.asTableDefinition();
+        return input.asTableDefinition(null);
       }});
   }
 
@@ -94,7 +86,7 @@ public class SystemStoragePlugin implements StoragePlugin {
 
     SystemTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
     if(table != null) {
-      return table.asTableDefinition();
+      return table.asTableDefinition(oldDataset);
     }
 
     return null;
@@ -121,18 +113,18 @@ public class SystemStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public StoragePluginId getId() {
-    return ID;
-  }
-
-  @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return null;
   }
 
   @Override
-  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
-    return null;
+  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
+    return SystemTableRulesFactory.class;
+  }
+
+  @Override
+  public SourceCapabilities getSourceCapabilities() {
+    return SourceCapabilities.NONE;
   }
 
   @Override
@@ -141,11 +133,11 @@ public class SystemStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public void close() {
+  public void start() {
   }
 
   @Override
-  public void start() {
+  public void close() {
   }
 
 }

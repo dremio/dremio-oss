@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,31 +18,28 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlDescribeTable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.util.Util;
-
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.SchemaUtilities;
+import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.store.ischema.tables.ColumnsTable;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Joiner;
 
 public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandler.DescribeResult> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DescribeTableHandler.class);
 
-  private SchemaPlus defaultSchema;
+  private final DremioCatalogReader catalog;
 
-  public DescribeTableHandler(SchemaPlus defaultSchema) {
+  public DescribeTableHandler(DremioCatalogReader catalog) {
     super();
-    this.defaultSchema = defaultSchema;
+    this.catalog = catalog;
   }
 
   @Override
@@ -50,34 +47,16 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     final SqlDescribeTable node = SqlNodeUtil.unwrap(sqlNode, SqlDescribeTable.class);
 
     try {
-      final SqlIdentifier table = node.getTable();
-      final List<String> schemaPathGivenInCmd = Util.skipLast(table.names);
-      final SchemaPlus schema = SchemaUtilities.findSchema(defaultSchema, schemaPathGivenInCmd);
-
-      if (schema == null) {
-        SchemaUtilities.throwSchemaNotFoundException(defaultSchema,
-            SchemaUtilities.SCHEMA_PATH_JOINER.join(schemaPathGivenInCmd));
-      }
-
-      if (SchemaUtilities.isRootSchema(schema)) {
+      final SqlIdentifier tableId = node.getTable();
+      final NamespaceKey path = new NamespaceKey(tableId.names);
+      DremioPrepareTable table = catalog.getTable(tableId.names);
+      if(table == null) {
         throw UserException.validationError()
-            .message("No schema selected.")
-            .build(logger);
+        .message("Unknown table [%s]", path)
+        .build(logger);
       }
 
-      final String tableName = Util.last(table.names);
-
-      // find resolved schema path
-      final String schemaPath = SchemaUtilities.unwrapAsSchemaInstance(schema).getFullSchemaName();
-
-      final Table tableObject = schema.getTable(tableName);
-      if (tableObject == null) {
-        throw UserException.validationError()
-            .message("Unknown table [%s] in schema [%s]", tableName, schemaPath)
-            .build(logger);
-      }
-
-      final RelDataType type = tableObject.getRowType(new JavaTypeFactoryImpl());
+      final RelDataType type = table.getRowType();
       List<DescribeResult> columns = new ArrayList<>();
       String column = null;
       final SqlIdentifier col = node.getColumn();
@@ -90,7 +69,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       }
 
       for(RelDataTypeField field : type.getFieldList()){
-        ColumnsTable.Column c = new ColumnsTable.Column("dremio", schema.getName(), tableName, field);
+        ColumnsTable.Column c = new ColumnsTable.Column("dremio", path.getParent().toUnescapedString(), path.getLeaf(), field);
         if(column == null || column.equals(field.getName())){
           DescribeResult r = new DescribeResult(field.getName(), c.DATA_TYPE);
           columns.add(r);

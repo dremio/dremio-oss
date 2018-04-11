@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,32 @@
  */
 package com.dremio.exec.store.dfs;
 
+import io.protostuff.Tag;
 
 public enum SchemaMutability {
+
+  @Tag(1)
   ALL(true,true,true,true),
+
+  @Tag(2)
   NONE(false, false, false, false),
+
+  @Tag(3)
   SYSTEM_TABLE(false, true, false, false),
+
+  @Tag(4)
   SYSTEM_TABLE_AND_VIEW(false, true, false, true),
+
+  @Tag(5)
   SYSTEM_VIEW(false, false, false, true),
+
+  @Tag(6)
   USER_TABLE(true, true, false, false),
+
+  @Tag(7)
   USER_VIEW(false, false, true, true),
+
+  @Tag(8)
   USER_TABLE_AND_VIEW(true, true, true, true);
 
   final boolean anyoneMutateTable;

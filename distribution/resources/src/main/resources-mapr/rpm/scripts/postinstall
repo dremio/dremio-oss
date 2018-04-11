@@ -5,10 +5,11 @@ DREMIO_HOME=/opt/dremio
 if [ -e $DAEMON_CONF ]; then
     MAPR_USER=$( awk -F = '$1 == "mapr.daemon.user" { print $2 }' $DAEMON_CONF)
     MAPR_GROUP=$( awk -F = '$1 == "mapr.daemon.group" { print $2 }' $DAEMON_CONF)
-    chown -R $MAPR_USER:$MAPR_GROUP $DREMIO_HOME
     chown -R $MAPR_USER:$MAPR_GROUP /var/log/dremio
     chown -R $MAPR_USER:$MAPR_GROUP /var/run/dremio
     chown -R $MAPR_USER:$MAPR_GROUP /var/lib/dremio
     # change DREMIO_USER to MAPR_USER in sysconfig/dremio
     sed -i -e 's/^.*DREMIO_USER=.*/DREMIO_USER='$MAPR_USER'/g' /etc/sysconfig/dremio
+    # change DREMIO_USER DREMIO_GROUP to MAPR_USER MAPR_GROUP in optional /usr/lib/tmpfiles.d/dremio.conf
+    [ -f '/usr/lib/tmpfiles.d/dremio.conf' ] && sed -i -e "s/ dremio dremio/ $MAPR_USER $MAPR_GROUP/g" /usr/lib/tmpfiles.d/dremio.conf
 fi

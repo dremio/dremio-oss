@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,8 +46,11 @@ import org.slf4j.LoggerFactory;
 import com.dremio.PlanTestBase;
 import com.dremio.QueryTestUtil;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -156,8 +159,13 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       }
 
       elastic = new ElasticsearchCluster(elasticSize, scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled);
-      getSabotContext().getStorage()
-        .createOrUpdate(ElasticsearchStoragePluginConfig.NAME, elastic.config(), true);
+
+
+      SourceConfig sc = new SourceConfig();
+      sc.setName("elasticsearch");
+      sc.setConnectionConf(elastic.config());
+      sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+      ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(sc);
 
     }
 

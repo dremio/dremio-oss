@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,17 +65,11 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
 
   @Test
-  public void abc() throws Exception{
-    test(testNlJoinNotIn_1);
-  }
-
-  @Test
   public void testNlJoinExists_1_planning() throws Exception {
     testPlanMatchingPatterns(testNlJoinExists_1, new String[]{nlpattern}, new String[]{});
   }
 
   @Test
-  // @Ignore
   public void testNlJoinNotIn_1_planning() throws Exception {
     testPlanMatchingPatterns(testNlJoinNotIn_1, new String[]{nlpattern}, new String[]{});
   }
@@ -93,7 +87,6 @@ public class TestNestedLoopJoin extends PlanTestBase {
   }
 
   @Test
-  @Ignore // Re-test after CALCITE-695 is resolved
   public void testNlJoinInequality_3() throws Exception {
     test(DISABLE_NLJ_SCALAR);
     testPlanMatchingPatterns(testNlJoinInequality_3, new String[]{nlpattern}, new String[]{});

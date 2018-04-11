@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,21 +25,17 @@ describe('AccelerationAggregation', () => {
   let instance;
   beforeEach(() => {
     minimalProps = {
-      acceleration: Immutable.fromJS({
-        context: {
-          datasetSchema: {
-            fieldList: []
-          }
-        }
+      dataset: Immutable.fromJS({
+        id: '1',
+        path: ['path', 'name']
       }),
+      reflections: Immutable.fromJS({}),
       fields: {
-        aggregationLayouts: {
-          layoutList: [{name:{value:'col1'}}, {name:{value:'col2'}}]
-        }
+        aggregationReflections: [{name:{value:'col1'}}, {name:{value:'col2'}}]
       }
     };
-    minimalProps.fields.aggregationLayouts.layoutList.addField = sinon.spy();
-    minimalProps.fields.aggregationLayouts.layoutList.removeField = sinon.spy();
+    minimalProps.fields.aggregationReflections.addField = sinon.spy();
+    minimalProps.fields.aggregationReflections.removeField = sinon.spy();
     commonProps = {
       ...minimalProps
     };
@@ -52,31 +48,20 @@ describe('AccelerationAggregation', () => {
     expect(wrap).to.have.length(1);
   });
 
-  it('should add new layout', () => {
+  it.skip('should add new layout', () => {
     const defaultLayout = {
+      enabled: true,
+      distributionFields: [],
+      partitionFields: [],
+      sortFields: [],
+      measureFields: [],
+      dimensionFields: [],
+      partitionDistributionStrategy: 'CONSOLIDATED',
+      shouldDelete: false,
       name: 'New Reflection',
-      details: {
-        dimensionFieldList: [],
-        measureFieldList: [],
-        partitionFieldList: [],
-        sortFieldList: [],
-        partitionDistributionStrategy: 'CONSOLIDATED'
-      }
+      type: 'AGGREGATION'
     };
     instance.addNewLayout();
-    expect(commonProps.fields.aggregationLayouts.layoutList.addField).to.have.been.calledWith(defaultLayout);
-  });
-
-  describe('removeLayout', () => {
-    it('should remove layout', () => {
-      instance.removeLayout(1);
-      expect(commonProps.fields.aggregationLayouts.layoutList.removeField).to.have.been.calledWith(1);
-    });
-
-    it('should not remove layout if we have only one layout', () => {
-      minimalProps.fields.aggregationLayouts.layoutList.length = 1;
-      instance.removeLayout(1);
-      expect(instance.props.fields.aggregationLayouts.layoutList.removeField.called).to.be.false;
-    });
+    expect(commonProps.fields.aggregationReflections.addField).to.have.been.calledWithMatch(defaultLayout);
   });
 });

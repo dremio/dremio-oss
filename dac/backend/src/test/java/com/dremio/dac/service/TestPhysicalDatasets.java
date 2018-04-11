@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import javax.ws.rs.client.Invocation;
 
 import org.apache.hadoop.fs.Path;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.util.FileUtils;
@@ -44,9 +45,9 @@ import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
@@ -71,8 +72,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
     clearAllDataExceptUser();
     final SourceService sourceService = newSourceService();
     {
-      final NASConfig nas = new NASConfig();
-      nas.setPath("/");
+      final NASConf nas = new NASConf();
+      nas.path = "/";
       SourceUI source = new SourceUI();
       source.setName("dacfs_test");
       source.setConfig(nas);
@@ -531,9 +532,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   @Test
+  @Ignore("DX-10523")
   public void testPhysicalDatasetSourceFiles() throws Exception {
-    final NASConfig config = new NASConfig();
-    config.setPath("");
+    final NASConf config = new NASConf();
+    config.path = "/";
     SourceUI source = new SourceUI();
     source.setName("src");
     source.setCtime(1000L);

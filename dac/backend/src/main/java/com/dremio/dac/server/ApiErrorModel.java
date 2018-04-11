@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,29 +15,46 @@
  */
 package com.dremio.dac.server;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
+
 /**
  * Structured type for including details about an error for the Rest API.
  *
  */
-public class ApiErrorModel extends GenericErrorMessage {
+public class ApiErrorModel<T> extends GenericErrorMessage {
+  /**
+   * Various error codes
+   */
+  public enum ErrorType {
+    INITIAL_PREVIEW_ERROR,
+    NEW_DATASET_QUERY_EXCEPTION,
+    INVALID_QUERY
+  }
 
   // error code
-  private String code;
+  private ErrorType code;
   // extra data specific to the particular code string added to this error
-  private Object details;
+  private T details;
 
-  public ApiErrorModel(String code, String message, String[] stackTrace, Object details) {
+  @JsonCreator
+  public ApiErrorModel(
+      @JsonProperty("code") ErrorType code,
+      @JsonProperty("message") String message,
+      @JsonProperty("stackTrace") String[] stackTrace,
+      @JsonProperty("details") T details) {
     // for null 2nd param, no generic moreInfo string as there is structured details
     super(message, null, stackTrace);
-    this.code = code;
+    this.code = Preconditions.checkNotNull(code);
     this.details = details;
   }
 
-  public String getCode() {
+  public ErrorType getCode() {
     return code;
   }
 
-  public Object getDetails() {
+  public T getDetails() {
     return details;
   }
 }

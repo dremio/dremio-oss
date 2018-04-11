@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,9 +29,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Key;
@@ -48,18 +46,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
-import org.apache.http.HttpVersion;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -72,15 +66,8 @@ import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
-import org.eclipse.jetty.server.HttpConfiguration;
-import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
@@ -111,17 +98,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+import com.dremio.exec.catalog.conf.AuthenticationType;
+import com.dremio.exec.catalog.conf.Host;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
 import com.dremio.plugins.elastic.ElasticActions.Result;
 import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.dremio.plugins.elastic.ElasticTestActions.AliasActionDef;
 import com.dremio.plugins.elastic.ElasticTestActions.Bulk;
 import com.dremio.plugins.elastic.ElasticTestActions.CreateAliases;
 import com.dremio.plugins.elastic.ElasticTestActions.CreateIndex;
 import com.dremio.plugins.elastic.ElasticTestActions.DeleteIndex;
 import com.dremio.plugins.elastic.ElasticTestActions.PutMapping;
-import com.dremio.plugins.elastic.util.ProxyServlet.Transparent;
+import com.dremio.plugins.elastic.util.ProxyServerFactory;
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
 import com.google.gson.JsonObject;
@@ -192,6 +183,8 @@ public class ElasticsearchCluster implements Closeable {
     }
     initClient();
 
+    // wait for cluster to come up before returning.
+    green();
   }
 
   private void initServer(int size, Boolean publishHost, Integer presetSSLPort){
@@ -248,15 +241,15 @@ public class ElasticsearchCluster implements Closeable {
 
   private void initClient() throws IOException {
 
-    final String hosts;
+    final List<Host> hosts;
     if(remote && nodes != null && nodes.length > 0 && nodes[0] != null){
       NodesInfoResponse response =  nodes[0].client().admin().cluster().prepareNodesInfo().execute().actionGet();
       TransportInfo info = response.getNodes()[0].getTransport();
       InetSocketTransportAddress inet = (InetSocketTransportAddress) info.address().publishAddress();
-      hosts = inet.address().getAddress().getHostAddress() + ":" + inet.address().getPort();
+      hosts = ImmutableList.of(new Host(inet.address().getAddress().getHostAddress(), inet.address().getPort()));
     } else {
       int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
-      hosts = "127.0.0.1:" + port;
+      hosts = ImmutableList.of(new Host("127.0.0.1", port));
     }
 
     this.pool = new ElasticConnectionPool(hosts, sslEnabled, null, null, 10000, false);
@@ -271,65 +264,7 @@ public class ElasticsearchCluster implements Closeable {
 
 
   private int setupSSLProxy(File keystoreFile, String password, String targetHost, int targetPort, Integer presetSSLPort) {
-    proxy = new Server();
-    logger.info("Setting up HTTPS connector for web server");
-
-    final SslContextFactory sslContextFactory = new SslContextFactory();
-
-    sslContextFactory.setKeyStorePath(keystoreFile.getAbsolutePath());
-    sslContextFactory.setKeyStorePassword(password);
-
-    // SSL Connector
-    final ServerConnector sslConnector = new ServerConnector(proxy,
-        new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.toString()),
-        new HttpConnectionFactory(new HttpConfiguration()));
-    // regular http connector if one needs to inspect the wire. Requires tweaking the ElasticsearchPlugin to use http
-//    final ServerConnector sslConnector = new ServerConnector(embeddedJetty,
-//        new HttpConnectionFactory(new HttpConfiguration()));
-    if (presetSSLPort != null) {
-      sslConnector.setPort(presetSSLPort);
-    }
-    proxy.addConnector(sslConnector);
-
-    // root handler with request logging
-    final RequestLogHandler rootHandler = new RequestLogHandler();
-    proxy.setHandler(rootHandler);
-
-    final ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-    servletContextHandler.setContextPath("/");
-    rootHandler.setHandler(servletContextHandler);
-
-    // error handler
-    Transparent proxyServlet = new Transparent("", targetHost, targetPort) {
-      @Override
-      public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
-        try {
-          HttpServletRequest hr = (HttpServletRequest) req;
-          logger.debug(format("incoming %s %s://%s:%s %s\n",
-              hr.getMethod(),
-              req.getScheme(),
-              req.getServerName(),
-              req.getServerPort(),
-              hr.getRequestURL()));
-          super.service(req, res);
-        } catch (Exception e) {
-          logger.error("can't proxy " + req, e);
-          throw new RuntimeException(e);
-        }
-      }
-      @Override
-      protected URL proxyHttpURL(String scheme, String serverName, int serverPort, String uri)
-          throws MalformedURLException {
-        URL result = super.proxyHttpURL("http", serverName, serverPort, uri);
-        logger.debug(format("Proxying %s://%s:%s%s to %s\n", scheme, serverName, serverPort, uri, result));
-        return result;
-      }
-
-    };
-    // Rest API
-    final ServletHolder restHolder = new ServletHolder(proxyServlet);
-    restHolder.setInitOrder(1);
-    servletContextHandler.addServlet(restHolder, "/*");
+    proxy = ProxyServerFactory.of(format("http://%s:%d", targetHost, targetPort), presetSSLPort != null ? presetSSLPort : 0, keystoreFile, password);
 
     try {
       proxy.start();
@@ -337,7 +272,7 @@ public class ElasticsearchCluster implements Closeable {
       throw new RuntimeException(e);
     }
 
-    int port = sslConnector.getLocalPort();
+    int port = ((ServerConnector) proxy.getConnectors()[0]).getLocalPort();
     logger.info("Proxy started on https://localhost:" + port);
     return port;
   }
@@ -421,28 +356,27 @@ public class ElasticsearchCluster implements Closeable {
    * Creates a storage plugin config with values suitable for creating
    * connections to the embedded elasticsearch cluster.
    */
-  public ElasticsearchStoragePluginConfig config() {
+  public ElasticStoragePluginConfig config() {
 
-    String hosts = "";
-    int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
-    hosts = "127.0.0.1:" + port;
+    final int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
 
-    ElasticsearchStoragePluginConfig config = new ElasticsearchStoragePluginConfig(
-        hosts,
-        scrollSize,
-        DEFAULT_SCROLL_TIMEOUT_MILLIS,
-        DEFAULT_READ_TIMEOUT_MILLIS,
-        false, /* show hidden schema */
-        scriptsEnabled,
-        true,
-        showIDColumn,
+    ElasticStoragePluginConfig config = new ElasticStoragePluginConfig(
+        ImmutableList.<Host>of(new Host("127.0.0.1", port)),
         null, /* username */
         null, /* password */
+        AuthenticationType.ANONYMOUS,
+        scriptsEnabled, /* Scripts enabled */
+        false, /* Show Hidden Indices */
         sslEnabled,
-        false,
-        false
+        showIDColumn,
+        DEFAULT_READ_TIMEOUT_MILLIS,
+        DEFAULT_SCROLL_TIMEOUT_MILLIS,
+        true, /* use painless */
+        false, /* use whitelist */
+        scrollSize,
+        false, /* allow group by on normalized fields */
+        false /* warn on row count mismatch */
         );
-
     return config;
   }
 
@@ -733,6 +667,8 @@ public class ElasticsearchCluster implements Closeable {
       fail(response.toString());
     }
 
+    // ensure that we wait for any new shards to be initialized.
+    green();
     logger.info("--> indexed [{}] test documents", data.length);
   }
 
@@ -905,6 +841,7 @@ public class ElasticsearchCluster implements Closeable {
 
       createIndex.getResult(webTarget);
     }
+
     green();
   }
 
@@ -925,6 +862,23 @@ public class ElasticsearchCluster implements Closeable {
     for (String schema : schemas) {
       createAliases.addAlias(schema, alias, filter);
     }
+    createAliases.getResult(webTarget);
+    green();
+  }
+
+  public void alias(List<AliasActionDef> aliasActions) {
+    CreateAliases createAliases = new CreateAliases();
+    for (AliasActionDef aliasAction : aliasActions) {
+      switch (aliasAction.actionType) {
+      case ADD:
+        createAliases.addAlias(aliasAction.index, aliasAction.alias);
+        break;
+      case REMOVE:
+        createAliases.removeAlias(aliasAction.index, aliasAction.alias);
+        break;
+      }
+    }
+
     createAliases.getResult(webTarget);
     green();
   }

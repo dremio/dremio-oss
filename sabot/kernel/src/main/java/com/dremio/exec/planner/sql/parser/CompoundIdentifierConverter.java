@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -169,13 +169,15 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlOrderBy.class, R(D, E, D, D));
     rules.put(SqlDropTable.class, R(D, D));
     rules.put(SqlSetOption.class, R(D, D, D));
-    rules.put(SqlAccelEnable.class, R(D));
-    rules.put(SqlAccelDisable.class, R(D));
-    rules.put(SqlAddLayout.class, R(D,D,D,D,D,D,D,D,D,D));
-    rules.put(SqlDropLayout.class, R(D,D));
+    rules.put(SqlCreateReflection.class, R(D,D,D,D,D,D,D,D,D,D));
+    rules.put(SqlDropReflection.class, R(D,D));
     rules.put(SqlAccelToggle.class, R(D,D, D));
     rules.put(SqlForgetTable.class, R(D));
     rules.put(SqlRefreshTable.class, R(D));
+    rules.put(SqlAddExternalReflection.class, R(D,D,D));
+    rules.put(SqlRefreshReflection.class, R(D,D,D));
+    rules.put(SqlRefreshSourceStatus.class, R(D));
+    rules.put(SqlLoadMaterialization.class, R(D));
 
     REWRITE_RULES = ImmutableMap.copyOf(rules);
   }

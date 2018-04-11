@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,11 @@ export default function FormDirtyStateWatcher(Form) {
       // todo: remove its usage when redux form will be updated to v6
       const areFieldsEqual = (a, b) => Immutable.fromJS(a).equals(Immutable.fromJS(b));
       return Object.keys(nextProps.values).some((field) => {
+        // allow skipping of dirty check for certain fields
+        if (nextProps.skipDirtyFields && nextProps.skipDirtyFields.includes(field)) {
+          return false;
+        }
+
         if (!Array.isArray(nextProps.values[field])) return false;
 
         const currentValue = nextProps.values[field];

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -257,6 +257,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
           DatasetConfig updatedDatasetConfig = updateDatasetField(oldDatasetConfig, column.getOriginField(), typedFieldId.getFinalType());
 
+          // TODO: retry on ConcurrentModificationException, or consolidate with logic in NamespaceUpdater
           context.getNamespaceService().addOrUpdateDataset(key, updatedDatasetConfig);
         } catch (NamespaceException e) {
           // datasetConfig should already be in the namespace store, if we get a NamespaceException then something went wrong

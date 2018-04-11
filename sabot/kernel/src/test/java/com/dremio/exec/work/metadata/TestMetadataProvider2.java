@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public class TestMetadataProvider2 extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(121, columns1.size());
+    assertEquals(142, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
         FluentIterable.from(columns1)
             .filter(new Predicate<ColumnMetadata>() {
@@ -57,7 +57,7 @@ public class TestMetadataProvider2 extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp2.getStatus());
 
     final List<ColumnMetadata> columns2 = resp2.getColumnsList();
-    assertEquals(129, columns2.size());
+    assertEquals(150, columns2.size());
     assertTrue("incremental update column shouldn't be returned",
         FluentIterable.from(columns2)
             .filter(new Predicate<ColumnMetadata>() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
@@ -41,12 +40,12 @@ public class AvroFormatPlugin extends EasyFormatPlugin<AvroFormatConfig> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AvroFormatPlugin.class);
 
-  public AvroFormatPlugin(String name, SabotContext context, StoragePluginConfig storagePluginConfig, FileSystemPlugin fsPlugin) {
-    this(name, context, storagePluginConfig, new AvroFormatConfig(), fsPlugin);
+  public AvroFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin) {
+    this(name, context, new AvroFormatConfig(), fsPlugin);
   }
 
-  public AvroFormatPlugin(String name, SabotContext context, StoragePluginConfig config, AvroFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
-    super(name, context, config, formatPluginConfig, true, false, true, false, Lists.newArrayList("avro"), "avro", fsPlugin);
+  public AvroFormatPlugin(String name, SabotContext context, AvroFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
+    super(name, context, formatPluginConfig, true, false, true, false, Lists.newArrayList("avro"), "avro", fsPlugin);
   }
 
   @Override

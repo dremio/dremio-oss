@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,34 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { Toggle } from 'components/Fields';
+
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
-import {getUniqueName} from 'utils/pathUtils';
+import {createReflectionFormValues} from 'utils/accelerationUtils';
+
 import { commonStyles } from '../commonStyles';
 import AccelerationGridController from './AccelerationGridController';
 
 export default class AccelerationRaw extends Component {
   static propTypes = {
-    acceleration: PropTypes.instanceOf(Immutable.Map),
+    dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
+    reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object
   };
 
   static getFields() {
     return [
-      'rawLayouts.layoutList[].id',
-      'rawLayouts.layoutList[].name',
-      'rawLayouts.layoutList[].details.partitionDistributionStrategy',
-      'rawLayouts.layoutList[].details.partitionFieldList[].name',
-      'rawLayouts.layoutList[].details.sortFieldList[].name',
-      'rawLayouts.layoutList[].details.displayFieldList[].name',
-      'rawLayouts.layoutList[].details.distributionFieldList[].name'
+      'rawReflections[].id',
+      'rawReflections[].tag',
+      'rawReflections[].type',
+      'rawReflections[].name',
+      'rawReflections[].enabled',
+      'rawReflections[].partitionDistributionStrategy',
+      'rawReflections[].partitionFields[].name',
+      'rawReflections[].sortFields[].name',
+      'rawReflections[].displayFields[].name',
+      'rawReflections[].distributionFields[].name',
+      'rawReflections[].shouldDelete'
     ];
   }
 
@@ -45,42 +51,23 @@ export default class AccelerationRaw extends Component {
     return {};
   }
 
-
   addNewLayout = () => {
-    const { rawLayouts } = this.props.fields;
-    const name = getUniqueName(la('New Reflection'), proposedName => {
-      return !rawLayouts.layoutList.some(layout => layout.name.value === proposedName);
-    });
+    const { rawReflections } = this.props.fields;
 
-    rawLayouts.layoutList.addField({
-      name,
-      details: {
-        displayFieldList: [],
-        partitionFieldList: [],
-        sortFieldList: [],
-        partitionDistributionStrategy: 'CONSOLIDATED'
-      }
-    });
-  }
+    const reflection = createReflectionFormValues({
+      type: 'RAW'
+    }, rawReflections.map(e => e.name.value));
 
-  removeLayout = columnIndex => {
-    const { rawLayouts } = this.props.fields;
-    if (rawLayouts.layoutList.length > 1) {
-      rawLayouts.layoutList.removeField(columnIndex);
-    }
+    rawReflections.addField(reflection);
   }
 
   renderHeader = () => {
-    const { enabled } = this.props.fields.rawLayouts;
-    const toggleLabel = (
-      <h3 style={commonStyles.toggleLabel}>
-        <FontIcon type='RawMode' theme={commonStyles.iconTheme}/>
-        {la('Raw Reflections')}
-      </h3>
-    );
     return (
       <div style={commonStyles.header}>
-        <Toggle {...enabled} label={toggleLabel} style={commonStyles.toggle}/>
+        <h3 style={commonStyles.toggleLabel}>
+          <FontIcon type='RawMode' theme={commonStyles.iconTheme}/>
+          {la('Raw Reflections')}
+        </h3>
         <SimpleButton
           onClick={this.addNewLayout}
           buttonStyle='secondary'
@@ -91,15 +78,16 @@ export default class AccelerationRaw extends Component {
   }
 
   render() {
-    const {acceleration, fields: {rawLayouts}} = this.props;
+    const {dataset, reflections, fields: {rawReflections}} = this.props;
     return (
       <div style={styles.base}>
         {this.renderHeader()}
         <AccelerationGridController
-          acceleration={acceleration}
-          layoutFields={rawLayouts.layoutList}
+          dataset={dataset}
+          reflections={reflections}
+          layoutFields={rawReflections}
           activeTab='raw'
-          removeLayout={this.removeLayout}/>
+          />
       </div>
     );
   }

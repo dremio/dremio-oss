@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ export class InnerComplexForm extends Component {
   render() {
     const {fields, error, children, handleSubmit, onSubmit} = this.props;
 
-    // declare POST in case something goes terribly wrong and the browser handles the form
+    // declare POST so that in case something goes terribly wrong and the browser handles the form
     // we don't put the params in the user-visible URL (e.g. the password when logging in)
     // (chris saw this once!)
     return (
@@ -49,7 +49,7 @@ export class InnerComplexForm extends Component {
           messageId={error.id}/>}
 
         {React.Children.map(children, (child) => {
-          return React.cloneElement(child, { fields, handleSubmit });
+          return React.cloneElement(child, { fields, handleSubmit, error });
         })}
       </form>
     );

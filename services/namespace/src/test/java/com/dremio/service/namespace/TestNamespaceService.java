@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET;
-import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -37,7 +36,9 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -57,8 +58,8 @@ import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.proto.LegacySourceType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -75,6 +76,9 @@ import io.protostuff.ByteString;
 public class TestNamespaceService {
   private static final long REFRESH_PERIOD_MS = TimeUnit.HOURS.toMillis(24);
   private static final long GRACE_PERIOD_MS = TimeUnit.HOURS.toMillis(48);
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSources() throws Exception {
@@ -239,7 +243,7 @@ public class TestNamespaceService {
     final SourceConfig src = new SourceConfig()
       .setName(name)
       .setCtime(100L)
-      .setType(SourceType.NAS)
+      .setLegacySourceTypeEnum(LegacySourceType.NAS)
       .setAccelerationRefreshPeriod(refreshPeriod)
       .setAccelerationGracePeriod(gracePeriod);
     ns.addOrUpdateSource(new NamespaceKey(name), src);
@@ -490,6 +494,8 @@ public class TestNamespaceService {
     }
   }
 
+  // rewrite this as a reflection test
+/*
   @Test
   public void testPhysicalDataset() throws Exception {
     try(
@@ -563,6 +569,7 @@ public class TestNamespaceService {
 //      assertEquals(0, ns.listPhysicalDatasets(new NamespaceKey(PathUtils.parseFullPath("src2.\"a.json\""))).size());
     }
   }
+*/
 
   @Test
   public void testDataSetSchema() throws Exception {
@@ -725,13 +732,8 @@ public class TestNamespaceService {
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       addSpace(ns, "a");
 
-      // now try to add a source with same name
-      try {
-        addSource(ns, "a");
-        fail("Expected the above call to fail");
-      } catch (UserException ex) {
-        assertTrue(ex.getMessage().contains("There already exists an entity of type [SPACE] at given path [a]"));
-      }
+      thrown.expect(ConcurrentModificationException.class);
+      addSource(ns, "a");
 
       addFolder(ns, "a.foo");
 
@@ -852,7 +854,7 @@ public class TestNamespaceService {
       final NamespaceServiceImpl ns = new NamespaceServiceImpl(kvstore);
 
       try {
-        ns.deleteEntity(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, 123L);
+        ns.deleteEntity(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, 123L, true);
         fail("deleteEntity should have failed.");
       } catch(NamespaceNotFoundException e) {
         // Expected

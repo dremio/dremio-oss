@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -228,7 +228,8 @@ class DatasetStateMutator {
     Set<String> tableNames = getReferredTables(virtualDatasetState);
     String name = newTableName(tableNames);
 
-    VirtualDatasetState newState = new VirtualDatasetState(new FromSubQuery(name, virtualDatasetState).wrap());
+    VirtualDatasetState newState = new VirtualDatasetState()
+        .setFrom(new FromSubQuery(name, virtualDatasetState).wrap());
     List<Column> columns = getColumns();
     List<Column> newColumnsList = new ArrayList<>();
     for (Column column : columns) {

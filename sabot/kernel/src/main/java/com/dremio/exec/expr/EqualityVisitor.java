@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -250,8 +250,36 @@ class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,Runt
   public Boolean visitUnknown(LogicalExpression e, LogicalExpression value) throws RuntimeException {
     if (e instanceof ValueVectorReadExpression && value instanceof ValueVectorReadExpression) {
       return visitValueVectorReadExpression((ValueVectorReadExpression) e, (ValueVectorReadExpression) value);
+    } else if (e instanceof InExpression && value instanceof InExpression) {
+      return visitInExpression((InExpression) e, (InExpression) value);
     }
     return false;
+  }
+
+  /**
+   * An in expression is equal if it has the same eval block and equal constants.
+   */
+  private Boolean visitInExpression(InExpression e1, InExpression e2) {
+    if(!e1.getEval().accept(this, e2)) {
+      return false;
+    }
+
+    if(e1.getConstants().size() != e2.getConstants().size()) {
+      return false;
+    }
+    final List<LogicalExpression> le1 = e1.getConstants();
+    final List<LogicalExpression> le2 = e2.getConstants();
+    final int size = le1.size();
+
+    for(int i = 0; i < size; i++) {
+      LogicalExpression se1 = le1.get(i);
+      LogicalExpression se2 = le2.get(i);
+      if(!se1.accept(this, se2)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private Boolean visitValueVectorReadExpression(ValueVectorReadExpression e, ValueVectorReadExpression value) {

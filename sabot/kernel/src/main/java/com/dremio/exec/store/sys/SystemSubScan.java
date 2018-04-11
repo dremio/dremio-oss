@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSubScan;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -28,27 +29,35 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.Iterables;
 
 @JsonTypeName("sys")
 public class SystemSubScan extends AbstractSubScan {
 
   private final List<SchemaPath> columns;
   private final SystemTable table;
+  private final StoragePluginId pluginId;
 
   @JsonCreator
   public SystemSubScan(
       @JsonProperty("table") SystemTable table,
-      @JsonProperty("columns") List<SchemaPath> columns
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("pluginId") StoragePluginId pluginId
       ) {
     super(null, table.getSchema(), Arrays.asList("sys", table.getTableName()));
     this.columns = columns;
     this.table = table;
+    this.pluginId = pluginId;
   }
 
   @Override
   @JsonIgnore
   public int getOperatorType() {
     return CoreOperatorType.SYSTEM_TABLE_SCAN_VALUE;
+  }
+
+  public StoragePluginId getPluginId() {
+    return pluginId;
   }
 
   public SystemTable getTable() {
@@ -79,7 +88,7 @@ public class SystemSubScan extends AbstractSubScan {
 
   @Override
   public String toString(){
-    return new NamespaceKey(getTableSchemaPath()).toString();
+    return new NamespaceKey(Iterables.getOnlyElement(getReferencedTables())).toString();
   }
 
 }

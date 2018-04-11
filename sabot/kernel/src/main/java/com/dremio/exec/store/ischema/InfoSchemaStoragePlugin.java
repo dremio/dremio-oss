@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,12 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -38,9 +37,7 @@ import com.google.common.collect.ImmutableSet;
 import io.protostuff.ByteString;
 
 public class InfoSchemaStoragePlugin implements StoragePlugin {
-
-  static StoragePluginType TYPE = new StoragePluginType("ischema", InfoSchemaRulesFactory.class);
-  static StoragePluginId ID = new StoragePluginId("ischema", InfoSchemaConfig.INSTANCE, TYPE);
+  public static String NAME = "INFORMATION_SCHEMA";
 
   static final ImmutableSet<String> TABLES = FluentIterable.of(InfoSchemaTable.values()).transform(new Function<InfoSchemaTable, String>(){
     @Override
@@ -56,8 +53,8 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
 
   private final SabotContext context;
 
-  public InfoSchemaStoragePlugin(InfoSchemaConfig config, SabotContext context, String name) {
-    Preconditions.checkArgument("INFORMATION_SCHEMA".equals(name));
+  public InfoSchemaStoragePlugin(SabotContext context, String name) {
+    Preconditions.checkArgument(NAME.equals(name));
     this.context = context;
   }
 
@@ -70,7 +67,7 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
     return FluentIterable.of(InfoSchemaTable.values()).transform(new Function<InfoSchemaTable, SourceTableDefinition>(){
       @Override
       public SourceTableDefinition apply(InfoSchemaTable input) {
-        return input.asTableDefinition();
+        return input.asTableDefinition(null);
       }});
   }
 
@@ -82,7 +79,7 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
 
     InfoSchemaTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
     if(table != null) {
-      return table.asTableDefinition();
+      return table.asTableDefinition(oldDataset);
     }
 
     return null;
@@ -109,18 +106,13 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public StoragePluginId getId() {
-    return ID;
-  }
-
-  @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return null;
   }
 
   @Override
-  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
-    return null;
+  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
+    return InfoSchemaRulesFactory.class;
   }
 
   @Override
@@ -136,5 +128,9 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
   public void start() {
   }
 
+  @Override
+  public SourceCapabilities getSourceCapabilities() {
+    return SourceCapabilities.NONE;
+  }
 
 }

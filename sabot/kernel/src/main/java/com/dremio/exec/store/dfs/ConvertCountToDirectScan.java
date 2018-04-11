@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.common.JSONOptions;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.ProjectRel;
@@ -44,7 +45,6 @@ import com.dremio.exec.planner.physical.ValuesPrel;
 import com.dremio.exec.store.parquet.ParquetDatasetXAttrSerDe;
 import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonOutput;
-import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.file.proto.ColumnValueCount;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -81,26 +81,26 @@ public class ConvertCountToDirectScan extends Prule {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private final StoragePluginType type;
+  private final SourceType type;
   private final int scanIndex;
 
-  public static ConvertCountToDirectScan getAggProjOnScan(StoragePluginType type){
+  public static ConvertCountToDirectScan getAggProjOnScan(SourceType type){
     return new ConvertCountToDirectScan(
         RelOptHelper.some(AggregateRel.class, RelOptHelper.some(ProjectRel.class, RelOptHelper.any(FilesystemScanDrel.class))),
-        type.generateRuleName("Agg_on_proj_on_scan"),
+        type.value() + "Agg_on_proj_on_scan",
         2,
         type);
   }
 
-  public static ConvertCountToDirectScan getAggOnScan(StoragePluginType type){
+  public static ConvertCountToDirectScan getAggOnScan(SourceType type){
     return new ConvertCountToDirectScan(
         RelOptHelper.some(AggregateRel.class, RelOptHelper.any(FilesystemScanDrel.class)),
-        type.generateRuleName("Agg_on_scan"),
+        type.value() + "Agg_on_scan",
         1,
         type);
   }
 
-  private ConvertCountToDirectScan(RelOptRuleOperand rule, String id, int scanIndex, StoragePluginType type) {
+  private ConvertCountToDirectScan(RelOptRuleOperand rule, String id, int scanIndex, SourceType type) {
     super(rule, "ConvertCountToDirectScan:" + id);
     this.type = type;
     this.scanIndex = scanIndex;

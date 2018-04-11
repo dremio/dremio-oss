@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getViewState } from 'selectors/resources';
-import { getCreatedSource } from 'selectors/resources';
+import { getCreatedSource, getViewState } from 'selectors/resources';
 import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 import { VIEW_ID } from 'pages/HomePage/components/modals/EditSourceView';
@@ -28,8 +27,8 @@ export const mapStateToProps = (state) => {
     viewState: getViewState(state, VIEW_ID),
     source: createdSource,
     initialFormValues: {
-      accelerationRefreshPeriod: createdSource && createdSource.toJS().accelerationRefreshPeriod || DataFreshnessSection.defaultFormValueRefreshInterval(),
-      accelerationGracePeriod: createdSource && createdSource.toJS().accelerationGracePeriod || DataFreshnessSection.defaultFormValueGracePeriod(),
+      accelerationRefreshPeriod: createdSource && createdSource.has('accelerationRefreshPeriod') ? createdSource.get('accelerationRefreshPeriod') : DataFreshnessSection.defaultFormValueRefreshInterval(),
+      accelerationGracePeriod: createdSource && createdSource.has('accelerationGracePeriod') ? createdSource.get('accelerationGracePeriod') : DataFreshnessSection.defaultFormValueGracePeriod(),
       metadataPolicy: MetadataRefresh.mapToFormFields(createdSource)
     }
   };

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import ExpandIcon from 'components/ExpandIcon';
 @Radium
 export default class JobErrorLog extends Component {
   static propTypes = {
-    error: PropTypes.string
+    failureInfo: PropTypes.object.isRequired
   }
 
   constructor(props) {
@@ -39,9 +39,17 @@ export default class JobErrorLog extends Component {
   }
 
   render() {
-    const { error } = this.props;
+    const { failureInfo } = this.props;
     const { expanded } = this.state;
     const expandedStyle = expanded ? { maxHeight: 'none' } : {};
+
+    let error = failureInfo.get('message');
+
+    if (failureInfo.has('errors') && failureInfo.get('errors').size > 0) {
+      // errors is a list, get the first
+      error = failureInfo.get('errors').get(0).get('message');
+    }
+
     return (
       <div style={styles.base}>
         <div style={[styles.messageContent, expandedStyle]}>

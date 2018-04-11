@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import org.apache.htrace.fasterxml.jackson.annotation.JsonCreator;
 
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.store.StoragePluginConfig;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
@@ -99,7 +98,6 @@ public class FileSystemConfig extends StoragePluginConfig {
     }
   }
 
-  @JsonIgnore
   public URI getUri() {
     return uri;
   }

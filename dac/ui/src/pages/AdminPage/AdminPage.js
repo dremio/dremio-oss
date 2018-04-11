@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ import config from 'utils/config';
 
 import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
+import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
 
 import AdminPageView from './AdminPageView';
 import './AdminPage.less';
-
 
 @pureRender
 class AdminPage extends Component {
@@ -42,7 +42,8 @@ class AdminPage extends Component {
     return Immutable.fromJS([
       { name: la('Node Activity'), url: '/admin/nodeActivity' },
       { name: la('Provisioning'), url: '/admin/provisioning' },
-      Acceleration && { name: la('Acceleration'), url: '/admin/acceleration' },
+      Votes && { name: la('Dataset Votes'), url: '/admin/votes' },
+      Acceleration && { name: la('Reflections'), url: '/admin/acceleration' },
       config.showUserAndUserProperties && { name: la('Users'), url: '/admin/users' },
       Roles && { name: la('Administrators'), url: '/admin/roles' },
       { name: la('Support Settings'), url: '/admin/support' },

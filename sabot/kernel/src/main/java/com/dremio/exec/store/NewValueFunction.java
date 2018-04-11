@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ public class NewValueFunction {
       } else {
         out.value = 1; // it's a new partition
         if (in.isSet == 1) { // copy the partition's value in previous holder
-          previous.buffer = buf.reallocIfNeeded(in.end - in.start);
+          previous.buffer = buf = buf.reallocIfNeeded(in.end - in.start);
           previous.buffer.setBytes(0, in.buffer, in.start, in.end - in.start);
           previous.end = in.end - in.start;
         }
@@ -105,7 +105,7 @@ public class NewValueFunction {
       } else {
         out.value = 1; // it's a new partition
         if (in.isSet == 1) { // copy the partition's value in previous holder
-          previous.buffer = buf.reallocIfNeeded(in.end - in.start);
+          previous.buffer = buf = buf.reallocIfNeeded(in.end - in.start);
           previous.buffer.setBytes(0, in.buffer, in.start, in.end - in.start);
           previous.end = in.end - in.start;
         }

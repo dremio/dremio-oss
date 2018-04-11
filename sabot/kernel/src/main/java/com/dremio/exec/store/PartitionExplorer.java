@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 package com.dremio.exec.store;
 
 import java.util.List;
+
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * Exposes partition information to UDFs to allow queries to limit reading
@@ -83,7 +85,7 @@ public interface PartitionExplorer {
    * Note to future devs, keep this doc in sync with
    * {@link SchemaPartitionExplorer}.
    *
-   * @param schema schema path, can be complete or relative to the default schema
+   * @param table table the table to interrogate
    * @param partitionColumns a list of partitions to match
    * @param partitionValues list of values of each partition (corresponding
    *                        to the partition column list)
@@ -92,9 +94,13 @@ public interface PartitionExplorer {
    * @throws PartitionNotFoundException when the partition does not exist in
    *          the given workspace
    */
-  Iterable<String> getSubPartitions(String schema,
-                                    String table,
+  Iterable<String> getSubPartitions(NamespaceKey table,
                                     List<String> partitionColumns,
                                     List<String> partitionValues)
+      throws PartitionNotFoundException;
+
+  Iterable<String> getSubPartitions(String schema, String table,
+      List<String> partitionColumns,
+      List<String> partitionValues)
       throws PartitionNotFoundException;
 }

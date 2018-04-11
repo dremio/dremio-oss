@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,19 @@
 package com.dremio.dac.daemon;
 
 import javax.inject.Provider;
+import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
+import com.dremio.dac.model.usergroup.UserName;
+import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.Service;
 import com.dremio.service.jobs.JobsService;
@@ -38,13 +41,13 @@ import com.dremio.service.users.UserService;
  */
 public class SampleDataPopulatorService implements Service {
   private final Provider<SabotContext> contextProvider;
-  private final Provider<StoragePluginRegistry> storagePlugin;
   private final Provider<UserService> userService;
-  private final Provider<SourceToStoragePluginConfig> sourceToStorage;
   private final Provider<KVStoreProvider> kvStore;
   private final Provider<InitializerRegistry> init;
   private final Provider<JobsService> jobsService;
   private final Provider<CatalogService> catalogService;
+  private final Provider<ReflectionServiceHelper> reflectionHelper;
+  private final Provider<ConnectionReader> connectionReader;
 
   private SampleDataPopulator sample;
 
@@ -52,24 +55,23 @@ public class SampleDataPopulatorService implements Service {
   private final boolean addDefaultUser;
 
   public SampleDataPopulatorService(
-      Provider<SabotContext> contextProvider,
-      Provider<StoragePluginRegistry> storagePlugin,
-      Provider<KVStoreProvider> kvStore,
-      Provider<SourceToStoragePluginConfig> sourceToStorage,
-      Provider<UserService> userService,
-      Provider<InitializerRegistry> init,
-      Provider<JobsService> jobsService,
-      Provider<CatalogService> catalogService,
-      boolean prepopulate,
-      boolean addDefaultUser) {
+    Provider<SabotContext> contextProvider,
+    Provider<KVStoreProvider> kvStore,
+    Provider<UserService> userService,
+    Provider<InitializerRegistry> init,
+    Provider<JobsService> jobsService,
+    Provider<CatalogService> catalogService,
+    Provider<ReflectionServiceHelper> reflectionHelper,
+    Provider<ConnectionReader> connectionReader, boolean prepopulate,
+    boolean addDefaultUser) {
     this.contextProvider = contextProvider;
-    this.storagePlugin = storagePlugin;
     this.kvStore = kvStore;
-    this.sourceToStorage = sourceToStorage;
     this.userService = userService;
     this.init = init;
     this.jobsService = jobsService;
     this.catalogService = catalogService;
+    this.reflectionHelper = reflectionHelper;
+    this.connectionReader = connectionReader;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
   }
@@ -84,8 +86,10 @@ public class SampleDataPopulatorService implements Service {
     }
 
     if (prepopulate) {
-      final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get());
-      final SourceService ss = new SourceService(storagePlugin.get(), ns, sourceToStorage.get(), data, catalogService.get());
+      final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get(),
+        catalogService.get());
+      SecurityContext context = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+      final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionHelper.get(), connectionReader.get(), context);
       sample = new SampleDataPopulator(
           contextProvider.get(),
           ss,

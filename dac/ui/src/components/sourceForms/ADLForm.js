@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import SourceProperties from 'components/Forms/SourceProperties';
 import { getCreatedSource } from 'selectors/resources';
 
 import { ADL } from 'dyn-load/constants/sourceTypes';
+import PasswordField from '../Fields/PasswordField';
 
 const SECTIONS = [General, SourceProperties, MetadataRefresh];
 
@@ -96,7 +97,7 @@ export class ADLForm extends Component {
                 </div>
                 <div style={formRow}>
                   <FieldWithError label={la('Password')} {...fields.config.clientKeyPassword}>
-                    <TextField {...fields.config.clientKeyPassword}/>
+                    <PasswordField {...fields.config.clientKeyPassword}/>
                   </FieldWithError>
                 </div>
               </div>

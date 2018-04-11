@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ export class ExploreTableController extends Component {
     isResizeInProgress: PropTypes.bool,
     children: PropTypes.node,
     getTableHeight: PropTypes.func,
+    shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
 
     // Actions
     runTableTransform: PropTypes.func,
@@ -368,7 +369,8 @@ export class ExploreTableController extends Component {
           isDumbTable={this.props.isDumbTable}
           getTableHeight={this.props.getTableHeight}
           location={this.props.location}
-          isGrayed={this.state.isGrayed}/>
+          isGrayed={this.state.isGrayed}
+          shouldRenderInvisibles={this.props.shouldRenderInvisibles}/>
         {this.renderExploreCellLargeOverlay()}
         {this.state.activeTextSelect &&
           <DropdownForSelectedText

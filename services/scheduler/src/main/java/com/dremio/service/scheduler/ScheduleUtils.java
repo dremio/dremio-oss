@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,10 +43,10 @@ public final class ScheduleUtils {
   /**
    * Create a schedule to run a task exactly once at the given time.
    *
-   * @param timeInMillis time in millis
+   * @param instant the task will run
    * @return schedule with the time in millis
    */
-  public static Schedule scheduleForRunningOnceAt(final long timeInMillis) {
+  public static Schedule scheduleForRunningOnceAt(final Instant instant) {
     return new Schedule() {
       @Override
       public TemporalAmount getPeriod() {
@@ -55,7 +55,7 @@ public final class ScheduleUtils {
 
       @Override
       public Iterator<Instant> iterator() {
-        return Collections.singletonList(Instant.ofEpochMilli(timeInMillis))
+        return Collections.singletonList(instant)
             .iterator();
       }
     };

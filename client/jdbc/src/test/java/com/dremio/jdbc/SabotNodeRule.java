@@ -24,6 +24,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotNode;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
@@ -69,7 +70,7 @@ public class SabotNodeRule extends ExternalResource {
     node.run();
 
     final String tmpDirPath = temporaryFolder.newFolder().getPath();
-    TestUtilities.updateDfsTestTmpSchemaLocation(node.getContext().getStorage(), tmpDirPath);
+    TestUtilities.addDefaultTestPlugins(node.getBindingProvider().lookup(CatalogService.class), tmpDirPath);
 
     super.before();
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@ package com.dremio.exec.vector.complex;
 
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 
+import org.apache.arrow.vector.complex.impl.ComplexCopier;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.complex.writer.FieldWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.types.TypeProtos.DataMode;
-import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
 import com.dremio.exec.expr.fn.impl.MappifyUtility;
 
 public class MapUtility {
@@ -38,149 +37,67 @@ public class MapUtility {
   public static void writeToMapFromReader(FieldReader fieldReader, BaseWriter.MapWriter mapWriter) {
     try {
       MinorType valueMinorType = getMinorTypeFromArrowMinorType(fieldReader.getMinorType());
-      MajorType valueMajorType = Types.optional(valueMinorType);
-      boolean repeated = false;
-
-      if (valueMajorType.getMode() == DataMode.REPEATED) {
-        repeated = true;
-      }
 
       switch (valueMinorType) {
         case TINYINT:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).tinyInt());
-          } else {
-            fieldReader.copyAsValue(mapWriter.tinyInt(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.tinyInt(MappifyUtility.fieldValue));
           break;
         case SMALLINT:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).smallInt());
-          } else {
-            fieldReader.copyAsValue(mapWriter.smallInt(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.smallInt(MappifyUtility.fieldValue));
           break;
         case BIGINT:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).bigInt());
-          } else {
-            fieldReader.copyAsValue(mapWriter.bigInt(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.bigInt(MappifyUtility.fieldValue));
           break;
         case INT:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).integer());
-          } else {
-            fieldReader.copyAsValue(mapWriter.integer(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.integer(MappifyUtility.fieldValue));
           break;
         case UINT1:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).uInt1());
-          } else {
-            fieldReader.copyAsValue(mapWriter.uInt1(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt1(MappifyUtility.fieldValue));
           break;
         case UINT2:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).uInt2());
-          } else {
-            fieldReader.copyAsValue(mapWriter.uInt2(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt2(MappifyUtility.fieldValue));
           break;
         case UINT4:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).uInt4());
-          } else {
-            fieldReader.copyAsValue(mapWriter.uInt4(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt4(MappifyUtility.fieldValue));
           break;
         case UINT8:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).uInt8());
-          } else {
-            fieldReader.copyAsValue(mapWriter.uInt8(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt8(MappifyUtility.fieldValue));
           break;
         case DATE:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).dateMilli());
-          } else {
-            fieldReader.copyAsValue(mapWriter.dateMilli(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.dateMilli(MappifyUtility.fieldValue));
           break;
         case TIME:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).timeMilli());
-          } else {
-            fieldReader.copyAsValue(mapWriter.timeMilli(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.timeMilli(MappifyUtility.fieldValue));
           break;
         case TIMESTAMP:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).timeStampMilli());
-          } else {
-            fieldReader.copyAsValue(mapWriter.timeStampMilli(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.timeStampMilli(MappifyUtility.fieldValue));
           break;
         case INTERVALDAY:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).intervalDay());
-          } else {
-            fieldReader.copyAsValue(mapWriter.intervalDay(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.intervalDay(MappifyUtility.fieldValue));
           break;
         case INTERVALYEAR:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).intervalYear());
-          } else {
-            fieldReader.copyAsValue(mapWriter.intervalYear(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.intervalYear(MappifyUtility.fieldValue));
           break;
         case FLOAT4:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).float4());
-          } else {
-            fieldReader.copyAsValue(mapWriter.float4(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.float4(MappifyUtility.fieldValue));
           break;
         case FLOAT8:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).float8());
-          } else {
-            fieldReader.copyAsValue(mapWriter.float8(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.float8(MappifyUtility.fieldValue));
           break;
         case BIT:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).bit());
-          } else {
-            fieldReader.copyAsValue(mapWriter.bit(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.bit(MappifyUtility.fieldValue));
           break;
         case VARCHAR:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).varChar());
-          } else {
-            fieldReader.copyAsValue(mapWriter.varChar(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.varChar(MappifyUtility.fieldValue));
           break;
         case VARBINARY:
-          if (repeated) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).varBinary());
-          } else {
-            fieldReader.copyAsValue(mapWriter.varBinary(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.varBinary(MappifyUtility.fieldValue));
           break;
         case MAP:
-          if (valueMajorType.getMode() == DataMode.REPEATED) {
-            fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).map());
-          } else {
-            fieldReader.copyAsValue(mapWriter.map(MappifyUtility.fieldValue));
-          }
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.map(MappifyUtility.fieldValue));
           break;
         case LIST:
-          fieldReader.copyAsValue(mapWriter.list(MappifyUtility.fieldValue).list());
+          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.list(MappifyUtility.fieldValue));
           break;
         default:
           throw new IllegalArgumentException(String.format("kvgen does not support input of type: %s", valueMinorType));

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ public class TestBaseViewSupport extends BaseTestQuery {
         .sqlQuery(createViewSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("View '%s' created successfully in '%s' schema", viewName, finalSchema))
+        .baselineValues(true, String.format("View '%s.%s' created successfully", finalSchema, viewName))
         .go();
   }
 
@@ -98,7 +98,7 @@ public class TestBaseViewSupport extends BaseTestQuery {
         .sqlQuery(String.format("DROP VIEW %s", viewFullName))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("View [%s] deleted successfully from schema [%s].", viewName, finalSchema))
+        .baselineValues(true, String.format("View [%s.%s] deleted successfully.", finalSchema, viewName))
         .go();
   }
 
@@ -134,14 +134,14 @@ public class TestBaseViewSupport extends BaseTestQuery {
           .sqlQuery(String.format("DROP VIEW IF EXISTS %s", viewFullName))
           .unOrdered()
           .baselineColumns("ok", "summary")
-          .baselineValues(true, String.format("View [%s] deleted successfully from schema [%s].", viewName, finalSchema))
+          .baselineValues(true, String.format("View [%s.%s] deleted successfully.", finalSchema, viewName))
           .go();
     } else {
       testBuilder()
           .sqlQuery(String.format("DROP VIEW IF EXISTS %s", viewFullName))
           .unOrdered()
           .baselineColumns("ok", "summary")
-          .baselineValues(true, String.format("View [%s] not found in schema [%s].", viewName, finalSchema))
+          .baselineValues(true, String.format("View [%s.%s] not found.", finalSchema, viewName))
           .go();
     }
   }

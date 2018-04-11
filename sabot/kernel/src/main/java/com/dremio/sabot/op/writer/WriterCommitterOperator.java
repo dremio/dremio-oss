@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -72,11 +73,16 @@ public class WriterCommitterOperator implements SingleInputOperator {
     fs = config.getPlugin().getFS(config.getUserName());
 
     // replacement expression.
-    FunctionCall replacement = new FunctionCall("REGEXP_REPLACE", ImmutableList.<LogicalExpression>of(
+    LogicalExpression replacement;
+    if (config.getTempLocation() != null) {
+      replacement = new FunctionCall("REGEXP_REPLACE", ImmutableList.<LogicalExpression>of(
         SchemaPath.getSimplePath(RecordWriter.PATH.getName()),
         new ValueExpressions.QuotedString(Pattern.quote(config.getTempLocation())),
         new ValueExpressions.QuotedString(config.getFinalLocation())
-        ));
+      ));
+    } else {
+      replacement = SchemaPath.getSimplePath(RecordWriter.PATH.getName());
+    }
 
     Project projectConfig = new Project(ImmutableList.of(
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
@@ -103,9 +109,9 @@ public class WriterCommitterOperator implements SingleInputOperator {
   public void close() throws Exception {
     try {
       if (!success) {
-        Path temp = new Path(config.getTempLocation());
-        if (fs != null && fs.exists(temp)) {
-          fs.delete(temp, true);
+        Path path = new Path(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
+        if (fs != null && fs.exists(path)) {
+          fs.delete(path, true);
         }
       }
     } finally {
@@ -115,9 +121,11 @@ public class WriterCommitterOperator implements SingleInputOperator {
 
   @Override
   public void noMoreToConsume() throws Exception {
-    Path temp = new Path(config.getTempLocation());
-    if(fs.exists(temp)){
-      fs.rename(temp, new Path(config.getFinalLocation()));
+    if (config.getTempLocation() != null) {
+      Path temp = new Path(config.getTempLocation());
+      if (fs.exists(temp)) {
+        fs.rename(temp, new Path(config.getFinalLocation()));
+      }
     }
     project.noMoreToConsume();
     success = true;

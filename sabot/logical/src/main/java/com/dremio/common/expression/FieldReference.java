@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,22 +17,16 @@ package com.dremio.common.expression;
 
 import java.io.IOException;
 
-import com.dremio.common.expression.FieldReference.De;
-import com.dremio.common.expression.FieldReference.Se;
 import com.dremio.common.expression.PathSegment.NameSegment;
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
-@JsonSerialize(using = Se.class)
-@JsonDeserialize(using = De.class)
+// Need a custom deserializer as ExprParser can not distinguish between
+// SchemaPath and FieldReference
+@JsonDeserialize(using = FieldReference.De.class)
 public class FieldReference extends SchemaPath {
 
   private final CompleteType overrideType;
@@ -81,6 +75,7 @@ public class FieldReference extends SchemaPath {
   }
 
 
+  @Override
   public CompleteType getCompleteType() {
     if(overrideType != null){
       return overrideType;
@@ -90,7 +85,7 @@ public class FieldReference extends SchemaPath {
   }
 
   public static class De extends StdDeserializer<FieldReference> {
-
+    private final SchemaPath.De deserializer = new SchemaPath.De();
     public De() {
       super(FieldReference.class);
     }
@@ -98,25 +93,9 @@ public class FieldReference extends SchemaPath {
     @Override
     public FieldReference deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException,
         JsonProcessingException {
-      String ref = this._parseString(jp, ctxt);
-      ref = ref.replace("`", "");
-      return new FieldReference(ref, false);
+      SchemaPath sp = deserializer.deserialize(jp, ctxt);
+      return new FieldReference(sp);
     }
-
-  }
-
-  public static class Se extends StdSerializer<FieldReference> {
-
-    public Se() {
-      super(FieldReference.class);
-    }
-
-    @Override
-    public void serialize(FieldReference value, JsonGenerator jgen, SerializerProvider provider) throws IOException,
-        JsonGenerationException {
-      jgen.writeString('`' + value.getRootSegment().getNameSegment().getPath() + '`');
-    }
-
   }
 
 }

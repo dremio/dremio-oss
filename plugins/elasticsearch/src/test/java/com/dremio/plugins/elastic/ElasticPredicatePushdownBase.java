@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.List;
-import java.util.Random;
-
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,9 +182,9 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   protected ElasticsearchGroupScan generate(String sql) throws Exception {
     AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
-    SqlConverter converter = new SqlConverter(context.getPlannerSettings(), context.getNewDefaultSchema(),
+    SqlConverter converter = new SqlConverter(context.getPlannerSettings(),
       context.getOperatorTable(), context, context.getMaterializationProvider(), context.getFunctionRegistry(),
-      context.getSession(), observer, context.getStorage(), context.getSubstitutionProviderFactory());
+      context.getSession(), observer, context.getCatalog(), context.getSubstitutionProviderFactory());
     SqlNode node = converter.parse(sql);
     SqlHandlerConfig config = new SqlHandlerConfig(context, converter, observer, null);
     NormalHandler handler = new NormalHandler();

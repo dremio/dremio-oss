@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ import AccelerationGridController from './AccelerationGridController';
 
 function setReduxFormHandlers(list) {
   list.forEach((layout) => {
-    const keys = Object.keys(layout.details);
+    const keys = Object.keys(layout);
     keys.forEach((key) => {
-      layout.details[key].addField = sinon.spy();
+      layout[key].addField = sinon.spy();
     });
   });
 }
@@ -33,43 +33,34 @@ describe('AccelerationGridController', () => {
   let instance;
   beforeEach(() => {
     minimalProps = {
-      acceleration: Immutable.fromJS({
-        context: {
-          datasetSchema: {
-            fieldList: []
-          }
-        }
+      dataset: Immutable.fromJS({
+        id: '1',
+        path: ['path', 'name'],
+        fields: [
+          {name: 'columnA', type: 'TEXT'},
+          {name: 'columnB', type: 'TEXT'}
+        ]
       }),
+      reflections: Immutable.fromJS({}),
       layoutFields: []
     };
     commonProps = {
       ...minimalProps,
-      acceleration: Immutable.fromJS({
-        context: {
-          datasetSchema: {
-            fieldList: [{name: 'columnA'}, {name: 'columnB'}]
-          }
-        }
-      }),
       layoutFields: [
         {
-          details: {
-            dimensionFieldList: [{ name: { value: 'columnB' } }],
-            measureFieldList: [{ name: { value: 'columnA' } }],
-            partitionFieldList: [{ name: {value: 'columnB'} }, { name: { value: 'columnA' } }],
-            sortFieldList: []
-          }
+          dimensionFields: [{ name: { value: 'columnB' } }],
+          measureFields: [{ name: { value: 'columnA' } }],
+          partitionFields: [{ name: {value: 'columnB'} }, { name: { value: 'columnA' } }],
+          sortFields: []
         },
         {
-          details: {
-            dimensionFieldList: [],
-            measureFieldList: [{ name: { value: 'columnA' } }],
-            partitionFieldList: [{ name: { value: 'columnA' } }, { name: { value: 'columnB' } }],
-            sortFieldList: [
-              { field: { name: { value: 'columnA' } } },
-              { field: { name: { value: 'columnB' } } }
-            ]
-          }
+          dimensionFields: [],
+          measureFields: [{ name: { value: 'columnA' } }],
+          partitionFields: [{ name: { value: 'columnA' } }, { name: { value: 'columnB' } }],
+          sortFields: [
+            { field: { name: { value: 'columnA' } } },
+            { field: { name: { value: 'columnB' } } }
+          ]
         }
       ]
     };
@@ -98,7 +89,7 @@ describe('AccelerationGridController', () => {
       const currentColumn = {name: 'columnA'};
       instance.setState({ currentCell: {columnIndex: 0} });
       expect(
-        instance.findCurrentIndexInFieldsList(currentColumn, 'partitionFieldList')
+        instance.findCurrentIndexInFieldsList(currentColumn, 'partitionFields')
       ).to.equal(1);
     });
 
@@ -106,7 +97,7 @@ describe('AccelerationGridController', () => {
       const currentColumn = {name: 'columnA'};
       instance.setState({ currentCell: {columnIndex: 0} });
       expect(
-        instance.findCurrentIndexInFieldsList(currentColumn, 'sortFieldList')
+        instance.findCurrentIndexInFieldsList(currentColumn, 'sortFields')
       ).to.equal(-1);
     });
 
@@ -115,39 +106,35 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              dimensionFieldList: [{name: {value: 'columnB'}}],
-              measureFieldList: [{name: {value: 'columnA'}}],
-              partitionFieldList: [{name: {value: 'columnB'}}, {name: {value: 'columnA'}}],
-              sortFieldList: []
-            }
+            dimensionFields: [{name: {value: 'columnB'}}],
+            measureFields: [{name: {value: 'columnA'}}],
+            partitionFields: [{name: {value: 'columnB'}}, {name: {value: 'columnA'}}],
+            sortFields: []
           },
           {
-            details: {
-              dimensionFieldList: [],
-              measureFieldList: [{name: {value: 'columnA'}}],
-              partitionFieldList: [{name: {value: 'columnA'}}, {name: {value: 'columnB'}}],
-              sortFieldList: []
-            }
+            dimensionFields: [],
+            measureFields: [{name: {value: 'columnA'}}],
+            partitionFields: [{name: {value: 'columnA'}}, {name: {value: 'columnB'}}],
+            sortFields: []
           }
         ]
       });
       instance.setState({ currentCell: {columnIndex: 0} });
       expect(
-        instance.findCurrentIndexInFieldsList(currentColumn, 'partitionFieldList', 1)
+        instance.findCurrentIndexInFieldsList(currentColumn, 'partitionFields', 1)
       ).to.eql(0);
     });
   });
 
   describe('findCurrentColumnInLayouts', () => {
     it('should return current column in field list', () => {
-      expect(instance.findCurrentColumnInLayouts('partitionFieldList', 1, 0)).to.eql({
+      expect(instance.findCurrentColumnInLayouts('partitionFields', 1, 0)).to.eql({
         name: {value: 'columnB'}
       });
     });
 
     it('should return undefined if field have not current column', () => {
-      expect(instance.findCurrentColumnInLayouts('dimensionFieldList', 0, 1)).to.eql(undefined);
+      expect(instance.findCurrentColumnInLayouts('dimensionFields', 0, 1)).to.eql(undefined);
     });
   });
 
@@ -163,25 +150,23 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              measureFieldList: { removeField: sinon.spy() }
-            }
+            measureFields: { removeField: sinon.spy() }
           }
         ]
       });
     });
 
-    it('should remove current field from measureFieldList', () => {
+    it('should remove current field from measureFields', () => {
       sinon.stub(instance, 'findCurrentIndexInFieldsList').returns(1);
-      instance.removeFieldByIndex(0, 'measureFieldList', 0);
+      instance.removeFieldByIndex(0, 'measureFields', 0);
       expect(instance.findCurrentIndexInFieldsList).to.have.been.called;
-      expect(instance.props.layoutFields[0].details.measureFieldList.removeField).to.have.been.calledWith(1);
+      expect(instance.props.layoutFields[0].measureFields.removeField).to.have.been.calledWith(1);
     });
 
     it('should not remove current field if we have not this field in list of fields', () => {
       sinon.stub(instance, 'findCurrentIndexInFieldsList').returns(-1);
-      instance.removeFieldByIndex(0, 'measureFieldList', 0);
-      expect(instance.props.layoutFields[0].details.measureFieldList.removeField.called).to.be.false;
+      instance.removeFieldByIndex(0, 'measureFields', 0);
+      expect(instance.props.layoutFields[0].measureFields.removeField.called).to.be.false;
     });
   });
 
@@ -190,27 +175,25 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              measureFieldList: { addField: sinon.spy() }
-            }
+            measureFields: { addField: sinon.spy() }
           }
         ]
       });
     });
 
-    it('should add current field to measureFieldList', () => {
+    it('should add current field to measureFields', () => {
       sinon.stub(instance, 'findCurrentIndexInFieldsList').returns(-1);
-      instance.addFieldByIndex({name: 'col_name'}, 'measureFieldList', 0);
+      instance.addFieldByIndex({name: 'col_name'}, 'measureFields', 0);
       expect(instance.findCurrentIndexInFieldsList).to.have.been.called;
       expect(
-        instance.props.layoutFields[0].details.measureFieldList.addField
+        instance.props.layoutFields[0].measureFields.addField
       ).to.have.been.calledWith({name: 'col_name'});
     });
 
     it('should add current field if we have not this field in list of fields', () => {
       sinon.stub(instance, 'findCurrentIndexInFieldsList').returns(0);
-      instance.addFieldByIndex(0, 'measureFieldList', 0);
-      expect(instance.props.layoutFields[0].details.measureFieldList.addField).to.have.not.been.called;
+      instance.addFieldByIndex(0, 'measureFields', 0);
+      expect(instance.props.layoutFields[0].measureFields.addField).to.have.not.been.called;
     });
   });
 
@@ -219,9 +202,7 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              measureFieldList: { addField: sinon.spy() }
-            }
+            measureFields: { addField: sinon.spy() }
           }
         ]
       });
@@ -229,18 +210,18 @@ describe('AccelerationGridController', () => {
       sinon.stub(instance, 'removeFieldByIndex');
     });
 
-    it('should remove current field from measureFieldList', () => {
+    it('should remove current field from measureFields', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns({});
-      instance.toggleField('measureFieldList', 0, 0);
+      instance.toggleField('measureFields', 0, 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith({name: 'columnA'}, 'measureFieldList', 0);
+      ).to.have.been.calledWith({name: 'columnA'}, 'measureFields', 0);
     });
 
-    it('should add current field to measureFieldList', () => {
+    it('should add current field to measureFields', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns(undefined);
-      instance.toggleField('measureFieldList', 0, 0);
-      expect(instance.props.layoutFields[0].details.measureFieldList.addField).to.be.calledWith({name: 'columnA'});
+      instance.toggleField('measureFields', 0, 0);
+      expect(instance.props.layoutFields[0].measureFields.addField).to.be.calledWith({name: 'columnA'});
     });
   });
 
@@ -249,38 +230,36 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              sortFieldList: { addField: sinon.spy() }
-            }
+            sortFields: { addField: sinon.spy() }
           }
         ]
       });
       instance.setState({
         currentCell: {
-          field: 'sortFieldList'
+          field: 'sortFields'
         }
       });
       sinon.stub(instance, 'getRowByIndex').returns({name: 'columnA'});
       sinon.stub(instance, 'removeFieldByIndex');
     });
 
-    it('should remove current field from sortFieldList', () => {
+    it('should remove current field from sortFields', () => {
       instance.toggleSortField('', 0, 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith({name: 'columnA'}, 'sortFieldList', 0);
+      ).to.have.been.calledWith({name: 'columnA'}, 'sortFields', 0);
     });
 
-    it('should add current field to sortFieldList', () => {
+    it('should add current field to sortFields', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns(undefined);
-      instance.toggleSortField('sortFieldList', 0, 0);
-      expect(instance.props.layoutFields[0].details.sortFieldList.addField).to.be.calledWith({name: 'columnA'});
+      instance.toggleSortField('sortFields', 0, 0);
+      expect(instance.props.layoutFields[0].sortFields.addField).to.be.calledWith({name: 'columnA'});
     });
 
-    it('should not add current field to sortFieldList when already added', () => {
+    it('should not add current field to sortFields when already added', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns({});
-      instance.toggleSortField('sortFieldList', 0, 0);
-      expect(instance.props.layoutFields[0].details.sortFieldList.addField).to.not.be.called;
+      instance.toggleSortField('sortFields', 0, 0);
+      expect(instance.props.layoutFields[0].sortFields.addField).to.not.be.called;
     });
   });
 
@@ -292,18 +271,18 @@ describe('AccelerationGridController', () => {
 
     it('should call applyRawConstraints when activeTab is raw', () => {
       wrapper.setProps({activeTab: 'raw'});
-      instance.applyConstraints('measureFieldList', 0, 0);
+      instance.applyConstraints('measureFields', 0, 0);
       expect(
         instance.applyRawConstraints
-      ).to.have.been.calledWith('measureFieldList', 0, 0);
+      ).to.have.been.calledWith('measureFields', 0, 0);
     });
 
     it('should call applyAggregationConstraints when activeTab is not raw', () => {
       wrapper.setProps({activeTab: ''});
-      instance.applyConstraints('measureFieldList', 0, 0);
+      instance.applyConstraints('measureFields', 0, 0);
       expect(
         instance.applyAggregationConstraints
-      ).to.have.been.calledWith('measureFieldList', 0, 0);
+      ).to.have.been.calledWith('measureFields', 0, 0);
     });
   });
 
@@ -323,15 +302,15 @@ describe('AccelerationGridController', () => {
     });
 
     it('should call toggleSortField', () => {
-      instance.handleOnSelectSortItem('sortFieldList');
-      expect(instance.toggleSortField).to.have.been.calledWith('sortFieldList', 0, 0);
+      instance.handleOnSelectSortItem('sortFields');
+      expect(instance.toggleSortField).to.have.been.calledWith('sortFields', 0, 0);
     });
     it('should call applyConstraintsNext', () => {
-      instance.handleOnSelectSortItem('sortFieldList');
-      expect(instance.applyConstraintsNext).to.have.been.calledWith('sortFieldList', 0, 0);
+      instance.handleOnSelectSortItem('sortFields');
+      expect(instance.applyConstraintsNext).to.have.been.calledWith('sortFields', 0, 0);
     });
     it('should call handleRequestClose', () => {
-      instance.handleOnSelectSortItem('sortFieldList');
+      instance.handleOnSelectSortItem('sortFields');
       expect(instance.handleRequestClose).to.have.been.calledOnce;
     });
   });
@@ -343,12 +322,12 @@ describe('AccelerationGridController', () => {
     });
 
     it('should call toggleField', () => {
-      instance.handleOnCheckboxItem('dimensionFieldList', 0, 1);
-      expect(instance.toggleField).to.have.been.calledWith('dimensionFieldList', 0, 1);
+      instance.handleOnCheckboxItem('dimensionFields', 0, 1);
+      expect(instance.toggleField).to.have.been.calledWith('dimensionFields', 0, 1);
     });
     it('should call applyConstraintsNext', () => {
-      instance.handleOnCheckboxItem('dimensionFieldList', 0, 1);
-      expect(instance.applyConstraintsNext).to.have.been.calledWith('dimensionFieldList', 0, 1);
+      instance.handleOnCheckboxItem('dimensionFields', 0, 1);
+      expect(instance.applyConstraintsNext).to.have.been.calledWith('dimensionFields', 0, 1);
     });
   });
 
@@ -359,9 +338,7 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              dimensionFieldList: { addField: sinon.spy() }
-            }
+            dimensionFields: { addField: sinon.spy() }
           }
         ]
       });
@@ -371,50 +348,50 @@ describe('AccelerationGridController', () => {
       sinon.stub(instance, 'addFieldByIndex');
     });
 
-    it('should remove sortFieldList, partitionFieldList and distributionFieldList when dimensionFieldList and measureFieldList unselected', () => {
+    it('should remove sortFields, partitionFields and distributionFields when dimensionFields and measureFields unselected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns(undefined);
-      instance.applyAggregationConstraints('dimensionFieldList', 0, 0);
+      instance.applyAggregationConstraints('dimensionFields', 0, 0);
 
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'sortFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'sortFields', 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'partitionFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'partitionFields', 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'distributionFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'distributionFields', 0);
     });
 
-    it('should remove sortFieldList when dimensionFieldList unselected', () => {
+    it('should remove sortFields when dimensionFields unselected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
-        .withArgs('dimensionFieldList', 0, 0).returns(undefined)
-        .withArgs('measureFieldList', 0, 0).returns({});
-      instance.applyAggregationConstraints('dimensionFieldList', 0, 0);
+        .withArgs('dimensionFields', 0, 0).returns(undefined)
+        .withArgs('measureFields', 0, 0).returns({});
+      instance.applyAggregationConstraints('dimensionFields', 0, 0);
 
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'sortFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'sortFields', 0);
     });
 
-    it('should leave measureFieldList and add dimensionFieldList when sortFieldList selected', () => {
+    it('should leave measureFields and add dimensionFields when sortFields selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
-        .withArgs('dimensionFieldList', 0, 0).returns(undefined)
-        .withArgs('measureFieldList', 0, 0).returns({})
-        .withArgs('sortFieldList', 0, 0).returns({});
-      instance.applyAggregationConstraints('sortFieldList', 0, 0);
+        .withArgs('dimensionFields', 0, 0).returns(undefined)
+        .withArgs('measureFields', 0, 0).returns({})
+        .withArgs('sortFields', 0, 0).returns({});
+      instance.applyAggregationConstraints('sortFields', 0, 0);
 
       expect(
         instance.removeFieldByIndex
-      ).to.not.have.been.calledWith(currentRow, 'measureFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'measureFields', 0);
       expect(
         instance.addFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'dimensionFields', 0);
     });
 
-    it('should add dimensionFieldList when distributionFieldList or partitionFieldList or sortFieldList selected (leaving measureFieldList)', () => {
+    it('should add dimensionFields when distributionFields or partitionFields or sortFields selected (leaving measureFields)', () => {
       const findCurrentColumnStub = sinon.stub(instance, 'findCurrentColumnInLayouts')
-        .withArgs('partitionFieldList', 0, 0).returns({});
+        .withArgs('partitionFields', 0, 0).returns({});
       const resetFieldsStub = () => {
         instance.addFieldByIndex.reset();
         instance.removeFieldByIndex.reset();
@@ -422,49 +399,49 @@ describe('AccelerationGridController', () => {
       const verify = () => {
         expect(
           instance.addFieldByIndex
-        ).to.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
+        ).to.have.been.calledWith(currentRow, 'dimensionFields', 0);
         expect(
           instance.removeFieldByIndex
-        ).to.not.have.been.calledWith(currentRow, 'measureFieldList', 0);
+        ).to.not.have.been.calledWith(currentRow, 'measureFields', 0);
       };
 
-      instance.applyAggregationConstraints('partitionFieldList', 0, 0);
+      instance.applyAggregationConstraints('partitionFields', 0, 0);
       verify();
 
-      findCurrentColumnStub.withArgs('partitionFieldList', 0, 0).returns(undefined)
-        .withArgs('distributionFieldList', 0, 0).returns({});
+      findCurrentColumnStub.withArgs('partitionFields', 0, 0).returns(undefined)
+        .withArgs('distributionFields', 0, 0).returns({});
       resetFieldsStub();
-      instance.applyAggregationConstraints('distributionFieldList', 0, 0);
+      instance.applyAggregationConstraints('distributionFields', 0, 0);
       verify();
 
-      findCurrentColumnStub.withArgs('distributionFieldList', 0, 0).returns(undefined)
-        .withArgs('sortFieldList', 0, 0).returns({});
+      findCurrentColumnStub.withArgs('distributionFields', 0, 0).returns(undefined)
+        .withArgs('sortFields', 0, 0).returns({});
       resetFieldsStub();
-      instance.applyAggregationConstraints('sortFieldList', 0, 0);
+      instance.applyAggregationConstraints('sortFields', 0, 0);
       verify();
     });
 
-    it('should leave dimensionFieldList and sortFieldList when measureFieldList is selected', () => {
+    it('should leave dimensionFields and sortFields when measureFields is selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
-        .withArgs('dimensionFieldList', 0, 0).returns({})
-        .withArgs('measureFieldList', 0, 0).returns({});
-      instance.applyAggregationConstraints('measureFieldList', 0, 0);
+        .withArgs('dimensionFields', 0, 0).returns({})
+        .withArgs('measureFields', 0, 0).returns({});
+      instance.applyAggregationConstraints('measureFields', 0, 0);
       expect(
         instance.removeFieldByIndex
-      ).to.not.have.been.calledWith(currentRow, 'dimensionFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'dimensionFields', 0);
       expect(
         instance.removeFieldByIndex
-      ).to.not.have.been.calledWith(currentRow, 'sortFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'sortFields', 0);
     });
 
-    it('should leave measureFieldList when dimensionFieldList is selected', () => {
+    it('should leave measureFields when dimensionFields is selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts')
-        .withArgs('dimensionFieldList', 0, 0).returns({})
-        .withArgs('measureFieldList', 0, 0).returns({});
-      instance.applyAggregationConstraints('dimensionFieldList', 0, 0);
+        .withArgs('dimensionFields', 0, 0).returns({})
+        .withArgs('measureFields', 0, 0).returns({});
+      instance.applyAggregationConstraints('dimensionFields', 0, 0);
       expect(
         instance.removeFieldByIndex
-      ).to.not.have.been.calledWith(currentRow, 'measureFieldList', 0);
+      ).to.not.have.been.calledWith(currentRow, 'measureFields', 0);
     });
   });
 
@@ -474,9 +451,7 @@ describe('AccelerationGridController', () => {
       wrapper.setProps({
         layoutFields: [
           {
-            details: {
-              displayFieldList: { addField: sinon.spy() }
-            }
+            displayFields: { addField: sinon.spy() }
           }
         ]
       });
@@ -485,28 +460,28 @@ describe('AccelerationGridController', () => {
       sinon.stub(instance, 'removeFieldByIndex');
     });
 
-    it('should remove sortFieldList, partitionFieldList and distributionFieldList ' +
-      'when displayFieldList unselected', () => {
+    it('should remove sortFields, partitionFields and distributionFields ' +
+      'when displayFields unselected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns(undefined);
-      instance.applyRawConstraints('displayFieldList', 0, 0);
+      instance.applyRawConstraints('displayFields', 0, 0);
 
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'sortFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'sortFields', 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'partitionFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'partitionFields', 0);
       expect(
         instance.removeFieldByIndex
-      ).to.have.been.calledWith(currentRow, 'distributionFieldList', 0);
+      ).to.have.been.calledWith(currentRow, 'distributionFields', 0);
     });
 
-    it('should add displayFieldList when sortFieldList, partitionFieldList or distributionFieldList selected', () => {
+    it('should add displayFields when sortFields, partitionFields or distributionFields selected', () => {
       sinon.stub(instance, 'findCurrentColumnInLayouts').returns(undefined);
-      instance.applyRawConstraints('sortFieldList', 0, 0);
+      instance.applyRawConstraints('sortFields', 0, 0);
 
       expect(
-        instance.props.layoutFields[0].details.displayFieldList.addField
+        instance.props.layoutFields[0].displayFields.addField
       ).to.have.been.calledWith(currentRow);
     });
   });

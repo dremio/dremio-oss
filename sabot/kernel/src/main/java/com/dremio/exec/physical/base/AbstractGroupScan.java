@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +28,10 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 /**
  * GroupScan build on top of a Namespace-sourced SplitWork.
@@ -37,6 +42,19 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   protected final TableMetadata dataset;
   protected final List<SchemaPath> columns;
 
+  private final Supplier<List<List<String>>> referencedTables =
+      Suppliers.memoize(
+          new Supplier<List<List<String>>>() {
+            @Override
+            public List<List<String>> get() {
+              final List<String> table = dataset.getName().getPathComponents();
+              if (table == null) {
+                return ImmutableList.of();
+              }
+              return ImmutableList.of(table);
+            }
+          });
+
   public AbstractGroupScan(
       TableMetadata dataset,
       List<SchemaPath> columns) {
@@ -46,8 +64,25 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   }
 
   @JsonIgnore
-  public List<String> getTableSchemaPath(){
-    return dataset.getName().getPathComponents();
+  @Deprecated
+  public List<String> getTableSchemaPath() {
+    final Collection<List<String>> paths = getReferencedTables();
+    if (paths.isEmpty()) {
+      return null;
+    } else {
+      return Iterables.getOnlyElement(paths);
+    }
+  }
+
+  @JsonIgnore // used in planning
+  @Override
+  public Collection<List<String>> getReferencedTables() {
+    return referencedTables.get();
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return true;
   }
 
   @Override

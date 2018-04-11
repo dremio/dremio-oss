@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
@@ -36,6 +37,7 @@ import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
 /**
@@ -46,16 +48,20 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   private final InfoSchemaTable table;
   private final List<SchemaPath> columns;
   private final SearchQuery query;
+  private final StoragePluginId pluginId;
 
   public InfoSchemaGroupScan(
+      String userName,
       InfoSchemaTable table,
       SearchQuery query,
-      List<SchemaPath> columns
+      List<SchemaPath> columns,
+      StoragePluginId pluginId
       ) {
-    super((String) null);
+    super(userName);
     this.table = table;
     this.columns = columns;
     this.query = query;
+    this.pluginId = pluginId;
   }
 
   @Override
@@ -99,9 +105,20 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
     return table.name();
   }
 
-  @Override
+  @Deprecated
   public List<String> getTableSchemaPath() {
     return null;
+  }
+
+  @JsonIgnore
+  @Override
+  public List<List<String>> getReferencedTables() {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return false;
   }
 
   /**
@@ -117,7 +134,7 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
 
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
-    return new InfoSchemaSubScan(table, query, getColumns());
+    return new InfoSchemaSubScan(getUserName(), table, query, getColumns(), pluginId);
   }
 
   @Override

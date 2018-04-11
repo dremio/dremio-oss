@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,12 +65,7 @@ public class SqlUseSchema extends SqlCall {
     schema.unparse(writer, leftPrec, rightPrec);
   }
 
-  /**
-   * Get the schema name. A schema identifier can contain more than one level of schema.
-   * Ex: "dfs.home" identifier contains two levels "dfs" and "home".
-   * @return schemas combined with "."
-   */
-  public String getSchema() {
-    return schema.toString();
+  public List<String> getSchema() {
+    return schema.names;
   }
 }

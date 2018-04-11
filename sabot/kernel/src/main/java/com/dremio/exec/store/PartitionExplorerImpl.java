@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +15,34 @@
  */
 package com.dremio.exec.store;
 
-import org.apache.calcite.schema.SchemaPlus;
-
 import java.util.List;
+
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
 
 public class PartitionExplorerImpl implements PartitionExplorer {
 
-  private final SchemaPlus rootSchema;
+  private final Catalog catalog;
 
-  public PartitionExplorerImpl(SchemaPlus rootSchema) {
-    this.rootSchema = rootSchema;
+  public PartitionExplorerImpl(Catalog catalog) {
+    this.catalog = catalog;
   }
 
   @Override
-  public Iterable<String> getSubPartitions(String schema,
-                                           String table,
-                                           List<String> partitionColumns,
-                                           List<String> partitionValues
-                                           ) throws PartitionNotFoundException {
-
-    AbstractSchema subSchema = rootSchema.getSubSchema(schema).unwrap(AbstractSchema.class);
-    return subSchema.getSubPartitions(table, partitionColumns, partitionValues);
+  public Iterable<String> getSubPartitions(
+      NamespaceKey table,
+      List<String> partitionColumns,
+      List<String> partitionValues
+      ) throws PartitionNotFoundException {
+    return catalog.getSubPartitions(table, partitionColumns, partitionValues);
   }
+
+  @Override
+  public Iterable<String> getSubPartitions(String schema, String table, List<String> partitionColumns, List<String> partitionValues)
+      throws PartitionNotFoundException {
+    return catalog.getSubPartitions(new NamespaceKey(ImmutableList.of(schema, table)), partitionColumns, partitionValues);
+  }
+
+
 }

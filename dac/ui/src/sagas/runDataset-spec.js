@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,11 @@
  */
 import { put, call, select } from 'redux-saga/effects';
 import socket from 'utils/socket';
+import Immutable from 'immutable';
 
 import { updateViewState } from 'actions/resources';
 import { updateHistoryWithJobState } from 'actions/explore/history';
+import { addNotification } from 'actions/notification';
 
 import {
   waitForRunToComplete,
@@ -111,6 +113,8 @@ describe('runDataset saga', () => {
       expect(next.value).to.eql(call([socket, socket.startListenToJobProgress], jobId, true));
       next = gen.next();
       expect(next.value).to.eql(put(updateViewState('run-' + jobId, {isInProgress: true})));
+      next = gen.next();
+      expect(next.value).to.eql(put(addNotification(Immutable.Map({code: 'WS_CLOSED'}), 'error')));
       next = gen.next();
       expect(typeof next.value.RACE.jobDone).to.not.be.undefined;
       expect(typeof next.value.RACE.locationChange).to.not.be.undefined;

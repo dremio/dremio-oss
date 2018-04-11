@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -154,7 +154,7 @@ public class TestCsvHeader extends BaseTestQuery{
     // test that header is not skipped when skipFirstLine is true
     // testing by defining new format plugin with skipFirstLine set to true and diff file extension
     String dfile = FileUtils.getResourceAsFile("/store/text/data/cars.csvh-test").getAbsolutePath();
-    String query = String.format("select `Year`, Model from dfs_root.`%s` where Make = 'Chevy'", dfile);
+    String query = String.format("select `Year`, Model from TABLE(dfs_root.`%s`(type => 'TEXT', fieldDelimiter => ',', lineDelimiter => '\n', skipFirstLine => true, extractHeader => true)) where Make = 'Chevy'", dfile);
     testBuilder()
             .sqlQuery(query)
             .unOrdered()

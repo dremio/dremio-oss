@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import org.antlr.runtime.RecognitionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.parser.ExprLexer;
 import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
@@ -52,11 +51,8 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
   int getCumulativeCost();
 
   public static class De extends StdDeserializer<LogicalExpression> {
-    SabotConfig config;
-
-    public De(SabotConfig config) {
+    public De() {
       super(LogicalExpression.class);
-      this.config = config;
     }
 
     @Override
@@ -73,11 +69,8 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         ExprParser parser = new ExprParser(tokens);
 
-        //TODO: move functionregistry and error collector to injectables.
-        //ctxt.findInjectableValue(valueId, forProperty, beanInstance)
         parse_return ret = parser.parse();
 
-        // ret.e.resolveAndValidate(expr, errorCollector);
         return ret.e;
       } catch (RecognitionException e) {
         throw new RuntimeException(e);

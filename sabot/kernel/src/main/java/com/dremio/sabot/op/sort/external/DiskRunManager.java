@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.sabot.op.sort.external;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -34,6 +35,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.data.Order.Ordering;
@@ -199,17 +201,25 @@ public class DiskRunManager implements AutoCloseable {
       try {
         runList = ImmutableList.copyOf(diskRuns.subList(0, runsToMerge));
         getCopierAllocator(runList);
-        removeDiskRuns(runList.size());
-        try {
-          diskRunMerger = new DiskRunMerger(runList);
-        } catch (IOException e) {
-          throw UserException.dataReadError(e).message("Failure while attempting to merge spilled data")
-            .build(logger);
+        try (RollbackCloseable rollback = new RollbackCloseable()) {
+          diskRunMerger = rollback.add(new DiskRunMerger(runList));
+
+          diskRunMerger.init();
+
+          rollback.commit();
         }
+        // As the runs are successfully loaded from disk and part of DiskRunMerger, we can remove them from global list
+        // and delete spill files.
+        removeDiskRuns(runList.size());
         return false;
       } catch (OutOfMemoryException e) {
         // reattempt with smaller list
         runsToMerge /= 2;
+        diskRunMerger = null;
+        for (DiskRun run : runList) {
+          run.resetOpenStatus();
+        }
+
         if (runsToMerge < 2) {
           final String message = "DiskRunManager: Unable to secure enough memory to merge spilled sort data.";
           final long totalMaxBatchSizeAllRuns = getMaxBatchSizeAllRuns(runList);
@@ -224,6 +234,9 @@ public class DiskRunManager implements AutoCloseable {
           tracer.setExternalSortAllocatorState(parentAllocator);
           throw tracer.prepareAndThrowException(e, message);
         }
+      } catch (Exception e) {
+        throw UserException.dataReadError(e).message("Failure while attempting to merge spilled data")
+            .build(logger);
       }
     }
   }
@@ -237,9 +250,12 @@ public class DiskRunManager implements AutoCloseable {
     return totalMax;
   }
 
-  private void removeDiskRuns(int toRemove) {
+  private void removeDiskRuns(int toRemove) throws Exception {
     for (int i = 0; i < toRemove; i++) {
-      diskRuns.remove(0);
+      DiskRun run = diskRuns.remove(0);
+      if (run != null) {
+        run.close();
+      }
     }
   }
 
@@ -282,21 +298,30 @@ public class DiskRunManager implements AutoCloseable {
       .get(diskRuns.size() / 2);
   }
 
-  private class DiskRunMerger {
-    final private PriorityQueueCopier copier;
-    final private FSDataOutputStream out;
-    final private VectorContainer container;
-    final private SpillFile spillFile;
+  private class DiskRunMerger implements AutoCloseable {
+    private final List<DiskRun> diskRuns;
+
+    private PriorityQueueCopier copier;
+    private FSDataOutputStream out;
+    private VectorContainer container;
+    private SpillFile spillFile;
 
     private int maxBatchSize = 0;
     private int recordCount;
     private int batchCount = 0;
 
-    public DiskRunMerger(List<DiskRun> diskRuns) throws IOException {
-      container = VectorContainer.create(copierAllocator, dataSchema);
-      this.copier = createCopier(container, diskRuns);
+    public DiskRunMerger(List<DiskRun> diskRuns) {
+      this.diskRuns = diskRuns;
       this.spillFile = spillManager.getSpillFile(String.format("merge%05d", merge++));
-      out = spillFile.create();
+    }
+
+    public void init() throws Exception {
+      try (RollbackCloseable rollback = new RollbackCloseable()) {
+        container = rollback.add(VectorContainer.create(copierAllocator, dataSchema));
+        copier = rollback.add(createCopier(container, diskRuns));
+        out = rollback.add(spillFile.create());
+        rollback.commit();
+      }
     }
 
     public boolean consolidate() throws IOException {
@@ -320,6 +345,7 @@ public class DiskRunManager implements AutoCloseable {
       }
     }
 
+    @Override
     public void close() {
       try {
         AutoCloseables.close(copier, out, container);
@@ -331,7 +357,7 @@ public class DiskRunManager implements AutoCloseable {
 
   public void spill(VectorContainer hyperBatch, BufferAllocator copyTargetAllocator) throws Exception {
     /* as per MemoryRun, for copyTargetAllocator, initReservation and maxAllocation are same */
-    logger.debug("DiskRunManager-Spill: max allowed allocation for spill copy allocator" + copyTargetAllocator.getLimit());
+    logger.debug("DiskRunManager-Spill: spill copy allocator reservation {} spill copy allocator limit {}", copyTargetAllocator.getInitReservation(), copyTargetAllocator.getLimit());
     spillWatch.start();
     try {
       int maxBatchSize = 0;
@@ -341,6 +367,7 @@ public class DiskRunManager implements AutoCloseable {
       int recordsSpilledInCurrentIteration = 0;
       int remainingRecordCount = 0;
       final SpillFile spillFile = spillManager.getSpillFile(String.format("run%05d", run++));
+      BatchSchema outgoingSchema = null;
 
       try (FSDataOutputStream out = spillFile.create();
            final VectorContainer outgoing = VectorContainer.create(copyTargetAllocator, hyperBatch.getSchema());
@@ -351,6 +378,7 @@ public class DiskRunManager implements AutoCloseable {
           hyperBatch,
           outgoing);
         final SelectionVector4 sv4 = hyperBatch.getSelectionVector4();
+        outgoingSchema = outgoing.getSchema().clone();
 
         do {
           recordCount = sv4.getCount();
@@ -379,26 +407,19 @@ public class DiskRunManager implements AutoCloseable {
            * But we allocated memory for 4096 records because that was the state we recorded when
            * doing the setInitialCapacity() in first place. This is the reason why it is
            * probably better to do setInitialCapacity() before each call to copyRecords.
-           * This is probably what was implied by the author of TODO below.
            */
+          logger.debug("DiskRunManager: Copy {} records", recordCount);
           remainingRecordCount = recordCount;
           recordsSpilledInCurrentIteration = 0;
           while (recordsSpilledInCurrentIteration < recordCount) {
-            logger.debug("DiskRunManager-Spill: setting initial capacity for: " + remainingRecordCount);
-            for (VectorWrapper w : outgoing) {
-              w.getValueVector().setInitialCapacity(remainingRecordCount);
-            }
             final int copied = copier.copyRecords(recordsSpilledInCurrentIteration, remainingRecordCount);
             assert copied > 0 : "couldn't copy any rows, probably run out of memory while doing so";
             outgoing.setAllCount(copied);
-
             int batchSize = spillBatch(outgoing, copied, out);
             recordsSpilledInCurrentIteration += copied;
             maxBatchSize = Math.max(maxBatchSize, batchSize);
             batchCount++;
-            logger.debug("spilled a batch of records: " + copied);
-
-            // TODO: deal with adaptive sizing. for now we'll zero vectors to reset vectors to their default size.
+            logger.debug("spilled a batch of records {}", copied);
             outgoing.zeroVectors();
             remainingRecordCount = recordCount - recordsSpilledInCurrentIteration;
           }
@@ -413,11 +434,12 @@ public class DiskRunManager implements AutoCloseable {
          * we proceed with spilling whatever we copied and move onto next
          * iteration of <allocate, copy, spill>.
          */
+        logger.debug("DiskRunManager: Out of Memory while trying to copy and spill data");
         tracer.setBatchesSpilled(batchCount);
         tracer.setTotalRecordsSpilled(records);
         tracer.setRecordsToSpillInCurrentIteration(recordCount);
         tracer.setRecordsSpilledInCurrentIteration(recordsSpilledInCurrentIteration);
-        tracer.setSchemaOfBatchToSpill(hyperBatch.getSchema().toJSONString());
+        tracer.setSchemaOfBatchToSpill(outgoingSchema.toString());
         tracer.setInitialCapacityForCurrentSpillIteration(remainingRecordCount);
         tracer.setMaxBatchSizeSpilled(maxBatchSize);
         tracer.setSpillCopyAllocatorState(copyTargetAllocator);
@@ -470,11 +492,15 @@ public class DiskRunManager implements AutoCloseable {
   }
 
 
-  private DiskRunIterator[] getIterators(BufferAllocator allocator, List<DiskRun> diskRuns, ExpandableHyperContainer container) throws IOException {
+  private DiskRunIterator[] getIterators(BufferAllocator allocator, List<DiskRun> diskRuns, ExpandableHyperContainer container) throws Exception {
     final DiskRunIterator[] iterators = new DiskRunIterator[diskRuns.size()];
-    for(int i =0; i < diskRuns.size(); i++){
-      final DiskRun run = diskRuns.get(i);
-      iterators[i] = run.openRun(allocator, i, container);
+    try (RollbackCloseable rollback = new RollbackCloseable()) {
+      for (int i = 0; i < diskRuns.size(); i++) {
+        final DiskRun run = diskRuns.get(i);
+        iterators[i] = run.openRun(allocator, i, container);
+        rollback.add(iterators[i]);
+      }
+      rollback.commit();
     }
     return iterators;
   }
@@ -501,7 +527,7 @@ public class DiskRunManager implements AutoCloseable {
     copierAllocator = this.parentAllocator.newChildAllocator("spill_copier", totalSizeNeeded, Long.MAX_VALUE);
   }
 
-  public PriorityQueueCopier createCopier() throws IOException {
+  public PriorityQueueCopier createCopier() throws Exception {
     Preconditions.checkState(tempContainer == null);
     Preconditions.checkState(mergeState == MergeState.COPY);
     if (copier != null) {
@@ -517,7 +543,7 @@ public class DiskRunManager implements AutoCloseable {
     tempContainer.transferOut(output);
   }
 
-  private PriorityQueueCopier createCopier(VectorContainer targetContainer, List<DiskRun> diskRuns) throws IOException {
+  private PriorityQueueCopier createCopier(VectorContainer targetContainer, List<DiskRun> diskRuns) throws Exception {
     if (this.copier != null) {
       try {
         this.copier.close();
@@ -531,21 +557,27 @@ public class DiskRunManager implements AutoCloseable {
     final MappingSet copierMappingSet = new MappingSet(copierMapping, copierMapping);
 
     final ExpandableHyperContainer incoming = new ExpandableHyperContainer(copierAllocator, dataSchema);
-    final DiskRunIterator[] iterators = getIterators(copierAllocator, diskRuns, incoming);
+    try (RollbackCloseable rollback = new RollbackCloseable()) {
+      final DiskRunIterator[] iterators = getIterators(copierAllocator, diskRuns, incoming);
+      rollback.addAll(iterators);
 
-    final CodeGenerator<PriorityQueueCopier> cg = producer.createGenerator(PriorityQueueCopier.TEMPLATE_DEFINITION);
+      final CodeGenerator<PriorityQueueCopier> cg = producer.createGenerator(PriorityQueueCopier.TEMPLATE_DEFINITION);
 
-    ClassGenerator<PriorityQueueCopier> g = cg.getRoot();
-    ExternalSortOperator.generateComparisons(g, incoming, orderings, producer);
-    g.setMappingSet(copierMappingSet);
-    CopyUtil.generateCopies(g, incoming, true);
-    g.setMappingSet(mainMappingSet);
+      ClassGenerator<PriorityQueueCopier> g = cg.getRoot();
+      ExternalSortOperator.generateComparisons(g, incoming, orderings, producer);
+      g.setMappingSet(copierMappingSet);
+      CopyUtil.generateCopies(g, incoming, true);
+      g.setMappingSet(mainMappingSet);
 
-    final PriorityQueueCopier copier = cg.getImplementationClass();
+      final PriorityQueueCopier copier = cg.getImplementationClass();
 
-    copier.setup(producer.getFunctionContext(), copierAllocator, iterators, incoming, targetContainer);
-    this.copier = copier;
-    return copier;
+      copier.setup(producer.getFunctionContext(), copierAllocator, iterators, incoming, targetContainer);
+      this.copier = copier;
+
+      rollback.commit();
+
+      return copier;
+    }
   }
 
 
@@ -570,12 +602,18 @@ public class DiskRunManager implements AutoCloseable {
       this.batchCount = batchCount;
     }
 
+    public void resetOpenStatus() {
+      iterator = null;
+    }
+
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(iterator);
+      AutoCloseables.close(spillFile);
     }
 
     /**
+     * Opens an iterator to read read batches from spill run. It is responsibility of the caller to release iterator
+     * when done.
      *
      * @param batchId
      * @param container
@@ -583,7 +621,7 @@ public class DiskRunManager implements AutoCloseable {
      * @throws IOException
      */
     private DiskRunIterator openRun(BufferAllocator copierAllocator, int batchId, ExpandableHyperContainer container) throws IOException{
-      Preconditions.checkArgument(iterator == null);
+      Preconditions.checkState(iterator == null);
       final long memCapacity = nextPowerOfTwo(largestBatch);
       final BufferAllocator allocator = copierAllocator.newChildAllocator("diskrun", 0, memCapacity);
       iterator = new DiskRunIterator(batchCount, spillFile, container, allocator);
@@ -612,12 +650,9 @@ public class DiskRunManager implements AutoCloseable {
     private int recordIndex = -1;
     private int recordIndexMax;
     private final VectorContainer container = new VectorContainer();
-    private final SpillFile spillFile;
-
 
     private DiskRunIterator(int batchCount, SpillFile spillFile, ExpandableHyperContainer hyperContainer, BufferAllocator allocator) throws IOException {
       this.allocator = allocator;
-      this.spillFile = spillFile;
       this.inputStream = spillFile.open();
       this.batchIndexMax = batchCount;
       loadNextBatch(true);
@@ -659,7 +694,7 @@ public class DiskRunManager implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        AutoCloseables.close(container, allocator, inputStream, spillFile);
+      AutoCloseables.close(container, allocator, inputStream);
     }
 
     public int getNextId() throws IOException{

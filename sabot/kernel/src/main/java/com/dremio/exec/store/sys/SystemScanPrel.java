@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.curator.shaded.com.google.common.base.Preconditions;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -33,6 +33,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 /**
  * Physical scan operator.
@@ -41,6 +42,7 @@ public class SystemScanPrel extends ScanPrelBase {
 
   private final SystemTable systemTable;
   private final int executorCount;
+  private final StoragePluginId pluginId;
 
   public SystemScanPrel(
       RelOptCluster cluster,
@@ -53,6 +55,7 @@ public class SystemScanPrel extends ScanPrelBase {
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
     this.systemTable = Preconditions.checkNotNull(SystemStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
+    this.pluginId = dataset.getStoragePluginId();
   }
 
   @VisibleForTesting
@@ -69,6 +72,7 @@ public class SystemScanPrel extends ScanPrelBase {
     this.systemTable = Preconditions.checkNotNull(SystemStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
     this.rowType = rowType;
+    this.pluginId = dataset.getStoragePluginId();
   }
 
   @Override
@@ -88,7 +92,7 @@ public class SystemScanPrel extends ScanPrelBase {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, new SystemGroupScan(systemTable, getProjectedColumns(), executorCount));
+    return creator.addMetadata(this, new SystemGroupScan(systemTable, getProjectedColumns(), executorCount, pluginId));
   }
 
   @Override

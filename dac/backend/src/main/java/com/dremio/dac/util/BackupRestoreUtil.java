@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ import org.apache.hadoop.io.IOUtils;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.homefiles.HomeFileConfig;
+import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.proto.model.backup.BackupFileInfo;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.tokens.TokenUtils;
@@ -235,12 +235,12 @@ public final class BackupRestoreUtil {
 
   public static void backupUploadedFiles(FileSystem fs,
                                          Path backupDir,
-                                         HomeFileConfig homeFileStore,
+                                         HomeFileConf homeFileStore,
                                          BackupStats backupStats) throws IOException, NamespaceException {
     final Path uploadsBackupDir = new Path(backupDir.toUri().getPath(), "uploads");
     fs.mkdirs(uploadsBackupDir);
-    final Path uploadsDir = homeFileStore.getUploadsDir();
-    copyFiles(homeFileStore.createFileSystem(), uploadsDir, fs, uploadsBackupDir, homeFileStore.isPdfsBased(), new Configuration(), backupStats);
+    final Path uploadsDir = homeFileStore.getInnerUploads();
+    copyFiles(homeFileStore.getFilesystemAndCreatePaths(null), uploadsDir, fs, uploadsBackupDir, homeFileStore.isPdfsBased(), new Configuration(), backupStats);
   }
 
   private static void copyFiles(FileSystem srcFs, Path srcPath, FileSystem dstFs, Path dstPath, boolean isPdfs, Configuration conf, BackupStats backupStats) throws IOException {
@@ -265,16 +265,16 @@ public final class BackupRestoreUtil {
   }
 
 
-  public static void restoreUploadedFiles(FileSystem fs, Path backupDir, HomeFileConfig homeFileStore, BackupStats backupStats) throws IOException {
+  public static void restoreUploadedFiles(FileSystem fs, Path backupDir, HomeFileConf homeFileStore, BackupStats backupStats, String hostname) throws IOException {
     // restore uploaded files
     final Path uploadsBackupDir = new Path(backupDir.toUri().getPath(), "uploads");
-    FileSystem fs2 = homeFileStore.createFileSystem();
-    fs2.delete(homeFileStore.getUploadsDir(), true);
-    FileUtil.copy(fs, uploadsBackupDir, fs2, homeFileStore.getUploadsDir(), false, false, new Configuration());
+    FileSystem fs2 = homeFileStore.getFilesystemAndCreatePaths(hostname);
+    fs2.delete(homeFileStore.getPath(), true);
+    FileUtil.copy(fs, uploadsBackupDir, fs2, homeFileStore.getInnerUploads(), false, false, new Configuration());
     backupStats.files = fs.getContentSummary(backupDir).getFileCount();
   }
 
-  public static BackupStats createBackup(FileSystem fs, Path backupRootDir, LocalKVStoreProvider localKVStoreProvider, HomeFileConfig homeFileStore) throws IOException, NamespaceException {
+  public static BackupStats createBackup(FileSystem fs, Path backupRootDir, LocalKVStoreProvider localKVStoreProvider, HomeFileConf homeFileStore) throws IOException, NamespaceException {
     final Date now = new Date();
     final BackupStats backupStats = new BackupStats();
 
@@ -312,8 +312,9 @@ public final class BackupRestoreUtil {
     if(uploads.getScheme().equals("pdfs")){
       uploads = UriBuilder.fromUri(uploads).scheme("file").build();
     }
-    final HomeFileConfig homeFileStore = new HomeFileConfig(uploads, dacConfig.thisNode);
-    homeFileStore.createFileSystem();
+
+    final HomeFileConf homeFileConf = new HomeFileConf(uploads.toString());
+    homeFileConf.getFilesystemAndCreatePaths(null);
     Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(fs, backupDir);
     Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);
     final BackupStats backupStats = new BackupStats();
@@ -326,7 +327,7 @@ public final class BackupRestoreUtil {
       ++backupStats.tables;
     }
 
-    restoreUploadedFiles(fs, backupDir, homeFileStore, backupStats);
+    restoreUploadedFiles(fs, backupDir, homeFileConf, backupStats, dacConfig.getConfig().getThisNode());
     localKVStoreProvider.close();
 
     return backupStats;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -162,7 +162,7 @@ export class DatasetSettings extends Component {
           {...commonProps}
           updateFormDirtyState={this.updateFormDirtyState}
           onDone={hide}
-          entity={entity}
+          datasetId={entity.get('id')}
         />;
       },
       accelerationUpdates: () => {

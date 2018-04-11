@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,6 +118,8 @@ describe('TextFormatForm', () => {
       expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\u0000');
       fieldDelimiter.value = '\\foo';
       expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\\\foo');
+      fieldDelimiter.value = '\u200a'; // not naturally escapsed by JSON.stringify
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\u200a');
     });
 
     it('should not add JSON escaping for all-slashes string', () => {

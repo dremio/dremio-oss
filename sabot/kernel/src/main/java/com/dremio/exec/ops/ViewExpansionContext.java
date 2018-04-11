@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 package com.dremio.exec.ops;
 
-import org.apache.calcite.schema.SchemaPlus;
+import java.util.Objects;
 
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import com.carrotsearch.hppc.ObjectIntHashMap;
-import com.dremio.exec.store.SchemaTreeProvider;
-import com.dremio.exec.store.SchemaConfig.SchemaInfoProvider;
 import com.google.common.base.Preconditions;
 
 /**
@@ -65,16 +65,14 @@ import com.google.common.base.Preconditions;
 public class ViewExpansionContext {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ViewExpansionContext.class);
 
-  private final SchemaInfoProvider schemaInfoProvider;
-  private final SchemaTreeProvider schemaTreeProvider;
   private final String queryUser;
   private final ObjectIntHashMap<String> userTokens = new ObjectIntHashMap<>();
 
-  public ViewExpansionContext(SchemaInfoProvider schemaInfoProvider, SchemaTreeProvider schemaTreeProvider, String queryUser) {
-    this.schemaInfoProvider = schemaInfoProvider;
-    this.schemaTreeProvider = schemaTreeProvider;
+  public ViewExpansionContext(String queryUser) {
+    super();
     this.queryUser = queryUser;
   }
+
   /**
    * Reserve a token for expansion of view owned by given user name.
    *
@@ -84,7 +82,7 @@ public class ViewExpansionContext {
    */
   public ViewExpansionToken reserveViewExpansionToken(String viewOwner) {
     int totalTokens = 1;
-    if (!viewOwner.equals(queryUser)) {
+    if (!Objects.equals(queryUser, viewOwner)) {
       // We want to track the tokens only if the "viewOwner" is not same as the "queryUser".
       if (userTokens.containsKey(viewOwner)) {
         totalTokens += userTokens.get(viewOwner);
@@ -101,7 +99,7 @@ public class ViewExpansionContext {
   private void releaseViewExpansionToken(ViewExpansionToken token) {
     final String viewOwner = token.viewOwner;
 
-    if (viewOwner.equals(queryUser)) {
+    if (Objects.equals(queryUser, viewOwner)) {
       // If the token owner and queryUser are same, no need to track the token release.
       return;
     }
@@ -129,15 +127,6 @@ public class ViewExpansionContext {
 
     ViewExpansionToken(String viewOwner) {
       this.viewOwner = viewOwner;
-    }
-
-    /**
-     * Get schema tree for view owner who owns this token.
-     * @return Root of schema tree.
-     */
-    public SchemaPlus getSchemaTree() {
-      Preconditions.checkState(!released, "Trying to use released token.");
-      return schemaTreeProvider.getRootSchema(viewOwner, schemaInfoProvider);
     }
 
     /**

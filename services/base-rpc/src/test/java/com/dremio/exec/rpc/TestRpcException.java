@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@ import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.rpc.UserRpcException;
 
 /**
  * Test class for {@code RpcException}
@@ -59,7 +57,7 @@ public class TestRpcException {
 
   @Test
   public void testRemoteTestException() throws Exception {
-    UserRemoteException ure = new UserRemoteException(UserException
+    UserRemoteException ure = UserRemoteException.create(UserException
         .unsupportedError(new UserRpcException(null, "user rpc exception", new TestException("test message")))
         .build(logger).getOrCreatePBError(false));
 
@@ -70,7 +68,7 @@ public class TestRpcException {
 
   @Test
   public void testRemoteRuntimeException() throws Exception {
-    UserRemoteException ure = new UserRemoteException(UserException
+    UserRemoteException ure = UserRemoteException.create(UserException
         .unsupportedError(new UserRpcException(null, "user rpc exception", new RuntimeException("test message")))
         .build(logger).getOrCreatePBError(false));
 

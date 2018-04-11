@@ -59,26 +59,26 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testSimpleQuerySingleFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.`%s/../../sample-data/regionsSF/`", WORKING_PATH));
+        + "from dfs_root.\"%s/../../sample-data/regionsSF/\"", WORKING_PATH));
   }
 
   @Test
   public void testSimpleQueryMultiFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/`", WORKING_PATH));
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\"", WORKING_PATH));
   }
 
   @Test
   public void testWhereOverSFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.`%s/../../sample-data/regionsSF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsSF/\" "
         + "WHERE R_REGIONKEY = 1", WORKING_PATH));
   }
 
   @Test
   public void testWhereOverMFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "WHERE R_REGIONKEY = 1", WORKING_PATH));
   }
 
@@ -86,28 +86,28 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testAggSingleFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsSF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsSF/\" "
         + "group by R_REGIONKEY", WORKING_PATH));
   }
 
   @Test
   public void testAggMultiFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "group by R_REGIONKEY", WORKING_PATH));
   }
 
   @Test
   public void testAggOrderByDiffGKeyMultiFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY, SUM(cast(R_REGIONKEY AS int)) As S "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "group by R_REGIONKEY ORDER BY S", WORKING_PATH));
   }
 
   @Test
   public void testAggOrderBySameGKeyMultiFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY, SUM(cast(R_REGIONKEY AS int)) As S "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "group by R_REGIONKEY "
         + "ORDER BY R_REGIONKEY", WORKING_PATH));
   }
@@ -116,8 +116,8 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testJoinSingleFile() throws Exception{
     testQuery(String.format("select T1.R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsSF/` as T1 "
-        + "join dfs_root.`%s/../../sample-data/nationsSF/` as T2 "
+        + "from dfs_root.\"%s/../../sample-data/regionsSF/\" as T1 "
+        + "join dfs_root.\"%s/../../sample-data/nationsSF/\" as T2 "
         + "on T1.R_REGIONKEY = T2.N_REGIONKEY", WORKING_PATH, WORKING_PATH));
   }
 
@@ -125,8 +125,8 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testJoinMultiFile() throws Exception{
     testQuery(String.format("select T1.R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` as T1 "
-        + "join dfs_root.`%s/../../sample-data/nationsMF/` as T2 "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" as T1 "
+        + "join dfs_root.\"%s/../../sample-data/nationsMF/\" as T2 "
         + "on T1.R_REGIONKEY = T2.N_REGIONKEY", WORKING_PATH, WORKING_PATH));
   }
 
@@ -134,8 +134,8 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testJoinMFileWhere() throws Exception{
     testQuery(String.format("select T1.R_REGIONKEY, T1.R_NAME "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` as T1 "
-        + "join dfs_root.`%s/../../sample-data/nationsMF/` as T2 "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" as T1 "
+        + "join dfs_root.\"%s/../../sample-data/nationsMF/\" as T2 "
         + "on T1.R_REGIONKEY = T2.N_REGIONKEY "
         + "WHERE T1.R_REGIONKEY  = 3 ", WORKING_PATH, WORKING_PATH));
   }
@@ -144,7 +144,7 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   //NPE at ExternalSortBatch.java : 151
   public void testSortSingleFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsSF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsSF/\" "
         + "order by R_REGIONKEY", WORKING_PATH));
   }
 
@@ -152,14 +152,14 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   //NPE at ExternalSortBatch.java : 151
   public void testSortMultiFile() throws Exception{
     testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "order by R_REGIONKEY", WORKING_PATH));
   }
 
   @Test
   public void testSortMFileWhere() throws Exception{
     testQuery(String.format("select R_REGIONKEY "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "WHERE R_REGIONKEY = 1 "
         + "order by R_REGIONKEY ", WORKING_PATH ));
   }
@@ -168,8 +168,8 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testJoinAggSortWhere() throws Exception{
     testQuery(String.format("select T1.R_REGIONKEY, COUNT(1) as CNT "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` as T1 "
-        + "join dfs_root.`%s/../../sample-data/nationsMF/` as T2 "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" as T1 "
+        + "join dfs_root.\"%s/../../sample-data/nationsMF/\" as T2 "
         + "on T1.R_REGIONKEY = T2.N_REGIONKEY "
         + "WHERE T1.R_REGIONKEY  = 3 "
         + "GROUP BY T1.R_REGIONKEY "
@@ -179,7 +179,7 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   @Test
   public void testSelectLimit() throws Exception{
     testQuery(String.format("select R_REGIONKEY, R_NAME "
-        + "from dfs_root.`%s/../../sample-data/regionsMF/` "
+        + "from dfs_root.\"%s/../../sample-data/regionsMF/\" "
         + "limit 2", WORKING_PATH));
   }
 
@@ -228,7 +228,7 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
 
   @Test
   public void testSchemaForEmptyResultSet() throws Exception {
-    String query = "select fullname, occupation, postal_code from cp.`customer.json` where 0 = 1";
+    String query = "select fullname, occupation, postal_code from cp.\"customer.json\" where 0 = 1";
     Statement s = getConnection().createStatement();
     ResultSet r = s.executeQuery(query);
     ResultSetMetaData md = r.getMetaData();

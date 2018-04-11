@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -385,12 +385,6 @@ public class TestParquetWriter extends BaseTestQuery {
     runTestAndValidate("*", "*", inputTable, "nullable_test", false);
   }
 
-  @Ignore("Binary file too large for version control, TODO - make available on S3 bucket or similar service")
-  @Test
-  public void testBitError_Drill_2031() throws Exception {
-    compareParquetReadersHyperVector("*", "dfs.`/tmp/wide2/0_0_3.parquet`");
-  }
-
   @Test
   public void testDecimal() throws Exception {
     String selection = "cast(salary as decimal(8,2)) as decimal8, cast(salary as decimal(15,2)) as decimal15, " +
@@ -499,90 +493,6 @@ public class TestParquetWriter extends BaseTestQuery {
           ExecConstants.PARQUET_RECORD_READER_IMPLEMENTATION_VALIDATOR
               .getDefault().bool_val);
     }
-  }
-
-  @Ignore
-  @Test
-  public void testReadVoter() throws Exception {
-    compareParquetReadersHyperVector("*", "dfs.`/tmp/voter.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testReadSf_100_supplier() throws Exception {
-    compareParquetReadersHyperVector("*", "dfs.`/tmp/sf100_supplier.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testParquetRead_checkNulls_NullsFirst() throws Exception {
-    compareParquetReadersColumnar("*",
-        "dfs.`/tmp/parquet_with_nulls_should_sum_100000_nulls_first.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testParquetRead_checkNulls() throws Exception {
-    compareParquetReadersColumnar("*",
-        "dfs.`/tmp/parquet_with_nulls_should_sum_100000.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void test958_sql() throws Exception {
-    compareParquetReadersHyperVector("ss_ext_sales_price",
-        "dfs.`/tmp/store_sales`");
-  }
-
-  @Ignore
-  @Test
-  public void testReadSf_1_supplier() throws Exception {
-    compareParquetReadersHyperVector("*",
-        "dfs.`/tmp/orders_part-m-00001.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void test958_sql_all_columns() throws Exception {
-    compareParquetReadersHyperVector("*", "dfs.`/tmp/store_sales`");
-    compareParquetReadersHyperVector("ss_addr_sk, ss_hdemo_sk", "dfs.`/tmp/store_sales`");
-    // TODO - Drill 1388 - this currently fails, but it is an issue with project, not the reader, pulled out the physical plan
-    // removed the unneeded project in the plan and ran it against both readers, they outputs matched
-//    compareParquetReadersHyperVector("pig_schema,ss_sold_date_sk,ss_item_sk,ss_cdemo_sk,ss_addr_sk, ss_hdemo_sk",
-//        "dfs.`/tmp/store_sales`");
-  }
-
-  @Ignore
-  @Test
-  public void testDrill_1314() throws Exception {
-    compareParquetReadersColumnar("l_partkey ", "dfs.`/tmp/drill_1314.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testDrill_1314_all_columns() throws Exception {
-    compareParquetReadersHyperVector("*", "dfs.`/tmp/drill_1314.parquet`");
-    compareParquetReadersColumnar(
-        "l_orderkey,l_partkey,l_suppkey,l_linenumber, l_quantity, l_extendedprice,l_discount,l_tax",
-        "dfs.`/tmp/drill_1314.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testParquetRead_checkShortNullLists() throws Exception {
-    compareParquetReadersColumnar("*", "dfs.`/tmp/short_null_lists.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testParquetRead_checkStartWithNull() throws Exception {
-    compareParquetReadersColumnar("*", "dfs.`/tmp/start_with_null.parquet`");
-  }
-
-  @Ignore
-  @Test
-  public void testParquetReadWebReturns() throws Exception {
-    compareParquetReadersColumnar("wr_returning_customer_sk", "dfs.`/tmp/web_returns`");
   }
 
   @Ignore("DX-4852")
@@ -804,16 +714,14 @@ public class TestParquetWriter extends BaseTestQuery {
   /*
   Test the reading of a binary field as varbinary where data is in dictionary _and_ non-dictionary encoded pages
    */
-  @Ignore
   @Test
   public void testImpalaParquetBinaryAsVarBinary_DictChange() throws Exception {
-    compareParquetReadersColumnar("field_impala_ts", "cp.`parquet/int96_dict_change.parquet`");
+    compareParquetReadersColumnar("int96_ts", "cp.`parquet/int96_dict_change.parquet`");
   }
 
    /*
      Test the conversion from int96 to impala timestamp
    */
-  @Ignore("Vectorized reader doesn't support reading INT96 as VARBINARY")
   @Test
   public void testTimestampImpalaConvertFrom() throws Exception {
     compareParquetReadersColumnar("convert_from(field_impala_ts, 'TIMESTAMP_IMPALA')", "cp.`parquet/int96_impala_1.parquet`");
@@ -823,7 +731,6 @@ public class TestParquetWriter extends BaseTestQuery {
     Test a file with partitions and an int96 column. (Data generated using Hive)
    */
   @Test
-  @Ignore
   public void testImpalaParquetInt96Partitioned() throws Exception {
     compareParquetReadersColumnar("timestamp_field", "cp.`parquet/part1/hive_all_types.parquet`");
   }
@@ -832,7 +739,6 @@ public class TestParquetWriter extends BaseTestQuery {
   Test the conversion from int96 to impala timestamp with hive data including nulls. Validate against old reader
   */
   @Test
-  @Ignore
   public void testHiveParquetTimestampAsInt96_compare() throws Exception {
     compareParquetReadersColumnar("convert_from(timestamp_field, 'TIMESTAMP_IMPALA')", "cp.`parquet/part1/hive_all_types.parquet`");
   }
@@ -860,7 +766,6 @@ public class TestParquetWriter extends BaseTestQuery {
   // This fails with varying errors
   //
   @Test
-  @Ignore("DX-3690")
   public void testSchemaChange() throws Exception {
     File dir = new File("target/tests/" + this.getClass().getName() + "/testSchemaChange");
     if ((!dir.exists() && !dir.mkdirs()) || (dir.exists() && !dir.isDirectory())) {

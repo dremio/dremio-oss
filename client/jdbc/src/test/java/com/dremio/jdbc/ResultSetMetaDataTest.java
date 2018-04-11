@@ -125,7 +125,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
     ResultSet util;
 
     // Create temporary test-columns view:
-    util = stmt.executeQuery( "USE `" + VIEW_SCHEMA + "`" );
+    util = stmt.executeQuery( "USE \"" + VIEW_SCHEMA + "\"" );
     assertTrue( util.next() );
     assertTrue( "Error setting schema for test: " + util.getString( 2 ),
                 util.getBoolean( 1 ) );
@@ -133,7 +133,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
     columnCount = 0;
     final StringBuilder buf = new StringBuilder();
 
-    buf.append( "CREATE OR REPLACE VIEW `" + VIEW_NAME + "` AS SELECT " );
+    buf.append( "CREATE OR REPLACE VIEW \"" + VIEW_NAME + "\" AS SELECT " );
 
     buf.append( "\n CAST( NULL    AS BOOLEAN      ) AS mdrOptBOOLEAN, " );
     ordOptBOOLEAN = ++columnCount;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.dremio.exec.physical.impl.mergereceiver;
 
 import static org.junit.Assert.assertEquals;
@@ -46,9 +45,9 @@ public class TestMergingReceiver extends PopUnitTestBase {
   @Test
   public void twoBitTwoExchange() throws Exception {
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
+         final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+         final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
       bit1.run();
       bit2.run();
       client.connect();
@@ -73,9 +72,9 @@ public class TestMergingReceiver extends PopUnitTestBase {
   @Test
   public void testMultipleProvidersMixedSizes() throws Exception {
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
+         final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+         final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
 
       bit1.run();
       bit2.run();
@@ -121,9 +120,9 @@ public class TestMergingReceiver extends PopUnitTestBase {
   @Test
   public void handleEmptyBatch() throws Exception {
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
+         final SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+         final SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);) {
 
       bit1.run();
       bit2.run();

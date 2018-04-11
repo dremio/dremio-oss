@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,12 +29,14 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.collections.IteratorUtils;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.job.proto.CommonDatasetProfile;
 import com.dremio.service.job.proto.DatasetPathUI;
 import com.dremio.service.job.proto.FileSystemDatasetProfile;
@@ -74,6 +76,7 @@ class QueryProfileParser {
   private final ObjectMapper mapper;
   private final QueryProfile queryProfile;
   private final JobId jobId;
+  private boolean queryOutputLimited = false;
 
   public QueryProfileParser(final JobId jobId, final QueryProfile queryProfile) throws IOException {
     mapper = new ObjectMapper();
@@ -89,7 +92,7 @@ class QueryProfileParser {
     parse();
   }
 
-  private void setOutputStatsForQueryResults(List<StreamProfile> streams) {
+  private void setOutputStatsForQueryResults(List<StreamProfile> streams, boolean isOutputLimited) {
     if (streams == null) {
       return;
     }
@@ -101,6 +104,7 @@ class QueryProfileParser {
     }
     queryOutputBytes += outputBytes;
     queryOutputRecords += outputRecords;
+    queryOutputLimited = queryOutputLimited || isOutputLimited;
   }
 
   private void setOutputStats(List<StreamProfile> streams) {
@@ -295,6 +299,7 @@ class QueryProfileParser {
       return;
     }
 
+    boolean outputLimited = false;
     final ListMultimap<CoreOperatorType, OperatorProfile> operators = ArrayListMultimap.create();
     for (MajorFragmentProfile majorFragment: queryProfile.getFragmentProfileList()) {
       if (majorFragment.getMinorFragmentProfileList() == null) {
@@ -396,6 +401,9 @@ class QueryProfileParser {
             // job output writer
             case ARROW_WRITER:
               setOperationStats(OperationType.Writing, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              if (isArrowWriterOutputLimited(operatorProfile)) {
+                outputLimited = true;
+              }
               break;
 
             // CTAS writers
@@ -441,7 +449,7 @@ class QueryProfileParser {
 
       for(OperatorProfile profile: profiles) {
         List<StreamProfile> streams = profile.getInputProfileList();
-        setOutputStatsForQueryResults(streams);
+        setOutputStatsForQueryResults(streams, outputLimited);
       }
       // No need to try other operators
       break;
@@ -453,7 +461,9 @@ class QueryProfileParser {
     if (jobStats.getOutputBytes() == null) {
       jobStats.setOutputBytes(queryOutputBytes);
     }
-
+    if (jobStats.getIsOutputLimited() == null) {
+      jobStats.setIsOutputLimited(queryOutputLimited);
+    }
 
     jobDetails.setOutputRecords(jobStats.getOutputRecords());
     jobDetails.setDataVolume(jobStats.getOutputBytes());
@@ -474,6 +484,16 @@ class QueryProfileParser {
       }
     });
     jobDetails.setTopOperationsList(topOperations);
+  }
+
+  private boolean isArrowWriterOutputLimited(OperatorProfile operatorProfile) {
+    for (int i = 0; i < operatorProfile.getMetricCount(); i++) {
+      UserBitShared.MetricValue metricValue = operatorProfile.getMetric(i);
+      if (metricValue.getMetricId() == WriterOperator.Metric.OUTPUT_LIMITED.ordinal()) {
+        return metricValue.getLongValue() > 0;
+      }
+    }
+    return false;
   }
 
   public JobStats getJobStats() {

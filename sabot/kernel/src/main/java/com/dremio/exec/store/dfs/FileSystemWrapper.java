@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,7 +134,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return new FileSystemWrapper(fsConf, stats);
   }
 
-  public static FileSystem get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
+  public static FileSystemWrapper get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
     FileSystem fs = path.getFileSystem(fsConf);
     return new FileSystemWrapper(fsConf, fs, stats);
   }
@@ -516,6 +516,15 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     } catch(FSError e) {
       throw propagateFSError(e);
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> T unwrap(Class<T> clazz) {
+    if(clazz.isAssignableFrom(underlyingFs.getClass())) {
+      return (T) underlyingFs;
+    }
+
+    return null;
   }
 
   @Override
@@ -1303,7 +1312,8 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public Path canonicalizePath(Path p) throws IOException {
     try {
-      return canonicalizePath(underlyingFs, p);
+      Path cp = canonicalizePath(underlyingFs, p);
+      return new PathWrapperWithFileSystem(cp, this);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -1364,7 +1374,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   FSDataOutputStreamWrapper newFSDataOutputStreamWrapper(FSDataOutputStream os) throws IOException {
     try {
-      return new FSDataOutputStreamWrapper(os);
+      return (operatorStats != null) ? new FSDataOutputStreamWithStatsWrapper(os, operatorStats) : new FSDataOutputStreamWrapper(os);
     } catch(FSError e) {
       throw propagateFSError(e);
     }

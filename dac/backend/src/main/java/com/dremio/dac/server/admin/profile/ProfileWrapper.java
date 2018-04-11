@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,11 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
+import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
@@ -35,6 +38,7 @@ import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 
 /**
  * Wrapper class for a {@link #profile query profile}, so it to be presented through web UI.
@@ -101,7 +105,7 @@ public class ProfileWrapper {
     AccelerationWrapper wrapper = null;
     try {
       AccelerationDetails details = AccelerationDetailsUtils.deserialize(profile.getAccelerationProfile().getAccelerationDetails());
-      if (details != null) {
+      if (details != null && details.getReflectionRelationshipsList() != null) {
         wrapper = new AccelerationWrapper(details);
       }
     } catch (Exception e) {
@@ -200,5 +204,31 @@ public class ProfileWrapper {
       sep = ", ";
     }
     return sb.append("}").toString();
+  }
+
+  public Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>> getDatasetGroupedLayoutList() {
+    Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>> map = Maps.newHashMap();
+
+    UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
+    List<UserBitShared.LayoutMaterializedViewProfile> layoutProfilesList = accelerationProfile.getLayoutProfilesList();
+
+    for (UserBitShared.LayoutMaterializedViewProfile viewProfile : layoutProfilesList) {
+      String reflectionDatasetPath = accelerationDetails.getReflectionDatasetPath(viewProfile.getLayoutId());
+      DatasetPath path = new DatasetPath(reflectionDatasetPath);
+
+      if (!map.containsKey(path)) {
+        map.put(path, new ArrayList<UserBitShared.LayoutMaterializedViewProfile>());
+      }
+      map.get(path).add(viewProfile);
+    }
+
+    return map;
+  }
+
+  public String getPerdiodFromStart(Long datetime) {
+    if (datetime == null) {
+      return "";
+    }
+    return DurationFormatUtils.formatDurationWords( this.profile.getStart() - datetime, true, true);
   }
 }

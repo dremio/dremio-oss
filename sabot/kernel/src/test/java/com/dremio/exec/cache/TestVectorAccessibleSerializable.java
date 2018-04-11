@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.cache;
 
+import static com.dremio.TestBuilder.listOf;
+import static com.dremio.TestBuilder.mapOf;
 import static com.dremio.exec.cache.VectorAccessibleSerializable.readIntoArrowBuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -35,6 +37,10 @@ import org.apache.arrow.vector.NullableIntVector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableFloat8Vector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.NullableMapVector;
+import org.apache.arrow.vector.complex.impl.NullableMapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -46,6 +52,7 @@ import org.junit.rules.TestRule;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.record.VectorAccessible;
@@ -68,7 +75,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
   public void test() throws Exception {
     final List<ValueVector> vectorList = Lists.newArrayList();
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT)) {
+        final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
       bit.run();
       final SabotContext context = bit.getContext();
 
@@ -149,31 +156,65 @@ public class TestVectorAccessibleSerializable extends ExecTest {
   private void testCompressSerDeHelper(int records) throws Exception {
     final List<ValueVector> vectorList = Lists.newArrayList();
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT)) {
+         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
       bit.run();
       final SabotContext context = bit.getContext();
 
+      final FieldType mapType = CompleteType.struct(
+          CompleteType.VARCHAR.toField("varchar"),
+          CompleteType.INT.toField("int"),
+          CompleteType.BIT.asList().toField("bits")
+      ).toField("map").getFieldType();
+
       try (final NullableIntVector intVector = new NullableIntVector("int", context.getAllocator());
-           final NullableFloat8Vector float8Vector =
-             new NullableFloat8Vector("float8", context.getAllocator())) {
+           final NullableFloat8Vector float8Vector = new NullableFloat8Vector("float8", context.getAllocator());
+           final NullableMapVector mapVector = new NullableMapVector("map", context.getAllocator(), mapType, null);
+           final ArrowBuf tempBuf = allocator.buffer(2048)) {
         AllocationHelper.allocateNew(intVector, records);
         AllocationHelper.allocateNew(float8Vector, records);
+        AllocationHelper.allocateNew(mapVector, records);
         vectorList.add(intVector);
         vectorList.add(float8Vector);
+        vectorList.add(mapVector);
 
         int intBaseValue = 100;
         double doubleBaseValue = 100.375;
+        NullableMapWriter mapWriter = mapVector.getWriter();
         for (int i = 0; i < records; i++) {
           intVector.set(i, intBaseValue + i);
           float8Vector.set(i, doubleBaseValue + (double)i);
+
+          mapWriter.setPosition(i);
+          byte[] bytes = ("varchar" + i).getBytes();
+          tempBuf.setBytes(0, bytes, 0, bytes.length);
+          mapWriter.varChar("varchar").writeVarChar(0, bytes.length, tempBuf);
+          mapWriter.integer("int").writeInt(i);
+          ListWriter listWriter = mapWriter.list("bits");
+          listWriter.startList();
+          listWriter.setPosition(i);
+          final Boolean[] bits = new Boolean[] { true, false};
+          for(int j = 0; j < bits.length; j++) {
+            listWriter.bit().writeBit(bits[j] ? 1 : 0);
+          }
+          listWriter.endList();
+          // weird call to mark the call explicitly not-null??
+          mapVector.setIndexDefined(i);
         }
 
         intVector.setValueCount(records);
         float8Vector.setValueCount(records);
+        mapVector.setValueCount(records);
 
         for (int i = 0; i < records; i++) {
           assertEquals(intBaseValue + i, intVector.get(i));
           assertEquals(doubleBaseValue + (double)i, float8Vector.get(i), 0);
+          assertEquals(
+              mapOf(
+                  "varchar", "varchar" + i,
+                  "int", i,
+                  "bits", listOf(true, false)
+              ), mapVector.getObject(i)
+          );
         }
 
         SerDe(vectorList, true, records, context, 100, 100.375);
@@ -216,8 +257,16 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           final Object o = vv.getObject(i);
           if (o instanceof Integer) {
             assertEquals(intBaseValue + i, ((Integer) o).intValue());
-          } else {
+          } else if (o instanceof  Double) {
             assertEquals(doubleBaseValue + (double)i, ((Double) o).doubleValue(), 0);
+          } else {
+            assertEquals(
+                mapOf(
+                    "varchar", "varchar" + i,
+                    "int", i,
+                    "bits", listOf(true, false)
+                ),
+                o);
           }
         }
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,13 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
@@ -53,6 +53,7 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.jobs.metadata.QueryMetadata.Builder;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Throwables;
 
 /**
@@ -94,29 +95,28 @@ public final class QueryParser {
 
   private SqlConverter getNewConverter(QueryContext context, SqlQuery query, AttemptObserver observerForSubstitution) {
 
-    SchemaPlus defaultSchema = context.getRootSchema();
+    Catalog catalog = context.getCatalog();
     final List<String> sqlContext = query.getContext();
     if(sqlContext != null){
-      for(String schema : sqlContext){
-        defaultSchema = defaultSchema.getSubSchema(schema);
-        if(defaultSchema == null){
-          throw UserException.validationError()
-            .message("Unable to resolve schema path [%s]. Failure resolving [%s] portion of path.", sqlContext, schema)
-            .build(logger);
-        }
+      NamespaceKey path = new NamespaceKey(sqlContext);
+      try {
+        catalog = catalog.resolveCatalog(path);
+      } catch (Exception e) {
+        throw UserException.validationError(e)
+          .message("Unable to resolve schema path [%s]. Failure resolving [%s] portion of path.", sqlContext, path)
+          .build(logger);
       }
     }
 
     return new SqlConverter(
         context.getPlannerSettings(),
-        defaultSchema,
         context.getOperatorTable(),
         context,
         context.getMaterializationProvider(),
         context.getFunctionRegistry(),
         context.getSession(),
         observerForSubstitution,
-        context.getStorage(),
+        catalog,
         context.getSubstitutionProviderFactory());
   }
 
@@ -193,7 +193,7 @@ public final class QueryParser {
         builder.addPreJoinPlan(before);
         break;
       case LOGICAL:
-        builder.addLogicalPlan(before);
+        builder.addLogicalPlan(before, after);
         // Always use metadataQuery from the cluster (do not use calcite's default CALCITE_INSTANCE)
         final RelOptCost cost = before.getCluster().getMetadataQuery().getCumulativeCost(after);
         // set final pre-accelerated cost

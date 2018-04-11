@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,11 +91,10 @@ public class MaterializationList implements MaterializationProvider {
   protected List<RelOptMaterialization> build(final MaterializationDescriptorProvider provider) {
     final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
     final List<RelOptMaterialization> materializations = Lists.newArrayList();
-    for (final MaterializationDescriptor descriptor :
-        provider.get(session.getSubstitutionSettings().isIncludingIncompleteDatasets())) {
+    for (final MaterializationDescriptor descriptor : provider.get()) {
       // skip if materialization is excluded
       // exclusion list is passed by AcceleratorTask
-      if (exclusions.contains(descriptor.getAccelerationId()) || exclusions.contains(descriptor.getLayoutId())) {
+      if (exclusions.contains(descriptor.getLayoutId())) {
         continue;
       }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.service.namespace.NamespaceKey;
 
 public class TestMetadataRefresh extends HiveTestBase {
@@ -26,7 +27,7 @@ public class TestMetadataRefresh extends HiveTestBase {
   @Test
   public void ensureFirstTableRefresh() throws Exception {
     // refresh the catalog to ensure we have a base config in the kvstore.
-    getBindingProvider().lookup(CatalogService.class).refreshSource(new NamespaceKey("hive"), CatalogService.DEFAULT_METADATA_POLICY);
+    getBindingProvider().lookup(CatalogService.class).refreshSource(new NamespaceKey("hive"), null, UpdateType.FULL);
 
     // now try to read refresh a table where we have a DatasetConfig but not a ReadDefinition.
     testBuilder()

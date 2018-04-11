@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 
 /**
@@ -48,6 +49,9 @@ public abstract class FilterRelBase extends Filter {
   // flatten is written like a scalar function, but cannot be evaluated in a contexts that regularly
   // handle scalar functions, because it produces more than one output row for each input row
   private final boolean hasFlatten;
+
+  private final double filterMinSelectivityEstimateFactor;
+  private final double filterMaxSelectivityEstimateFactor;
 
   protected FilterRelBase(Convention convention, RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
     super(cluster, traits, child, condition);
@@ -69,6 +73,10 @@ public abstract class FilterRelBase extends Filter {
       }
     }
     this.hasFlatten = foundFlatten;
+
+    final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster.getPlanner());
+    filterMinSelectivityEstimateFactor = plannerSettings.getFilterMinSelectivityEstimateFactor();
+    filterMaxSelectivityEstimateFactor = plannerSettings.getFilterMaxSelectivityEstimateFactor();
   }
 
   public boolean canHaveContains() {
@@ -118,5 +126,28 @@ public abstract class FilterRelBase extends Filter {
     }
 
     return compNum * DremioCost.COMPARE_CPU_COST + rowCompNum * DremioCost.COPY_COST;
+  }
+
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    // override Calcite's default selectivity estimate - cap lower/upper bounds on the
+    // selectivity estimate in order to get desired parallelism
+    double selectivity = mq.getSelectivity(getInput(), condition);
+
+    if (!condition.isAlwaysFalse()) {
+      // Cap selectivity at filterMinSelectivityEstimateFactor unless it is always FALSE
+      if (selectivity < filterMinSelectivityEstimateFactor) {
+        selectivity = filterMinSelectivityEstimateFactor;
+      }
+    }
+
+    if (!condition.isAlwaysTrue()) {
+      // Cap selectivity at filterMaxSelectivityEstimateFactor unless it is always TRUE
+      if (selectivity > filterMaxSelectivityEstimateFactor) {
+        selectivity = filterMaxSelectivityEstimateFactor;
+      }
+    }
+
+    return selectivity * mq.getRowCount(getInput());
   }
 }

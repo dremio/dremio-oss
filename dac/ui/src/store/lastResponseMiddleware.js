@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 function lastResponseMiddleware() {
   return () => next => action => {
 
-    if (localStorage.getItem('isE2E') && action.type && action.type.endsWith('_SUCCESS') &&
+    // dataset acceleration requests can break some e2e tests so skip storing them here
+    if (localStorage.getItem('isE2E') && action.type && action.type !== 'GET_DATASET_ACCELERATION_SUCCESS' && action.type.endsWith('_SUCCESS') &&
         action.payload && action.payload.toJS) {
       global.LAST_RESPONSE = action.payload.toJS();
     }

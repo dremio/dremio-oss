@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -21,12 +21,13 @@
     <title>Source/Hadoop</title>
     <desc>Created with Sketch.</desc>
     <defs>
-        <circle id="path-1" cx="24" cy="24" r="24"></circle>
         <mask id="mask-2" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="48" height="48" fill="white">
             <use xlink:href="#path-1"></use>
         </mask>
-        <polygon id="path-3" points="3.37105781 0.156352332 0.1598625 0.156352332 0.1598625 3.30642902 3.37105781 3.30642902 3.37105781 0.156352332"></polygon>
     </defs>
+    <g>
+      <circle id="Oval" cx="24" cy="24" r="23.5" style="fill:#fff;stroke:#e5e5e5;stroke-width:1.02px;"/>
+    </g>
     <g id="Elements" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="Elements/Data-Sources" transform="translate(-30.000000, -642.000000)">
             <g id="Icons" transform="translate(30.000000, 82.000000)">

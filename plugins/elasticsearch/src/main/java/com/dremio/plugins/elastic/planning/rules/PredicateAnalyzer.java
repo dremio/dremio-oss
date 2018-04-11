@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.dremio.plugins.elastic.planning.rules;
 import static java.lang.String.format;
 import static org.apache.calcite.plan.RelOptUtil.conjunctions;
 import static org.apache.calcite.rex.RexUtil.composeConjunction;
-import static org.apache.calcite.rex.RexUtil.toCnf;
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.existsQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
@@ -70,18 +69,17 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.impl.RegexpUtil;
 import com.dremio.lucene.queryparser.classic.QueryConverter;
+import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
-import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
-import com.dremio.service.namespace.StoragePluginId;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -241,12 +239,12 @@ public class PredicateAnalyzer {
       throws ExpressionNotAnalyzableException {
     try {
       final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
-      final ElasticsearchStoragePluginConfig config = pluginId.getConfig();
+      final ElasticStoragePluginConfig config = pluginId.getConnectionConf();
       final Script script = ProjectAnalyzer.getScript(
           expression,
-          config.isEnablePainless(),
+          config.usePainless,
           supportsV5Features,
-          config.isEnableScripts());
+          config.scriptsEnabled);
       return scriptQuery(script);
     } catch (Throwable t) {
       throw new ExpressionNotAnalyzableException(format(
@@ -878,6 +876,8 @@ public class PredicateAnalyzer {
 
     @Override
     public QueryExpression notExists() {
+      // Even though Lucene doesn't allow a stand alone mustNot boolean query, 
+      // Elasticsearch handles this problem transparently on its end
       builder = boolQuery().mustNot(existsQuery(getFieldReference()));
       return this;
     }
@@ -890,8 +890,8 @@ public class PredicateAnalyzer {
 
     @Override
     public QueryExpression notLike(LiteralExpression literal) {
-      builder = boolQuery().must(
-        existsQuery(getFieldReference())) // NOT LIKE should return false when field is NULL
+      builder = boolQuery()
+        .must(existsQuery(getFieldReference())) // NOT LIKE should return false when field is NULL
         .mustNot(regexpQuery(getFieldReference(), literal.stringValue()));
       return this;
     }
@@ -917,7 +917,9 @@ public class PredicateAnalyzer {
           .should(addFormatIfNecessary(literal, rangeQuery(getFieldReference()).gt(value)))
           .should(addFormatIfNecessary(literal, rangeQuery(getFieldReference()).lt(value)));
       } else {
-        builder = boolQuery().mustNot(matchQuery(getFieldReference(), value));
+        builder = boolQuery()
+          .must(existsQuery(getFieldReference())) // NOT LIKE should return false when field is NULL
+          .mustNot(matchQuery(getFieldReference(), value));
       }
       return this;
     }

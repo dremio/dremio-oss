@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,9 +50,10 @@ public interface RecordWriter extends AutoCloseable {
   /**
    *
    * @param incoming
-   * @param listener
+   * @param listener        Listener informed when an output entry has been written out
+   * @param statsListener   Listener informed on details of write(s) of record batches
    */
-  void setup(final VectorAccessible incoming, OutputEntryListener listener) throws IOException;
+  void setup(final VectorAccessible incoming, OutputEntryListener listener, WriteStatsListener statsListener) throws IOException;
 
   /**
    * Write the given record batch. It is callers responsibility to release the
@@ -89,5 +90,14 @@ public interface RecordWriter extends AutoCloseable {
     void recordsWritten(long recordCount, String path, byte[] metadata, Integer partitionNumber);
   }
 
+  /**
+   * Listens to write details: number of bytes written, number of files written
+   */
+  interface WriteStatsListener {
+    /**
+     * Record the act of writing 'byteCount' bytes to an output file
+     */
+    void bytesWritten(long byteCount);
+  }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,50 +15,66 @@
  */
 package com.dremio.exec.store.hive;
 
-import java.util.Map;
+import java.util.List;
 
-import com.dremio.common.logical.StoragePluginConfigBase;
-import com.fasterxml.jackson.annotation.JsonCreator;
+import javax.inject.Provider;
+
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.exec.server.SabotContext;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.ImmutableMap;
 
-@JsonTypeName(HiveStoragePluginConfig.NAME)
-public class HiveStoragePluginConfig extends StoragePluginConfigBase {
-  public static final String NAME = "hive";
+import io.protostuff.Tag;
 
-  public final Map<String, String> config;
+@SourceType("HIVE")
+public class HiveStoragePluginConfig extends ConnectionConf<HiveStoragePluginConfig, HiveStoragePlugin> {
 
-  /**
-   * Create an instance.
-   * @param config List of configuration override properties.
+  //  optional string hostname = 1;
+  //  optional int32 port = 2 [default = 9083];
+  //  optional bool enableSasl = 3 [default = false];
+  //  optional string kerberosPrincipal = 4;
+  //  repeated Property property = 5;
+
+  /*
+   * Hostname where Hive metastore server is running
    */
-  @JsonCreator
-  public HiveStoragePluginConfig(@JsonProperty("config") Map<String, String> config) {
-    this.config = config == null ? null : ImmutableMap.copyOf(config);
+  @Tag(1)
+  public String hostname;
+
+  /*
+   * Listening port of Hive metastore server
+   */
+  @Tag(2)
+  public int port = 9083;
+
+  /*
+   * Is kerberos authentication enabled on metastore services?
+   */
+  @Tag(3)
+  public boolean enableSasl = false;
+
+  /*
+   * Kerberos principal name of metastore servers if kerberos authentication is enabled
+   */
+  @Tag(4)
+  public String kerberosPrincipal;
+
+  /*
+   * List of configuration properties.
+   */
+  @JsonProperty("propertyList")
+  @Tag(5)
+  public List<Property> properties;
+
+  public HiveStoragePluginConfig() {
   }
 
   @Override
-  public int hashCode() {
-    return 31 + ((config == null) ? 0 : config.hashCode());
+  public HiveStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new HiveStoragePlugin(this, context, name);
   }
 
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    HiveStoragePluginConfig that = (HiveStoragePluginConfig) o;
-
-    if (config != null ? !config.equals(that.config) : that.config != null) {
-      return false;
-    }
-
-    return true;
-  }
 
 }

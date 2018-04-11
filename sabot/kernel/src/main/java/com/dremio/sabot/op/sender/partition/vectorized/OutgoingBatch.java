@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,6 +138,7 @@ public class OutgoingBatch extends VectorContainer {
       // every single record in copy method which has the overhead for every record all the time. Resetting the output
       // count, reusing the same buffers and copying has overhead only for outgoing batches whose receiver has
       // terminated.
+      preCopyIdx = 0;
       return;
     }
 

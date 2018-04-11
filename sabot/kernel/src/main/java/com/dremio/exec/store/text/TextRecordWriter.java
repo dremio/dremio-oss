@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 
+import com.dremio.sabot.exec.context.OperatorStats;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.hadoop.conf.Configuration;
@@ -41,6 +42,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextRecordWriter.class);
 
   private final Configuration conf;
+  private final OperatorStats stats;
   private final String location;
   private final String prefix;
   private final String fieldDelimiter;
@@ -63,6 +65,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   public TextRecordWriter(OperatorContext context, EasyWriter config, TextFormatConfig textConfig) {
     final FragmentHandle handle = context.getFragmentHandle();
     this.conf = new Configuration(config.getFsConf());
+    this.stats = context.getStats();
     this.location = config.getLocation();
     this.prefix = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
     this.fieldDelimiter = textConfig.getFieldDelimiterAsString();
@@ -75,7 +78,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   @Override
   public void setup(List<String> columnNames) throws IOException {
     this.columnNames = columnNames;
-    this.fs = FileSystemWrapper.get(conf);
+    this.fs = FileSystemWrapper.get(conf, stats);
   }
 
   public static final String NEWLINE = "\n";

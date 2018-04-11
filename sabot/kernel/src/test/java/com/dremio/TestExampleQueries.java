@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -74,6 +75,17 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void useMulti() throws Exception {
+    test("use `cp.tpch`");
+  }
+
+  @Test
+  public void manyInList() throws Exception {
+    test("select * from cp.`tpch/lineitem.parquet` where l_returnflag in ('a','b','c','d','e','f','g','h','i','j') or l_returnflag != 'x' limit 10");
+  }
+
+
+  @Test
   public void unknownListTypeCtas() throws Exception {
     test("create table dfs_test.unknownList as select * from cp.`/json/unknownListType.json`");
     test("select * from dfs_test.unknownList");
@@ -87,6 +99,15 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void ndv() throws Exception {
+    test("set planner.slice_target = 1");
+    test("SELECT l_returnflag, sum(l_extendedprice), ndv(l_partkey)\n" +
+      "FROM cp.`tpch/lineitem.parquet`\n" +
+      "group by l_returnflag");
+  }
+
+  @Ignore("DX-10395")
+  @Test
+  public void ndv2() throws Exception {
     test("set planner.slice_target = 1");
     test("SELECT l_returnflag, sum(l_extendedprice), ndv(l_partkey), ndv(l_suppkey)\n" +
       "FROM cp.`tpch/lineitem.parquet`\n" +
@@ -172,7 +193,7 @@ public class TestExampleQueries extends PlanTestBase {
     file2.println("{\"a\":1,\"b\":[\"b\"]}");
     file2.close();
     // TODO(AH) force refresh schema
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("dfs_test"), CatalogService.REFRESH_EVERYTHING_NOW);
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("dfs_test"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     try {
       test("select * from dfs_test.emptyList");
     } catch (Exception e) {
@@ -408,14 +429,6 @@ public class TestExampleQueries extends PlanTestBase {
         .build().run();
   }
 
-  @Test // see DRILL-985
-  public void testViewFileName() throws Exception {
-    test("use dfs_test");
-    test("create view nation_view_testexamplequeries as select * from cp.`tpch/nation.parquet`;");
-    test("select * from dfs_test.`nation_view_testexamplequeries.view.meta`");
-    test("drop view nation_view_testexamplequeries");
-  }
-
   @Test
   public void testTextInClasspathStorage() throws Exception {
     test("select * from cp.`/store/text/classpath_storage_csv_test.csv`");
@@ -551,14 +564,14 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void testText() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().getPath().toString();
     String query = String.format("select * from dfs.`%s`", root);
     test(query);
   }
 
   @Test
   public void testFilterOnArrayTypes() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().getPath().toString();
     String query = String.format("select columns[0] from dfs.`%s` " +
         " where cast(columns[0] as int) > 1 and cast(columns[1] as varchar(20))='ASIA'", root);
     test(query);
@@ -567,7 +580,7 @@ public class TestExampleQueries extends PlanTestBase {
   @Test
   @Ignore("DRILL-3774")
   public void testTextPartitions() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/text/data/").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/").toURI().getPath().toString();
     String query = String.format("select * from dfs.`%s`", root);
     test(query);
   }
@@ -660,8 +673,8 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void testTextJoin() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/text/data/nations.csv").toURI().toString();
-    String root1 = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/nations.csv").toURI().getPath().toString();
+    String root1 = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().getPath().toString();
     String query = String.format("select t1.columns[1] from dfs.`%s` t1,  dfs.`%s` t2 where t1.columns[0] = t2.columns[0]", root, root1);
     test(query);
   }
@@ -858,7 +871,7 @@ public class TestExampleQueries extends PlanTestBase {
         expectedRecordCount, actualRecordCount), expectedRecordCount, actualRecordCount);
 
     // source is CSV
-    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().getPath().toString();
     String query = String.format("select rid, x.name from (select columns[0] as RID, columns[1] as NAME from dfs.`%s`) X where X.rid = 2", root);
     actualRecordCount = testSql(query);
     expectedRecordCount = 1;
@@ -1048,7 +1061,7 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test // DRILL-2094
   public void testOrderbyArrayElement() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/json/orderByArrayElement.json").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/json/orderByArrayElement.json").toURI().getPath().toString();
 
     String query = String.format("select t.id, t.list[0] as SortingElem " +
         "from dfs.`%s` t " +
@@ -1082,7 +1095,7 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test // DRILL-2094
   public void testOrderbyArrayElementInSubquery() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/json/orderByArrayElement.json").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/json/orderByArrayElement.json").toURI().getPath().toString();
 
     String query = String.format("select s.id from \n" +
         "(select id \n" +
@@ -1104,7 +1117,7 @@ public class TestExampleQueries extends PlanTestBase {
   @Test // DRILL-1978
   public void testCTASOrderByCoumnNotInSelectClause() throws Exception {
     System.out.println(getDfsTestTmpSchemaLocation());
-    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().getPath().toString();
     String queryCTAS1 = "CREATE TABLE TestExampleQueries_testCTASOrderByCoumnNotInSelectClause1 as " +
         "select r_name from cp.`tpch/region.parquet` order by r_regionkey;";
 
@@ -1144,7 +1157,7 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test // DRILL-2221
   public void createJsonWithEmptyList() throws Exception {
-    final String file = FileUtils.getResourceAsFile("/store/json/record_with_empty_list.json").toURI().toString();
+    final String file = FileUtils.getResourceAsFile("/store/json/record_with_empty_list.json").toURI().getPath().toString();
     final String tableName = "jsonWithEmptyList";
     test("USE dfs_test");
     test("ALTER SESSION SET `store.format`='json'");
@@ -1280,7 +1293,7 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test //DRILL-2953
   public void testGbAndObDifferentExp() throws Exception {
-    String root = FileUtils.getResourceAsFile("/store/text/data/nations.csv").toURI().toString();
+    String root = FileUtils.getResourceAsFile("/store/text/data/nations.csv").toURI().getPath().toString();
     String query = String.format(
         "select cast(columns[0] as int) as nation_key " +
             " from dfs.`%s` " +
@@ -1409,8 +1422,8 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test // see DRILL-3557
   public void testEmptyCSVinDirectory() throws Exception {
-    final String root = FileUtils.getResourceAsFile("/store/text/directoryWithEmpyCSV").toURI().toString();
-    final String toFile = FileUtils.getResourceAsFile("/store/text/directoryWithEmpyCSV/empty.csv").toURI().toString();
+    final String root = FileUtils.getResourceAsFile("/store/text/directoryWithEmpyCSV").toURI().getPath().toString();
+    final String toFile = FileUtils.getResourceAsFile("/store/text/directoryWithEmpyCSV/empty.csv").toURI().getPath().toString();
 
     String query1 = String.format("explain plan for select * from dfs.`%s`", root);
     String query2 = String.format("explain plan for select * from dfs.`%s`", toFile);

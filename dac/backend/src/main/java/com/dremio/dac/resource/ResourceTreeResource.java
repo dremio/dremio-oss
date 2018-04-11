@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 package com.dremio.dac.resource;
-
-import static com.dremio.exec.store.StoragePluginRegistryImpl.isInternal;
 
 import java.io.UnsupportedEncodingException;
 import java.util.List;
@@ -37,7 +35,11 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.resourcetree.ResourceList;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
+import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
+import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -58,13 +60,20 @@ import com.google.common.collect.Lists;
 public class ResourceTreeResource {
   private final Provider<NamespaceService> namespaceService;
   private final SecurityContext securityContext;
+  private final SourceService sourceService;
+  private final SabotContext context;
+  private final ConnectionReader connectionReader;
 
   @Inject
   public ResourceTreeResource(
     Provider<NamespaceService> namespaceService,
-    @Context SecurityContext securityContext) {
+    @Context SecurityContext securityContext,
+    SourceService sourceService, SabotContext context, ConnectionReader connectionReader) {
     this.namespaceService = namespaceService;
     this.securityContext = securityContext;
+    this.sourceService = sourceService;
+    this.context = context;
+    this.connectionReader = connectionReader;
   }
 
   @GET
@@ -130,7 +139,7 @@ public class ResourceTreeResource {
     if (showHomes) {
       for (ResourceTreeEntity resourceTreeEntity : getHomes(false)) {
         resources.add(resourceTreeEntity);
-        if (root == null && resourceTreeEntity.getName().equals(expandPathList.get(0))) {
+        if (root == null && resourceTreeEntity.getName().equalsIgnoreCase(expandPathList.get(0))) {
           root = resourceTreeEntity;
         }
       }
@@ -159,7 +168,7 @@ public class ResourceTreeResource {
     if (root == null) {
       try {
         SourceConfig sourceConfig = namespaceService.get().getSource(new NamespaceKey(expandPathList.get(0)));
-        if (!isInternal(sourceConfig)) {
+        if (!SourceUI.isInternal(sourceConfig, connectionReader)) {
           root = new ResourceTreeEntity(sourceConfig);
           resources.add(root);
         }
@@ -176,7 +185,7 @@ public class ResourceTreeResource {
         root.expand(intermediateResources);
         // reset root
         for (ResourceTreeEntity resourceTreeEntity : intermediateResources) {
-          if (resourceTreeEntity.getName().equals(expandPathList.get(i + 1))) {
+          if (resourceTreeEntity.getName().equalsIgnoreCase(expandPathList.get(i + 1))) {
             root = resourceTreeEntity;
             break;
           }
@@ -217,7 +226,6 @@ public class ResourceTreeResource {
     return resources;
   }
 
-
   public List<ResourceTreeEntity> getHomes(boolean all) throws NamespaceException, UnsupportedEncodingException  {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     if (all) {
@@ -233,10 +241,8 @@ public class ResourceTreeResource {
 
   public List<ResourceTreeEntity> getSources() throws NamespaceException, UnsupportedEncodingException  {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
-    for (SourceConfig sourceConfig : namespaceService.get().getSources()) {
-      if (!isInternal(sourceConfig)) {
-        resources.add(new ResourceTreeEntity(sourceConfig));
-      }
+    for (SourceConfig sourceConfig : sourceService.getSources()) {
+      resources.add(new ResourceTreeEntity(sourceConfig));
     }
     return resources;
   }

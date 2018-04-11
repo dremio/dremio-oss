@@ -11,7 +11,7 @@ notices and/or trademarks:
 
 AWS SDK for Java Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
 
-Adam Stawicki Alaa Nassef Andrey Derevyanko Andrey Rodionov Benson Margulies Brent Douglas Carlos Vara Dag Hovland Davide Marchignoli Carlo de Wolf Chris Beckey Christian Ivan Denis Tiago Doug Lea Emmanuel Bernard Efthymis Sarbanis Federico Federico Mancini Gavin King George Gastaldi Gerhard Petracek Guillaume Husta Guillaume Smet Gunnar Morling Hardy Ferentschik Henno Vermeulen Jan-Willem Willebrands Jason T. Greene Julien May Julien Furgerot Juraci Krohling Justin Nauman Kathryn Killebrew Kevin Pollet Khalid Alqinyah Lee KyoungIl Leonardo Loch Zanivan Lucas Pouzac Lukas Niemeier Mark Hobson Marko Bekhta Mert Çalişkan Paolo Perrotta Pete Muir Sanne Grinovero Sebastian Bayerl Shane Bryzak Shelly McGowan Steve Ebersole Strong Liu Victor Rezende dos Santos Willi Schönborn Yoann Rodière
+Adam Stawicki Alaa Nassef Andrey Derevyanko Andrey Rodionov Benson Margulies Brent Douglas Carlos Vara Dag Hovland Davide Marchignoli Carlo de Wolf Chris Beckey Christian Ivan Denis Tiago Doug Lea Emmanuel Bernard Efthymis Sarbanis Federico Federico Mancini Gavin King George Gastaldi Gerhard Petracek Guillaume Husta Guillaume Smet Gunnar Morling Hardy Ferentschik Henno Vermeulen Jan-Willem Willebrands Jason T. Greene Julien May Julien Furgerot Juraci Krohling Justin Nauman Kathryn Killebrew Kevin Pollet Khalid Alqinyah Lee KyoungIl Leonardo Loch Zanivan Lucas Pouzac Lukas Niemeier Mark Hobson Marko Bekhta Mert C?alis?kan Paolo Perrotta Pete Muir Sanne Grinovero Sebastian Bayerl Shane Bryzak Shelly McGowan Steve Ebersole Strong Liu Victor Rezende dos Santos Willi Schönborn Yoann Rodière
 
 Aggregate Designer  Copyright 2006 - 2013 Pentaho Corporation.  All rights reserved. Copyright 2000-2005, 2014-2016 Julian Hyde
 
@@ -59,27 +59,19 @@ Apache Kafka Copyright 2017 The Apache Software Foundation.
 
 Apache Lucene Copyright 2001-2017 The Apache Software Foundation
 
-Apache PDFBox Copyright 2014 The Apache Software Foundation
-
 Apache POI Copyright 2003-2017 The Apache Software Foundation
 
 Apache Parquet MR (Incubating) Copyright 2014 The Apache Software Foundation
 
 Apache Thrift Copyright 2006-2010 The Apache Software Foundation.
 
-Apache Tika Copyright 2015 The Apache Software Foundation
-
 Apache Twill Copyright 2013-2017 The Apache Software Foundation
-
-Apache Velocity Copyright (C) 2000-2007 The Apache Software Foundation
 
 Apache ZooKeeper Copyright 2009-2014 The Apache Software Foundation
 
 ApacheDS Copyright 2003-2017 The Apache Software Foundation
 
 Azure Data Lake Store Java SDK        Copyright (c) Microsoft Corporation All rights reserved.  The MIT License (MIT)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Copyright	Neil Mitchell 2006-2017
 
 Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
 
@@ -90,8 +82,6 @@ Copyright (c) 1997, PostgreSQL Global Development Group
 Copyright (c) 2000 - 2017 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Copyright (c) 2000-2011 INRIA, France Telecom
-
-Copyright (c) 2000-2015 www.hamcrest.org
 
 Copyright (c) 2001-2016, Arno Unkrig Copyright (c) 2015-2016  TIBCO Software Inc.
 
@@ -109,9 +99,7 @@ Copyright (c) 2004-2017 QOS.ch
 
 Copyright (c) 2005, Graph Builder All rights reserved.
 
-Copyright (c) 2006 Paul Hammant & ThoughtWorks Inc  All rights reserved.
-
-Copyright (c) 2007 Mockito contributors
+Copyright (c) 2006 Paul Hammant & ThoughtWorks Inc All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met: 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. 3. Neither the name of the copyright holders nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos
 
@@ -139,7 +127,7 @@ Copyright (c) 2011-2013 Phillip Clark
 
 Copyright (c) 2011-2013 Terence Parr
 
-Copyright (c) 2011-present, Facebook, Inc.
+Copyright (c) 2011-present, Facebook, Inc.  Copyright (c) 2011 The LevelDB Authors. All rights reserved.
 
 Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, and Domenic Denicola
 
@@ -287,6 +275,8 @@ Copyright (c) 2016 Eugene Rodionov
 
 Copyright (c) 2016 Jed Watson
 
+Copyright (c) 2016 Jerry Bendy
+
 Copyright (c) 2016 Matthew Russell
 
 Copyright (c) 2016 Microsoft Corporation
@@ -365,7 +355,7 @@ Copyright © 2001-2009 The Apache Software Foundation.
 
 Copyright © 2008-2017 MongoDB, Inc.
 
-Copyright © 2011–2016. All rights reserved
+Copyright © 2011-2016. All rights reserved
 
 Copyright © 2012-2016 Faisal Salman <<fyzlman@gmail.com>>
 
@@ -388,8 +378,6 @@ Jetty Web Container Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
 Logback: the reliable, generic, fast and flexible logging framework. Copyright (C) 1999-2017, QOS.ch. All rights reserved.
 
 Nimbus JOSE + JWT  Copyright 2012 - 2018, Connect2id Ltd.
-
-The JUnit depends on Java Hamcrest (http://hamcrest.org/JavaHamcrest/).
 
 The MIT License (MIT) Copyright (c) 2015-2016 Adphorus
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import javax.inject.Provider;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.ConnectionReader;
 
 /**
  * contains all stores required by all upgrade tasks
@@ -27,12 +28,14 @@ public class UpgradeContext {
 
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final LogicalPlanPersistence lpPersistence;
+  private final ConnectionReader connectionReader;
 
   private final UpgradeStats stats;
 
-  UpgradeContext(Provider<KVStoreProvider> kvStoreProvider, LogicalPlanPersistence lpPersistence) {
+  UpgradeContext(Provider<KVStoreProvider> kvStoreProvider, LogicalPlanPersistence lpPersistence, ConnectionReader connectionReader) {
     this.kvStoreProvider = kvStoreProvider;
     this.lpPersistence = lpPersistence;
+    this.connectionReader = connectionReader;
     stats = new UpgradeStats();
   }
 
@@ -46,5 +49,9 @@ public class UpgradeContext {
 
   public UpgradeStats getUpgradeStats() {
     return stats;
+  }
+
+  public ConnectionReader getConnectionReader() {
+    return connectionReader;
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,7 @@ import static com.dremio.service.namespace.capabilities.SourceCapabilities.STORA
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -36,18 +34,16 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
-import org.apache.parquet.Preconditions;
 import org.apache.thrift.TException;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.util.ImpersonationUtil;
@@ -63,12 +59,11 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
@@ -85,24 +80,23 @@ import io.protostuff.ByteString;
 public class HiveStoragePlugin implements StoragePlugin {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
 
-  private final LoadingCache<String, HiveClient> clientsByUser;
+  private LoadingCache<String, HiveClient> clientsByUser;
   private final String name;
   private final SabotConfig sabotConfig;
 
-  private final HiveClient processUserMetastoreClient;
-  private final HiveConf hiveConf;
+  private HiveClient processUserMetastoreClient;
+  private HiveConf hiveConf;
   private final boolean storageImpersonationEnabled;
   private final boolean metastoreImpersonationEnabled;
   private final HiveStoragePluginConfig config;
   private final boolean isCoordinator;
 
-  public HiveStoragePlugin(HiveStoragePluginConfig config, SabotContext context, String name) throws ExecutionSetupException {
-    final boolean isCoordinator = context.isCoordinator();
-    this.hiveConf = createHiveConf(config.config);
+  public HiveStoragePlugin(HiveStoragePluginConfig config, SabotContext context, String name) {
+    this.isCoordinator = context.isCoordinator();
+    this.hiveConf = createHiveConf(config);
     this.name = name;
     this.sabotConfig = context.getConfig();
     this.config = config;
-    this.isCoordinator = true;
     storageImpersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
 
     // Hive Metastore impersonation is enabled if:
@@ -114,40 +108,6 @@ public class HiveStoragePlugin implements StoragePlugin {
       hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED) ||
         hiveConf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI) ||
         hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL);
-
-    if (isCoordinator) {
-      try {
-        if (hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
-          logger.info("Hive Metastore SASL enabled. Kerberos principal: " +
-              hiveConf.getVar(ConfVars.METASTORE_KERBEROS_PRINCIPAL));
-        }
-
-        processUserMetastoreClient = HiveClient.createClient(hiveConf);
-      } catch (MetaException e) {
-        throw new ExecutionSetupException("Failure setting up Hive metastore client.", e);
-      }
-
-      clientsByUser = CacheBuilder
-        .newBuilder()
-        .expireAfterAccess(10, TimeUnit.MINUTES)
-        .maximumSize(5) // Up to 5 clients for impersonation-enabled.
-        .removalListener(new RemovalListener<String, HiveClient>() {
-          @Override
-          public void onRemoval(RemovalNotification<String, HiveClient> notification) {
-            HiveClient client = notification.getValue();
-            client.close();
-          }
-        })
-        .build(new CacheLoader<String, HiveClient>() {
-          @Override
-          public HiveClient load(String userName) throws Exception {
-            return HiveClient.createClientWithAuthz(processUserMetastoreClient, hiveConf, userName);
-          }
-        });
-    } else {
-      processUserMetastoreClient = null;
-      clientsByUser = null;
-    }
   }
 
   @Override
@@ -209,18 +169,15 @@ public class HiveStoragePlugin implements StoragePlugin {
     }
   }
 
+
   @Override
-  public StoragePluginId getId() {
-    if (name == null) {
-      throw new IllegalStateException("Attempted to get the id for an ephemeral storage plugin.");
-    }
-    final StoragePluginType pluginType = new StoragePluginType("hive", sabotConfig.getClass("dremio.plugins.hive.rulesfactory", StoragePluginTypeRulesFactory.class, HiveRulesFactory.class));
-    return new StoragePluginId(name, config, new SourceCapabilities(new BooleanCapabilityValue(STORAGE_IMPERSONATION, storageImpersonationEnabled)), pluginType);
+  public SourceCapabilities getSourceCapabilities() {
+    return new SourceCapabilities(new BooleanCapabilityValue(STORAGE_IMPERSONATION, storageImpersonationEnabled));
   }
 
   @Override
-  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
-    return null;
+  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
+    return sabotConfig.getClass("dremio.plugins.hive.rulesfactory", StoragePluginRulesFactory.class, HiveRulesFactory.class);
   }
 
   private boolean hasFSPermission(String user, NamespaceKey key, List<FileSystemPartitionUpdateKey> updateKeys, List<PartitionProp> partitionProps){
@@ -558,24 +515,42 @@ public class HiveStoragePlugin implements StoragePlugin {
 
   @Override
   public SourceState getState() {
-    Preconditions.checkState(isCoordinator, "Hive state only available on coordinator nodes");
-    try{
-      processUserMetastoreClient.getDatabases(false);
-    }catch(Exception ex){
-      return new SourceState(SourceStatus.bad, Collections.singletonList(new SourceState.Message(MessageLevel.ERROR, "Failure connecting to source: " + ex.getMessage())));
+    // Executors maintain no state about Hive; they do not communicate with the Hive meta store, so only tables can
+    // have a bad state, and not the source.
+    if (!isCoordinator) {
+      return SourceState.GOOD;
     }
 
-    return SourceState.GOOD;
+    try {
+      processUserMetastoreClient.getDatabases(false);
+      return SourceState.GOOD;
+    } catch (Exception ex) {
+      logger.debug("Caught exception while trying to get status of HIVE source, error: ", ex);
+      return new SourceState(SourceStatus.bad,
+          Collections.singletonList(new SourceState.Message(MessageLevel.ERROR,
+              "Failure connecting to source: " + ex.getMessage())));
+    }
   }
 
-  private static HiveConf createHiveConf(final Map<String, String> hiveConfigOverride) {
+  private static HiveConf createHiveConf(HiveStoragePluginConfig config) {
     final HiveConf hiveConf = new HiveConf();
-    for(Entry<String, String> config : hiveConfigOverride.entrySet()) {
-      final String key = config.getKey();
-      final String value = config.getValue();
-      hiveConf.set(key, value);
-      if(logger.isTraceEnabled()){
-        logger.trace("HiveConfig Override {}={}", key, value);
+
+    final String metastoreURI = String.format("thrift://%s:%d", Preconditions.checkNotNull(config.hostname, "Hive hostname must be provided."), config.port);
+    hiveConf.set("hive.metastore.uris", metastoreURI);
+
+    if (config.enableSasl) {
+      hiveConf.set("hive.metastore.sasl.enabled", "true");
+      if (config.kerberosPrincipal != null) {
+        hiveConf.set("hive.metastore.kerberos.principal", config.kerberosPrincipal);
+      }
+    }
+
+    if(config.properties != null) {
+      for(Property prop : config.properties) {
+        hiveConf.set(prop.name, prop.value);
+        if(logger.isTraceEnabled()){
+          logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
+        }
       }
     }
     return hiveConf;
@@ -587,6 +562,39 @@ public class HiveStoragePlugin implements StoragePlugin {
 
   @Override
   public void start() {
+    if (isCoordinator) {
+      try {
+        if (hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
+          logger.info("Hive Metastore SASL enabled. Kerberos principal: " +
+              hiveConf.getVar(ConfVars.METASTORE_KERBEROS_PRINCIPAL));
+        }
+
+        processUserMetastoreClient = HiveClient.createClient(hiveConf);
+      } catch (MetaException e) {
+        throw Throwables.propagate(e);
+      }
+
+      clientsByUser = CacheBuilder
+        .newBuilder()
+        .expireAfterAccess(10, TimeUnit.MINUTES)
+        .maximumSize(5) // Up to 5 clients for impersonation-enabled.
+        .removalListener(new RemovalListener<String, HiveClient>() {
+          @Override
+          public void onRemoval(RemovalNotification<String, HiveClient> notification) {
+            HiveClient client = notification.getValue();
+            client.close();
+          }
+        })
+        .build(new CacheLoader<String, HiveClient>() {
+          @Override
+          public HiveClient load(String userName) throws Exception {
+            return HiveClient.createClientWithAuthz(processUserMetastoreClient, hiveConf, userName);
+          }
+        });
+    } else {
+      processUserMetastoreClient = null;
+      clientsByUser = null;
+    }
   }
 
 

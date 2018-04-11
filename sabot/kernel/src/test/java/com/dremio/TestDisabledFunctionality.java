@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -317,14 +317,14 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test // DRILL-2848
-  @Ignore
+  @Ignore("decimal")
   public void testDisableDecimalCasts() throws Exception {
     final String query = "select cast('1.2' as decimal(9, 2)) from cp.`employee.json` limit 1";
     errorMsgTestHelper(query, ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG);
   }
 
   @Test // DRILL-2848
-  @Ignore
+  @Ignore("decimal")
   public void testDisableDecimalFromParquet() throws Exception {
     final String query = "select * from cp.`parquet/decimal_dictionary.parquet`";
     errorMsgTestHelper(query, ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG);

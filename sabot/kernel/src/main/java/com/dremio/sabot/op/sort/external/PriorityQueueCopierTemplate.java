@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.dremio.sabot.op.sort.external;
 import io.netty.buffer.ArrowBuf;
 
 import java.io.IOException;
-import java.util.Vector;
 
 import javax.inject.Named;
 
@@ -34,11 +33,9 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.DiskRunManager.DiskRunIterator;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.DensityAwareVector;
 import org.apache.arrow.vector.ValueVector;
 
 public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier {
@@ -50,6 +47,12 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
   private VectorContainer outgoing;
   private int size;
   private int queueSize = 0;
+
+  /**
+   * Last density parameter used to successfully allocate memory for outgoing vectors. We keep track of this parameter
+   * to use it across copy calls.
+   */
+  private double lastSuccessfulDensity = 1.0d;
 
   @Override
   public void setup(
@@ -154,9 +157,32 @@ public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier
   }
 
   private void allocateVectors(int targetRecordCount) {
-    for (VectorWrapper<?> w: outgoing) {
-      w.getValueVector().setInitialCapacity(targetRecordCount);
-      w.getValueVector().allocateNew();
+    boolean memoryAllocated = false;
+    double density = lastSuccessfulDensity;
+    while (!memoryAllocated) {
+      try {
+        for (VectorWrapper<?> w : outgoing) {
+          final ValueVector v = w.getValueVector();
+          if (v instanceof DensityAwareVector) {
+            ((DensityAwareVector) v).setInitialCapacity(targetRecordCount, density);
+          } else {
+            v.setInitialCapacity(targetRecordCount);
+          }
+          v.allocateNew();
+        }
+        memoryAllocated = true;
+        lastSuccessfulDensity = density;
+      } catch (OutOfMemoryException ex) {
+        // halve the density and try again
+        density = density / 2;
+        if (density < 0.01) {
+          logger.debug("PriorityQueueCopierTemplate ran out of memory to allocate outgoing batch. " +
+              "Records: {}, density: {}", targetRecordCount, density);
+          throw ex;
+        }
+        // try allocating again with lower density
+        logger.debug("PriorityQueueCopierTemplate: Ran out of memory. Retrying allocation with lower density.");
+      }
     }
   }
 

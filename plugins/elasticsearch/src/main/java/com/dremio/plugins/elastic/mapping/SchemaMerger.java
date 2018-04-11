@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+import javax.annotation.Nullable;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
@@ -44,6 +46,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
@@ -65,22 +68,13 @@ public class SchemaMerger {
     Collection<MergeField> fields = mergeFields(null, mapping.getFields(), schema != null ? schema.getFields() : ImmutableList.<Field>of());
 
     return resultBuilder.toResult(FluentIterable.from(fields)
-        .transform(new Function<MergeField, Optional<Field>>() {
+        .transform(new Function<MergeField, Field>() {
           @Override
-          public Optional<Field> apply(MergeField input) {
-            return Optional.fromNullable(input.toField(resultBuilder));
+          @Nullable
+          public Field apply(MergeField input) {
+            return input.toField(resultBuilder);
           }
-        }).filter(new Predicate<Optional<Field>>() {
-          @Override
-          public boolean apply(Optional<Field> input) {
-            return input.isPresent();
-          }
-        }).transform(new Function<Optional<Field>, Field>() {
-          @Override
-          public Field apply(Optional<Field> input) {
-            return input.get();
-          }
-        })
+        }).filter(Predicates.<Field>notNull())
         .toList());
   }
 
@@ -266,9 +260,12 @@ public class SchemaMerger {
       if(!children.isEmpty()){
         List<Field> fieldChildren = FluentIterable.from(children).transform(new Function<MergeField, Field>(){
           @Override
+          @Nullable
           public Field apply(MergeField input) {
             return input.toField(resultToPopulate);
-          }}).toList();
+          }})
+          .filter(Predicates.<Field>notNull())
+          .toList();
 
         CompleteType struct = CompleteType.struct(fieldChildren);
         if(actualField != null && CompleteType.fromField(actualField).isList()){
@@ -279,9 +276,12 @@ public class SchemaMerger {
       } else if(elasticField != null && !elasticField.getChildren().isEmpty()){
         List<Field> fieldChildren = FluentIterable.from(elasticField.getChildren()).transform(new Function<ElasticField, Field>(){
           @Override
+          @Nullable
           public Field apply(ElasticField input) {
             return new MergeField(path.getChild(input.getName()), input).toField(resultToPopulate);
-          }}).toList();
+          }})
+          .filter(Predicates.notNull())
+          .toList();
 
         CompleteType struct = CompleteType.struct(fieldChildren);
         if(actualField != null && CompleteType.fromField(actualField).isList()){

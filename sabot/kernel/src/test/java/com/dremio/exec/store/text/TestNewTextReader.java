@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,7 +124,7 @@ public class TestNewTextReader extends BaseTestQuery {
   public void testSpaceSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.ssv").toURI().toString();
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from dfs_test.`%s` ", root);
+        "from TABLE(dfs_test.`%s`(type => 'TEXT', fieldDelimiter => ' ', lineDelimiter => '\n')) ", root);
 
     testBuilder()
         .sqlQuery(query)

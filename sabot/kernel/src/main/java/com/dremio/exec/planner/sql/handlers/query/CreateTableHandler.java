@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@ import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -39,7 +41,6 @@ import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
@@ -47,25 +48,22 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlCreateTable;
-import com.dremio.exec.store.AbstractSchema;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableMap;
 
 public class CreateTableHandler implements SqlToPlanHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateTableHandler.class);
 
   private String textPlan;
-  private final boolean systemUser;
 
-  public CreateTableHandler(boolean systemUser) {
-    this.systemUser = systemUser;
+  public CreateTableHandler() {
   }
 
   @Override
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     try{
-      SqlCreateTable sqlCreateTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateTable.class);
+      final SqlCreateTable sqlCreateTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateTable.class);
 
       // TODO: fix parser to disallow this
       if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns().isEmpty()) {
@@ -74,24 +72,19 @@ public class CreateTableHandler implements SqlToPlanHandler {
             .build(logger);
       }
 
-      final String newTblName = sqlCreateTable.getName();
+      final Catalog catalog = config.getConverter().getCatalog();
+      final NamespaceKey path = catalog.resolveSingle(sqlCreateTable.getPath());
+      DremioTable table = catalog.getTableNoResolve(path);
+      if(table != null) {
+        throw UserException.validationError()
+        .message("A table or view with given name [%s] already exists.", path)
+        .build(logger);
+      }
 
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlCreateTable.getQuery());
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-
-      final RelNode newTblRelNode =
-          SqlHandlerUtil.resolveNewTableRel(false, sqlCreateTable.getFieldNames(), validatedRowType, queryRelNode);
-
-      final AbstractSchema schemaInstance =
-          SchemaUtilities.resolveToMutableSchemaInstance(config.getConverter().getDefaultSchema(), sqlCreateTable.getSchemaPath(), systemUser, MutationType.TABLE);
-      final String schemaPath = schemaInstance.getFullSchemaName();
-
-      if (SqlHandlerUtil.getTableFromSchema(schemaInstance, newTblName) != null) {
-        throw UserException.validationError()
-            .message("A table or view with given name [%s] already exists in schema [%s]", newTblName, schemaPath)
-            .build(logger);
-      }
+      final RelNode newTblRelNode = SqlHandlerUtil.resolveNewTableRel(false, sqlCreateTable.getFieldNames(), validatedRowType, queryRelNode);
 
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
 
@@ -105,14 +98,16 @@ public class CreateTableHandler implements SqlToPlanHandler {
           sqlCreateTable.getSortColumns(),
           sqlCreateTable.getDistributionColumns(),
           sqlCreateTable.getPartitionDistributionStrategy(),
-          sqlCreateTable.isSingleWriter());
+          sqlCreateTable.isSingleWriter(),
+          Long.MAX_VALUE
+        );
 
       // Convert the query to Dremio Logical plan and insert a writer operator on top.
       Rel drel = convertToDrel(
           config,
           newTblRelNodeWithPCol,
-          schemaInstance,
-          newTblName,
+          catalog,
+          path,
           options,
           newTblRelNode.getRowType(),
           createStorageOptionsMap(config, sqlCreateTable.getFormatOptions()));
@@ -134,8 +129,8 @@ public class CreateTableHandler implements SqlToPlanHandler {
   private static Rel convertToDrel(
       SqlHandlerConfig config,
       RelNode relNode,
-      AbstractSchema schema,
-      String tableName,
+      Catalog catalog,
+      NamespaceKey key,
       WriterOptions options,
       RelDataType queryRowType,
       final Map<String, Object> storageOptions)
@@ -148,7 +143,7 @@ public class CreateTableHandler implements SqlToPlanHandler {
 
     convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
         convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
-        convertedRelNode, schema.createNewTable(tableName, options, storageOptions), queryRowType);
+        convertedRelNode, catalog.createNewTable(key, options, storageOptions), queryRowType);
 
     convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
         config.getContext(), convertedRelNode);

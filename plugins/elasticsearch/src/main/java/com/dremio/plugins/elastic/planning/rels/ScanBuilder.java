@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
@@ -43,7 +44,7 @@ import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.store.SplitWork;
-import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
+import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
 import com.dremio.plugins.elastic.planning.ElasticsearchScanSpec;
 import com.dremio.plugins.elastic.planning.rules.ExpressionNotAnalyzableException;
@@ -75,6 +76,26 @@ public class ScanBuilder {
 
   public List<SchemaPath> getColumns(){
     return scan.getProjectedColumns();
+  }
+
+  public RelOptTable getTable() {
+    return scan.getTable();
+  }
+
+  protected ElasticsearchScanSpec getSpec() {
+    return spec;
+  }
+
+  protected void setSpec(ElasticsearchScanSpec spec) {
+    this.spec = spec;
+  }
+
+  protected ElasticIntermediateScanPrel getScan() {
+    return scan;
+  }
+
+  protected void setScan(ElasticIntermediateScanPrel scan) {
+    this.scan = scan;
   }
 
   /**
@@ -153,8 +174,8 @@ public class ScanBuilder {
 
   }
 
-  protected int applyFetch(SearchRequestBuilder searchRequest, ElasticsearchStoragePluginConfig config, ElasticsearchLimit limit, ElasticsearchFilter filter, ElasticsearchSample sample){
-    final int configuredFetchSize = config.getBatchSize();
+  protected int applyFetch(SearchRequestBuilder searchRequest, ElasticStoragePluginConfig config, ElasticsearchLimit limit, ElasticsearchFilter filter, ElasticsearchSample sample){
+    final int configuredFetchSize = config.scrollSize;
     int fetch = configuredFetchSize;
     // If there is a limit or sample, add it to the search builder.
     if (limit != null) {
@@ -180,10 +201,11 @@ public class ScanBuilder {
     final String[] includesOrderedByOriginalTable;
     if (scan.getProjectedColumns().isEmpty()) {
       includesOrderedByOriginalTable = new String[0];
-    } else
+    } else {
       includesOrderedByOriginalTable =
           scan.getBatchSchema().mask(scan.getProjectedColumns(), false)
             .toCalciteRecordType(scan.getCluster().getTypeFactory()).getFieldNames().toArray(new String[0]);
+    }
 
     // canonicalize includes order so we don't get test variability.
     Arrays.sort(includesOrderedByOriginalTable);
@@ -208,7 +230,7 @@ public class ScanBuilder {
 
       applyEdgeProjection(searchRequest, scan);
       applyFilter(searchRequest, scan, filter, tableAttributes);
-      final int fetch = applyFetch(searchRequest, scan.getPluginId().<ElasticsearchStoragePluginConfig>getConfig(), limit, filter, sample);
+      final int fetch = applyFetch(searchRequest, scan.getPluginId().<ElasticStoragePluginConfig>getConnectionConf(), limit, filter, sample);
 
       ElasticsearchScanSpec scanSpec = new ElasticsearchScanSpec(
           tableAttributes.getResource(),

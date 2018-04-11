@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,22 @@
 
 package com.dremio.exec.planner.sql.handlers;
 
-import java.util.Collection;
-import java.util.Map.Entry;
-
 import org.apache.calcite.tools.RuleSet;
 
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.MaterializationList;
 import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.store.StoragePlugin;
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 
 
 public class SqlHandlerConfig {
 
   private final QueryContext context;
   private final SqlConverter converter;
-  private final AttemptObserver observer;
+  private final AttemptObservers observer;
   private final MaterializationList materializations;
 
   public SqlHandlerConfig(QueryContext context, SqlConverter converter, AttemptObserver observer,
@@ -43,7 +39,7 @@ public class SqlHandlerConfig {
     super();
     this.context = context;
     this.converter = converter;
-    this.observer = observer;
+    this.observer = AttemptObservers.of(observer);
     this.materializations = materializations;
   }
 
@@ -60,22 +56,21 @@ public class SqlHandlerConfig {
   }
 
   public RuleSet getRules(PlannerPhase phase) {
-    return phase.getRules(context, getPlugins());
+    return PlannerPhase.mergedRuleSets(
+        phase.getRules(context),
+        context.getCatalogService().getStorageRules(context, phase));
   }
+
 
   public SqlHandlerConfig cloneWithNewObserver(AttemptObserver replacementObserver){
     return new SqlHandlerConfig(this.context, this.converter, replacementObserver, this.materializations);
   }
 
-  private Collection<StoragePlugin> getPlugins(){
-    Collection<StoragePlugin> plugins = Lists.newArrayList();
-    for (Entry<String, StoragePlugin> k : context.getStorage()) {
-      plugins.add(k.getValue());
-    }
-    return plugins;
-  }
-
   public SqlConverter getConverter() {
     return converter;
+  }
+
+  public void addObserver(AttemptObserver observer) {
+    this.observer.add(observer);
   }
 }

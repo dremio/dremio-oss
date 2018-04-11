@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,20 @@
 
 package com.dremio.exec.store.ischema;
 
-import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
+
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
 import com.dremio.exec.store.ischema.ExpressionConverter.PushdownResult;
 import com.google.common.collect.ImmutableList;
 
-public abstract class InfoSchemaPushFilterIntoScan extends StoragePluginOptimizerRule {
+public abstract class InfoSchemaPushFilterIntoScan extends RelOptRule {
 
-  public static final StoragePluginOptimizerRule IS_FILTER_ON_PROJECT =
+  public static final RelOptRule IS_FILTER_ON_PROJECT =
       new InfoSchemaPushFilterIntoScan(
           RelOptHelper.some(FilterPrel.class,
               RelOptHelper.some(ProjectPrel.class,
@@ -50,7 +51,7 @@ public abstract class InfoSchemaPushFilterIntoScan extends StoragePluginOptimize
         }
       };
 
-  public static final StoragePluginOptimizerRule IS_FILTER_ON_SCAN =
+  public static final RelOptRule IS_FILTER_ON_SCAN =
       new InfoSchemaPushFilterIntoScan(
           RelOptHelper.some(FilterPrel.class,
               RelOptHelper.any(InfoSchemaScanPrel.class)),

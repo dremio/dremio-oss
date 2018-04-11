@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.dremio.exec.server;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Set;
 
 import javax.inject.Provider;
 
@@ -30,6 +30,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.store.ViewCreatorFactory;
 import com.dremio.common.store.ViewCreatorFactory.ViewCreator;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -38,8 +39,6 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.DeferredStoragePluginRegistry;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
@@ -47,15 +46,17 @@ import com.dremio.exec.work.RunningQueryProvider;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 
 public class SabotContext implements AutoCloseable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SabotContext.class);
 
   private final SabotConfig config;
-  private final Collection<Role> roles;
+  private final Set<Role> roles;
   private final BufferAllocator allocator;
   private final PhysicalPlanReader reader;
   private final ClusterCoordinator coord;
@@ -70,6 +71,7 @@ public class SabotContext implements AutoCloseable {
   private final LogicalPlanPersistence lpPersistence;
   private volatile Provider<MaterializationDescriptorProvider> materializationProvider;
   private final NamespaceService.Factory namespaceServiceFactory;
+  private final DatasetListingService datasetListing;
   private final KVStoreProvider kvStoreProvider;
   private final UserService userService;
   private final Provider<QueryObserverFactory> queryObserverFactory;
@@ -77,10 +79,13 @@ public class SabotContext implements AutoCloseable {
   private final Provider<AccelerationListManager> accelerationListManager;
   private final Provider<CatalogService> catalogService;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
+  private final DremioConfig dremioConfig;
+  private final BufferAllocator queryPlanningAllocator;
 
   private final ClusterResourceInformation clusterInfo;
 
   public SabotContext(
+      DremioConfig dremioConfig,
       NodeEndpoint endpoint,
       SabotConfig config,
       Collection<Role> roles,
@@ -92,6 +97,7 @@ public class SabotContext implements AutoCloseable {
       Provider<WorkStats> workStatsProvider,
       KVStoreProvider kvStoreProvider,
       NamespaceService.Factory namespaceServiceFactory,
+      DatasetListingService datasetListing,
       UserService userService,
       Provider<MaterializationDescriptorProvider> materializationProvider,
       Provider<QueryObserverFactory> queryObserverFactory,
@@ -99,10 +105,12 @@ public class SabotContext implements AutoCloseable {
       Provider<AccelerationManager> accelerationManager,
       Provider<AccelerationListManager> accelerationListManager,
       Provider<CatalogService> catalogService,
-      Provider<ViewCreatorFactory> viewCreatorFactory
+      Provider<ViewCreatorFactory> viewCreatorFactory,
+      BufferAllocator queryPlanningAllocator
       ) {
+    this.dremioConfig = dremioConfig;
     this.config = config;
-    this.roles = roles;
+    this.roles = ImmutableSet.copyOf(roles);
     this.allocator = allocator;
     this.workStatsProvider = workStatsProvider;
     this.classpathScan = scan;
@@ -114,22 +122,30 @@ public class SabotContext implements AutoCloseable {
     this.accelerationListManager = accelerationListManager;
 
     // Escaping 'this'
-    this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, new DeferredStoragePluginRegistry(catalogService), this);
+    this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, catalogService, this);
     this.systemOptions = new SystemOptionManager(classpathScan, lpPersistence, provider);
     this.functionRegistry = new FunctionImplementationRegistry(config, classpathScan, systemOptions);
     this.compiler = new CodeCompiler(config, systemOptions);
 
     this.kvStoreProvider = kvStoreProvider;
     this.namespaceServiceFactory = namespaceServiceFactory;
+    this.datasetListing = datasetListing;
     this.userService = userService;
     this.queryObserverFactory = queryObserverFactory;
     this.materializationProvider = materializationProvider;
     this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
+    this.queryPlanningAllocator = queryPlanningAllocator;
 
     this.clusterInfo = new ClusterResourceInformation(coord);
   }
+
+  private void checkIfCoordinator() {
+    Preconditions.checkState(roles.contains(Role.COORDINATOR), "this is a coordinator notion");
+  }
+
+  // TODO: rationalize which methods are executor only or coordinator only
 
   protected NamespaceService.Factory getNamespaceServiceFactory() {
     return namespaceServiceFactory;
@@ -155,8 +171,8 @@ public class SabotContext implements AutoCloseable {
     return functionRegistry;
   }
 
-  public Collection<Role> getRoles() {
-    return Collections.unmodifiableCollection(roles);
+  public Set<Role> getRoles() {
+    return roles;
   }
 
   /**
@@ -175,6 +191,10 @@ public class SabotContext implements AutoCloseable {
     return config;
   }
 
+  public DremioConfig getDremioConfig() {
+    return dremioConfig;
+  }
+
   public Collection<NodeEndpoint> getCoordinators() {
     return coord.getServiceSet(ClusterCoordinator.Role.COORDINATOR).getAvailableEndpoints();
   }
@@ -191,8 +211,8 @@ public class SabotContext implements AutoCloseable {
     return allocator;
   }
 
-  public StoragePluginRegistry getStorage() {
-    return new DeferredStoragePluginRegistry(catalogService);
+  public BufferAllocator getQueryPlanningAllocator() {
+    return queryPlanningAllocator;
   }
 
   public PhysicalPlanReader getPlanReader() {
@@ -220,7 +240,13 @@ public class SabotContext implements AutoCloseable {
   }
 
   public NamespaceService getNamespaceService(String userName) {
+    // TODO (DX-10053): Add the below check when the ticket is resolved
+    // checkIfCoordinator();
     return namespaceServiceFactory.get(userName);
+  }
+
+  public DatasetListingService getDatasetListing() {
+    return datasetListing;
   }
 
   public CatalogService getCatalogService() {

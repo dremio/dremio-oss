@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.FileUtils;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -60,10 +61,10 @@ public class TestOrderedPartitionExchange extends PopUnitTestBase {
   @Test
   public void twoBitTwoExchangeRun() throws Exception {
     try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);
-        BootStrapContext bootStrapContext = new BootStrapContext(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT)) {
+        BootStrapContext bootStrapContext = new BootStrapContext(DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT)) {
 
       bit1.run();
       bit2.run();

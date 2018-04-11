@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import com.dremio.dac.proto.model.dataset.Column;
 import com.dremio.dac.proto.model.dataset.ExpCalculatedField;
 import com.dremio.dac.proto.model.dataset.ExpColumnReference;
 import com.dremio.dac.proto.model.dataset.From;
+import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.proto.model.dataset.Order;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
@@ -82,11 +83,34 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds = extract(
             getQueryFromSQL("select * from " + table));
     assertEquals(
-            new VirtualDatasetState(from)
+            new VirtualDatasetState()
+                .setFrom(from)
               .setContextList(Collections.<String>emptyList())
               .setReferredTablesList(Arrays.asList("tpch/supplier.parquet"))
               .setColumnsList(cols("s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment")),
             ds);
+  }
+
+  @Test
+  public void selectConstant() {
+    final String query = "SELECT 1729 AS special";
+    final VirtualDatasetState ds = extract(getQueryFromSQL(query));
+    assertEquals(ds, new VirtualDatasetState()
+        .setFrom(new FromSQL(query).setAlias("nested_0").wrap())
+        .setContextList(Collections.<String>emptyList())
+        .setReferredTablesList(Collections.<String>emptyList())
+        .setColumnsList(cols("special")));
+  }
+
+  @Test
+  public void selectConstantNested() {
+    final String query = "SELECT * FROM (SELECT 87539319 AS special ORDER BY 1 LIMIT 1)";
+    final VirtualDatasetState ds = extract(getQueryFromSQL(query));
+    assertEquals(ds, new VirtualDatasetState()
+        .setFrom(new FromSQL(query).setAlias("nested_0").wrap())
+        .setContextList(Collections.<String>emptyList())
+        .setReferredTablesList(Collections.<String>emptyList())
+        .setColumnsList(cols("special")));
   }
 
   @Test
@@ -140,9 +164,10 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds = extract(
             getQueryFromSQL("select * from " + table + " as foo"));
     assertEquals(
-            new VirtualDatasetState(new FromTable(table).setAlias("foo").wrap()).setContextList(Collections.<String>emptyList())
-            .setReferredTablesList(Arrays.asList("tpch/supplier.parquet"))
-            .setColumnsList(cols("s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment")),
+            new VirtualDatasetState()
+                .setFrom(new FromTable(table).setAlias("foo").wrap()).setContextList(Collections.<String>emptyList())
+                .setReferredTablesList(Arrays.asList("tpch/supplier.parquet"))
+                .setColumnsList(cols("s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment")),
             ds);
   }
 
@@ -151,10 +176,11 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds = extract(
             getQueryFromSQL("select s_suppkey, s_name, s_address from " + table));
     assertEquals(
-        new VirtualDatasetState(from)
-          .setColumnsList(cols("s_suppkey", "s_name", "s_address"))
-          .setContextList(Collections.<String>emptyList())
-          .setReferredTablesList(Arrays.asList("tpch/supplier.parquet")),
+        new VirtualDatasetState()
+            .setFrom(from)
+            .setColumnsList(cols("s_suppkey", "s_name", "s_address"))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("tpch/supplier.parquet")),
         ds);
   }
 
@@ -163,12 +189,13 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds = extract(
             getQueryFromSQL("select s_suppkey, s_address as mycol from " + table));
     assertEquals(
-        new VirtualDatasetState(from)
-          .setColumnsList(asList(
-            new Column("s_suppkey", new ExpColumnReference("s_suppkey").wrap()),
-            new Column("mycol", new ExpColumnReference("s_address").wrap())
-          )).setContextList(Collections.<String>emptyList())
-          .setReferredTablesList(Arrays.asList("tpch/supplier.parquet")),
+        new VirtualDatasetState()
+            .setFrom(from)
+            .setColumnsList(asList(
+                new Column("s_suppkey", new ExpColumnReference("s_suppkey").wrap()),
+                new Column("mycol", new ExpColumnReference("s_address").wrap())))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("tpch/supplier.parquet")),
 
         ds);
   }
@@ -178,12 +205,13 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select flatten(b), a as mycol from cp.\"json/nested.json\""));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
-          .setColumnsList(asList(
-            new Column("EXPR$0", new ExpCalculatedField("FLATTEN(\"json/nested.json\".\"b\")").wrap()),
-            new Column("mycol", new ExpColumnReference("a").wrap())
-          )).setContextList(Collections.<String>emptyList())
-          .setReferredTablesList(Arrays.asList("json/nested.json")),
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
+            .setColumnsList(asList(
+                new Column("EXPR$0", new ExpCalculatedField("FLATTEN(\"json/nested.json\".\"b\")").wrap()),
+                new Column("mycol", new ExpColumnReference("a").wrap())))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("json/nested.json")),
         ds);
   }
 
@@ -192,7 +220,8 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select count(*) from cp.\"json/nested.json\""));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
             .setColumnsList(asList(
                 new Column("EXPR$0", new ExpCalculatedField("COUNT(*)").wrap())
             )).setContextList(Collections.<String>emptyList())
@@ -205,10 +234,11 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select upper(a) from cp.\"json/convert_case.json\""));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/convert_case.json\"").setAlias("json/convert_case.json").wrap())
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/convert_case.json\"").setAlias("json/convert_case.json").wrap())
             .setColumnsList(asList(
-                new Column("EXPR$0", new ExpCalculatedField("UPPER(\"json/convert_case.json\".\"a\")").wrap())
-            )).setContextList(Collections.<String>emptyList())
+                new Column("EXPR$0", new ExpCalculatedField("UPPER(\"json/convert_case.json\".\"a\")").wrap())))
+            .setContextList(Collections.<String>emptyList())
             .setReferredTablesList(Arrays.asList("json/convert_case.json")),
         ds);
   }
@@ -218,11 +248,11 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select a from cp.\"json/nested.json\" order by a"));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
-          .setColumnsList(cols("a")).setOrdersList(asList(
-            new Order("a", ASC)
-          )).setContextList(Collections.<String>emptyList())
-          .setReferredTablesList(Arrays.asList("json/nested.json")),
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
+            .setColumnsList(cols("a")).setOrdersList(asList(new Order("a", ASC)))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("json/nested.json")),
         ds);
   }
 
@@ -231,13 +261,14 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select a, b from cp.\"json/nested.json\" order by b desc, a asc"));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
-          .setColumnsList(cols("a", "b"))
-          .setOrdersList(asList(
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
+            .setColumnsList(cols("a", "b"))
+            .setOrdersList(asList(
                 new Order("b", DESC),
-                new Order("a", ASC)
-        )).setContextList(Collections.<String>emptyList())
-          .setReferredTablesList(Arrays.asList("json/nested.json")),
+                new Order("a", ASC)))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("json/nested.json")),
         ds);
   }
 
@@ -246,13 +277,12 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select a as b from cp.\"json/nested.json\" order by b"));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
-          .setColumnsList(asList(
-            new Column("b", new ExpColumnReference("a").wrap())
-          )).setOrdersList(asList(
-                new Order("b", ASC)
-        )).setContextList(Collections.<String>emptyList())
-          .setReferredTablesList(Arrays.asList("json/nested.json")),
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/nested.json\"").setAlias("json/nested.json").wrap())
+            .setColumnsList(asList(new Column("b", new ExpColumnReference("a").wrap())))
+            .setOrdersList(asList(new Order("b", ASC)))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("json/nested.json")),
         ds);
   }
 
@@ -261,7 +291,8 @@ public class TestQuerySemantics extends BaseTestServer {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select t.a.Tuesday as tuesday from cp.\"json/extract_map.json\" as t"));
     assertEquals(
-        new VirtualDatasetState(new FromTable("\"cp\".\"json/extract_map.json\"").setAlias("t").wrap())
+        new VirtualDatasetState()
+            .setFrom(new FromTable("\"cp\".\"json/extract_map.json\"").setAlias("t").wrap())
             .setColumnsList(asList(new Column("tuesday", new ExpCalculatedField("\"t\".\"a\"['Tuesday']").wrap())))
             .setContextList(Collections.<String>emptyList())
             .setReferredTablesList(Arrays.asList("json/extract_map.json")),

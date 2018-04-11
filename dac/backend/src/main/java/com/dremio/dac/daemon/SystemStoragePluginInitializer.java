@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,28 +15,34 @@
  */
 package com.dremio.dac.daemon;
 
+import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
+import static com.dremio.dac.support.SupportService.DREMIO_LOG_PATH_PROPERTY;
+import static com.dremio.dac.support.SupportService.LOCAL_STORAGE_PLUGIN;
+import static com.dremio.dac.support.SupportService.LOGS_STORAGE_PLUGIN;
+import static com.dremio.dac.support.SupportService.TEMPORARY_SUPPORT_PATH;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.net.URI;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ConcurrentModificationException;
 
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.homefiles.HomeFileConfig;
-import com.dremio.dac.homefiles.HomeFileSystemPluginConfig;
+import com.dremio.dac.homefiles.HomeFileConf;
+import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.Initializer;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.reflection.materialization.AccelerationStoragePluginConfig;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Create all the system storage plugins, such as results, accelerator, etc.
@@ -48,41 +54,89 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
 
   @Override
   public Void initialize(BindingProvider provider) throws Exception {
+    final SabotContext sabotContext = provider.lookup(SabotContext.class);
+    boolean isMaster = sabotContext.getRoles().contains(ClusterCoordinator.Role.MASTER);
+    if (!isMaster) {
+      logger.debug("System storage plugins will be created only on master coordinator");
+      return null;
+    }
     final DremioConfig config = provider.lookup(DremioConfig.class);
-    final StoragePluginRegistry storagePluginRegistry = provider.lookup(StoragePluginRegistry.class);
+    final CatalogService catalogService = provider.lookup(CatalogService.class);
     final NamespaceService ns = provider.lookup(SabotContext.class).getNamespaceService(SYSTEM_USERNAME);
+
+    final Path supportPath = Paths.get(sabotContext.getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+    final Path logPath = Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
 
     final URI homePath = config.getURI(DremioConfig.UPLOADS_PATH_STRING);
     final URI accelerationPath = config.getURI(DremioConfig.ACCELERATOR_PATH_STRING);
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     final URI scratchPath = config.getURI(DremioConfig.SCRATCH_PATH_STRING);
-    final Configuration fsConf = FileSystemPlugin.getNewFsConf();
+    final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
+    final URI logsPath = new URI("pdfs://" + logPath.toUri().getPath());
+    final URI supportURI = supportPath.toUri();
 
-    FileSystemWrapper.get(homePath, fsConf).mkdirs(new Path(homePath.getPath()));
-    storagePluginRegistry.createOrUpdate(HomeFileConfig.HOME_PLUGIN_NAME,
-      new HomeFileSystemPluginConfig(provider.lookup(HomeFileConfig.class)), true);
+    SourceConfig home = new SourceConfig();
+    HomeFileConf hfc = new HomeFileConf(config);
+    home.setConnectionConf(hfc);
+    home.setName(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    home.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
 
-    FileSystemWrapper.get(accelerationPath, fsConf).mkdirs(new Path(accelerationPath.getPath()));
-    storagePluginRegistry.createOrUpdate(DACDaemonModule.ACCELERATOR_STORAGEPLUGIN_NAME,
-      new FileSystemConfig(accelerationPath, SchemaMutability.SYSTEM_TABLE), true);
-    try {
-      final NamespaceKey sourceKey = new NamespaceKey(DACDaemonModule.ACCELERATOR_STORAGEPLUGIN_NAME);
-      SourceConfig sourceConfig = ns.getSource(sourceKey);
-      if (sourceConfig.getMetadataPolicy() == null) {
-        sourceConfig.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-        ns.addOrUpdateSource(sourceKey, sourceConfig);
-      }
-    } catch (Throwable e) {
-      logger.warn("Couldn't set metadata policy on the accelerator storage plugin", e);
-    }
+    createOrUpdateSystemSource(catalogService, ns, home);
 
-    FileSystemWrapper.get(resultsPath, fsConf).mkdirs(new Path(resultsPath.getPath()));
-    storagePluginRegistry.createOrUpdate(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME,
-      new FileSystemConfig(resultsPath, SchemaMutability.SYSTEM_TABLE), true);
+    createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath));
 
-    FileSystemWrapper.get(scratchPath, fsConf).mkdirs(new Path(scratchPath.getPath()));
-    storagePluginRegistry.createOrUpdate(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME,
-      new FileSystemConfig(scratchPath, SchemaMutability.USER_TABLE), true);
+    createOrUpdateSystemSource(catalogService, ns,
+      InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+
+    createOrUpdateSystemSource(catalogService, ns,
+      InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+
+    createOrUpdateSystemSource(catalogService, ns,
+      InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+
+    createOrUpdateSystemSource(catalogService, ns,
+      InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE, CatalogService.DEFAULT_METADATA_POLICY));
+
+    createOrUpdateSystemSource(catalogService, ns,
+      InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+
     return null;
+  }
+
+  /**
+   * Create provided source if does not exist
+   * or update if does exist
+   * used for Such internal sources that can change based on the external configuration
+   * such as hdfs to pdfs, directory structures
+   * @param catalogService
+   * @param ns
+   * @param config
+   */
+  @VisibleForTesting
+  void createOrUpdateSystemSource(final CatalogService catalogService, final NamespaceService ns, final
+  SourceConfig config) throws Exception {
+    try {
+      final boolean isCreated = catalogService.createSourceIfMissingWithThrow(config);
+      if (isCreated) {
+        return;
+      }
+    } catch (ConcurrentModificationException ex) {
+      // someone else got there first, ignore this failure.
+      logger.info("Two source creations occurred simultaneously, ignoring the failed one.", ex);
+      // proceed with update
+    }
+    final NamespaceKey nsKey = new NamespaceKey(config.getName());
+    final SourceConfig oldConfig = ns.getSource(nsKey);
+    final SourceConfig updatedConfig = config;
+    // make incoming config match existing config to be used in comparison
+    updatedConfig
+      .setId(oldConfig.getId())
+      .setCtime(oldConfig.getCtime())
+      .setVersion(oldConfig.getVersion());
+    // if old and new configs match don't update
+    if (oldConfig.equals(updatedConfig)) {
+      return;
+    }
+    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().updateSource(updatedConfig);
   }
 }

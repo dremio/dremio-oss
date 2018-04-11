@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { connect }   from 'react-redux';
+import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
@@ -64,12 +64,8 @@ export class SqlEditorController extends Component {
     this.insertFunc = this.insertFunc.bind(this);
     this.insertFullPathAtCursor = this.insertFullPathAtCursor.bind(this);
     this.state = {
-      sqlState: true,
       funcHelpPanel: false,
-      datasetsPanel: false,
-      dropDataset: '',
-      dropFunc: '',
-      isError: false
+      datasetsPanel: false
     };
     this.receiveProps(this.props, {});
   }
@@ -193,6 +189,11 @@ export class SqlEditorController extends Component {
     // Keep SqlAutoComplete in the DOM even when hidden to maintain any SQL changes user has made
     const sqlStyle = this.props.sqlState ? {} : {height: 0, overflow: 'hidden'};
 
+    let errors;
+    if (this.props.exploreViewState.getIn(['error', 'message', 'code']) === 'INVALID_QUERY') {
+      errors = this.props.exploreViewState.getIn(['error', 'message', 'details', 'errors']);
+    }
+
     const sqlBlock = (
       <SqlAutoComplete
         dataset={this.props.dataset}
@@ -207,6 +208,7 @@ export class SqlEditorController extends Component {
         datasetsPanel={this.state.datasetsPanel}
         funcHelpPanel={this.state.funcHelpPanel}
         dragType={this.props.dragType}
+        errors={errors}
       />
     );
     const toggleButton = this.props.sqlState

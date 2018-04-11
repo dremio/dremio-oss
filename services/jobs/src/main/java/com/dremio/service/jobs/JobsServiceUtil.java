@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,41 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.exec.planner.sql.SqlExceptionHelper.END_COLUMN_CONTEXT;
+import static com.dremio.exec.planner.sql.SqlExceptionHelper.END_LINE_CONTEXT;
+import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_COLUMN_CONTEXT;
+import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_LINE_CONTEXT;
+import static com.dremio.service.jobs.JobIndexKeys.JOB_STATE;
+
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
+import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.Writer;
+import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.beans.NodeEndpoint;
+import com.dremio.exec.store.dfs.FileSystemWriter;
+import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.LinkedBuffer;
@@ -33,8 +60,37 @@ import io.protostuff.ProtobufIOUtil;
  */
 // package private
 final class JobsServiceUtil {
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(JobsServiceUtil.class);
 
   private JobsServiceUtil() {
+  }
+
+  private static final EnumSet<JobState> nonFinalJobStates =
+      EnumSet.of(JobState.NOT_SUBMITTED,
+          JobState.STARTING,
+          JobState.RUNNING,
+          JobState.CANCELLATION_REQUESTED,
+          JobState.ENQUEUED);
+
+  private static final SearchQuery apparentlyAbandonedQuery;
+
+  static {
+    apparentlyAbandonedQuery = SearchQueryUtils.or(
+        FluentIterable.from(nonFinalJobStates)
+            .transform(new Function<JobState, SearchQuery>() {
+              @Override
+              public SearchQuery apply(JobState input) {
+                return SearchQueryUtils.newTermQuery(JOB_STATE, input.name());
+              }
+            }));
+  }
+
+  static SearchQuery getApparentlyAbandonedQuery() {
+    return apparentlyAbandonedQuery;
+  }
+
+  static boolean isNonFinalState(JobState jobState) {
+    return jobState == null || nonFinalJobStates.contains(jobState);
   }
 
   static NodeEndpoint toStuff(CoordinationProtos.NodeEndpoint pb) {
@@ -102,5 +158,137 @@ final class JobsServiceUtil {
     default:
       return JobState.NOT_SUBMITTED;
     }
+  }
+
+  /**
+   * Returns a list of partitions into which CTAS files got written.
+   */
+  static List<String> getPartitions(final PlanningSet planningSet) {
+    final ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+    // visit every single major fragment and check to see if there is a PDFSWriter
+    // if so add address of every minor fragment as a data partition to builder.
+    for (final Wrapper majorFragment : planningSet) {
+      majorFragment.getNode().getRoot().accept(new AbstractPhysicalVisitor<Object, Object, RuntimeException>() {
+        @Override
+        public Object visitOp(final PhysicalOperator op, final Object value) throws RuntimeException {
+          // override to prevent throwing exception, super class throws an exception
+          return visitChildren(op, value);
+        }
+
+        @Override
+        public Object visitWriter(final Writer writer, final Object value) throws RuntimeException {
+          // TODO DX-5438: Remove PDFS specific code
+          if (writer instanceof FileSystemWriter && ((FileSystemWriter)writer).isPdfs()) {
+            final List<String> addresses = Lists.transform(majorFragment.getAssignedEndpoints(),
+              new Function<CoordinationProtos.NodeEndpoint, String>() {
+                @Override
+                public String apply(final CoordinationProtos.NodeEndpoint endpoint) {
+                  return endpoint.getAddress();
+                }
+              });
+            builder.addAll(addresses);
+          }
+          return super.visitWriter(writer, value);
+        }
+      }, null);
+    }
+
+    return ImmutableList.copyOf(builder.build());
+  }
+
+  static JobFailureInfo toFailureInfo(String verboseError) {
+    // TODO: Would be easier if profile had structured error too
+    String[] lines = verboseError.split("\n");
+    if (lines.length < 3) {
+      return null;
+    }
+    final JobFailureInfo.Type type;
+    final String message;
+
+    try {
+      Object[] result = new MessageFormat("{0} ERROR: {1}").parse(lines[0]);
+
+      String errorTypeAsString = (String) result[0];
+      ErrorType errorType;
+      try {
+        errorType = ErrorType.valueOf(errorTypeAsString);
+      } catch(IllegalArgumentException e) {
+        errorType = null;
+      }
+
+      if (errorType != null) {
+        switch(errorType) {
+        case PARSE:
+          type = JobFailureInfo.Type.PARSE;
+          break;
+
+        case PLAN:
+          type = JobFailureInfo.Type.PLAN;
+          break;
+
+        case VALIDATION:
+          type = JobFailureInfo.Type.VALIDATION;
+          break;
+
+        case FUNCTION:
+          type = JobFailureInfo.Type.EXECUTION;
+          break;
+
+        default:
+          type = JobFailureInfo.Type.UNKNOWN;
+        }
+      } else {
+        type = JobFailureInfo.Type.UNKNOWN;
+      }
+
+      message = (String) result[1];
+    } catch (ParseException e) {
+      LOGGER.warn("Cannot parse error message {}", lines[0], e);
+      return null;
+    }
+
+    List<JobFailureInfo.Error> errors;
+    if (lines.length == 3) {
+      errors = null;
+    } else {
+      // Parse all the context lines
+      Map<String, String> context = new HashMap<>();
+      for(int i = 3; i < lines.length; i++) {
+        String line = lines[i];
+        if (line.isEmpty()) {
+          break;
+        }
+
+        String[] contextLine = line.split(" ", 2);
+        if (contextLine.length < 2) {
+          continue;
+        }
+
+        context.put(contextLine[0], contextLine[1]);
+      }
+
+      JobFailureInfo.Error error = new JobFailureInfo.Error()
+          .setMessage(message);
+      if (context.containsKey(START_LINE_CONTEXT)) {
+        try {
+          int startLine = Integer.parseInt(context.get(START_LINE_CONTEXT));
+          int startColumn = Integer.parseInt(context.get(START_COLUMN_CONTEXT));
+          int endLine = Integer.parseInt(context.get(END_LINE_CONTEXT));
+          int endColumn = Integer.parseInt(context.get(END_COLUMN_CONTEXT));
+
+          error
+            .setStartLine(startLine)
+            .setStartColumn(startColumn)
+            .setEndLine(endLine)
+            .setEndColumn(endColumn);
+        } catch (NullPointerException | NumberFormatException e) {
+          // Ignoring
+        }
+      }
+
+      errors = ImmutableList.of(error);
+    }
+
+    return new JobFailureInfo().setMessage("Invalid Query Exception").setType(type).setErrorsList(errors);
   }
 }

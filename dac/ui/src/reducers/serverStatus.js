@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 import Immutable from 'immutable';
 import moment from 'moment';
 import * as ActionTypes from 'actions/serverStatus';
+import socket, {WS_CONNECTION_OPEN, WS_CONNECTION_CLOSE} from 'utils/socket';
 
 import config from 'utils/config';
 
 const initialState = Immutable.Map({
-  status: config.serverStatus
+  status: config.serverStatus,
+  socketIsOpen: false
 });
 
 export default function serverStatus(state = initialState, action) {
@@ -39,6 +41,9 @@ export default function serverStatus(state = initialState, action) {
     return state;
   case ActionTypes.CHECK_SERVER_STATUS_SUCCESS:
     return state.set('status', action.payload);
+  case WS_CONNECTION_OPEN:
+  case WS_CONNECTION_CLOSE:
+    return state.set('socketIsOpen', socket.isOpen);
   default:
     return state;
   }

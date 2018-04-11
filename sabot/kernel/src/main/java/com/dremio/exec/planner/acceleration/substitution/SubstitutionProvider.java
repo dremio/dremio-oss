@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,7 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.List;
 
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.util.Pair;
 
 /**
  * An interface that suggests substitutions to {@link RelOptPlanner planner}.
@@ -38,8 +36,6 @@ public interface SubstitutionProvider {
    * @return  set of substitutions.
    */
   List<Substitution> findSubstitutions(final RelNode query);
-
-  RelNode processPostPlanning(RelNode rel);
 
   /**
    * A class that represents a substitution. This indicates that the {@link RelNode} replacement is equivalent to equivalent

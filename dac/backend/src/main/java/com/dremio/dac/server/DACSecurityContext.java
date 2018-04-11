@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import javax.ws.rs.core.SecurityContext;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.model.usergroup.UserResourcePath;
 import com.dremio.dac.model.usergroup.UserUI;
+import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 
 /**
@@ -57,5 +58,9 @@ public class DACSecurityContext implements SecurityContext {
   @Override
   public String getAuthenticationScheme() {
     return requestContext.getSecurityContext().getAuthenticationScheme();
+  }
+
+  public static SecurityContext system() {
+    return new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
   }
 }

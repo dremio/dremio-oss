@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
   private final DatasetConfig oldConfig;
   private final BufferAllocator allocator;
   private final SabotConfig config;
-  private final ElasticsearchStoragePluginConfig pluginConfig;
+  private final ElasticStoragePluginConfig pluginConfig;
   private final OptionManager optionManager;
   private final ElasticMapping mapping;
   private final List<String> aliasIndices;
@@ -106,7 +106,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
       DatasetConfig oldConfig,
       BufferAllocator allocator,
       SabotConfig config,
-      ElasticsearchStoragePluginConfig pluginConfig,
+      ElasticStoragePluginConfig pluginConfig,
       OptionManager optionManager,
       ElasticMapping mapping,
       List<String> aliasIndices,

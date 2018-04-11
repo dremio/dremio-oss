@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,14 +168,15 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   public void planSubstituted(DremioRelOptMaterialization materialization,
                               List<RelNode> substitutions,
                               RelNode target, long millisTaken) {
-    final String key = materialization.getLayoutId();
+    final String key = materialization.getReflectionId();
     final LayoutMaterializedViewProfile oldProfile = mapIdToAccelerationProfile.get(key);
 
     final LayoutMaterializedViewProfile.Builder layoutBuilder;
     if (oldProfile == null) {
       layoutBuilder = LayoutMaterializedViewProfile.newBuilder()
-        .setLayoutId(materialization.getLayoutId())
+        .setLayoutId(materialization.getReflectionId())
         .setName(materialization.getLayoutInfo().getName())
+        .setType(materialization.getLayoutInfo().getType())
         .setMaterializationId(materialization.getMaterializationId())
         .setMaterializationExpirationTimestamp(materialization.getExpirationTimestamp())
         .addAllDimensions(materialization.getLayoutInfo().getDimensions())
@@ -187,7 +188,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setNumSubstitutions(substitutions.size())
         .setMillisTakenSubstituting(millisTaken)
         .setPlan(asString(materialization.queryRel))
-        .addNormalizedPlans(asString(target));
+        .addNormalizedPlans(asString(target))
+        .setSnowflake(materialization.isSnowflake());
     } else {
       layoutBuilder = LayoutMaterializedViewProfile.newBuilder(oldProfile)
         .setNumSubstitutions(oldProfile.getNumSubstitutions() + substitutions.size())
@@ -234,7 +236,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   @Override
   public void planConvertedToRel(RelNode converted, long millisTaken) {
-    final String convertedRelTree = asString(converted);
+    final String convertedRelTree = asString(converted, true);
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Convert To Rel")
       .setDurationMillis(millisTaken)
@@ -254,7 +256,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   @Override
   public void planRelTransform(final PlannerPhase phase, RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
-    final String planAsString = asString(after);
+    final String planAsString = asString(after, phase.forceVerbose());
     final long millisTakenFinalize = (phase.useMaterializations) ? millisTaken - (findMaterializationMillis + normalizationMillis + substitutionMillis) : millisTaken;
     if (phase.useMaterializations) {
       planPhases.add(PlanPhaseProfile.newBuilder()
@@ -370,7 +372,11 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   public String asString(final RelNode plan) {
-    if (!verbose) {
+    return asString(plan, false);
+  }
+
+  public String asString(final RelNode plan, boolean forceVerbose) {
+    if (!(verbose || forceVerbose)) { // neither verbose nor forced verbose
       return "";
     }
 

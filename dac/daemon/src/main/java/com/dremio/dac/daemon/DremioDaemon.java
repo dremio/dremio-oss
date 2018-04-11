@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,23 +36,6 @@ import com.dremio.dac.cmd.upgrade.Upgrade;
 import com.dremio.dac.cmd.upgrade.UpgradeStats;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.dac.server.NASSourceConfigurator;
-import com.dremio.dac.server.SingleSourceToStoragePluginConfig;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
-import com.dremio.dac.sources.AzureDataLakeConfigurator;
-import com.dremio.dac.sources.DB2SourceConfigurator;
-import com.dremio.dac.sources.ElasticSourceConfigurator;
-import com.dremio.dac.sources.HBaseSourceConfigurator;
-import com.dremio.dac.sources.HDFSSourceConfigurator;
-import com.dremio.dac.sources.HiveSourceConfigurator;
-import com.dremio.dac.sources.MSSQLSourceConfigurator;
-import com.dremio.dac.sources.MYSQLSourceConfigurator;
-import com.dremio.dac.sources.MaprFsSourceConfigurator;
-import com.dremio.dac.sources.MongoSourceConfigurator;
-import com.dremio.dac.sources.OracleSourceConfigurator;
-import com.dremio.dac.sources.PostgresSourceConfigurator;
-import com.dremio.dac.sources.RedshiftSourceConfigurator;
-import com.dremio.dac.sources.S3SourceConfigurator;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.SupportService.SupportStoreCreator;
 import com.dremio.dac.util.ClusterVersionUtils;
@@ -116,7 +99,7 @@ public class DremioDaemon {
         System.out.println(upgradeStats);
       } else if (UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) < 0) {
         // No upgrade task required. Safe to continue
-        logger.info("Newer version of Dremio detected but no upgrade required. Updating kvstore version from %s to %s.", storeVersion, VERSION);
+        logger.info("Newer version of Dremio detected but no upgrade required. Updating kvstore version from {} to {}.", storeVersion, VERSION);
         identity.setVersion(ClusterVersionUtils.toClusterVersion(VERSION));
         supportStore.put(SupportService.CLUSTER_ID, identity);
       } else if (UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) > 0) {
@@ -144,23 +127,7 @@ public class DremioDaemon {
 
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
       final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
-      final SourceToStoragePluginConfig sourceConfig = SingleSourceToStoragePluginConfig.of(
-          new NASSourceConfigurator(),
-          new ElasticSourceConfigurator(),
-          new HDFSSourceConfigurator(),
-          new MaprFsSourceConfigurator(),
-          new HBaseSourceConfigurator(),
-          new HiveSourceConfigurator(),
-          new MongoSourceConfigurator(),
-          new MSSQLSourceConfigurator(),
-          new MYSQLSourceConfigurator(),
-          new OracleSourceConfigurator(),
-          new PostgresSourceConfigurator(),
-          new S3SourceConfigurator(),
-          new DB2SourceConfigurator(),
-          new RedshiftSourceConfigurator(),
-          new AzureDataLakeConfigurator());
-      final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module, sourceConfig);
+      final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module);
       daemon.init();
       daemon.closeOnJVMShutDown();
     }

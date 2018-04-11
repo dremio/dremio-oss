@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import MonacoEditor from 'react-monaco-editor';
+import Immutable from 'immutable';
 import * as SQLLanguage from 'monaco-editor/dev/vs/basic-languages/src/sql';
 
 import {RESERVED_WORDS} from 'utils/pathUtils';
@@ -27,9 +28,10 @@ let SnippetController;
 
 export default class SQLEditor extends PureComponent {
   static propTypes = {
-    height: PropTypes.number.isRequired,
-    defaultValue: PropTypes.string,
-    onChange: PropTypes.func
+    height: PropTypes.number.isRequired, // pass-thru
+    defaultValue: PropTypes.string, // pass-thru
+    onChange: PropTypes.func,
+    errors: PropTypes.instanceOf(Immutable.List)
 
     // all others pass thru
   }
@@ -37,6 +39,7 @@ export default class SQLEditor extends PureComponent {
   reseting = false;
   monacoEditorComponent = null;
   monaco = null;
+  previousDecorations = [];
 
   state = {
     language: 'sql'
@@ -53,10 +56,17 @@ export default class SQLEditor extends PureComponent {
     if (this.props.defaultValue !== prevProps.defaultValue) {
       this.resetValue();
     }
+    if (this.props.errors !== prevProps.errors) {
+      this.applyDecorations();
+    }
   }
 
   handleChange = (...args) => {
     if (!this.reseting) {
+      // if there are decorations, remove them
+      if (this.monacoEditorComponent && this.monacoEditorComponent.editor) {
+        this.previousDecorations = this.monacoEditorComponent.editor.deltaDecorations(this.previousDecorations, []);
+      }
       this.props.onChange(...args);
     }
   }
@@ -66,9 +76,52 @@ export default class SQLEditor extends PureComponent {
     this.reseting = true;
     try {
       this.monacoEditorComponent.editor.setValue(this.props.defaultValue || '');
+      this.applyDecorations();
     } finally {
       this.reseting = false;
     }
+  }
+
+  applyDecorations() {
+    if (!this.monacoEditorComponent || !this.monacoEditorComponent.editor) return;
+
+    const monaco = this.monaco;
+    const errors = this.props.errors;
+    if (!errors) {
+      this.previousDecorations = this.monacoEditorComponent.editor.deltaDecorations(this.previousDecorations, []);
+      return;
+    }
+
+    // todo: filter errors to known types
+
+    const decorations = errors.toJS().filter(error => error.range).map(error => {
+      let range = new monaco.Range(
+        error.range.startLine,
+        error.range.startColumn,
+        error.range.endLine,
+        error.range.endColumn + 1
+      );
+      if (range.isEmpty()) {
+        // note: Monaco seems fine with ranges that go out of bounds
+        range = new monaco.Range(
+          error.range.startLine,
+          error.range.startColumn - 1,
+          error.range.endLine,
+          error.range.endColumn + 1
+        );
+      }
+
+      return {
+        range,
+        options: {
+          hoverMessage: error.message, // todo: loc
+          inlineClassName: 'dremio-error-decoration',
+          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+        }
+      };
+    });
+
+    this.previousDecorations = this.monacoEditorComponent.editor.deltaDecorations(this.previousDecorations, decorations);
   }
 
   editorDidMount = (editor, monaco) => {
@@ -103,6 +156,12 @@ export default class SQLEditor extends PureComponent {
       haveLoaded = true;
     }
 
+    // these are just for debugging, so it's okay if there's a change they override other active instances
+    window.dremioEditor = editor;
+    window.monaco = monaco;
+
+    this.applyDecorations();
+
     this.setState({language});
   }
 
@@ -111,8 +170,10 @@ export default class SQLEditor extends PureComponent {
   }
 
   render() {
+    const {onChange, errors, ...monacoProps} = this.props;
+
     return <MonacoEditor
-      {...this.props}
+      {...monacoProps}
       onChange={this.handleChange}
       editorDidMount={this.editorDidMount}
       ref={(ref) => this.monacoEditorComponent = ref}

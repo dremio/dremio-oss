@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,19 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
+import javax.inject.Provider;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatPlugin;
@@ -53,8 +57,32 @@ import com.google.common.collect.Lists;
 public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HomeFileSystemStoragePlugin.class);
 
-  public HomeFileSystemStoragePlugin(HomeFileSystemPluginConfig config, SabotContext dContext, String name) throws ExecutionSetupException, IOException {
-    super(config, dContext, name, config.getHomeFileConfig().createFileSystem());
+  static final FsPermission DEFAULT_PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.READ, FsAction.EXECUTE);
+  public static final String HOME_PLUGIN_NAME = "__home";
+  private static final String UPLOADS = "_uploads";
+  private static final String STAGING = "_staging";
+
+  private final Path stagingDir;
+  private final Path uploadsDir;
+
+  public HomeFileSystemStoragePlugin(final HomeFileConf config, final SabotContext context, final String name, FileSystemWrapper fs, Provider<StoragePluginId> idProvider) {
+    super( (com.dremio.exec.store.dfs.FileSystemConf<?, ?>) (Object) config, context, name, fs, idProvider);
+    this.stagingDir = new Path(config.getPath(), STAGING + "." + context.getDremioConfig().getThisNode());
+    this.uploadsDir = new Path(config.getPath(), UPLOADS);
+  }
+
+  public HomeFileConf getConfig() {
+    return (HomeFileConf) super.getConfig();
+  }
+
+  @Override
+  public void start() throws IOException {
+    super.start();
+    FileSystem fs = getFs();
+    fs.mkdirs(getConfig().getPath(), DEFAULT_PERMISSIONS);
+    fs.mkdirs(stagingDir, DEFAULT_PERMISSIONS);
+    fs.mkdirs(uploadsDir, DEFAULT_PERMISSIONS);
+    fs.deleteOnExit(stagingDir);
   }
 
   @Override
@@ -107,7 +135,11 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
 
       return getDataset(datasetPath, oldConfig, formatPlugin, fs, datasetConfig.getPhysicalDataset().getFormatSettings());
     } catch (NamespaceNotFoundException nfe){
-      return super.getDatasetWithFormat(new NamespaceKey(relativePath(datasetPath.getPathComponents(), getId().<FileSystemConfig>getConfig().getPath())), oldConfig, formatPluginConfig, ignoreAuthErrors, null);
+      if(formatPluginConfig == null) {
+        // a home file can only be read from the namespace or using a format options. Without either, it is invalid, return nothing.
+        return null;
+      }
+      return super.getDatasetWithFormat(new NamespaceKey(relativePath(datasetPath.getPathComponents(), getConfig().getPath())), oldConfig, formatPluginConfig, ignoreAuthErrors, null);
     }
   }
 
@@ -162,8 +194,8 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
     return formatPlugin.getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath, datasetPath.getName(), updateKey);
   }
 
-  private List<String> relativePath(List<String> tableSchemaPath, String rootPath) {
-    List<String> rootPathComponents = PathUtils.toPathComponents(new Path(rootPath));
+  private static List<String> relativePath(List<String> tableSchemaPath, Path rootPath) {
+    List<String> rootPathComponents = PathUtils.toPathComponents(rootPath);
     List<String> tablePathComponents = PathUtils.toPathComponents(PathUtils.toFSPathSkipRoot(tableSchemaPath, null));
     return tablePathComponents.subList(rootPathComponents.size(), tablePathComponents.size());
   }

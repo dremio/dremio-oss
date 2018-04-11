@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -115,14 +115,16 @@ class QueryTicket extends TicketWithChildren {
     final PhaseTicket removedPhaseTicket = phaseTickets.remove(phaseTicket.getMajorFragmentId());
     Preconditions.checkState(removedPhaseTicket == phaseTicket,
       "closed phase ticket was not found in the phase tickets' map");
-    AutoCloseables.close(phaseTicket);
+    try {
+      AutoCloseables.close(phaseTicket);
 
-    completed.add(finalStatus);
-
-    if (this.release()) {
-      queriesClerk.removeQueryTicket(this);
-      // NB: not waiting for an ack. Status report is on a best effort basis
-      tunnelCreator.getTunnel(getForeman()).sendNodeQueryStatus(getStatus());
+      completed.add(finalStatus);
+    } finally {
+      if (this.release()) {
+        queriesClerk.removeQueryTicket(this);
+        // NB: not waiting for an ack. Status report is on a best effort basis
+        tunnelCreator.getTunnel(getForeman()).sendNodeQueryStatus(getStatus());
+      }
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ public class JobListItem extends PartialJobListItem {
   public JobListItem(
       @JsonProperty("id") String id,
       @JsonProperty("state") JobState state,
+      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
       @JsonProperty("user") String user,
       @JsonProperty("startTime") Long startTime,
       @JsonProperty("endTime") Long endTime,
@@ -44,8 +45,9 @@ public class JobListItem extends PartialJobListItem {
       @JsonProperty("datasetType") DatasetType datasetType,
       @JsonProperty("requestType") RequestType requestType,
       @JsonProperty("accelerated") boolean accelerated,
-      @JsonProperty("datasetVersion") String datasetVersion) {
-    super(id, state, user, startTime, endTime, description, requestType, accelerated, datasetVersion);
+      @JsonProperty("datasetVersion") String datasetVersion,
+      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated) {
+    super(id, state, failureInfo, user, startTime, endTime, description, requestType, accelerated, datasetVersion, snowflakeAccelerated);
     this.datasetPathList = datasetPathList;
     this.datasetType = datasetType;
   }

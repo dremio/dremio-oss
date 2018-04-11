@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -262,9 +262,19 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
         + ", readEntries=" + readEntries + "]";
   }
 
-  @Override
+  @Deprecated
   public List<String> getTableSchemaPath() {
-    return ImmutableList.of("mock");
+    return Collections.singletonList("mock");
+  }
+
+  @Override
+  public List<List<String>> getReferencedTables() {
+    return ImmutableList.of(Collections.singletonList("mock"));
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return false;
   }
 
   @Override

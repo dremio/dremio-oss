@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import org.apache.hadoop.mapred.FileSplit;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
@@ -35,12 +34,12 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
 
 public class SequenceFileFormatPlugin extends EasyFormatPlugin<SequenceFileFormatConfig> {
-  public SequenceFileFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig, FileSystemPlugin fsPlugin) {
-    this(name, context, storageConfig, new SequenceFileFormatConfig(), fsPlugin);
+  public SequenceFileFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin) {
+    this(name, context, new SequenceFileFormatConfig(), fsPlugin);
   }
 
-  public SequenceFileFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig, SequenceFileFormatConfig formatConfig, FileSystemPlugin fsPlugin) {
-    super(name, context, storageConfig, formatConfig,
+  public SequenceFileFormatPlugin(String name, SabotContext context, SequenceFileFormatConfig formatConfig, FileSystemPlugin fsPlugin) {
+    super(name, context, formatConfig,
       true, false, /* splittable = */ true, /* compressible = */ true,
       formatConfig.getExtensions(), "sequencefile", fsPlugin);
   }

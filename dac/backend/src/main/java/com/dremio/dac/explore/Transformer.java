@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -383,7 +383,12 @@ class Transformer {
     @Override
     protected QueryMetadata getMetadata(SqlQuery query) {
       this.job = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
-      this.metadata = collector.getMetadata();
+      try {
+        this.metadata = collector.getMetadata();
+      } catch (UserException e) {
+        // If the original query fails, let the user knows about
+        throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext());
+      }
 
       // If above QueryExecutor finds the query in the job store, QueryMetadata will never be set.
       // In this case, regenerate QueryMetadata below.

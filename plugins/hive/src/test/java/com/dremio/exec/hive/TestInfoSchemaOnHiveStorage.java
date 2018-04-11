@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.junit.rules.TestRule;
 import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
@@ -40,7 +41,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
 
   @Before
   public void ensureFullMetadataRead() throws NamespaceException{
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW);
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
   }
 
   @Test
@@ -65,6 +66,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "dummy")
         .baselineValues("hive.default", "sorted_parquet")
         .baselineValues("hive.default", "parquet_region")
+        .baselineValues("hive.default", "parquet_mult_rowgroups")
         .go();
 
     testBuilder()
@@ -96,16 +98,10 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .sqlQuery("SHOW DATABASES")
         .unOrdered()
         .baselineColumns("SCHEMA_NAME")
-        .baselineValues("hive")
         .baselineValues("hive.default")
         .baselineValues("hive.db1")
         .baselineValues("hive.skipper")
-        .baselineValues("dfs")
-        .baselineValues("dfs_root")
-        .baselineValues("dfs_test")
         .baselineValues("sys")
-        .baselineValues("cp")
-        .baselineValues("dacfs")
         .baselineValues("INFORMATION_SCHEMA")
         .go();
   }
@@ -182,10 +178,10 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
     describeHelper("USE hive.`default`", "DESCRIBE kv");
   }
 
-  // When default schema is qualified with multi-level schema given as single level schema name.
+  // When default schema is qualified with multi-level schema.
   @Test
   public void describeTable8() throws Exception {
-    describeHelper("USE `hive.default`", "DESCRIBE kv");
+    describeHelper("USE `hive`.`default`", "DESCRIBE kv");
   }
 
   // When default schema is top-level schema and table is qualified with sub-schema

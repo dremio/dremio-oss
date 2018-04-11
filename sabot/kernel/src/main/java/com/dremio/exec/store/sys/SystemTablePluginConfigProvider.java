@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ package com.dremio.exec.store.sys;
 
 import javax.inject.Provider;
 
-import com.dremio.common.store.StoragePluginConfig;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.Service;
 
-public class SystemTablePluginConfigProvider implements Service, Provider<StoragePluginConfig> {
+public class SystemTablePluginConfigProvider implements Service, Provider<ConnectionConf<?, ?>> {
 
   public SystemTablePluginConfigProvider() {
   }
@@ -34,7 +34,7 @@ public class SystemTablePluginConfigProvider implements Service, Provider<Storag
   }
 
   @Override
-  public StoragePluginConfig get() {
-    return SystemTablePluginConfig.INSTANCE;
+  public ConnectionConf<?, ?> get() {
+    return new SystemPluginConf();
   }
 }

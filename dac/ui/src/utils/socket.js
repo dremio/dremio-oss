@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 import invariant from 'invariant';
 import { WEB_SOCKET_URL } from 'constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import { addNotification } from 'actions/notification';
+import Immutable from 'immutable';
 
 const PING_INTERVAL = 15000;
 const CHECK_INTERVAL = 5000;
@@ -26,12 +28,20 @@ export const WS_MESSAGE_JOB_DETAILS_LISTEN = 'job-details-listen';
 export const WS_MESSAGE_JOB_PROGRESS = 'job-progress';
 export const WS_MESSAGE_JOB_PROGRESS_LISTEN = 'job-progress-listen';
 
+export const WS_CONNECTION_OPEN = 'WS_CONNECTION_OPEN';
+export const WS_CONNECTION_CLOSE = 'WS_CONNECTION_CLOSE';
+
 export class Socket {
   dispatch = null;
   _socket = null;
   _listenMessages = {};
   _pingId = 0;
   _checkId = 0;
+  _failureCount = 0;
+
+  get isOpen() {
+    return !!this._socket && this._socket.readyState === WebSocket.OPEN;
+  }
 
   open() {
     invariant(!this._socket, 'socket already open');
@@ -46,19 +56,21 @@ export class Socket {
     if (this._socket) this._socket.close();
     this._socket = null;
     this._listenMessages = {};
+    this._failureCount = 0;
     clearInterval(this._pingId);
     clearInterval(this._checkId);
   }
 
   _createConnection() {
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
-    this._socket = new WebSocket(WEB_SOCKET_URL, [`_dremio${authToken}`]);
+    window.dremioSocket = this._socket = new WebSocket(WEB_SOCKET_URL, [`_dremio${authToken}`]);
     this._socket.onopen = this._handleConnectionEstablished;
+    this._socket.onclose = this._handleConnectionClose;
     this._socket.onerror = this._handleConnectionError;
     this._socket.onmessage = this._handleMessage;
   }
 
-  _checkConnection = () => {
+  _checkConnection = () => { // if the connection dies, keep trying to reopen it
     if (this._socket.readyState === WebSocket.CLOSED) {
       this._createConnection();
     }
@@ -66,10 +78,19 @@ export class Socket {
 
   _handleConnectionError = (e) => {
     console.error('SOCKET CONNECTION ERROR', e);
+    this._failureCount++;
+    if (this._failureCount === 6) this.dispatch(addNotification(Immutable.Map({code: 'WS_CLOSED'}), 'error'));
+  }
+
+  _handleConnectionClose = () => {
+    console.info('SOCKET CONNECTION CLOSE');
+    setTimeout(() => this.dispatch({type: WS_CONNECTION_CLOSE})); // defer because can't dispatch inside a reducer
   }
 
   _handleConnectionEstablished = () => {
-    console.info('SOCKET CONNECTED START');
+    console.info('SOCKET CONNECTION OPEN');
+    this._failureCount = 0;
+    setTimeout(() => this.dispatch({type: WS_CONNECTION_OPEN})); // defer because can't dispatch inside a reducer
 
     const keys = Object.keys(this._listenMessages);
     for (let i = 0; i < keys.length; i++) {
@@ -81,13 +102,13 @@ export class Socket {
     try {
       const data = JSON.parse(e.data);
       if (data.type === 'connection-established') {
-        console.info('SOCKET CONNECTED SUCCESS');
+        console.info('SOCKET CONNECTION SUCCESS');
       } else {
         console.info(data);
       }
       this.dispatch({type: data.type, payload: data.payload});
     } catch (error) {
-      console.error('SOCKET MESSAGE HANDLING ERROR', error);
+      console.error('SOCKET CONNECTION MESSAGE HANDLING ERROR', error);
     }
   }
 

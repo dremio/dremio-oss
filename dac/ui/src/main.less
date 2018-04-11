@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -392,5 +392,22 @@ input, textarea, keygen, select, button {
 .container-striped {
   > :nth-of-type(odd) {
     background-color: @table-bg-accent;
+  }
+}
+
+.spinner {
+  animation: spin 2s infinite linear;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* generic style for data tables */
+.data-table {
+  .ReactVirtualized__Table__row {
+    border-top: 1px solid #eaeaea;
   }
 }

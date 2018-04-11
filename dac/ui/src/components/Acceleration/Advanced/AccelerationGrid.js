@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
+import { FormattedMessage, injectIntl } from 'react-intl';
 
 import FontIcon from 'components/Icon/FontIcon';
 import { Column, Table } from 'fixed-data-table-2';
@@ -26,17 +26,18 @@ import { AutoSizer } from 'react-virtualized';
 import SearchField from 'components/Fields/SearchField';
 import PrevalidatedTextField from 'components/Fields/PrevalidatedTextField';
 import Select from 'components/Fields/Select';
+import Toggle from 'components/Fields/Toggle';
 import FieldWithError from 'components/Fields/FieldWithError';
 import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
+import Message from 'components/Message';
 
-import { formLabel, formDescription, formContext } from 'uiTheme/radium/typography';
+import { formDescription, formLabel } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
 
 import LayoutInfo from '../LayoutInfo';
 import { commonStyles } from '../commonStyles';
-import ValidityIndicator from '../ValidityIndicator';
 
 import 'fixed-data-table-2/dist/fixed-data-table.css';
 import './AccelerationGrid.less';
@@ -54,8 +55,7 @@ export class AccelerationGrid extends Component {
     renderBodyCell: PropTypes.func,
     renderHeaderCellData: PropTypes.func,
     layoutFields: PropTypes.array,
-    acceleration: PropTypes.object.isRequired,
-    removeLayout: PropTypes.func,
+    reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     onFilterChange: PropTypes.func,
     activeTab: PropTypes.string.isRequired,
     filter: PropTypes.string,
@@ -65,7 +65,12 @@ export class AccelerationGrid extends Component {
 
   static defaultProps = {
     columns: Immutable.List()
-  }
+  };
+
+  static contextTypes = {
+    reflectionSaveErrors: PropTypes.instanceOf(Immutable.Map).isRequired,
+    lostFieldsByReflection: PropTypes.object.isRequired
+  };
 
   state = {
     tableWidth: 900,
@@ -118,30 +123,68 @@ export class AccelerationGrid extends Component {
     </div>
   )
 
-  findLayoutData(columnIndex) {
-    const isRaw = this.props.activeTab === 'raw';
-    const id = this.props.layoutFields[columnIndex].id.value;
+  renderStatus(fields) {
+    const id = fields.id.value;
+    const shouldDelete = fields.shouldDelete.value;
+    const enabled = fields.enabled.value;
+    const layoutData = this.props.reflections.get(id);
 
-    // small complexity here avoids having to store data in the form just for the sake of display
-    // but have to search since an intermediate layout could have been deleted
-    const layoutList = this.props.acceleration.getIn([
-      isRaw ? 'rawLayouts' : 'aggregationLayouts',
-      'layoutList'
-    ]);
-    return layoutList.find(layout => layout.get('id') === id);
+    let overlayMessage;
+    const error = this.context.reflectionSaveErrors.get(id);
+    const lostFields = this.context.lostFieldsByReflection[id];
+    if (error) {
+      overlayMessage = <Message
+        messageType='error'
+        inFlow={false}
+        useModalShowMore
+        messageTextStyle={{maxHeight: styles.layoutDescriptionLine.height * 2 - 2}} // -2 for border
+        message={error.get('message')}
+        messageId={error.get('id')}/>;
+    } else if (lostFields && !shouldDelete) {
+      const details = [];
+      for (const fieldListName of 'displayFields dimensionFields measureFields sortFields partitionFields distributionFields'.split(' ')) {
+        if (lostFields[fieldListName]) {
+          details.push(<div>
+            <FormattedMessage id='Reflection.LostFieldsPreamble' values={{fieldListName}} />
+            <ul style={{listStyle: 'disc', margin: '.5em 0 1em 2em'}}>{lostFields[fieldListName].map(field => {
+              return <li>{field.name} {field.granularity && `(${field.granularity})`}</li>;
+            })}</ul>
+          </div>);
+        }
+      }
+
+      overlayMessage = <Message
+        messageType='warning'
+        inFlow={false}
+        useModalShowMore
+        messageTextStyle={{maxHeight: styles.layoutDescriptionLine.height * 2 - 2}} // -2 for border
+        message={new Immutable.Map({
+          code: 'REFLECTION_LOST_FIELDS',
+          moreInfo: <div children={details} />
+        })}
+        isDismissable={false}/>;
+    }
+
+
+    let textMessage;
+    if (shouldDelete) {
+      textMessage = la('will remove');
+    } else if (!enabled) {
+      textMessage = la('disabled');
+    } else if (!layoutData) {
+      textMessage = la('new');
+    }
+
+    // todo: loc, ax
+    return <div style={{...styles.status, fontWeight: 'normal'}}>
+      {overlayMessage}
+      <LayoutInfo layout={layoutData} style={{...formDescription, width: '100%', flexGrow: 1, padding: '0 5px'}} overrideTextMessage={textMessage}/>
+    </div>;
   }
 
   renderHeaderCell = (rowIndex, columnIndex, shouldJumpTo = false) => { //todo: loc
-    const layoutData = this.findLayoutData(columnIndex);
-
-    let status;
-    if (layoutData) { // todo: loc, ax
-      status = <LayoutInfo layout={layoutData} style={styles.status} />;
-    } else {
-      status = <div style={{...styles.status, ...formContext, textAlign: 'center'}}>
-        <div style={{flex: 1}}>{la('new')}</div>
-      </div>; // these are styled different intentionally
-    }
+    const fields = this.props.layoutFields[columnIndex];
+    const shouldDelete = fields.shouldDelete.value;
 
     // todo: loc
     const placeholderName = this.props.intl.formatMessage({id:'Reflection.UnnamedReflection'});
@@ -158,17 +201,16 @@ export class AccelerationGrid extends Component {
       }}>
         <div style={{...styles.layoutDescriptionLine, ...(shouldJumpTo ? commonStyles.highlight : {})}}>
           <div className='h4' style={{display: 'flex', alignItems: 'center', paddingLeft: 5}}>
-            <ValidityIndicator isValid={layoutData && layoutData.get('hasValidMaterialization')}/>
+            <Toggle {...fields.enabled} style={{width: 'auto'}} />
             {/*
               use PrevalidatedTextField as a buffer against expensive rerender as you type
             */}
             <PrevalidatedTextField {...this.props.layoutFields[columnIndex].name}
               placeholder={placeholderName}
-              style={styles.prevalidatedField} />
-            { this.props.layoutFields.length > 1 &&
-              <FontIcon type='Minus'
-                style={styles.layoutHeaderIcon}
-                onClick={this.props.removeLayout.bind(this, columnIndex)} />
+              style={{...styles.prevalidatedField, textDecoration: shouldDelete ? 'line-through' : null}} />
+            { <FontIcon type={shouldDelete ? 'Add' : 'Minus'}
+              style={styles.layoutHeaderIcon}
+              onClick={() => fields.shouldDelete.onChange(!shouldDelete)} />
             }
             <FontIcon
               type='SettingsMediumFilled'
@@ -176,7 +218,7 @@ export class AccelerationGrid extends Component {
               onClick={() => this.setState({visibleLayoutExtraSettingsIndex: columnIndex})} />
           </div>
         </div>
-        {status}
+        {this.renderStatus(fields)}
         {this.renderSubCellHeaders()}
         {this.renderExtraLayoutSettingsModal(columnIndex, name)}
       </div>
@@ -184,6 +226,8 @@ export class AccelerationGrid extends Component {
   }
 
   renderExtraLayoutSettingsModal(columnIndex, name) {
+    const fields = this.props.layoutFields[columnIndex];
+
     const hide = () => {
       this.setState({visibleLayoutExtraSettingsIndex: -1});
     };
@@ -197,7 +241,7 @@ export class AccelerationGrid extends Component {
         <FormBody>
           <FieldWithError label={la('Reflection execution strategy:')}>
             <Select
-              {...this.props.layoutFields[columnIndex].details.partitionDistributionStrategy}
+              {...fields.partitionDistributionStrategy}
               style={{width: 250}}
               items={[
                 {label: la('Minimize Number of Files Produced'), option: 'CONSOLIDATED'},
@@ -229,7 +273,7 @@ export class AccelerationGrid extends Component {
     return (
       <div style={{ ...styles.leftCell, backgroundColor, borderBottom }}>
         <div style={styles.column}>
-          <FontIcon type={typeToIconType[columns.getIn([rowIndex, 'type'])]} theme={styles.columnTypeIcon}/>
+          <FontIcon type={typeToIconType[columns.getIn([rowIndex, 'type', 'name'])]} theme={styles.columnTypeIcon}/>
           <span style={{ marginLeft: 5 }}>{columns.getIn([rowIndex, 'name'])}</span>
         </div>
         <div>{columns.getIn([rowIndex, 'queries'])}</div>
@@ -390,12 +434,11 @@ const styles = {
     flex: 1,
     border: '1px solid transparent', // keep 1px to prevent wiggle on focus
     background: 'none',
-    paddingLeft: 0,
-    paddingRight: 0,
-    marginLeft: 9, // align with content underneath
-    marginRight: 9, // balance with left
+    padding: 0,
+    margin: 0,
     fontSize: 'inherit',
-    fontWeight: 'inherit'
+    fontWeight: 'inherit',
+    width: 0
   },
   layoutHeaderIcon: { // todo: ax, hover
     flexGrow: 0,
@@ -405,11 +448,10 @@ const styles = {
   }
 };
 styles.status = {
-  ...formDescription,
   ...styles.layoutDescriptionLine,
-  padding: '0 5px',
   display: 'flex',
-  alignItems: 'center'
+  alignItems: 'center',
+  position: 'relative' // for absolute Message
 };
 
 styles.lastCell = {

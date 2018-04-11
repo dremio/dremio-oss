@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import static org.apache.parquet.Strings.isNullOrEmpty;
 import java.util.List;
 import java.util.Map;
 
+import javax.validation.constraints.Pattern;
 import javax.ws.rs.DefaultValue;
 
 import com.dremio.dac.model.namespace.DatasetContainer;
@@ -99,6 +100,7 @@ public class Space implements DatasetContainer {
       "rename", resourcePath + "/rename");
   }
 
+  @Pattern(regexp = "^[^.\"@]+$", message = "Space name can not contain periods, double quotes or @.")
   @Override
   public String getName() {
     return name;

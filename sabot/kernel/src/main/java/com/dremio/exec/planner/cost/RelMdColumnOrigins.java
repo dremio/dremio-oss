@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.physical.CustomPrel;
 import com.dremio.exec.planner.physical.DictionaryLookupPrel;
+import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPrel;
 import com.google.common.base.Preconditions;
@@ -47,7 +48,7 @@ import com.google.common.base.Preconditions;
  * Override {@link RelMdColumnOrigins} to provide column origins for:
  *
  * - {@link SampleRelBase}
- * - {@link JdbcRel}
+ * - {@link JdbcRelBase}
  * - {@link TableScan}
  */
 public class RelMdColumnOrigins extends org.apache.calcite.rel.metadata.RelMdColumnOrigins {
@@ -81,6 +82,10 @@ public class RelMdColumnOrigins extends org.apache.calcite.rel.metadata.RelMdCol
 
   public Set<RelColumnOrigin> getColumnOrigins(JdbcRelBase jdbc, RelMetadataQuery mq, int iOutputColumn) {
     return mq.getColumnOrigins(jdbc.getJdbcSubTree(), iOutputColumn);
+  }
+
+  public Set<RelColumnOrigin> getColumnOrigins(ExchangePrel exchangePrel, RelMetadataQuery mq, int iOutputColumn) {
+    return mq.getColumnOrigins(exchangePrel.getInput(), iOutputColumn);
   }
 
   @SuppressWarnings("unused") // Called through reflection

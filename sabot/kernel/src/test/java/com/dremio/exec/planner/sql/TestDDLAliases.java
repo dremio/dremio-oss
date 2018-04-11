@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,17 +33,17 @@ public class TestDDLAliases {
 
   @Test
   public void alterDataset() throws SqlParseException{
-    parse("ALTER DATASET a.b.c CREATE ACCELERATION");
+    parse("ALTER DATASET a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
   public void alterVDS() throws SqlParseException{
-    parse("ALTER VDS a.b.c DROP ACCELERATION");
+    parse("ALTER VDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
   public void alterPDS() throws SqlParseException {
-    parse("ALTER PDS a.b.c ADD AGGREGATE LAYOUT DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+    parse("ALTER PDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test

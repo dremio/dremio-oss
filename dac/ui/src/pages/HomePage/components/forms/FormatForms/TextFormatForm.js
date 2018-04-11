@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import {padStart} from 'lodash/string';
 
 import PropTypes from 'prop-types';
 import { injectIntl, FormattedMessage } from 'react-intl';
 
 import { FormatField, Checkbox } from 'components/Fields';
 import { label, divider } from 'uiTheme/radium/forms';
+import {INVISIBLE_CHARS} from 'utils/dataFormatUtils';
 
 @injectIntl
 export default class TextFormatForm extends Component {
@@ -71,10 +73,12 @@ export default class TextFormatForm extends Component {
       // Most esp. wanted to make it so that double-quotes didn't need escaping
       // (they only needs escaping in JSON because double-quotes are in the grammar,
       // but we don't need wrapping quotes here). Esp. since double-quotes are very common.
-      const escapeForJSON = str => str.replace(
-        /[^\\]/gi,
-        match => JSON.stringify(match).slice(1, -1)
-      );
+      const escapeForJSON = str => {
+        return str.replace(
+          /[^\\]/gi,
+          match => JSON.stringify(match).slice(1, -1)
+        );
+      };
       newValue = JSON.parse(`"${escapeForJSON(newValue)}"`);
       this.setState(state => ({invalidJSONFields: {...state.invalidJSONFields, [field.name]: false} }));
     } catch (e) {
@@ -89,7 +93,7 @@ export default class TextFormatForm extends Component {
       return value;
     }
     if (this.state.invalidJSONFields[field.name]) return value;
-    return JSON.stringify(value).slice(1, -1).replace(/\\"/g, '"');
+    return JSON.stringify(value).slice(1, -1).replace(/\\"/g, '"').split('').map(c => (INVISIBLE_CHARS.has(c) && `\\u${padStart(c.charCodeAt(0).toString(16), 4, '0')}`) || c).join('');
   }
 
   render() {

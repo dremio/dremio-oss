@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,8 +48,8 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
-import com.dremio.dac.homefiles.HomeFileConfig;
-import com.dremio.dac.homefiles.HomeFileSystemPluginConfig;
+import com.dremio.dac.homefiles.HomeFileConf;
+import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderPath;
@@ -59,7 +59,10 @@ import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.DatasetsUtil;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
 import com.dremio.service.job.proto.QueryType;
@@ -77,9 +80,13 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
+import io.protostuff.ByteString;
 
 /**
  * Test home files.
@@ -96,7 +103,7 @@ public class TestHomeFiles extends BaseTestServer {
   public void setup() throws Exception {
     clearAllDataExceptUser();
     getPopulator().populateTestUsers();
-    this.fs = l(HomeFileConfig.class).createFileSystem();
+    this.fs = l(HomeFileTool.class).getConf().getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
   }
 
   private void checkFileData(String location) throws Exception {
@@ -150,7 +157,7 @@ public class TestHomeFiles extends BaseTestServer {
     // external query
     String fileLocation = PathUtils.toDottedPath(new org.apache.hadoop.fs.Path(file1StagedFormat.getLocation()));
     SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
-      SqlUtils.quoteIdentifier(HomeFileConfig.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
+      SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
 
     doc("querying file");
     JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
@@ -297,10 +304,11 @@ public class TestHomeFiles extends BaseTestServer {
     form.bodyPart(new FormDataBodyPart("fileName", "excel"));
 
     doc("uploading excel file");
-    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", extension)).buildPost(
-      Entity.entity(form, form.getMediaType())), File.class);
-    file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel")).buildPost(
-        Entity.json(file1.getFileFormat().getFileFormat())), File.class);
+    File file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/")
+        .queryParam("extension", extension))
+        .buildPost(Entity.entity(form, form.getMediaType())), File.class);
+    file1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/excel"))
+        .buildPost(Entity.json(file1.getFileFormat().getFileFormat())), File.class);
     FileFormat file1Format = file1.getFileFormat().getFileFormat();
 
     assertEquals("excel", file1Format.getName());
@@ -343,7 +351,7 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(5, previewResponse.getData().getColumns().size());
   }
 
-  public static void uploadFile(HomeFileConfig homeFileStore, Path inputFile, String name, String extension ,FileFormat fileFormat, FolderPath parent) throws Exception {
+  public static void uploadFile(HomeFileConf homeFileStore, Path inputFile, String name, String extension ,FileFormat fileFormat, FolderPath parent) throws Exception {
     FilePath filePath;
     if (parent == null) {
       filePath = new FilePath(ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), name));
@@ -354,9 +362,9 @@ public class TestHomeFiles extends BaseTestServer {
     }
 
     FSDataInputStream inputStream = FileSystem.getLocal(new Configuration()).open(inputFile);
-    FileSystem fs = homeFileStore.createFileSystem();
-    Path stagingLocation = new HomeFileTool(homeFileStore, fs).stageFile(filePath, extension, inputStream);
-    Path finalLocation = new HomeFileTool(homeFileStore, fs).saveFile(stagingLocation, filePath, extension);
+    FileSystem fs = homeFileStore.getFilesystemAndCreatePaths(null);
+    Path stagingLocation = new HomeFileTool(homeFileStore, fs, "localhost").stageFile(filePath, extension, inputStream);
+    Path finalLocation = new HomeFileTool(homeFileStore, fs, "localhost").saveFile(stagingLocation, filePath, extension);
     inputStream.close();
 
     // create file in namespace
@@ -365,7 +373,7 @@ public class TestHomeFiles extends BaseTestServer {
     fileFormat.setName(name);
     fileFormat.setLocation(finalLocation.toString());
     DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE, null, null);
-    newCatelogService().createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileConfig.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
+    newCatalogService().getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()).createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
   }
 
   public static void runQuery(String name, int rows, int columns, FolderPath parent) {
@@ -386,7 +394,7 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(columns, truncData.getColumns().size());
   }
 
-  private static void runTests(HomeFileConfig homeFileStore) throws Exception {
+  private static void runTests(HomeFileConf homeFileStore) throws Exception {
     // text file
     Path textFile = new Path(FileUtils.getResourceAsFile("/datasets/text/comma.txt").getAbsolutePath());
     uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
@@ -419,28 +427,35 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testNASFileStore() throws Exception {
-    final HomeFileConfig nasHomeFileStore = new HomeFileConfig(new Path("file://" + BaseTestServer.folder1.getRoot().toString() + "/" + "testNASFileStore").toUri(), "localhost");
-    HomeFileTool tool = new HomeFileTool(nasHomeFileStore, nasHomeFileStore.createFileSystem());
-    StoragePluginRegistry registry = getCurrentDremioDaemon().getBindingProvider().lookup(StoragePluginRegistry.class);
-    registry.createOrUpdate(HomeFileConfig.HOME_PLUGIN_NAME, new HomeFileSystemPluginConfig(nasHomeFileStore), true);
+
+    final CatalogServiceImpl catalog = (CatalogServiceImpl) l(CatalogService.class);
+    final SourceConfig config = catalog.getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getClonedConfig();
+    final ByteString oldConfig = config.getConfig();
+    final HomeFileConf nasHomeFileStore = new HomeFileConf(new Path("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testNASFileStore/").toString(), "localhost");
+    nasHomeFileStore.getFilesystemAndCreatePaths("localhost");
+    config.setConnectionConf(nasHomeFileStore);
+    catalog.getSystemUserCatalog().updateSource(config);
+    HomeFileTool tool = l(HomeFileTool.class);
 
     try {
       runTests(nasHomeFileStore);
     } finally {
       tool.clear();
       // reset plugin
-      final HomeFileConfig pdfsHomeFileStore = l(HomeFileConfig.class);
-      registry.createOrUpdate(HomeFileConfig.HOME_PLUGIN_NAME, new HomeFileSystemPluginConfig(pdfsHomeFileStore), true);
+      SourceConfig backConfig = catalog.getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getClonedConfig();
+      backConfig.setConfig(oldConfig);
+      catalog.getSystemUserCatalog().updateSource(backConfig);
     }
   }
 
 
   @Test
   public void testPDFSFileStore() throws Exception {
-    final HomeFileConfig pdfsHomeFileStore = l(HomeFileConfig.class);
-    HomeFileTool tool = new HomeFileTool(pdfsHomeFileStore, pdfsHomeFileStore.createFileSystem());
+    FileSystemPlugin fsp = (FileSystemPlugin) l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    HomeFileConf conf = (HomeFileConf) fsp.getConfig();
+    HomeFileTool tool = l(HomeFileTool.class);
     try {
-      runTests(pdfsHomeFileStore);
+      runTests(conf);
     } finally {
       tool.clear();
     }

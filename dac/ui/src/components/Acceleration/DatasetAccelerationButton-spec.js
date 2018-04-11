@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ describe('DatasetAccelerationButton', () => {
 
   it('should render flame icon when acceleration enabled', () => {
     const wrapper = shallow(<DatasetAccelerationButton {...minimalProps}/>);
-    wrapper.setProps({acceleration: Immutable.fromJS({ state: 'ENABLED'})});
+    wrapper.setProps({acceleration: Immutable.fromJS({ enabled: true})});
     expect(wrapper.find('FontIcon').props().type).to.be.eql('Flame');
   });
 

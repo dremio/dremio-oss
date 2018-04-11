@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,30 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Handles both SHOW DATABASES and SHOW SCHEMAS (synonyms).
  */
 public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.SchemaResult> {
 
-  private final SchemaPlus rootSchema;
+  private final Catalog catalog;
 
-  public ShowSchemasHandler(SchemaPlus rootSchema) {
+  public ShowSchemasHandler(Catalog catalog) {
     super();
-    this.rootSchema = rootSchema;
+    this.catalog = catalog;
   }
 
   @Override
@@ -44,16 +47,20 @@ public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.S
     final SqlShowSchemas node = SqlNodeUtil.unwrap(sqlNode, SqlShowSchemas.class);
     final Pattern likePattern = SqlNodeUtil.getPattern(node.getLikePattern());
     final Matcher m = likePattern.matcher("");
-    List<SchemaResult> schemas = new ArrayList<>();
-    Set<String> schemaNames = rootSchema.getSubSchemaNames();
-    for(String name : schemaNames){
-      m.reset(name);
-      if(m.matches()){
-        schemas.add(new SchemaResult(name));
-      }
-    }
 
-    return schemas;
+    return FluentIterable.from(catalog.listSchemas(new NamespaceKey(ImmutableList.<String>of())))
+        .filter(new Predicate<String>() {
+          @Override
+          public boolean apply(String input) {
+            m.reset(input);
+            return m.matches();
+          }})
+        .transform(new Function<String, SchemaResult>() {
+          @Override
+          public SchemaResult apply(String input) {
+            return new SchemaResult(input);
+          }})
+        .toList();
   }
 
   @Override

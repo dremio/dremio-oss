@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ import com.dremio.provision.ClusterType;
 import com.dremio.provision.DistroType;
 import com.dremio.provision.DynamicConfig;
 import com.dremio.provision.Property;
+import com.dremio.provision.PropertyType;
 import com.dremio.provision.resource.ProvisioningResource;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.test.DremioTest;
@@ -201,6 +202,46 @@ public class TestAPI {
       fail();
     } catch (NullPointerException e) {
       // OK
+    }
+  }
+
+  @Test
+  public void testPropertyType() throws Exception {
+    ProvisioningServiceDelegate provServiceDelegate = Mockito.mock(ProvisioningServiceDelegate.class);
+    service.getConcreteServices().put(ClusterType.YARN, provServiceDelegate);
+
+    Cluster storedCluster = clusterCreateHelper();
+    storedCluster.getClusterConfig().setVersion(null);
+
+    doReturn(new ClusterEnriched()).when(provServiceDelegate).startCluster(any(Cluster.class));
+    doReturn(new ClusterEnriched()).when(provServiceDelegate).startCluster(any(Cluster.class));
+    doNothing().when(provServiceDelegate).stopCluster(any(Cluster.class));
+
+    KVStore<ClusterId, Cluster> store =
+      registry.provider(KVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
+
+    List<Property> properties = storedCluster.getClusterConfig().getSubPropertyList();
+    properties.add(new Property("abc", "bcd").setType(PropertyType.JAVA_PROP));
+    properties.add(new Property("-Xxyz", "").setType(PropertyType.SYSTEM_PROP));
+    properties.add(new Property("JAVA_HOME", "/abc/bcd").setType(PropertyType.ENV_VAR));
+
+    ClusterId clusterId = storedCluster.getId();
+    store.put(clusterId, storedCluster);
+
+
+    Cluster cluster = store.get(clusterId);
+    assertNotNull(cluster);
+    List<Property> props = cluster.getClusterConfig().getSubPropertyList();
+    for (Property prop : props) {
+      if ("abc".equals(prop.getKey())) {
+        assertTrue(PropertyType.JAVA_PROP.equals(prop.getType()));
+      }
+      if ("-Xxyz".equals(prop.getKey())) {
+        assertTrue(PropertyType.SYSTEM_PROP.equals(prop.getType()));
+      }
+      if ("JAVA_HOME".equals(prop.getKey())) {
+        assertTrue(PropertyType.ENV_VAR.equals(prop.getType()));
+      }
     }
   }
 
@@ -501,14 +542,14 @@ public class TestAPI {
   @Test
   public void testCompareProps() throws Exception {
     List<Property> propertyList1 = new ArrayList<>();
-    propertyList1.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
+    propertyList1.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020").setType(PropertyType.JAVA_PROP));
     propertyList1.add(new Property("yarn.resourcemanager.hostname", "resource-manager"));
     propertyList1.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList1.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
 
     List<Property> propertyList2 = new ArrayList<>();
     propertyList2.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
-    propertyList2.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
+    propertyList2.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020").setType(PropertyType.JAVA_PROP));
     propertyList2.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList2.add(new Property("yarn.resourcemanager.hostname", "resource-manager"));
 

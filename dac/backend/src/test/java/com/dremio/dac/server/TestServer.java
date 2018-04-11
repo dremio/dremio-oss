@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,9 @@ import java.util.List;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.junit.Assert;
@@ -63,6 +65,7 @@ import com.dremio.dac.explore.model.ParentDatasetUI;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobFilterItems;
+import com.dremio.dac.model.job.QueryError;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.Home;
@@ -74,8 +77,9 @@ import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
-import com.dremio.dac.proto.model.source.NASConfig;
+import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
@@ -105,8 +109,8 @@ public class TestServer extends BaseTestServer {
     source.setName("src1");
     source.setCtime(1000L);
 
-    final NASConfig config1 = new NASConfig();
-    config1.setPath(folder.getRoot().getAbsolutePath());
+    final NASConf config1 = new NASConf();
+    config1.path = folder.getRoot().getAbsolutePath();
     source.setConfig(config1);
     String sourceResource = "source/src1";
 
@@ -117,14 +121,13 @@ public class TestServer extends BaseTestServer {
     final SourceUI putSource1 = expectSuccess(getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(source)), SourceUI.class);
 
     doc("update source 1");
-    ((NASConfig) putSource1.getConfig()).setPath(v1.getAbsolutePath());
+    ((NASConf) putSource1.getConfig()).path =v1.getAbsolutePath();
     final SourceUI putSource2 = expectSuccess(getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), SourceUI.class);
-    assertEquals(((NASConfig) putSource1.getConfig()).getPath(), ((NASConfig) putSource2.getConfig()).getPath());
+    assertEquals(((NASConf) putSource1.getConfig()).path, ((NASConf) putSource2.getConfig()).path);
 
     doc("update source 1 based on previous version");
-    ((NASConfig) putSource1.getConfig()).setPath(v2.getAbsolutePath());
-    final UserExceptionMapper.ErrorMessageWithContext errorPut = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), UserExceptionMapper.ErrorMessageWithContext.class);
-    assertEquals(errorPut.getErrorMessage(), "Source updated concurrently either by another user, or by a background refresh. Please refresh and try again.");
+    ((NASConf) putSource1.getConfig()).path = v2.getAbsolutePath();
+    expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource)).buildPut(Entity.json(putSource1)), UserExceptionMapper.ErrorMessageWithContext.class);
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete = expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path(sourceResource)).buildDelete(), GenericErrorMessage.class);
@@ -132,7 +135,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with bad version");
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 1");
+    assertErrorMessage(errorDelete2, "Unable to delete source, expected version 1, received version 1234.");
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getVersion())).buildDelete());
@@ -145,8 +148,8 @@ public class TestServer extends BaseTestServer {
     {
       SourceUI sourceUI = new SourceUI();
       sourceUI.setName("nas_sub");
-      final NASConfig nas = new NASConfig();
-      nas.setPath(System.getProperty("user.dir") + "/src/test/resources/datasets");
+      final NASConf nas = new NASConf();
+      nas.path = System.getProperty("user.dir") + "/src/test/resources/datasets";
       sourceUI.setConfig(nas);
       sourceService.registerSourceWithRuntime(sourceUI);
     }
@@ -175,8 +178,8 @@ public class TestServer extends BaseTestServer {
   public void testInvalidSource() throws Exception {
     SourceUI sourceUI = new SourceUI();
     sourceUI.setName("A.B");
-    NASConfig sourceConfig = new NASConfig();
-    sourceConfig.setPath("/");
+    NASConf sourceConfig = new NASConf();
+    sourceConfig.path = "/";
     sourceUI.setConfig(sourceConfig);
     expectError(CLIENT_ERROR, getBuilder(getAPIv2().path("source/A.B")).buildPut(Entity.json(sourceUI)), ValidationErrorMessage.class);
   }
@@ -186,8 +189,8 @@ public class TestServer extends BaseTestServer {
     SourceUI sourceUI = new SourceUI();
     sourceUI.setName("AB");
 
-    NASConfig sourceConfig = new NASConfig();
-    sourceConfig.setPath("/");
+    NASConf sourceConfig = new NASConf();
+    sourceConfig.path = "/";
     sourceUI.setConfig(sourceConfig);
 
     expectSuccess(getBuilder(getAPIv2().path("source/AB")).buildPut(Entity.json(sourceUI)));
@@ -628,6 +631,28 @@ public class TestServer extends BaseTestServer {
     assertEquals(previewResponse.getDataset().getDatasetVersion(), previewResponse.getHistory().getCurrentDatasetVersion());
     assertEquals(query, previewResponse.getDataset().getSql());
     assertNull(previewResponse.getDataset().getJobCount());
+  }
+
+  @Test
+  public void testNewUntitledFromSqlWithError() throws Exception {
+    final String query = "select * from values(0)";
+    final Invocation invocation = getBuilder(
+      getAPIv2()
+        .path("datasets/new_untitled_sql")
+        .queryParam("newVersion", newVersion())
+    ).buildPost(Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
+    Response previewResponse = expectStatus(BAD_REQUEST, invocation);
+    ApiErrorModel<InvalidQueryException.Details> error = previewResponse.readEntity(new GenericType<ApiErrorModel<InvalidQueryException.Details>>() {});
+    assertEquals(ApiErrorModel.ErrorType.INVALID_QUERY, error.getCode());
+    assertEquals(query, error.getDetails().getSql());
+    assertEquals(1, error.getDetails().getErrors().size());
+    QueryError queryError = error.getDetails().getErrors().get(0);
+
+    assertContains("Failure parsing the query", queryError.getMessage());
+    assertEquals(1, queryError.getRange().getStartLine());
+    assertEquals(10, queryError.getRange().getStartColumn());
+    assertEquals(1, queryError.getRange().getEndLine());
+    assertEquals(13, queryError.getRange().getEndColumn());
   }
 
   @Test

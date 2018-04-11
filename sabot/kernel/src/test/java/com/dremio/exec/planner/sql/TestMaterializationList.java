@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,14 +63,14 @@ public class TestMaterializationList {
   @Test
   public void testListDiscardsGivenExclusions() {
     when(excluded.getMaterializationFor(converter)).thenReturn(relOptMat1);
-    when(excluded.getAccelerationId()).thenReturn("rid-1");
+    when(excluded.getLayoutId()).thenReturn("rid-1");
     when(included.getMaterializationFor(converter)).thenReturn(relOptMat2);
-    when(included.getAccelerationId()).thenReturn("rid-2");
+    when(included.getLayoutId()).thenReturn("rid-2");
 
-    SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of("rid-1"), false);
+    SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of("rid-1"));
 
     when(session.getSubstitutionSettings()).thenReturn(materializationSettings);
-    when(provider.get(false)).thenReturn(ImmutableList.of(excluded, included));
+    when(provider.get()).thenReturn(ImmutableList.of(excluded, included));
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);
     // we do not need to check the result here as making sure that convert method is hit once is enough

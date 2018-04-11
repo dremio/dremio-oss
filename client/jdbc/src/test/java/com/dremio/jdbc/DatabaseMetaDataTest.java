@@ -90,8 +90,8 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
 
   @Test
-  public void testGetIdentifierQuoteStringSaysBackquote() throws SQLException {
-    assertThat( dbmd.getIdentifierQuoteString(), equalTo( "`" ) );
+  public void testGetIdentifierQuoteStringSaysDoublequote() throws SQLException {
+    assertThat( dbmd.getIdentifierQuoteString(), equalTo( "\"" ) );
   }
 
 

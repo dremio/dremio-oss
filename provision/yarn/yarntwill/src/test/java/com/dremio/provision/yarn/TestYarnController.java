@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.Property;
+import com.dremio.provision.PropertyType;
 import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
 
 /**
@@ -93,13 +94,15 @@ public class TestYarnController {
     YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
     List<Property> propertyList = new ArrayList<>();
 
-    propertyList.add(new Property("java.security.auth.login.config", "/opt/mapr/conf/mapr.login.conf"));
+    propertyList.add(new Property("java.security.auth.login.config", "/opt/mapr/conf/mapr.login.conf")
+      .setType(PropertyType.JAVA_PROP));
     propertyList.add(new Property("zookeeper.client.sasl", "false"));
     propertyList.add(new Property("zookeeper.sasl.clientconfig", "Client"));
     propertyList.add(new Property("zookeeper.saslprovider", "com.mapr.security.maprsasl.MaprSaslProvider"));
-    propertyList.add(new Property("-Xms4096m", ""));
-    propertyList.add(new Property("-XX:ThreadStackSize", "512"));
+    propertyList.add(new Property("-Xms4096m", "").setType(PropertyType.SYSTEM_PROP));
+    propertyList.add(new Property("-XX:ThreadStackSize", "512").setType(PropertyType.SYSTEM_PROP));
     propertyList.add(new Property("paths.spilling", "[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
+    propertyList.add(new Property("JAVA_HOME", "/abc/bcd").setType(PropertyType.ENV_VAR));
 
     String jvmOptions = yarnController.prepareCommandOptions(yarnConfiguration, propertyList);
     logger.info("JVMOptions: {}", jvmOptions);
@@ -115,6 +118,8 @@ public class TestYarnController {
     assertTrue(jvmOptions.contains(" -Dzookeeper.sasl.clientconfig=Client"));
     assertTrue(jvmOptions.contains(" -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf"));
     assertTrue(jvmOptions.contains(" -Dpaths.spilling=[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
+    assertFalse(jvmOptions.contains("JAVA_HOME"));
+    assertTrue(jvmOptions.contains(" -D"+DremioConfig.EXECUTOR_CPU + "=2"));
 
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
       public String getEnv(String name) {

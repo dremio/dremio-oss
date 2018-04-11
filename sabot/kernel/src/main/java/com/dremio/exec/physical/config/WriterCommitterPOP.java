@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,13 @@ package com.dremio.exec.physical.config;
 import java.util.Iterator;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.service.namespace.StoragePluginId;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -50,12 +49,12 @@ public class WriterCommitterPOP extends AbstractSingle {
           @JsonProperty("userName") String userName,
           @JsonProperty("pluginId") StoragePluginId pluginId,
           @JsonProperty("child") PhysicalOperator child,
-          @JacksonInject StoragePluginRegistry engineRegistry
+          @JacksonInject CatalogService catalogService
   ) throws ExecutionSetupException {
       super(child, userName);
       this.tempLocation = tempLocation;
       this.finalLocation = finalLocation;
-      this.plugin = Preconditions.checkNotNull((FileSystemPlugin) engineRegistry.getPlugin(pluginId));
+      this.plugin = Preconditions.checkNotNull(catalogService.<FileSystemPlugin>getSource(pluginId));
   }
 
   public WriterCommitterPOP(

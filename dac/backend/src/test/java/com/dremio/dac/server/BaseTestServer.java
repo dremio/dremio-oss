@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -31,6 +32,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.security.Principal;
 import java.util.List;
@@ -48,6 +50,7 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.eclipse.jetty.http.HttpHeader;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -89,16 +92,16 @@ import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogServiceImpl;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.util.TestUtilities;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
@@ -117,7 +120,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableList;
 
 /**
  * base class for server tests
@@ -267,6 +270,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return masterDremioDaemon;
   }
 
+  protected static DACDaemon getExecutorDaemon() {
+    return executorDaemon;
+  }
+
   public static boolean isMultinode() {
     return System.getProperty("dremio_multinode", null) != null;
   }
@@ -297,6 +304,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static void initClient() {
     ObjectMapper objectMapper = JSONUtil.prettyMapper();
+    JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT);
     objectMapper.registerModule(
         new SimpleModule()
             .addDeserializer(JobDataFragment.class,
@@ -334,11 +342,11 @@ public abstract class BaseTestServer extends BaseClientUtils {
   @BeforeClass
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      initializeCluster(isMultinode(), new DACDaemonModule(), SingleSourceToStoragePluginConfig.of(new NASSourceConfigurator(), new ClassPathSourceConfigurator()));
+      initializeCluster(isMultinode(), new DACDaemonModule());
     }
   }
 
-  protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule, SourceToStoragePluginConfig configurator) throws Exception {
+  protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule) throws Exception {
     final String hostname = InetAddress.getLocalHost().getCanonicalHostName();
     if (isMultiNode) {
       logger.info("Running tests in multinode mode");
@@ -355,6 +363,12 @@ public abstract class BaseTestServer extends BaseClientUtils {
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/accelerator").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/scratch").toPath());
 
+      // Get a random port
+      int port;
+      try(ServerSocket socket = new ServerSocket(0)) {
+        socket.setReuseAddress(true);
+        port = socket.getLocalPort();
+      }
       // create master node.
       masterDremioDaemon = DACDaemon.newDremioDaemon(
           DACConfig
@@ -366,10 +380,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .writePath(folder1.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
+              .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, port)
               .clusterMode(ClusterMode.DISTRIBUTED),
           DremioTest.CLASSPATH_SCAN_RESULT,
-          dacModule,
-          configurator);
+          dacModule);
       masterDremioDaemon.init();
 
       // remote coordinator node
@@ -390,8 +404,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
               .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
-          dacModule,
-          configurator);
+          dacModule);
       startCurrentDaemon();
 
       // remote executor node
@@ -410,8 +423,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .isRemote(true)
               .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
-          dacModule,
-          configurator);
+          dacModule
+          );
       executorDaemon.init();
 
       initClient();
@@ -427,14 +440,15 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .writePath(folder1.getRoot().getAbsolutePath())
               .clusterMode(DACDaemon.ClusterMode.LOCAL),
               DremioTest.CLASSPATH_SCAN_RESULT,
-          dacModule,
-          configurator);
+          dacModule
+          );
       masterDremioDaemon = null;
       startCurrentDaemon();
       initClient();
     }
 
     setBinder(createBinder(currentDremioDaemon.getBindingProvider()));
+    TestUtilities.addDefaultTestPlugins(l(CatalogService.class), folder0.newFolder("testplugins").toString());
 
     setPopulator(new SampleDataPopulator(
         l(SabotContext.class),
@@ -450,12 +464,16 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return l(NamespaceService.class);
   }
 
-  protected static CatalogService newCatelogService() {
+  protected static CatalogService newCatalogService() {
     return l(CatalogService.class);
   }
 
   protected static SourceService newSourceService(){
     return l(SourceService.class);
+  }
+
+  protected static ReflectionServiceHelper newReflectionServiceHelper(){
+    return l(ReflectionServiceHelper.class);
   }
 
   protected static DatasetVersionMutator newDatasetVersionMutator(){
@@ -468,6 +486,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static <T> Provider<T> p(Class<T> clazz) {
     return dremioBinder.provider(clazz);
+  }
+
+  protected void deleteSource(String name) {
+    ((CatalogServiceImpl)l(CatalogService.class)).deleteSource(name);
   }
 
   protected static void setBinder(Binder binder) {
@@ -589,16 +611,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     populator.populateInitialData();
   }
 
-  public static void clearAllDataExceptUser() throws IOException {
-    if (isMultinode()) {
-      ((LocalKVStoreProvider) masterDremioDaemon.getBindingProvider().lookup(KVStoreProvider.class))
-          .deleteEverything(SimpleUserService.USER_STORE);
-    } else {
-      ((LocalKVStoreProvider) getCurrentDremioDaemon().getBindingProvider().lookup(KVStoreProvider.class))
-          .deleteEverything(SimpleUserService.USER_STORE);
+  public static void clearAllDataExceptUser() throws IOException, NamespaceException {
+    @SuppressWarnings("resource")
+    DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
+    TestUtilities.clear(daemon.getBindingProvider().lookup(CatalogService.class), daemon.getBindingProvider().lookup(KVStoreProvider.class), ImmutableList.of(SimpleUserService.USER_STORE), ImmutableList.of("cp"));
+    if(isMultinode()) {
+      ((CatalogServiceImpl)getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class)).synchronizeSources();
     }
-    currentDremioDaemon.getBindingProvider().lookup(StoragePluginRegistry.class).updateNamespace(Sets.newHashSet("cp", "__datasetDownload", "__home", "__jobResultsStore", "$scratch", "sys", "INFORMATION_SCHEMA"), CatalogService.REFRESH_EVERYTHING_NOW);
-    ((CatalogServiceImpl)currentDremioDaemon.getBindingProvider().lookup(CatalogService.class)).testTrimBackgroundTasks();
   }
 
   protected void setSpace() throws NamespaceException, IOException {
@@ -875,7 +894,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected void assertErrorMessage(final GenericErrorMessage errorMessage, final String expectedMoreInfo) {
     assertEquals("error message should be '" + GenericErrorMessage.GENERIC_ERROR_MSG + "'", GenericErrorMessage.GENERIC_ERROR_MSG, errorMessage.getErrorMessage());
-    assertTrue("Unexpected more infos field", errorMessage.getMoreInfo().contains(expectedMoreInfo));
+    assertThat(errorMessage.getMoreInfo(), CoreMatchers.containsString(expectedMoreInfo));
   }
 
   protected void assertErrorMessage(final GenericErrorMessage error, final String errorMessage, final String expectedMoreInfo) {

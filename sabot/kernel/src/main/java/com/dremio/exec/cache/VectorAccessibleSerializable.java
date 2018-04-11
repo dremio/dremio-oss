@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
 
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.record.VectorAccessible;
 import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.BufferAllocator;
@@ -197,43 +198,51 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
    */
   @Override
   public void readFromStream(InputStream input) throws IOException {
-    final VectorContainer container = new VectorContainer();
-    final UserBitShared.RecordBatchDef batchDef = UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
-    recordCount = batchDef.getRecordCount();
-    if (batchDef.hasCarriesTwoByteSelectionVector() && batchDef.getCarriesTwoByteSelectionVector()) {
+    try (RollbackCloseable rollback = new RollbackCloseable()) {
+      final VectorContainer container = rollback.add(new VectorContainer());
+      final UserBitShared.RecordBatchDef batchDef = UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
+      recordCount = batchDef.getRecordCount();
+      if (batchDef.hasCarriesTwoByteSelectionVector() && batchDef.getCarriesTwoByteSelectionVector()) {
 
-      if (sv2 == null) {
-        sv2 = new SelectionVector2(allocator);
-      }
-      sv2.allocateNew(recordCount * SelectionVector2.RECORD_SIZE);
-      sv2.getBuffer().setBytes(0, input, recordCount * SelectionVector2.RECORD_SIZE);
-      svMode = BatchSchema.SelectionVectorMode.TWO_BYTE;
-    }
-    final List<ValueVector> vectorList = Lists.newArrayList();
-    final List<SerializedField> fieldList = batchDef.getFieldList();
-    for (SerializedField metaData : fieldList) {
-      final int rawDataLength = metaData.getBufferLength();
-      final Field field = SerializedFieldHelper.create(metaData);
-      final ArrowBuf buf = allocator.buffer(rawDataLength);
-      final ValueVector vector;
-      try {
-        if(useCodec) {
-          readAndUncompressIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+        if (sv2 == null) {
+          sv2 = rollback.add(new SelectionVector2(allocator));
         }
-        else {
-          readIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
-        }
-        vector = TypeHelper.getNewVector(field, allocator);
-        TypeHelper.load(vector, metaData, buf);
-      } finally {
-        buf.release();
+        sv2.allocateNew(recordCount * SelectionVector2.RECORD_SIZE);
+        sv2.getBuffer().setBytes(0, input, recordCount * SelectionVector2.RECORD_SIZE);
+        svMode = BatchSchema.SelectionVectorMode.TWO_BYTE;
       }
-      vectorList.add(vector);
+      final List<ValueVector> vectorList = Lists.newArrayList();
+      final List<SerializedField> fieldList = batchDef.getFieldList();
+      for (SerializedField metaData : fieldList) {
+        final int rawDataLength = metaData.getBufferLength();
+        final Field field = SerializedFieldHelper.create(metaData);
+        ArrowBuf buf = null;
+        final ValueVector vector;
+        try {
+          buf = allocator.buffer(rawDataLength);
+          if (useCodec) {
+            readAndUncompressIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+          } else {
+            readIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+          }
+          vector = TypeHelper.getNewVector(field, allocator);
+          TypeHelper.load(vector, metaData, buf);
+        } finally {
+          if (buf != null) {
+            buf.release();
+          }
+        }
+        vectorList.add(vector);
+      }
+      container.addCollection(vectorList);
+      container.buildSchema(svMode);
+      container.setRecordCount(recordCount);
+      va = container;
+
+      rollback.commit();
+    } catch (Exception e) {
+      throw new IOException("Failed to deserialize on-disk vector batch", e);
     }
-    container.addCollection(vectorList);
-    container.buildSchema(svMode);
-    container.setRecordCount(recordCount);
-    va = container;
   }
 
   /**
@@ -404,6 +413,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         bufferPos += uncompressedLength;
       }
     }
+    outputBuffer.writerIndex(bufferPos);
   }
 
   private int getLEIntFromByteArray(byte[] array) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
+
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * SQL node tree for <code>FORGET TABLE table_identifier </code>
@@ -73,6 +75,10 @@ public class SqlForgetTable extends SqlSystemCall {
 
   @Override public List<SqlNode> getOperandList() {
     return ImmutableNullableList.<SqlNode>of(table);
+  }
+
+  public NamespaceKey getPath() {
+    return new NamespaceKey(table.names);
   }
 
   public SqlIdentifier getTable() { return table; }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
 import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
 
-import org.apache.commons.dbcp.BasicDataSource;
-import org.apache.commons.dbcp.datasources.SharedPoolDataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
+import org.apache.commons.dbcp2.datasources.SharedPoolDataSource;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
 /**
@@ -82,10 +82,7 @@ public final class CompatCreator {
           MethodUtils.invokeExactMethod(source, "setPassword", password);
         }
 
-        SharedPoolDataSource ds = new SharedPoolDataSource();
-        ds.setConnectionPoolDataSource(source);
-        ds.setMaxActive(Integer.MAX_VALUE);
-        return ds;
+        return newSharedDataSource(source);
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Cannot instantiate MySQL datasource", e);
       }
@@ -104,10 +101,7 @@ public final class CompatCreator {
           MethodUtils.invokeExactMethod(source, "setPassword", password);
         }
 
-        SharedPoolDataSource ds = new SharedPoolDataSource();
-        ds.setConnectionPoolDataSource(source);
-        ds.setMaxActive(Integer.MAX_VALUE);
-        return ds;
+        return newSharedDataSource(source);
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Cannot instantiate MSSQL datasource", e);
       }
@@ -134,10 +128,7 @@ public final class CompatCreator {
         MethodUtils.invokeExactMethod(source, "setUser", username);
         MethodUtils.invokeExactMethod(source, "setPassword", password);
 
-        SharedPoolDataSource ds = new SharedPoolDataSource();
-        ds.setConnectionPoolDataSource(source);
-        ds.setMaxActive(Integer.MAX_VALUE);
-        return ds;
+        return newSharedDataSource(source);
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Cannot instantiate Oracle datasource", e);
       }
@@ -158,7 +149,9 @@ public final class CompatCreator {
     default: {
       final BasicDataSource source = new BasicDataSource();
       // unbounded number of connections since we could have hundreds of queries running many threads simultaneously.
-      source.setMaxActive(Integer.MAX_VALUE);
+      source.setMaxTotal(Integer.MAX_VALUE);
+      source.setTestOnBorrow(true);
+      source.setValidationQueryTimeout(1);
       source.setDriverClassName(driver);
       source.setUrl(url);
 
@@ -172,6 +165,14 @@ public final class CompatCreator {
       return source;
     }
     }
+  }
+  private static SharedPoolDataSource newSharedDataSource(final ConnectionPoolDataSource source) {
+    SharedPoolDataSource ds = new SharedPoolDataSource();
+    ds.setConnectionPoolDataSource(source);
+    ds.setMaxTotal(Integer.MAX_VALUE);
+    ds.setDefaultTestOnBorrow(true);
+    ds.setValidationQueryTimeout(1);
+    return ds;
   }
 
 

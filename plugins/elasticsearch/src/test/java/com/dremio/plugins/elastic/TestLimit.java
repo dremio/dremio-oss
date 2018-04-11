@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,56 @@
 package com.dremio.plugins.elastic;
 
 import static com.dremio.TestBuilder.mapOf;
+import static com.dremio.exec.util.ImpersonationUtil.getProcessUserName;
+import static java.lang.String.format;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+
+import javax.annotation.Nullable;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.CloseableByteBuf;
+import com.dremio.common.DeferredException;
+import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.planner.observer.AbstractAttemptObserver;
+import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.observer.QueryObserver;
+import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.proto.UserBitShared.QueryType;
+import com.dremio.exec.proto.UserProtos.RunQuery;
+import com.dremio.exec.proto.UserProtos.SubmissionSource;
+import com.dremio.exec.rpc.Acks;
+import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.exec.work.AttemptId;
+import com.dremio.exec.work.ExternalIdHelper;
+import com.dremio.exec.work.protector.UserResult;
+import com.dremio.exec.work.user.LocalExecutionConfig;
+import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
+import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
+import com.dremio.sabot.rpc.user.UserResultsListener;
+import com.dremio.service.Pointer;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+
+import io.netty.buffer.ByteBuf;
 
 public class TestLimit extends ElasticBaseTestQuery {
 
@@ -360,6 +402,83 @@ public class TestLimit extends ElasticBaseTestQuery {
           .go();
     } finally {
       test("set planner.leaf_limit_enable = false");
+    }
+  }
+
+  @Test
+  public void testLimitOne() throws Exception {
+    String query = String.format("select * from elasticsearch.%s.%s limit 1", schema, table);
+    LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
+      .setEnableLeafLimits(false)
+      .setFailIfNonEmptySent(false)
+      .setUsername(getProcessUserName())
+      .setSqlContext(Collections.<String>emptyList())
+      .setInternalSingleThreaded(false)
+      .setQueryResultsStorePath(format("%s.`%s`", TEMP_SCHEMA, "elasticLimitOne"))
+      .setAllowPartitionPruning(true)
+      .setExposeInternalSources(false)
+      .setSubstitutionSettings(SubstitutionSettings.of())
+      .build();
+
+    RunQuery queryCmd = RunQuery
+      .newBuilder()
+      .setType(UserBitShared.QueryType.SQL)
+      .setSource(SubmissionSource.LOCAL)
+      .setPlan(query)
+      .build();
+
+    ProfileGrabber grabber = new ProfileGrabber();
+    getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config);
+    QueryProfile profile = grabber.getProfile();
+
+    Optional<OperatorProfile> scanProfile = FluentIterable.from(profile.getFragmentProfile(0).getMinorFragmentProfile(0).getOperatorProfileList())
+      .firstMatch(new Predicate<OperatorProfile>() {
+        @Override
+        public boolean apply(@Nullable OperatorProfile operatorProfile) {
+          return operatorProfile.getOperatorType() == CoreOperatorType.ELASTICSEARCH_SUB_SCAN_VALUE;
+        }
+      });
+    assertEquals(1L, scanProfile.get().getInputProfile(0).getRecords());
+  }
+
+  private static class ProfileGrabber implements QueryObserver {
+    private CountDownLatch latch = new CountDownLatch(1);
+    private QueryProfile profile;
+    private DeferredException exception = new DeferredException();
+
+    @Override
+    public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
+      return new AbstractAttemptObserver() {
+        @Override
+        public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
+          try {
+            AutoCloseables.close(
+              FluentIterable.of(result.getBuffers()).transform(new Function<ByteBuf, AutoCloseable>(){
+                @Override
+                public AutoCloseable apply(ByteBuf input) {
+                  return new CloseableByteBuf(input);
+                }}).toList());
+          } catch (Exception e) {
+            exception.addException(e);
+          }
+          outcomeListener.success(Acks.OK, null);
+        }
+      };
+    }
+
+    @Override
+    public void execCompletion(UserResult result) {
+      profile = result.getProfile();
+      latch.countDown();
+    }
+
+    public QueryProfile getProfile() throws InterruptedException {
+      await();
+      return profile;
+    }
+
+    public void await() throws InterruptedException {
+      latch.await();
     }
   }
 }

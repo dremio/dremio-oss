@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,12 @@ import com.dremio.common.Version;
  */
 public abstract class UpgradeTask {
   protected static final Version VERSION_106 = new Version("1.0.6", 1, 0, 6, 0, "");
-  protected static final Version VERSION_107 = new Version("1.0.7", 1, 0, 7, 0, "");
-  protected static final Version VERSION_108 = new Version("1.0.8", 1, 0, 8, 0, "");
   protected static final Version VERSION_109 = new Version("1.0.9", 1, 0, 9, 0, "");
-  protected static final Version VERSION_110 = new Version("1.1.0", 1, 1, 0, 0, "");
   protected static final Version VERSION_111 = new Version("1.1.1", 1, 1, 1, 0, "");
   protected static final Version VERSION_120 = new Version("1.2.0", 1, 2, 0, 0, "");
   protected static final Version VERSION_130 = new Version("1.3.0", 1, 3, 0, 0, "");
   protected static final Version VERSION_140 = new Version("1.4.0", 1, 4, 0, 0, "");
+  protected static final Version VERSION_150 = new Version("1.5.0", 1, 5, 0, 0, "");
 
   private final String name;
   private final Version minVersion; // task cannot be run if KVStore version is below min

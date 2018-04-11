@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,6 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.dac.server.NASSourceConfigurator;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.exec.ExecConstants;
@@ -89,8 +87,7 @@ public final class DACDaemon implements AutoCloseable {
   private DACDaemon(
       DremioConfig incomingConfig,
       final ScanResult scanResult,
-      DACModule dacModule,
-      final SourceToStoragePluginConfig sourceConfigurator
+      DACModule dacModule
       ) throws IOException {
 
     // ensure that the zookeeper option for sabot is same as dremio config.
@@ -161,7 +158,7 @@ public final class DACDaemon implements AutoCloseable {
     }
 
     dacModule.bootstrap(shutdownHook, bootstrapRegistry, scanResult, dacConfig, isMaster);
-    dacModule.build(bootstrapRegistry, registry, scanResult, dacConfig, isMaster, sourceConfigurator);
+    dacModule.build(bootstrapRegistry, registry, scanResult, dacConfig, isMaster);
   }
 
   @VisibleForTesting
@@ -238,16 +235,15 @@ public final class DACDaemon implements AutoCloseable {
   }
 
   public static DACDaemon newDremioDaemon(DACConfig dacConfig, ScanResult scanResult) throws IOException {
-    return newDremioDaemon(dacConfig, scanResult, new DACDaemonModule(), new NASSourceConfigurator());
+    return newDremioDaemon(dacConfig, scanResult, new DACDaemonModule());
   }
 
   public static DACDaemon newDremioDaemon(
       DACConfig dacConfig,
       ScanResult scanResult,
-      DACModule dacModule,
-      SourceToStoragePluginConfig sourceConfig) throws IOException {
+      DACModule dacModule) throws IOException {
     try (TimedBlock b = Timer.time("newDaemon")) {
-      return new DACDaemon(dacConfig.getConfig(), scanResult, dacModule, sourceConfig);
+      return new DACDaemon(dacConfig.getConfig(), scanResult, dacModule);
     }
   }
 

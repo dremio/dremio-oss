@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic.execution;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -30,17 +31,18 @@ import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.util.Pair;
-import org.apache.curator.shaded.com.google.common.base.Preconditions;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSplitXattr;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.DefaultSchemaMutator;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -50,9 +52,9 @@ import com.dremio.plugins.elastic.ElasticActions.DeleteScroll;
 import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticActions.SearchScroll;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
-import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
 import com.dremio.plugins.elastic.mapping.SchemaMerger;
 import com.dremio.plugins.elastic.mapping.SchemaMerger.MergeResult;
@@ -66,6 +68,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -82,7 +85,6 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   public static final String MATCH_ALL_QUERY = QueryBuilders.matchAllQuery().buildAsBytes().toUtf8();
   public static final String MATCH_ALL_REQUEST = String.format("{\"query\": %s }", MATCH_ALL_QUERY);
   private static final int STREAM_COUNT_BREAK_MULTIPLIER = 3;
-  private static final String TERMINATED_EARLY = "\"terminated_early\": true";
   private static final String TIMED_OUT = "\"timed_out\": true";
 
   enum State {INIT, READ, DEPLETED, CLOSED};
@@ -94,7 +96,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private final OperatorStats stats;
   private final String resource;
   private final ElasticsearchScanSpec spec;
-  private final ElasticsearchStoragePluginConfig config;
+  private final ElasticStoragePluginConfig config;
   private final ElasticSplitXattr splitAttributes;
   private final boolean usingElasticProjection;
   private final FieldReadDefinition readDefinition;
@@ -125,7 +127,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       ElasticConnection connection,
       List<SchemaPath> columns,
       FieldReadDefinition readDefinition,
-      ElasticsearchStoragePluginConfig config) throws InvalidProtocolBufferException {
+      ElasticStoragePluginConfig config) throws InvalidProtocolBufferException {
     super(context, columns);
     this.plugin = plugin;
     this.tableAttributes = tableAttributes;
@@ -141,9 +143,13 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
     this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
-    this.metaIDSelected = config.isIdColumnEnabled() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
+    this.metaIDSelected = config.showIdColumn && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
     this.metaTypeSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.TYPE)) || isStarQuery();
     this.metaIndexSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.INDEX)) || isStarQuery();
+
+    if (spec.getFetch() > 0) {
+      this.numRowsPerBatch = Math.min(this.numRowsPerBatch, spec.getFetch());
+    }
   }
 
   @Override
@@ -199,20 +205,20 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       NamespaceKey key = new NamespaceKey(tableSchemaPath);
       ElasticMapping mapping = plugin.getMapping(key);
       if(mapping == null){
-        throw UserException.dataReadError().message("Unable to find schema information for %s after observing schema change.", key).build(logger);
+        throw UserException.dataReadError()
+            .message("Unable to find schema information for %s after observing schema change.", key)
+            .build(logger);
       }
 
       if (context.getOptions().getOption(ExecConstants.ELASTIC_ENABLE_MAPPING_CHECKSUM)) {
-        int latestMappingHash = mapping.hashCode();
+        final int latestMappingHash = mapping.hashCode();
         if (mappingHash != latestMappingHash) {
-          UserException.Builder builder = UserException
-            .dataReadError()
-            .message("Mapping updated since last metadata refresh. Please run \"ALTER TABLE %s REFRESH METADATA\" before rerunning query.",
-              new NamespaceKey(tableSchemaPath).toString()
-            )
-            .addContext("new mapping", mapping.toString());
+          final UserException.Builder builder = UserException.invalidMetadataError()
+              .setAdditionalExceptionContext(
+                  new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
+              .addContext("new mapping", mapping.toString());
 
-          List<Pair<Field, Field>> differentFields = expectedSchema.findDiff(newlyObservedSchema);
+          final List<Pair<Field, Field>> differentFields = expectedSchema.findDiff(newlyObservedSchema);
           for (Pair<Field, Field> pair : differentFields) {
             if (pair.left == null) {
               builder.addContext("new Field", pair.right.toString());
@@ -246,7 +252,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
   private void getFirstPage() {
     assert state == State.INIT;
-    int searchSize = config.getBatchSize();
+    int searchSize = config.scrollSize;
     int fetch = spec.getFetch();
     if (fetch >= 0 &&  fetch < searchSize) {
       searchSize = fetch;
@@ -266,14 +272,29 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       search.setParameter(ElasticsearchConstants.SOURCE, "false");
     }
 
+    final byte[] bytes;
     try {
-      jsonReader.setSource(connection.execute(search));
+      bytes = connection.execute(search);
+    } catch (UserException e) {
+      if (e.getErrorType() == ErrorType.INVALID_DATASET_METADATA) {
+        logger.trace("failed with invalid metadata, ", e);
+        throw UserException.invalidMetadataError()
+            .setAdditionalExceptionContext(
+                new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
+            .build(logger);
+      }
+
+      throw e;
+    }
+
+    try {
+      jsonReader.setSource(bytes);
       Pair<String, Long> scrollIdAndTotalSize = jsonReader.getScrollAndTotalSizeThenSeekToHits();
       scrollId = scrollIdAndTotalSize.getKey();
       totalSize = scrollIdAndTotalSize.getValue();
     } catch (IOException e) {
       throw UserException.dataReadError(e)
-        .message("Failure when initating Elastic query.")
+        .message("Failure when initiating Elastic query.")
         .addContext("Resource", resource)
         .addContext("Shard", splitAttributes == null ? "all" : splitAttributes.getShard())
         .addContext("Query", query)
@@ -353,15 +374,20 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         // we didn't get the records we expected within a reasonable amount of time.
         final String latest = new String(bytes, Charsets.UTF_8);
         final boolean timedOut = latest.contains(TIMED_OUT);
-        final boolean terminatedEarly = latest.contains(TERMINATED_EARLY);
+
+        if (!timedOut && config.warnOnRowCountMismatch) {
+          logger.warn("Dremio didn't receive as many results from Elasticsearch as expected. Expected {}. Received: {}", totalSize, totalCount);
+          state = State.DEPLETED;
+          break;
+        }
+
         final UserException.Builder builder = UserException.dataReadError();
         if (timedOut) {
           builder.message("Elastic failed with scroll timed out.");
-
-        } else if(terminatedEarly) {
-          builder.message("Elastic failed with early termination.");
         } else {
           builder.message("Elastic query terminated as Dremio didn't receive as many results as expected.");
+          builder.addContext("Expected record count", totalSize);
+          builder.addContext("Records received", totalCount);
         }
 
         builder.addContext("Resource", this.resource);
@@ -407,8 +433,16 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       return;
     }
 
-    DeleteScroll delete = new DeleteScroll(scrollId);
+    if (state == State.INIT) {
+      state = State.CLOSED;
+      return; // scroll id is not yet set
+    }
+
+    // TODO(DX-10051): fix rare race condition: above block assumes scrollId is not set, but the fragment thread
+    // could be in #getFirstPage, right before setting scrollId. In this case, the scroll will never be deleted.
+
     try {
+      final DeleteScroll delete = new DeleteScroll(scrollId);
       final CountDownLatch countDownLatch = new CountDownLatch(1);
       delete.delete(connection.getTarget(), new InvocationCallback<Response>() {
         @Override

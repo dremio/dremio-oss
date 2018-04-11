@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,25 +15,38 @@
  */
 package com.dremio.common.exceptions;
 
+import java.util.EnumSet;
+
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 
 /**
- * converts newly added error types to types compatible with the existing c/odbc clients.<br>
- * SCHEMA_CHANGE   .  .  . -> DATA_READ
- * OUT_OF_MEMORY   .  .  . -> RESOURCE
- * IO_EXCEPTION    .  .  . -> RESOURCE
- * CONCURRENT_MODIFICATION -> RESOURCE
+ * Converts newly added error types to types compatible with the existing C or ODBC clients.
+ * <p>
+ * <ul>
+ * <li>{@link ErrorType#SCHEMA_CHANGE} to {@link ErrorType#DATA_READ}</li>
+ * <li>{@link ErrorType#OUT_OF_MEMORY} to {@link ErrorType#RESOURCE}</li>
+ * <li>{@link ErrorType#IO_EXCEPTION} to {@link ErrorType#RESOURCE}</li>
+ * <li>{@link ErrorType#CONCURRENT_MODIFICATION} to {@link ErrorType#RESOURCE}</li>
+ * <li>{@link ErrorType#INVALID_DATASET_METADATA} to {@link ErrorType#RESOURCE}</li>
+ * <li>{@link ErrorType#REFLECTION_ERROR} to {@link ErrorType#SYSTEM}</li>
+ * </ul>
  */
 public class ErrorCompatibility {
 
-  private static boolean needsConversion(final DremioPBError error) {
-    final ErrorType type = error.getErrorType();
+  private static final EnumSet<ErrorType> incompatibleErrorTypes =
+      EnumSet.of(ErrorType.SCHEMA_CHANGE,
+          ErrorType.OUT_OF_MEMORY,
+          ErrorType.IO_EXCEPTION,
+          ErrorType.CONCURRENT_MODIFICATION,
+          ErrorType.INVALID_DATASET_METADATA,
+          ErrorType.REFLECTION_ERROR,
+          ErrorType.SOURCE_BAD_STATE);
 
-    return type == ErrorType.SCHEMA_CHANGE || type == ErrorType.OUT_OF_MEMORY
-        || type == ErrorType.IO_EXCEPTION || type == ErrorType.CONCURRENT_MODIFICATION;
+  private static boolean needsConversion(final DremioPBError error) {
+    return incompatibleErrorTypes.contains(error.getErrorType());
   }
 
   public static DremioPBError convertIfNecessary(final DremioPBError error) {
@@ -41,11 +54,20 @@ public class ErrorCompatibility {
       return error;
     }
 
-    final ErrorType type = error.getErrorType();
-    if (type == ErrorType.SCHEMA_CHANGE) {
-      return DremioPBError.newBuilder(error).setErrorType(ErrorType.DATA_READ).build();
-    } else {
-      return DremioPBError.newBuilder(error).setErrorType(ErrorType.RESOURCE).build();
+    switch (error.getErrorType()) {
+      case SCHEMA_CHANGE:
+      case SOURCE_BAD_STATE:
+        return DremioPBError.newBuilder(error).setErrorType(ErrorType.DATA_READ).build();
+      case REFLECTION_ERROR:
+        return DremioPBError.newBuilder(error).setErrorType(ErrorType.SYSTEM).build();
+      case OUT_OF_MEMORY:
+      case IO_EXCEPTION:
+      case CONCURRENT_MODIFICATION:
+      case INVALID_DATASET_METADATA:
+        return DremioPBError.newBuilder(error).setErrorType(ErrorType.RESOURCE).build();
+      default:
+        // we most likely forgot to add the type to this switch block
+        throw new IllegalStateException("Unhandled error type: " + error.getErrorType());
     }
   }
 

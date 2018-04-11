@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package com.dremio.dac.service.source;
 
 import static com.dremio.dac.util.DatasetsUtil.toDatasetConfig;
 import static com.dremio.dac.util.DatasetsUtil.toPhysicalDatasetConfig;
-import static com.dremio.exec.store.StoragePluginRegistryImpl.isInternal;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Collections.singletonList;
@@ -27,11 +26,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Inject;
+import javax.ws.rs.core.SecurityContext;
 
 import org.apache.commons.io.FilenameUtils;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.store.StoragePluginConfig;
+import com.dremio.dac.api.CatalogItem;
+import com.dremio.dac.api.Source;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -40,97 +41,136 @@ import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetName;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
-import com.dremio.dac.model.sources.Source;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
 import com.dremio.dac.service.errors.ResourceExistsException;
 import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
-import com.dremio.dac.util.JSONUtil;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceState.Message;
-import com.dremio.service.namespace.SourceState.MessageLevel;
-import com.dremio.service.namespace.SourceState.SourceStatus;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
-import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
 import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Throwables;
 
 /**
- * Mocked source service.
+ * Source service.
  */
 public class SourceService {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceService.class);
 
   private final NamespaceService namespaceService;
-  private final SourceToStoragePluginConfig configurator;
-  private final StoragePluginRegistry plugins;
   private final DatasetVersionMutator datasetService;
   private final CatalogService catalogService;
+  private final ReflectionServiceHelper reflectionServiceHelper;
+  private final ConnectionReader connectionReader;
+  private final SecurityContext security;
 
   @Inject
   public SourceService(
-    StoragePluginRegistry plugins,
     NamespaceService namespaceService,
-    SourceToStoragePluginConfig configurator,
     DatasetVersionMutator datasetService,
-    CatalogService catalogService) {
-    this.plugins = plugins;
+    CatalogService catalogService,
+    ReflectionServiceHelper reflectionHelper,
+    ConnectionReader connectionReader,
+    SecurityContext security) {
     this.namespaceService = namespaceService;
-    this.configurator = configurator;
     this.datasetService = datasetService;
     this.catalogService = catalogService;
+    this.reflectionServiceHelper = reflectionHelper;
+    this.connectionReader = connectionReader;
+    this.security = security;
+  }
+
+  private Catalog createCatalog() {
+    return catalogService.getCatalog(SchemaConfig.newBuilder(security.getUserPrincipal().getName()).build());
+  }
+
+  private Catalog createCatalog(String userName) {
+    return catalogService.getCatalog(SchemaConfig.newBuilder(userName).build());
+  }
+
+
+  public ConnectionConf<?, ?> getConnectionConf(SourceConfig config){
+    return connectionReader.getConnectionConf(config);
+  }
+
+  public ConnectionReader getConnectionReader() {
+    return connectionReader;
   }
 
   public SourceConfig registerSourceWithRuntime(SourceUI source) throws ExecutionSetupException, NamespaceException {
-    return registerSourceWithRuntime(source.asSourceConfig(), source.getConfig());
+    return registerSourceWithRuntime(source.asSourceConfig());
   }
 
-  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, com.dremio.dac.model.sources.Source source) throws ExecutionSetupException, NamespaceException {
-    StoragePluginConfig config = configurator.configure(source);
-    if (logger.isDebugEnabled()) {
-      logger.debug("Connection Object: \n{}\n", JSONUtil.toString(config));
+  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig) throws ExecutionSetupException, NamespaceException {
+    return registerSourceWithRuntime(sourceConfig, createCatalog());
+  }
+
+  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, String userName) throws ExecutionSetupException, NamespaceException {
+    return registerSourceWithRuntime(sourceConfig, createCatalog(userName));
+  }
+
+  private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, Catalog catalog) throws ExecutionSetupException, NamespaceException {
+    if(sourceConfig.getVersion() == null) {
+      catalog.createSource(sourceConfig);
+    } else {
+      catalog.updateSource(sourceConfig);
     }
-    plugins.createOrUpdate(sourceConfig.getName(), config, sourceConfig, true);
-    return namespaceService.getSource(new NamespaceKey(sourceConfig.getName()));
+
+    final NamespaceKey key = new NamespaceKey(sourceConfig.getName());
+    reflectionServiceHelper.getReflectionSettings().setReflectionSettings(key, new AccelerationSettings()
+      .setMethod(RefreshMethod.FULL)
+      .setRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod())
+      .setGracePeriod(sourceConfig.getAccelerationGracePeriod()));
+    return namespaceService.getSource(key);
   }
 
   public void unregisterSourceWithRuntime(SourceName sourceName) {
-    plugins.deletePlugin(sourceName.getName());
+    final NamespaceKey key = new NamespaceKey(sourceName.getName());
+    try {
+      SourceConfig config = namespaceService.getSource(key);
+      createCatalog().deleteSource(config);
+      reflectionServiceHelper.getReflectionSettings().removeSettings(key);
+    } catch (NamespaceException e) {
+      throw Throwables.propagate(e);
+    }
   }
 
-  public SourceConfig createSource(SourceConfig sourceConfig, com.dremio.dac.model.sources.Source source) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
+  public SourceConfig createSource(SourceConfig sourceConfig) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
     validateSourceConfig(sourceConfig);
 
     Preconditions.checkArgument(sourceConfig.getId().getId() == null, "Source id is immutable.");
@@ -143,10 +183,10 @@ public class SourceService {
 
     sourceConfig.setCtime(System.currentTimeMillis());
 
-    return registerSourceWithRuntime(sourceConfig, source);
+    return registerSourceWithRuntime(sourceConfig);
   }
 
-  public SourceConfig updateSource(String id, SourceConfig sourceConfig, Source source) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
+  public SourceConfig updateSource(String id, SourceConfig sourceConfig) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
     validateSourceConfig(sourceConfig);
 
     SourceConfig oldSourceConfig = getById(id);
@@ -155,19 +195,18 @@ public class SourceService {
     Preconditions.checkArgument(oldSourceConfig.getName().equals(sourceConfig.getName()), "Source name is immutable.");
     Preconditions.checkArgument(oldSourceConfig.getType().equals(sourceConfig.getType()), "Source type is immutable.");
 
-    return registerSourceWithRuntime(sourceConfig, source);
+    return registerSourceWithRuntime(sourceConfig);
   }
 
-  public void deleteSource(SourceConfig sourceConfig) throws NamespaceException {
-    namespaceService.deleteSource(new NamespaceKey(sourceConfig.getName()), sourceConfig.getVersion());
-    plugins.deletePlugin(sourceConfig.getName());
+  public void deleteSource(SourceConfig sourceConfig) {
+    createCatalog().deleteSource(sourceConfig);
+    reflectionServiceHelper.getReflectionSettings().removeSettings(new NamespaceKey(sourceConfig.getName()));
   }
 
   private void validateSourceConfig(SourceConfig sourceConfig) {
     // TODO: move this further down to the namespace or catalog service.  For some reason InputValidation does not work on SourceConfig.
     Preconditions.checkNotNull(sourceConfig);
     Preconditions.checkNotNull(sourceConfig.getName(), "Source name is missing.");
-    Preconditions.checkArgument(sourceConfig.getName().length() > 2, "Source names need to be at least 3 characters long.");
     Preconditions.checkArgument(!sourceConfig.getName().contains("."), "Source names can not contain periods.");
     Preconditions.checkArgument(!sourceConfig.getName().contains("\""), "Source names can not contain double quotes.");
     Preconditions.checkArgument(!sourceConfig.getName().startsWith(HomeName.HOME_PREFIX), "Source names can not start with the '%s' character.", HomeName.HOME_PREFIX);
@@ -326,7 +365,7 @@ public class SourceService {
   public NamespaceTree listSource(SourceName sourceName, SourceConfig sourceConfig, String userName)
     throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
     try {
-      final StoragePlugin plugin = checkNotNull(plugins.getPlugin(sourceName.getName()), "storage plugin %s not found", sourceName);
+      final StoragePlugin plugin = checkNotNull(catalogService.getSource(sourceName.getName()), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(singletonList(sourceName.getName()), userName), sourceName, sourceName.getName());
@@ -334,7 +373,7 @@ public class SourceService {
       } else {
         return newNamespaceTree(namespaceService.list(new NamespaceKey(singletonList(sourceConfig.getName()))));
       }
-    } catch (ExecutionSetupException | IOException | DatasetNotFoundException e) {
+    } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);
     }
   }
@@ -346,48 +385,47 @@ public class SourceService {
    * @return folder properties
    */
   public Folder getFolder(SourceName sourceName, SourceFolderPath folderPath, boolean includeContents, String userName) throws SourceFolderNotFoundException, NamespaceException, PhysicalDatasetNotFoundException, IOException {
-    try {
-      final StoragePlugin plugin = checkNotNull(plugins.getPlugin(sourceName.getName()), "storage plugin %s not found", sourceName);
-      final boolean isFileSystemPlugin = (plugin instanceof FileSystemPlugin);
-      FolderConfig folderConfig;
-      if (isFileSystemPlugin) {
-        // this could be a physical dataset folder
-        DatasetConfig datasetConfig = null;
-        try {
-          datasetConfig = namespaceService.getDataset(folderPath.toNamespaceKey());
-          if (datasetConfig.getType() != DatasetType.VIRTUAL_DATASET) {
-            folderConfig = new FolderConfig()
-              .setId(datasetConfig.getId())
-              .setFullPathList(folderPath.toPathList())
-              .setName(folderPath.getFolderName().getName())
-              .setIsPhysicalDataset(true)
-              .setVersion(datasetConfig.getVersion());
-          } else {
-            throw new SourceFolderNotFoundException(sourceName, folderPath,
-              new IllegalArgumentException(folderPath.toString() + " is a virtual dataset"));
-          }
-        } catch (NamespaceNotFoundException nfe) {
-          // folder on fileystem
-          folderConfig = new FolderConfig()
-            .setFullPathList(folderPath.toPathList())
-            .setName(folderPath.getFolderName().getName());
-        }
-      } else {
-        folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
-      }
-
-      final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(folderPath.toNamespaceKey());
-      final ExtendedConfig extendedConfig = new ExtendedConfig()
-        .setDatasetCount((long) datasetPaths.size())
-        .setJobCount(datasetService.getJobsCount(datasetPaths));
-
-      folderConfig.setExtendedConfig(extendedConfig);
-      // TODO: why do we need to look up the dataset again in isPhysicalDataset?
-      NamespaceTree contents = includeContents ? listFolder(sourceName, folderPath, userName) : null;
-      return newFolder(folderPath, folderConfig, contents, isPhysicalDataset(sourceName, folderPath), isFileSystemPlugin);
-    } catch (ExecutionSetupException e) {
-      throw new SourceFolderNotFoundException(sourceName, folderPath, e);
+    final StoragePlugin plugin = catalogService.getSource(sourceName.getName());
+    if(plugin == null) {
+      throw new SourceFolderNotFoundException(sourceName, folderPath, null);
     }
+    final boolean isFileSystemPlugin = (plugin instanceof FileSystemPlugin);
+    FolderConfig folderConfig;
+    if (isFileSystemPlugin) {
+      // this could be a physical dataset folder
+      DatasetConfig datasetConfig = null;
+      try {
+        datasetConfig = namespaceService.getDataset(folderPath.toNamespaceKey());
+        if (datasetConfig.getType() != DatasetType.VIRTUAL_DATASET) {
+          folderConfig = new FolderConfig()
+            .setId(datasetConfig.getId())
+            .setFullPathList(folderPath.toPathList())
+            .setName(folderPath.getFolderName().getName())
+            .setIsPhysicalDataset(true)
+            .setVersion(datasetConfig.getVersion());
+        } else {
+          throw new SourceFolderNotFoundException(sourceName, folderPath,
+            new IllegalArgumentException(folderPath.toString() + " is a virtual dataset"));
+        }
+      } catch (NamespaceNotFoundException nfe) {
+        // folder on fileystem
+        folderConfig = new FolderConfig()
+          .setFullPathList(folderPath.toPathList())
+          .setName(folderPath.getFolderName().getName());
+      }
+    } else {
+      folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
+    }
+
+    final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(folderPath.toNamespaceKey());
+    final ExtendedConfig extendedConfig = new ExtendedConfig()
+      .setDatasetCount((long) datasetPaths.size())
+      .setJobCount(datasetService.getJobsCount(datasetPaths));
+
+    folderConfig.setExtendedConfig(extendedConfig);
+    // TODO: why do we need to look up the dataset again in isPhysicalDataset?
+    NamespaceTree contents = includeContents ? listFolder(sourceName, folderPath, userName) : null;
+    return newFolder(folderPath, folderConfig, contents, isPhysicalDataset(sourceName, folderPath), isFileSystemPlugin);
   }
 
   protected Folder newFolder(SourceFolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemPlugin)
@@ -405,7 +443,7 @@ public class SourceService {
     final String name = sourceName.getName();
     final String prefix = folderPath.toPathString();
     try {
-      final StoragePlugin plugin = checkNotNull(plugins.getPlugin(name), "storage plugin %s not found", sourceName);
+      final StoragePlugin plugin = checkNotNull(catalogService.getSource(name), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(folderPath.toPathList(), userName), sourceName, prefix);
@@ -413,7 +451,7 @@ public class SourceService {
       } else {
         return newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()));
       }
-    } catch (ExecutionSetupException | IOException | DatasetNotFoundException e) {
+    } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);
     }
   }
@@ -459,7 +497,7 @@ public class SourceService {
    */
   public void createPhysicalDataset(SourceFilePath filePath, PhysicalDatasetConfig datasetConfig)
       throws NamespaceException {
-    catalogService.createOrUpdateDataset(
+    createCatalog().createOrUpdateDataset(
       namespaceService,
       new NamespaceKey(filePath.getSourceName().getName()),
       new PhysicalDatasetPath(filePath).toNamespaceKey(),
@@ -468,7 +506,7 @@ public class SourceService {
 
   public void createPhysicalDataset(SourceFolderPath folderPath, PhysicalDatasetConfig datasetConfig)
       throws NamespaceException {
-    catalogService.createOrUpdateDataset(
+    createCatalog().createOrUpdateDataset(
       namespaceService,
       new NamespaceKey(folderPath.getSourceName().getName()),
       new PhysicalDatasetPath(folderPath).toNamespaceKey(),
@@ -516,8 +554,6 @@ public class SourceService {
         jobsCount,
         descendants);
     } catch (NamespaceNotFoundException nse) {
-      final SourceConfig config = namespaceService.getSource(new SourcePath(sourceName).toNamespaceKey());
-
       return newPhysicalDataset(
         new PhysicalDatasetResourcePath(physicalDatasetPath.getSourceName(), physicalDatasetPath),
         physicalDatasetPath.getDatasetName(),
@@ -525,13 +561,7 @@ public class SourceService {
           .setName(physicalDatasetPath.getLeaf().getName())
           .setType(DatasetType.PHYSICAL_DATASET)
           .setVersion(0L)
-          .setFullPathList(physicalDatasetPath.toPathList())
-          .setAccelerationSettings(
-              new AccelerationSettingsDescriptor()
-                .setMethod(RefreshMethod.FULL)
-                .setAccelerationRefreshPeriod(config.getAccelerationRefreshPeriod())
-                .setAccelerationGracePeriod(config.getAccelerationGracePeriod())
-          ),
+          .setFullPathList(physicalDatasetPath.toPathList()),
         jobsCount,
         descendants);
     }
@@ -547,14 +577,10 @@ public class SourceService {
         descendants);
   }
 
-  private static boolean isPhysicalDataset(DatasetType t) {
-    return (t == DatasetType.PHYSICAL_DATASET || t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE || t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
-  }
-
   public boolean isPhysicalDataset(SourceName sourceName, SourceFolderPath folderPath) {
     try {
       DatasetConfig ds = namespaceService.getDataset(new PhysicalDatasetPath(folderPath).toNamespaceKey());
-      return isPhysicalDataset(ds.getType());
+      return DatasetHelper.isPhysicalDataset(ds.getType());
     } catch (NamespaceException nse) {
       logger.debug("Error while checking physical dataset in source {} for folder {}, error {}",
         sourceName.getName(), folderPath.toPathString(), nse.toString());
@@ -562,17 +588,7 @@ public class SourceService {
     }
   }
 
-  public void deletePhysicalDataset(SourceName sourceName, SourceFolderPath folderPath, long version) throws PhysicalDatasetNotFoundException {
-    final PhysicalDatasetPath datasetPath = new PhysicalDatasetPath(folderPath);
-    try {
-      namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
-    } catch (NamespaceException nse) {
-      throw new PhysicalDatasetNotFoundException(sourceName, datasetPath, nse);
-    }
-  }
-
-  public void deletePhysicalDataset(SourceName sourceName, SourceFilePath filePath, long version) throws PhysicalDatasetNotFoundException {
-    final PhysicalDatasetPath datasetPath = new PhysicalDatasetPath(filePath);
+  public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, long version) throws PhysicalDatasetNotFoundException {
     try {
       namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
     } catch (NamespaceException nse) {
@@ -582,20 +598,19 @@ public class SourceService {
 
   public SourceState getSourceState(String sourceName) throws SourceNotFoundException {
     try {
-      StoragePlugin plugin = plugins.getPlugin(sourceName);
-      if (plugin != null) {
-        return plugin.getState();
-      } else {
-        throw new SourceNotFoundException(sourceName);
+      SourceState state = catalogService.getSourceState(sourceName);
+      if(state == null) {
+        return SourceState.badState("Unable to find source.");
       }
-    } catch (ExecutionSetupException e) {
-      return new SourceState(SourceStatus.bad, ImmutableList.of(new Message(MessageLevel.ERROR, e.getMessage())));
+      return state;
+    } catch (Exception e) {
+      return SourceState.badState(e);
     }
   }
 
   @VisibleForTesting
   public StoragePlugin getStoragePlugin(String sourceName) throws SourceNotFoundException, ExecutionSetupException {
-    StoragePlugin plugin = plugins.getPlugin(sourceName);
+    StoragePlugin plugin = catalogService.getSource(sourceName);
     if (plugin == null) {
       throw new SourceNotFoundException(sourceName);
     }
@@ -606,14 +621,7 @@ public class SourceService {
     final List<SourceConfig> sources = new ArrayList<>();
 
     for (SourceConfig sourceConfig : namespaceService.getSources()) {
-      String name = sourceConfig.getName();
-      if (isInternal(sourceConfig)
-          || sourceConfig.getType() == SourceType.SYS
-          || sourceConfig.getType() == SourceType.INFORMATION_SCHEMA
-
-          // the test harness blows away storage plugin types.
-          || "sys".equals(name)
-          || "INFORMATION_SCHEMA".equals(name)) {
+      if (SourceUI.isInternal(sourceConfig, connectionReader)) {
         continue;
       }
 
@@ -632,20 +640,30 @@ public class SourceService {
     }
   }
 
-  public SourceState getStateForSource(SourceConfig sourceConfig) {
-    SourceState state;
-    try {
-      state = getSourceState(sourceConfig.getName());
-    } catch (SourceNotFoundException e) {
-      // if state is null, that means the source is registered in namespace, but the plugin is not yet available
-      // we should ignore the source in this case
-      logger.debug(String.format("%s not found. Possibly still loading schema info", sourceConfig.getName()));
-      state = SourceState.badState(e);
-    } catch (RuntimeException e) {
-      logger.debug("Failed to get the state of source {}", sourceConfig.getName(), e);
-      state = SourceState.badState(e);
-    }
+  public Source fromSourceConfig(SourceConfig sourceConfig) {
+    return fromSourceConfig(sourceConfig, null);
+  }
 
-    return state;
+  public Source fromSourceConfig(SourceConfig sourceConfig, List<CatalogItem> children) {
+    final AccelerationSettings settings = reflectionServiceHelper.getReflectionSettings().getReflectionSettings(new NamespaceKey(sourceConfig.getName()));
+    Source source = new Source(sourceConfig, settings, getConnectionReader());
+
+    // we should not set fields that expose passwords and other private parts of the source
+    source.getConfig().clearSecrets();
+
+    SourceState state = getStateForSource(sourceConfig);
+    source.setState(state);
+
+    source.setChildren(children);
+
+    return source;
+  }
+
+  public SourceState getStateForSource(SourceConfig sourceConfig) {
+    return getSourceState(sourceConfig.getName());
+  }
+
+  public boolean isSourceConfigMetadataImpacting(SourceConfig sourceConfig) {
+    return catalogService.isSourceConfigMetadataImpacting(sourceConfig);
   }
 }

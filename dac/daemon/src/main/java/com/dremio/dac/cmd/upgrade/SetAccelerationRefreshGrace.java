@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
-import com.dremio.service.accelerator.AccelerationOptions;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -37,8 +36,8 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.TimePeriod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
 import com.dremio.service.namespace.space.proto.HomeConfig;
+import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.base.Throwables;
 
 /**
@@ -50,7 +49,7 @@ public class SetAccelerationRefreshGrace extends UpgradeTask {
   private static final long HOUR_IN_MS = TimeUnit.HOURS.toMillis(1);
 
   SetAccelerationRefreshGrace() {
-    super("Setting acceleration refresh and grace policy", VERSION_107, VERSION_120);
+    super("Setting acceleration refresh and grace policy", VERSION_109, VERSION_120);
   }
 
   public void upgrade(UpgradeContext context) {
@@ -61,8 +60,8 @@ public class SetAccelerationRefreshGrace extends UpgradeTask {
       NamespaceKey sourceKey = new NamespaceKey(sourceConfig.getName());
       TimePeriod accelerationTTL = sourceConfig.getAccelerationTTL();
 
-      // skip unknown sources, which are internal (__accelerator for example)
-      if (sourceConfig.getType() == SourceType.UNKNOWN) {
+      // skip internal (__accelerator for example)
+      if (sourceConfig.getName().startsWith("__")) {
         continue;
       }
 
@@ -103,7 +102,7 @@ public class SetAccelerationRefreshGrace extends UpgradeTask {
       KVPersistentStoreProvider kvPersistentStoreProvider = new KVPersistentStoreProvider(context.getKVStoreProvider());
       try {
         PersistentStore<OptionValue> options = kvPersistentStoreProvider.getOrCreateStore(SystemOptionManager.STORE_NAME, SystemOptionManager.OptionStoreCreator.class, new JacksonSerializer<>(context.getLpPersistence().getMapper(), OptionValue.class));
-        options.put(AccelerationOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, AccelerationOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), true));
+        options.put(ReflectionOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), true));
         options.close();
       } catch (Exception e) {
         System.out.println("Could not enable sub-hour policies: " + e);

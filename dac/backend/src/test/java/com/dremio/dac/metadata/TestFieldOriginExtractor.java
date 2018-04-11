@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.metadata;
 
-import static com.dremio.dac.metadata.TestJoinExtractor.NATION_PARQUET;
-import static com.dremio.dac.metadata.TestJoinExtractor.REGION_PARQUET;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
@@ -43,11 +41,15 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.jobs.metadata.FieldOriginExtractor;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Test the FieldOriginExtractor
  */
 public class TestFieldOriginExtractor extends BaseTestQuery {
+
+  public static final ImmutableList<String> REGION_PARQUET = ImmutableList.of("cp","tpch/region.parquet");
+  public static final ImmutableList<String> NATION_PARQUET = ImmutableList.of("cp","tpch/nation.parquet");
 
   private List<FieldOrigin> fields;
 

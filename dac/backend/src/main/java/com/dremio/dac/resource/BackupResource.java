@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.homefiles.HomeFileConfig;
+import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.datastore.KVStoreProvider;
@@ -48,13 +48,13 @@ import com.dremio.service.namespace.NamespaceService;
 @RolesAllowed({"admin"})
 @Path("/backup")
 public class BackupResource {
-  private final Provider<HomeFileConfig> fileStore;
+  private final Provider<HomeFileTool> fileStore;
   private final Provider<KVStoreProvider> kvStoreProviderProvider;
 
   @Inject
   public BackupResource(
     Provider<KVStoreProvider> kvStoreProviderProvider,
-    Provider<HomeFileConfig> fileStore,
+    Provider<HomeFileTool> fileStore,
     Provider<NamespaceService> namespaceService,
     SecurityContext securityContext) {
     this.kvStoreProviderProvider = kvStoreProviderProvider;
@@ -93,7 +93,7 @@ public class BackupResource {
       throw new IllegalArgumentException(format("Path %s is not accessible/writeable.", backupDirPath), e);
     }
 
-    return BackupRestoreUtil.createBackup(fs, backupDirPath, (LocalKVStoreProvider) kvStoreProvider, fileStore.get());
+    return BackupRestoreUtil.createBackup(fs, backupDirPath, (LocalKVStoreProvider) kvStoreProvider, fileStore.get().getConf());
 
   }
 }

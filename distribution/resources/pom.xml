@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>1.4.9-201802191836310213_7195059</version>
+    <version>2.0.0-201804102150500749-ee1ef6c</version>
   </parent>
 
   <artifactId>dremio-distribution-resources</artifactId>
@@ -69,6 +69,9 @@
             <dremio-config>SCRIPT_STYLE</dremio-config>
             <dremio-env>SCRIPT_STYLE</dremio-env>
           </mapping>
+          <excludes combine.children="append">
+            <exclude>**/dremio.tmpfiles.conf</exclude>
+          </excludes>
         </configuration>
       </plugin>
       <plugin>

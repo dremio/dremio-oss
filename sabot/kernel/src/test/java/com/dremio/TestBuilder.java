@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -367,10 +367,10 @@ public class TestBuilder {
    */
   public TestBuilder baselineColumns(String... columns) {
     assert getExpectedSchema() == null : "The expected schema is not needed when baselineColumns are provided ";
+    this.baselineColumns = new String[columns.length];
     for (int i = 0; i < columns.length; i++) {
-      columns[i] = parsePath(columns[i]).toExpr();
+      this.baselineColumns[i] = parsePath(columns[i]).toExpr();
     }
-    this.baselineColumns = columns;
     return this;
   }
 

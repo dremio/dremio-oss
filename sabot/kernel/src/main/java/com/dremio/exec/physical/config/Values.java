@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
-import com.dremio.exec.physical.base.Leaf;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
@@ -35,8 +34,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
-public class Values extends AbstractBase implements Leaf, SubScan {
+public class Values extends AbstractBase implements SubScan {
 
   @SuppressWarnings("unused")
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Values.class);
@@ -79,8 +79,13 @@ public class Values extends AbstractBase implements Leaf, SubScan {
 
   @JsonIgnore
   @Override
-  public List<String> getTableSchemaPath() {
-    return Collections.singletonList("values");
+  public List<List<String>> getReferencedTables() {
+    return ImmutableList.of(Collections.singletonList("values"));
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return false;
   }
 
   @Override

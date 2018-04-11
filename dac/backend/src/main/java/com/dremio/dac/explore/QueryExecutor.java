@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +34,10 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.common.DACRuntimeException;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
-import com.dremio.exec.ops.ViewExpansionContext;
-import com.dremio.exec.server.options.OptionValue;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.SchemaConfig.SchemaInfoProvider;
-import com.dremio.exec.store.SchemaTreeProvider;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
@@ -61,15 +58,15 @@ public class QueryExecutor {
 
   private static final int MAX_JOBS_TO_SEARCH = 25;
 
-  private final SecurityContext context;
   private final JobsService jobsService;
-  private final SchemaTreeProvider schemaProvider;
+  private final CatalogService catalogService;
+  private final SecurityContext context;
 
   @Inject
-  public QueryExecutor(JobsService jobsService, SchemaTreeProvider schemaProvider, SecurityContext context) {
+  public QueryExecutor(JobsService jobsService, CatalogService catalogService, SecurityContext context) {
     super();
     this.jobsService = jobsService;
-    this.schemaProvider = schemaProvider;
+    this.catalogService = catalogService;
     this.context = context;
   }
 
@@ -137,23 +134,8 @@ public class QueryExecutor {
   }
 
   public List<String> getColumnList(final String username, DatasetPath path) {
-    final SchemaConfig schemaConfig = SchemaConfig.newBuilder(username)
-        .setProvider(new SchemaInfoProvider() {
-          private final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(this, schemaProvider, username);
-
-          @Override
-          public ViewExpansionContext getViewExpansionContext() {
-            return viewExpansionContext;
-          }
-
-          @Override
-          public OptionValue getOption(String optionKey) {
-            throw new UnsupportedOperationException();
-          }
-        })
-        .build();
-    final SchemaPlus schema = schemaProvider.getRootSchema(schemaConfig);
-    final Table table = path.getTable(schema);
+    Catalog catalog = catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
+    DremioTable table = catalog.getTable(path.toNamespaceKey());
     return table.getRowType(new SqlTypeFactoryImpl(RelDataTypeSystem.DEFAULT)).getFieldNames();
   }
 

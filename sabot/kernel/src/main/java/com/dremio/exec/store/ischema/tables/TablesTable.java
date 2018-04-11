@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,12 @@ import java.util.Map.Entry;
 
 import org.apache.calcite.schema.Schema.TableType;
 
+import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Function;
@@ -41,39 +43,46 @@ public class TablesTable extends BaseInfoSchemaTable<TablesTable.Table> {
   }
 
   @Override
-  public Iterable<Table> asIterable(final String catalogName, NamespaceService service, SearchQuery query) {
-    return FluentIterable.from(service.find(query == null ? null : new FindByCondition().setCondition(query)))
-        .filter(new Predicate<Entry<NamespaceKey, NameSpaceContainer>>(){
+  public Iterable<Table> asIterable(final String catalogName, String username, DatasetListingService service, SearchQuery query) {
+    final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
+    try {
+      searchResults = service.find(username, query == null ? null : new FindByCondition().setCondition(query));
+    } catch (NamespaceException e) {
+      throw new RuntimeException(e);
+    }
+    return FluentIterable.from(searchResults)
+        .filter(new Predicate<Entry<NamespaceKey, NameSpaceContainer>>() {
           @Override
           public boolean apply(Entry<NamespaceKey, NameSpaceContainer> input) {
             final NameSpaceContainer c = input.getValue();
 
-            if(c.getType() != NameSpaceContainer.Type.DATASET) {
+            if (c.getType() != NameSpaceContainer.Type.DATASET) {
               return false;
             }
 
-            if(input.getKey().getRoot().startsWith("__")) {
+            if (input.getKey().getRoot().startsWith("__")) {
               return false;
             }
 
             return true;
-          }})
+          }
+        })
         .transform(new Function<Entry<NamespaceKey, NameSpaceContainer>, Table>() {
-      @Override
-      public Table apply(Entry<NamespaceKey, NameSpaceContainer> input) {
-        final String source = input.getKey().getRoot();
-        final String tableType;
-        if(input.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET) {
-          tableType = TableType.VIEW.name();
-        } else if ("sys".equals(source) || "INFORMATION_SCHEMA".equals(source)) {
-          tableType = TableType.SYSTEM_TABLE.name();
-        } else {
-          tableType = TableType.TABLE.name();
-        }
+          @Override
+          public Table apply(Entry<NamespaceKey, NameSpaceContainer> input) {
+            final String source = input.getKey().getRoot();
+            final String tableType;
+            if (input.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET) {
+              tableType = TableType.VIEW.name();
+            } else if ("sys".equals(source) || "INFORMATION_SCHEMA".equals(source)) {
+              tableType = TableType.SYSTEM_TABLE.name();
+            } else {
+              tableType = TableType.TABLE.name();
+            }
 
-        return new Table(catalogName, input.getKey().getParent().toUnescapedString(), input.getKey().getName(), tableType);
-      }
-    });
+            return new Table(catalogName, input.getKey().getParent().toUnescapedString(), input.getKey().getName(), tableType);
+          }
+        });
   }
 
   /** Pojo object for a record in INFORMATION_SCHEMA.TABLES */

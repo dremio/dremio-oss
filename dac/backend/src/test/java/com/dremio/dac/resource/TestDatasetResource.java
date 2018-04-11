@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,12 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
-import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -80,8 +79,8 @@ public class TestDatasetResource extends BaseTestServer {
 
   @Before
   public void setup() throws Exception {
-    final NASConfig nas = new NASConfig();
-    nas.setPath(folder.getRoot().getPath());
+    final NASConf nas = new NASConf();
+    nas.path = folder.getRoot().getPath();
     SourceUI source = new SourceUI();
     source.setName(SOURCE_NAME);
     source.setCtime(System.currentTimeMillis());
@@ -96,7 +95,7 @@ public class TestDatasetResource extends BaseTestServer {
 
   @After
   public void clear() throws Exception {
-    getNamespaceService().deleteSource(new SourcePath(SOURCE_NAME).toNamespaceKey(), 0);
+    deleteSource(SOURCE_NAME);
   }
 
   @Test

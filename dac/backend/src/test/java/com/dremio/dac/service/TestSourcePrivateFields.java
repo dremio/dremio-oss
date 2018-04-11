@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,18 +19,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.util.Arrays;
-
 import org.junit.Test;
 
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.proto.model.source.MapRFSConfig;
-import com.dremio.dac.proto.model.source.S3Config;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.test.DremioTest;
 
 /**
  * To test private fields not being visible/transferrable
@@ -40,12 +39,10 @@ public class TestSourcePrivateFields extends BaseTestServer {
   @Test
   public void testPrivateFieldsSource() throws Exception {
     final SourceUI source = new SourceUI();
-    final S3Config s3Config = new S3Config();
-    s3Config.setAccessKey("ABCDEFG");
-    s3Config.setAccessSecret("HIKLMNOP");
-    s3Config.setSecure(true);
-    s3Config.setExternalBucketList(Arrays.asList(new String[] {"abc", "bcd", "efg"}));
-    source.setConfig(s3Config);
+    final APrivateSource priv = new APrivateSource();
+    priv.password = "ABC";
+    priv.username = "hello";
+    source.setConfig(priv);
 
     final NamespaceService namespaceService = newNamespaceService();
     final NamespaceKey nameSpaceKey = new SourcePath("src").toNamespaceKey();
@@ -54,43 +51,29 @@ public class TestSourcePrivateFields extends BaseTestServer {
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
 
-    SourceUI mySource = SourceUI.get(config);
-    S3Config myS3config = (S3Config) mySource.getConfig();
+    SourceUI mySource = SourceUI.get(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT));
+    APrivateSource myS3config = (APrivateSource) mySource.getConfig();
 
-    assertNull(myS3config.getAccessKey());
-    assertNull(myS3config.getAccessSecret());
+    assertNull(myS3config.password);
+    assertNotNull(myS3config.username);
 
-    assertNotNull(myS3config.getSecure());
-    assertNotNull(myS3config.getExternalBucketList());
+    SourceUI withPrivatesSource = SourceUI.getWithPrivates(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT));
+    APrivateSource withPrivateS3Config = (APrivateSource) withPrivatesSource.getConfig();
 
-    assertEquals(true, myS3config.getSecure());
-    assertEquals(Arrays.asList(new String[] {"abc", "bcd", "efg"}), myS3config.getExternalBucketList());
+    assertNotNull(withPrivateS3Config.password);
+    assertNotNull(withPrivateS3Config.username);
 
-    SourceUI withPrivatesSource = SourceUI.getWithPrivates(config);
-    S3Config withPrivateS3Config = (S3Config) withPrivatesSource.getConfig();
+    assertEquals("ABC", withPrivateS3Config.password);
+    assertEquals("hello", withPrivateS3Config.username);
 
-    assertNotNull(withPrivateS3Config.getAccessSecret());
-    assertNotNull(withPrivateS3Config.getAccessKey());
-
-    assertEquals("ABCDEFG", withPrivateS3Config.getAccessKey());
-    assertEquals("HIKLMNOP", withPrivateS3Config.getAccessSecret());
-
-    assertNotNull(withPrivateS3Config.getSecure());
-    assertNotNull(withPrivateS3Config.getExternalBucketList());
-
-    assertEquals(true, withPrivateS3Config.getSecure());
-    assertEquals(Arrays.asList(new String[] {"abc", "bcd", "efg"}), withPrivateS3Config.getExternalBucketList());
   }
 
   @Test
   public void testPrivatesNoPrivateFields() throws Exception {
-    final MapRFSConfig maprfsConfig = new MapRFSConfig();
-    maprfsConfig.setEnableImpersonation(true);
-    maprfsConfig.setClusterName("my.cluster.com");
-    maprfsConfig.setSecure(true);
-
+    final NASConf nasConf = new NASConf();
+    nasConf.path = "/mypath/";
     SourceUI source = new SourceUI();
-    source.setConfig(maprfsConfig);
+    source.setConfig(nasConf);
 
     final NamespaceService namespaceService = newNamespaceService();
     final NamespaceKey nameSpaceKey = new SourcePath("srcA").toNamespaceKey();
@@ -99,8 +82,8 @@ public class TestSourcePrivateFields extends BaseTestServer {
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
 
-    MapRFSConfig mySource = (MapRFSConfig) SourceUI.get(config).getConfig();
-    MapRFSConfig withPrivates = (MapRFSConfig) SourceUI.getWithPrivates(config).getConfig();
+    NASConf mySource = (NASConf) SourceUI.get(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT)).getConfig();
+    NASConf withPrivates = (NASConf) SourceUI.getWithPrivates(config,  new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT)).getConfig();
 
     assertEquals(mySource, withPrivates);
   }

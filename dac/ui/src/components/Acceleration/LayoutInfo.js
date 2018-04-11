@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,48 +19,59 @@ import Immutable from 'immutable';
 import { Link } from 'react-router';
 
 import EllipsedText from 'components/EllipsedText';
-import FontIcon from 'components/Icon/FontIcon';
 import jobsUtils from 'utils/jobsUtils';
-import {mapStateToText, mapStateToIcon, syntheticLayoutState} from 'utils/accelerationUtils';
 import { formDescription } from 'uiTheme/radium/typography';
 
 import Footprint from './Footprint';
 import ValidityIndicator from './ValidityIndicator';
-
+import Status from './Status';
 
 export default class LayoutInfo extends Component {
   static propTypes = {
     layout: PropTypes.instanceOf(Immutable.Map),
-    showStateText: PropTypes.bool,
     showValidity: PropTypes.bool,
+    overrideTextMessage: PropTypes.string,
     style: PropTypes.object
   };
 
-  render() {
-    if (!this.props.layout) return null;
-    const layoutData = this.props.layout.toJS();
+  renderBody() {
+    if (this.props.overrideTextMessage) {
+      return (
+        <div data-qa='message' style={{textAlign: 'center', flex: 1, padding: '0 5px'}}>
+          {this.props.overrideTextMessage}
+        </div>
+      );
+    }
+
+    const reflection = this.props.layout.toJS();
     const marginRight = 10;
 
-    const layoutState = syntheticLayoutState(layoutData);
+    const jobsURL = jobsUtils.navigationURLForLayoutId(reflection.id);
+    return (
+      <div style={{...this.props.style, ...styles.main}}>
+        {this.props.showValidity && <div style={{marginRight, height: 20}}>
+          <ValidityIndicator isValid={reflection && reflection.hasValidMaterialization}/>
+        </div>}
+        <div style={{display: 'flex', alignItems: 'center', marginRight}}>
+          <Link to={jobsURL} style={{height: 24}}><Status reflection={this.props.layout}/></Link>
+        </div>
+        <EllipsedText style={{flex: '1 1', marginRight}}>{/* todo: figure out how to @text for this */}
+          <b>{la('Footprint: ')}</b>
+          <Footprint currentByteSize={reflection.currentSizeBytes} totalByteSize={reflection.totalSizeBytes} />
+        </EllipsedText>
+        <div>
+          <Link to={jobsURL}>{la('history')} »</Link>
+        </div>
+      </div>
+    );
+  }
 
-    const jobsURL = jobsUtils.navigationURLForLayoutId(layoutData.id);
+  render() {
+    if (!this.props.layout) return null;
 
     // todo: ax
     return <div style={{...styles.main, ...this.props.style}}>
-      {this.props.showValidity && <div style={{marginRight, height: 20}}>
-        <ValidityIndicator isValid={layoutData && layoutData.hasValidMaterialization}/>
-      </div>}
-      <div title={mapStateToText(layoutState)} style={{display: 'flex', alignItems: 'center', marginRight}}>
-        <Link to={jobsURL} style={{height: 24}}><FontIcon type={mapStateToIcon(layoutState)}/></Link>
-        {this.props.showStateText && <div>{mapStateToText(layoutState)}</div>}
-      </div>
-      <EllipsedText style={{flex: '1 1', marginRight}}>{/* todo: figure out how to @text for this */}
-        <b>{la('Footprint: ')}</b>
-        <Footprint currentByteSize={layoutData.currentByteSize} totalByteSize={layoutData.totalByteSize} />
-      </EllipsedText>
-      <div>
-        <Link to={jobsURL}>{la('jobs')} »</Link>
-      </div>
+      {this.renderBody()}
     </div>;
   }
 }

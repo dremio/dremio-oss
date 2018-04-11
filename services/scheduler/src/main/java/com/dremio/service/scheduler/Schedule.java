@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import org.threeten.bp.Duration;
 import org.threeten.bp.Instant;
 import org.threeten.bp.LocalTime;
 import org.threeten.bp.Period;
+import org.threeten.bp.ZoneId;
+import org.threeten.bp.ZoneOffset;
 import org.threeten.bp.temporal.ChronoField;
 import org.threeten.bp.temporal.ChronoUnit;
 import org.threeten.bp.temporal.Temporal;
@@ -48,38 +50,44 @@ public interface Schedule extends Iterable<Instant> {
     private final Instant start;
     private final TemporalAmount amount;
     private final TemporalAdjuster adjuster;
+    private final ZoneId zoneId;
 
     private Builder(TemporalAmount amount) {
-      this(Instant.now(), amount, NO_ADJUSTMENT);
+      this(Instant.now(), amount, NO_ADJUSTMENT, ZoneOffset.UTC);
     }
 
     private Builder(TemporalAmount amount, TemporalAdjuster adjuster) {
-      this(Instant.now(), amount, adjuster);
+      this(Instant.now(), amount, adjuster, ZoneOffset.UTC);
     }
 
-    private Builder(Instant start, TemporalAmount amount, TemporalAdjuster adjuster) {
+    private Builder(Instant start, TemporalAmount amount, TemporalAdjuster adjuster, ZoneId zoneId) {
       this.start = start;
       this.amount = amount;
       this.adjuster = adjuster;
+      this.zoneId = zoneId;
     }
 
     private Builder withAdjuster(TemporalAdjuster adjuster) {
-      return new Builder(this.start, this.amount, adjuster);
+      return new Builder(this.start, this.amount, adjuster, zoneId);
+    }
+
+    public Builder withTimeZone(ZoneId zoneId) {
+      return new Builder(this.start, this.amount, this.adjuster, zoneId);
     }
 
 
     public Builder startingAt(Instant start) {
-      return new Builder(start, this.amount, this.adjuster);
+      return new Builder(start, this.amount, this.adjuster, zoneId);
     }
 
     public final Schedule build() {
-      return new BaseSchedule(start, amount, adjuster);
+      return new BaseSchedule(start, amount, adjuster, zoneId);
     }
 
     /**
      * Create a schedule builder where events are triggered every {@code seconds}
      *
-     * @param hours the number of minutes between events
+     * @param millis the number of milliseconds between events
      * @return a schedule builder generating events every {@code seconds}
      * @throws IllegalArgumentException if {@code minutes} is negative
      */
@@ -90,7 +98,7 @@ public interface Schedule extends Iterable<Instant> {
     /**
      * Create a schedule builder where events are triggered every {@code seconds}
      *
-     * @param hours the number of minutes between events
+     * @param seconds the number of seconds between events
      * @return a schedule builder generating events every {@code seconds}
      * @throws IllegalArgumentException if {@code minutes} is negative
      */
@@ -101,7 +109,7 @@ public interface Schedule extends Iterable<Instant> {
     /**
      * Create a schedule builder where events are triggered every {@code minutes}
      *
-     * @param hours the number of minutes between events
+     * @param minutes the number of minutes between events
      * @return a schedule builder generating events every {@code minutes}
      * @throws IllegalArgumentException if {@code minutes} is negative
      */

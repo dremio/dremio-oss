@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,45 +20,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.validation.constraints.Pattern;
+
 import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.model.namespace.DatasetContainer;
 import com.dremio.dac.model.namespace.NamespaceTree;
-import com.dremio.dac.proto.model.source.ADLConfig;
-import com.dremio.dac.proto.model.source.AZBConfig;
-import com.dremio.dac.proto.model.source.ClassPathConfig;
-import com.dremio.dac.proto.model.source.DB2Config;
-import com.dremio.dac.proto.model.source.ElasticConfig;
-import com.dremio.dac.proto.model.source.GCSConfig;
-import com.dremio.dac.proto.model.source.HBaseConfig;
-import com.dremio.dac.proto.model.source.HdfsConfig;
-import com.dremio.dac.proto.model.source.HiveConfig;
-import com.dremio.dac.proto.model.source.KuduConfig;
-import com.dremio.dac.proto.model.source.MSSQLConfig;
-import com.dremio.dac.proto.model.source.MapRFSConfig;
-import com.dremio.dac.proto.model.source.MongoConfig;
-import com.dremio.dac.proto.model.source.MySQLConfig;
-import com.dremio.dac.proto.model.source.NASConfig;
-import com.dremio.dac.proto.model.source.OracleConfig;
-import com.dremio.dac.proto.model.source.PDFSConfig;
-import com.dremio.dac.proto.model.source.PostgresConfig;
-import com.dremio.dac.proto.model.source.RedshiftConfig;
-import com.dremio.dac.proto.model.source.S3Config;
-import com.dremio.dac.proto.model.source.UnknownConfig;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
@@ -67,34 +46,12 @@ import com.google.common.collect.ImmutableList;
  */
 // Ignoring the type hierarchy/Overriding DatasetContainer annotation
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = SourceUI.class)
-@JsonIgnoreProperties(value={ "links", "fullPathList", "resourcePath" }, allowGetters=true)
+@JsonIgnoreProperties(value={ "links", "fullPathList", "resourcePath" }, allowGetters=true, ignoreUnknown=true)
 public class SourceUI implements AddressableResource, DatasetContainer {
+
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
-  @JsonSubTypes({
-      @Type(value = NASConfig.class, name = "NAS"),
-      @Type(value = HdfsConfig.class, name = "HDFS"),
-      @Type(value = MapRFSConfig.class, name = "MAPRFS"),
-      @Type(value = S3Config.class, name = "S3"),
-      @Type(value = MongoConfig.class, name = "MONGO"),
-      @Type(value = ElasticConfig.class, name = "ELASTIC"),
-      @Type(value = OracleConfig.class, name = "ORACLE"),
-      @Type(value = MySQLConfig.class, name = "MYSQL"),
-      @Type(value = MSSQLConfig.class, name = "MSSQL"),
-      @Type(value = PostgresConfig.class, name = "POSTGRES"),
-      @Type(value = RedshiftConfig.class, name = "REDSHIFT"),
-      @Type(value = HBaseConfig.class, name = "HBASE"),
-      @Type(value = KuduConfig.class, name = "KUDU"),
-      @Type(value = AZBConfig.class, name = "AZB"),
-      @Type(value = ADLConfig.class, name = "ADL"),
-      @Type(value = GCSConfig.class, name = "GCS"),
-      @Type(value = HiveConfig.class, name = "HIVE"),
-      @Type(value = PDFSConfig.class, name = "PDFS"),
-      @Type(value = DB2Config.class, name = "DB2"),
-      @Type(value = UnknownConfig.class, name = "UNKNOWN"),
-      @Type(value = ClassPathConfig.class, name = "CLASSPATH")
-  })
-  @JsonSerialize()
-  private Source config;
+  private ConnectionConf<?, ?> config;
+
   @JsonProperty
   private NamespaceTree contents;
 
@@ -113,13 +70,17 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private Long accelerationGracePeriod;
   private Long accelerationRefreshPeriod;
 
-  public SourceUI setConfig(Source sourceConfig) {
+  public SourceUI setConfig(ConnectionConf<?, ?> sourceConfig) {
     this.config = sourceConfig;
     return this;
   }
 
-  public Source getConfig() {
+  public ConnectionConf<?, ?> getConfig() {
     return config;
+  }
+
+  public void clearSecrets() {
+    config.clearSecrets();
   }
 
   /**
@@ -158,6 +119,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     return numberOfDatasets;
   }
 
+  @Pattern(regexp = "^[^.\"@]+$", message = "Source name can not contain periods, double quotes or @.")
   @Override
   public String getName() {
     return name;
@@ -263,11 +225,11 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   @JsonIgnore
   public SourceConfig asSourceConfig() {
     SourceConfig c = new SourceConfig();
-    c.setType(config.getSourceType());
+    c.setType(config.getType());
     c.setName(name);
     c.setCtime(ctime);
     c.setImg(img);
-    c.setConfig(config.toByteString());
+    c.setConfig(config.toBytesString());
     c.setDescription(description);
     c.setVersion(version);
     c.setAccelerationRefreshPeriod(accelerationRefreshPeriod);
@@ -275,30 +237,6 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
     c.setId(new EntityId(getId()));
     return c;
-  }
-
-  public static SourceUI get(SourceConfig sourceConfig) {
-    SourceUI source = getWithPrivates(sourceConfig);
-    // we should not set fields that expose passwords and other private parts of the config
-    SourceDefinitions.clearSource(source.getConfig());
-    return source;
-  }
-
-  public static SourceUI getWithPrivates(SourceConfig sourceConfig) {
-    SourceUI source = new SourceUI();
-    final Source config = Source.fromByteString(sourceConfig.getType(), sourceConfig.getConfig());
-    source.setConfig(config);
-    source.setCtime(sourceConfig.getCtime());
-    source.setDescription(sourceConfig.getDescription());
-    source.setImg(sourceConfig.getImg());
-    source.setName(sourceConfig.getName());
-    source.setState(SourceState.GOOD);
-    source.setMetadataPolicy(UIMetadataPolicy.of(sourceConfig.getMetadataPolicy()));
-    source.setVersion(sourceConfig.getVersion());
-    source.setAccelerationRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod());
-    source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
-    source.setId(sourceConfig.getId().getId());
-    return source;
   }
 
   @Override
@@ -320,49 +258,34 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     return name.hashCode();
   }
 
-  /** helper method to find whether the source is FileSystem based source */
-  public static boolean isFSBasedSource(SourceConfig sourceConfig) {
-    final SourceType sourceType = sourceConfig.getType();
-    switch (sourceType) {
-      case HDFS:
-      case NAS:
-      case MAPRFS:
-      case S3:
-      case PDFS:
-      case AZB:
-      case ADL:
-      case GCS:
-      case CLASSPATH:
-        return true;
-      case MONGO:
-      case ELASTIC:
-      case ORACLE:
-      case MYSQL:
-      case MSSQL:
-      case POSTGRES:
-      case REDSHIFT:
-      case HBASE:
-      case KUDU: // TODO: Is KUDU a file system based source?
-      case HIVE:
-      case DB2:
-      case UNKNOWN:
-        return false;
-      default:
-        throw new IllegalArgumentException("Unexpected source type: " + sourceType);
-    }
+  public static SourceUI get(SourceConfig sourceConfig, ConnectionReader reader) {
+    SourceUI source = getWithPrivates(sourceConfig, reader);
+    // we should not set fields that expose passwords and other private parts of the config
+    source.config.clearSecrets();
+    return source;
   }
 
-  /** helper method to find whether impersonation is enabled in the given source */
-  public static boolean impersonationEnabled(SourceConfig sourceConfig) {
-    SourceUI source = get(sourceConfig);
-    if (sourceConfig.getType() == SourceType.HDFS) {
-      return ((HdfsConfig) source.getConfig()).getEnableImpersonation();
-    }
+  public static SourceUI getWithPrivates(SourceConfig sourceConfig, ConnectionReader reader) {
+    SourceUI source = new SourceUI();
+    ConnectionConf<?, ?> config = reader.getConnectionConf(sourceConfig);
+    source.setConfig(config);
+    source.setCtime(sourceConfig.getCtime());
+    source.setDescription(sourceConfig.getDescription());
+    source.setImg(sourceConfig.getImg());
+    source.setName(sourceConfig.getName());
+    source.setState(SourceState.GOOD);
+    source.setMetadataPolicy(UIMetadataPolicy.of(sourceConfig.getMetadataPolicy()));
+    source.setVersion(sourceConfig.getVersion());
+    source.setAccelerationRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod());
+    source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
+    source.setId(sourceConfig.getId().getId());
+    return source;
+  }
 
-    if (sourceConfig.getType() == SourceType.MAPRFS) {
-      return ((MapRFSConfig) source.getConfig()).getEnableImpersonation();
-    }
 
-    return false;
+  public static boolean isInternal(SourceConfig sourceConfig, ConnectionReader reader) {
+    ConnectionConf<?, ?> config = reader.getConnectionConf(sourceConfig);
+
+    return config.isInternal();
   }
 }

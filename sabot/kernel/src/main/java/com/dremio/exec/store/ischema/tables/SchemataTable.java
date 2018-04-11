@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,11 @@ import java.util.Objects;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.google.common.collect.FluentIterable;
 
 /**
  * INFORMATION_SCHEMA.SCHEMATA
@@ -38,21 +40,26 @@ public class SchemataTable extends BaseInfoSchemaTable<Schema> {
   }
 
   @Override
-  public Iterable<Schema> asIterable(final String catalogName, NamespaceService service, SearchQuery query) {
-
+  public Iterable<Schema> asIterable(final String catalogName, String username, DatasetListingService service, SearchQuery query) {
     final LinkedHashSet<Schema> set = new LinkedHashSet<>();
 
-    /**
+    /*
      * We'll loop through all datasets and then return the unique set of schema that include at least one dataset.
      */
-    for(Entry<NamespaceKey, NameSpaceContainer> input : service.find(query == null ? null : new FindByCondition().setCondition(query))) {
+    final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
+    try {
+      searchResults = service.find(username, query == null ? null : new FindByCondition().setCondition(query));
+    } catch (NamespaceException e) {
+      throw new RuntimeException(e);
+    }
+    for (Entry<NamespaceKey, NameSpaceContainer> input : searchResults) {
       final NameSpaceContainer c = input.getValue();
 
-      if(c.getType() != NameSpaceContainer.Type.DATASET) {
+      if (c.getType() != NameSpaceContainer.Type.DATASET) {
         continue;
       }
 
-      if(input.getKey().getRoot().startsWith("__")) {
+      if (input.getKey().getRoot().startsWith("__")) {
         continue;
       }
 

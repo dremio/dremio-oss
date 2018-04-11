@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,12 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.service.BindingProvider;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
@@ -50,13 +53,21 @@ public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
     Map<String, FormatPluginConfig> formats = ImmutableMap.of("parquet", (FormatPluginConfig) new ParquetFormatConfig());
     WorkspaceConfig workspace = new WorkspaceConfig(TEMPORARY_FOLDER.newFolder().getAbsolutePath(), true, "parquet");
     String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
-    FileSystemConfig pdfsConfig = new FileSystemConfig("pdfs:///", path, ImmutableMap.<String, String> of(), formats, false, SchemaMutability.ALL);
+
     BindingProvider p = getBindingProvider();
 
     service = new PDFSService(p.provider(SabotContext.class), p.provider(FabricService.class),
         DremioTest.DEFAULT_SABOT_CONFIG, getSabotContext().getAllocator());
     service.start();
-    getSabotContext().getStorage().createOrUpdate("pdfs", pdfsConfig, true);
+
+    SourceConfig c = new SourceConfig();
+    PDFSConf conf = new PDFSConf() ;
+    conf.path = path;
+    c.setType(conf.getType());
+    c.setName("pdfs");
+    c.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    c.setConfig(conf.toBytesString());
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(c);
   }
 
   @AfterClass

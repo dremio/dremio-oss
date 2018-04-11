@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,33 +65,27 @@ export const findMenuItemByText = (wrapper, text) => {
   return wrapper.find('MenuItem').children().findWhere(child => child.text() === text);
 };
 
-/*
-export function minimalFormProps(fields) {
-  const props = {
-    handleSubmit: sinon.spy(),
-    onSubmit: sinon.spy(),
-    fields: {}
-  };
 
-  if (!fields) return props;
-
-  let fieldEntries;
-  if (Array.isArray(fields)) {
-    fieldEntries = fields.map(e => [e, null]);
-  } else {
-    fieldEntries = Object.entries(fields);
+export function formFields(formValue) {
+  if (typeof formValue === 'object' && formValue !== null) {
+    if (Array.isArray(formValue)) {
+      const output = formValue.map(v => formFields(v));
+      output.addField = sinon.spy();
+      output.removeField = sinon.spy();
+      return output;
+    }
+    const output = {};
+    Object.entries(formValue).forEach(([name, value]) => {
+      output[name] = formFields(value);
+    });
+    return output;
   }
-
-  fieldEntries.forEach(([name, value]) => {
-    props.fields[name] = {
-      value,
-      onChange: sinon.spy()
-    };
-  });
-
-  return props;
+  return {
+    value: formValue,
+    onChange: sinon.spy()
+  };
 }
-*/
+
 
 export const stubArrayFieldMethods = (field) => Object.assign(field, { // eslint-disable-line no-restricted-properties
   removeField: sinon.spy(),

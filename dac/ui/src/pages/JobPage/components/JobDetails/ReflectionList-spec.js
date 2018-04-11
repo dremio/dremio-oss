@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,15 +47,12 @@ describe('ReflectionList', () => {
             'gracePeriod': 33061210698000
           },
           'reflection': {
-            'details': {
-              'partitionDistributionStrategy': 'CONSOLIDATED'
-            },
-            'id': {
-              'id': '064f0e51-5f20-45a6-a2c3-69e42ccf82af'
-            },
+            'partitionDistributionStrategy': 'CONSOLIDATED',
+            'id': '064f0e51-5f20-45a6-a2c3-69e42ccf82af',
             'name': '',
             'latestMaterializationState': 'NEW',
-            'state': 'ACTIVE'
+            'state': 'ACTIVE',
+            'type': 'RAW'
           }
         },
         {
@@ -75,15 +72,12 @@ describe('ReflectionList', () => {
             'gracePeriod': 33061210698000
           },
           'reflection': {
-            'details': {
-              'partitionDistributionStrategy': 'CONSOLIDATED'
-            },
-            'id': {
-              'id': '53005a1d-b851-4485-9799-d81d06608f34'
-            },
+            'partitionDistributionStrategy': 'CONSOLIDATED',
+            'id': '53005a1d-b851-4485-9799-d81d06608f34',
             'name': '',
             'latestMaterializationState': 'NEW',
-            'state': 'ACTIVE'
+            'state': 'ACTIVE',
+            'type': 'RAW'
           }
         },
         {
@@ -103,15 +97,12 @@ describe('ReflectionList', () => {
             'gracePeriod': 33061210698000
           },
           'reflection': {
-            'details': {
-              'partitionDistributionStrategy': 'CONSOLIDATED'
-            },
-            'id': {
-              'id': '53005a1d-b851-4485-9799-d81d06608f34'
-            },
+            'partitionDistributionStrategy': 'CONSOLIDATED',
+            'id': '53005a1d-b851-4485-9799-d81d06608f34',
             'name': '',
             'latestMaterializationState': 'NEW',
-            'state': 'ACTIVE'
+            'state': 'ACTIVE',
+            'type': 'RAW'
           }
         },
         {
@@ -139,7 +130,8 @@ describe('ReflectionList', () => {
             },
             'name': '',
             'latestMaterializationState': 'NEW',
-            'state': 'ACTIVE'
+            'state': 'ACTIVE',
+            'type': 'RAW'
           }
         }
       ]

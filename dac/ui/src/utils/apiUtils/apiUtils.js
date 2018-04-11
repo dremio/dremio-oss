@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,8 +98,8 @@ class ApiUtils {
       }
       return action;
     }).catch((error) => {
-      if (error.statusText) {
-        throw {_error: 'Request Error: ' + error.statusText};
+      if (error.statusText) { // chris asks: how would this be possible? (fetch API rejects with TypeError)
+        throw {_error: 'Request Error: ' + error.statusText}; // todo: loc
       }
       throw error;
     });
@@ -108,7 +108,7 @@ class ApiUtils {
   fetch(endpoint, options = {}, version = 3) {
     const apiVersion = (version === 3) ? API_URL_V3 : API_URL_V2;
 
-    const headers = new Headers(options.headers);
+    const headers = new Headers(options.headers || {}); // protect against older chrome browsers
     headers.append('Authorization', `_dremio${localStorageUtils.getAuthToken()}`);
 
     return fetch(`${apiVersion}/${endpoint}`, { ...options, headers }).then(response => response.ok ? response : Promise.reject(response));

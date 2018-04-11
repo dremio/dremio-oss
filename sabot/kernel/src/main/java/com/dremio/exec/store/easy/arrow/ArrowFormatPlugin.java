@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
@@ -61,9 +60,8 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
    * @param formatConfig
    * @param fsPlugin
    */
-  public ArrowFormatPlugin(final String name, final SabotContext context, final StoragePluginConfig storageConfig,
-      final ArrowFormatPluginConfig formatConfig, final FileSystemPlugin fsPlugin) {
-    super(name, context, storageConfig, formatConfig, true, false, /* splittable = */ false, /* compressible = */ false,
+  public ArrowFormatPlugin(final String name, final SabotContext context, final ArrowFormatPluginConfig formatConfig, final FileSystemPlugin fsPlugin) {
+    super(name, context, formatConfig, true, false, /* splittable = */ false, /* compressible = */ false,
         formatConfig.getDefaultExtensions(), ARROW_DEFAULT_NAME, fsPlugin);
   }
 

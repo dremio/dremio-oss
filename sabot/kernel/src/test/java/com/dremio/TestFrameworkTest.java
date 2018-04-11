@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +125,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   }
 
   @Test
-  @Ignore
+  @Ignore("decimal")
   public void testDecimalBaseline() throws  Exception {
     try {
       test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
@@ -353,7 +353,6 @@ public class TestFrameworkTest extends BaseTestQuery{
   }
 
   @Test
-  @Ignore("null list")
   public void testComplexJSON_all_text() throws Exception {
     testBuilder()
         .sqlQuery("select * from cp.`store/json/schema_change_int_to_string.json`")

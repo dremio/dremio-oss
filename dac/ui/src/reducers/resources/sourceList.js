@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,13 @@ export default function sourceList(state = getInitialState(), action) {
   }
   case AllSourcesActionTypes.REMOVE_SOURCE_START: {
     return state.delete(action.meta.name);
+  }
+  case AllSourcesActionTypes.REMOVE_SOURCE_SUCCESS: {
+    const newSpaces = state.get('sources').filter((value) => {
+      return value !== action.meta.id;
+    });
+
+    return state.set('sources', newSpaces);
   }
   case AllSourcesActionTypes.SOURCES_LIST_LOAD_SUCCESS: {
     return state.set('sources', action.payload.getIn(['result', 'sources']))

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +27,12 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -45,15 +44,14 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HBaseStoragePlugin.class);
 
-  static final StoragePluginType TYPE = new StoragePluginType("hbase", HBaseRulesFactory.class);
   static final String HBASE_SYSTEM_NAMESPACE = "hbase";
 
   private final String name;
   private final SabotContext context;
-  private final HBaseStoragePluginConfig storeConfig;
+  private final HBaseConf storeConfig;
   private final HBaseConnectionManager connection;
 
-  public HBaseStoragePlugin(HBaseStoragePluginConfig storeConfig, SabotContext context, String name) {
+  public HBaseStoragePlugin(HBaseConf storeConfig, SabotContext context, String name) {
     this.context = context;
     this.storeConfig = storeConfig;
     this.name = name;
@@ -67,12 +65,12 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
         @Override
         public SourceTableDefinition apply(TableName input) {
           final NamespaceKey key = new NamespaceKey(ImmutableList.<String>of(name, input.getNamespaceAsString(), input.getNameAsString()));
-          return new HBaseTableBuilder(key, null, connection, storeConfig.isSizeCalculatorEnabled(), context);
+          return new HBaseTableBuilder(key, null, connection, storeConfig.isSizeCalcEnabled, context);
         }});
     }
   }
 
-  public HBaseStoragePluginConfig getConfig() {
+  public HBaseConf getConfig() {
     return storeConfig;
   }
 
@@ -90,7 +88,7 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
     if(!datasetExists(datasetPath)) {
       return null;
     }
-    return new HBaseTableBuilder(datasetPath, oldDataset, connection, storeConfig.isSizeCalculatorEnabled(), context);
+    return new HBaseTableBuilder(datasetPath, oldDataset, connection, storeConfig.isSizeCalcEnabled, context);
   }
 
   @Override
@@ -142,18 +140,13 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
   }
 
   @Override
-  public StoragePluginId getId() {
-    return new StoragePluginId(name, storeConfig, TYPE);
-  }
-
-  @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return null;
   }
 
   @Override
-  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
-    return null;
+  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
+    return HBaseRulesFactory.class;
   }
 
   @Override
@@ -171,8 +164,13 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
 
       @Override
       public SourceTableDefinition getDataset() {
-        return new HBaseTableBuilder(namespaceKey, datasetConfig, connection, storeConfig.isSizeCalculatorEnabled(), context);
+        return new HBaseTableBuilder(namespaceKey, datasetConfig, connection, storeConfig.isSizeCalcEnabled, context);
       }};
+  }
+
+  @Override
+  public SourceCapabilities getSourceCapabilities() {
+    return SourceCapabilities.NONE;
   }
 
   @Override

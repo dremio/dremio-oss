@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.AggPrelBase;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.ExchangePrel;
@@ -53,7 +54,6 @@ import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.parquet.ParquetDatasetXAttrSerDe;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
-import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.DictionaryEncodedColumns;
 import com.dremio.service.namespace.file.proto.ParquetDatasetXAttr;

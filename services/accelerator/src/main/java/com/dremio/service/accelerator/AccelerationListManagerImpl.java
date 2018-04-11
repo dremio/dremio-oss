@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,37 +15,34 @@
  */
 package com.dremio.service.accelerator;
 
-import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-
+import java.io.IOException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-import com.dremio.common.utils.SqlUtils;
-import com.dremio.datastore.IndexedStore;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.ProtostuffSerializer;
+import com.dremio.datastore.Serializer;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.ReflectionRPC;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.sys.accel.AccelerationInfo;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
-import com.dremio.exec.store.sys.accel.LayoutInfo;
-import com.dremio.exec.store.sys.accel.MaterializationInfo;
-import com.dremio.service.accelerator.proto.Acceleration;
-import com.dremio.service.accelerator.proto.Layout;
-import com.dremio.service.accelerator.proto.LayoutDimensionField;
-import com.dremio.service.accelerator.proto.LayoutField;
-import com.dremio.service.accelerator.proto.LayoutId;
-import com.dremio.service.accelerator.proto.Materialization;
-import com.dremio.service.accelerator.proto.MaterializedLayout;
-import com.dremio.service.accelerator.store.AccelerationStore;
-import com.dremio.service.accelerator.store.MaterializationStore;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.BindingCreator;
+import com.dremio.service.job.proto.JoinAnalysis;
+import com.dremio.service.reflection.ReflectionStatusService;
+import com.dremio.service.reflection.ReflectionUtils;
+import com.dremio.service.reflection.proto.DataPartition;
+import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.store.MaterializationStore;
+import com.dremio.services.fabric.api.FabricRunnerFactory;
+import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 
@@ -53,30 +50,35 @@ import com.google.common.collect.FluentIterable;
  * Exposes the acceleration manager interface to the rest of the system (executor side)
  */
 public class AccelerationListManagerImpl implements AccelerationListManager {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationListManagerImpl.class);
 
-  private final AccelerationStore accelerationStore;
   private final MaterializationStore materializationStore;
   private Provider<SabotContext> contextProvider;
-  private Provider<NamespaceService> namespaceService;
+  private Provider<ReflectionStatusService> reflectionStatusService;
+  private final Provider<FabricService> fabric;
+  private final BindingCreator bindingCreator;
+  private ReflectionTunnelCreator reflectionTunnelCreator;
 
-  public AccelerationListManagerImpl(Provider<KVStoreProvider> storeProvider,
-      final Provider<SabotContext> contextProvider) {
-    this.accelerationStore = new AccelerationStore(storeProvider);
+
+  public AccelerationListManagerImpl(Provider<KVStoreProvider> storeProvider, Provider<SabotContext> contextProvider,
+                                     Provider<ReflectionStatusService> reflectionStatusService,
+                                     final Provider<FabricService> fabric,
+                                     final BindingCreator bindingCreator
+  ) {
     this.materializationStore = new MaterializationStore(storeProvider);
     this.contextProvider = contextProvider;
+    this.reflectionStatusService = reflectionStatusService;
+    this.fabric = fabric;
+    this.bindingCreator = bindingCreator;
   }
 
   @Override
-  public void start() throws Exception {
-    accelerationStore.start();
-    materializationStore.start();
+  public void start() {
+    final FabricRunnerFactory reflectionTunnelFactory = fabric.get().registerProtocol(new ReflectionProtocol
+      (contextProvider.get().getAllocator(), reflectionStatusService.get(), contextProvider.get().getConfig()));
 
-    this.namespaceService = new Provider<NamespaceService>() {
-      @Override
-      public NamespaceService get() {
-        return contextProvider.get().getNamespaceService(SYSTEM_USERNAME);
-      }
-    };
+    reflectionTunnelCreator = new ReflectionTunnelCreator(reflectionTunnelFactory);
+    bindingCreator.bindSelf(reflectionTunnelCreator);
   }
 
   @Override
@@ -84,118 +86,143 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   }
 
-  private Iterable<Acceleration> getAccelerations(final IndexedStore.FindByCondition condition) {
-    return accelerationStore.find(condition);
+  @Override
+  public Iterable<ReflectionInfo> getReflections() {
+    if(!contextProvider.get().isCoordinator()) {
+      // need to do RPC call
+      // trying to get master
+      CoordinationProtos.NodeEndpoint master = null;
+      for (CoordinationProtos.NodeEndpoint coordinator : contextProvider.get().getCoordinators()) {
+        if (coordinator.getRoles().getMaster()) {
+          master = coordinator;
+          break;
+        }
+      }
+      if (master == null) {
+        throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+          .build(logger);
+      }
+      final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master);
+      try {
+        final ReflectionRPC.ReflectionInfoResp reflectionCombinedStatusResp =
+          reflectionTunnel.requestReflectionStatus().get(15, TimeUnit.SECONDS);
+        FluentIterable<ReflectionInfo> reflections = FluentIterable.from(reflectionCombinedStatusResp
+          .getReflectionInfoList()).transform(new Function<ReflectionRPC.ReflectionInfo, ReflectionInfo>() {
+          @Nullable
+          @Override
+          public ReflectionInfo apply(@Nullable ReflectionRPC.ReflectionInfo reflectionInfo) {
+            return ReflectionInfo.getReflectionInfo(reflectionInfo);
+          }
+        });
+        return reflections;
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        throw UserException.connectionError(e).message("Error while getting Reflection Information")
+          .build(logger);
+      }
+      // in this case at least we will
+    } else {
+      return reflectionStatusService.get().getReflections();
+    }
   }
 
-  private Iterable<Materialization> getMaterializations(final LayoutId layoutId) {
-    return AccelerationUtils.getAllMaterializations(materializationStore.get(layoutId));
-  }
-
+  private static final Serializer<JoinAnalysis> JOIN_ANALYSIS_SERIALIZER = ProtostuffSerializer.of(JoinAnalysis.getSchema());
 
   @Override
-  public List<AccelerationInfo> getAccelerations() {
-    return FluentIterable
-      .from(getAccelerations(new IndexedStore.FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())))
-      .transform(new Function<Acceleration, AccelerationInfo>(){
+  public Iterable<MaterializationInfo> getMaterializations() {
+    return FluentIterable.from(ReflectionUtils.getAllMaterializations(materializationStore))
+      .transform(new Function<Materialization, MaterializationInfo>() {
         @Override
-        public AccelerationInfo apply(Acceleration input) {
-          DatasetConfig ds = namespaceService.get().findDatasetByUUID(input.getId().getId());
-          return new AccelerationInfo(
-            input.getId().getId(),
-            (ds==null) ? "":SqlUtils.quotedCompound(ds.getFullPathList()),
-            input.getState().name(),
-            selfOrEmpty(input.getRawLayouts().getLayoutList()).size(),
-            input.getRawLayouts().getEnabled(),
-            selfOrEmpty(input.getAggregationLayouts().getLayoutList()).size(),
-            input.getAggregationLayouts().getEnabled()
+        public MaterializationInfo apply(Materialization materialization) {
+          long footPrint = -1L;
+          try {
+            footPrint = materializationStore.getMetrics(materialization).getFootprint();
+          } catch (Exception e) {
+            // let's not fail the query if we can't retrieve the footprint for one materialization
+          }
+
+          String joinAnalysisJson = null;
+          try {
+            if (materialization.getJoinAnalysis() != null) {
+              joinAnalysisJson = JOIN_ANALYSIS_SERIALIZER.toJson(materialization.getJoinAnalysis());
+            }
+          } catch (IOException e) {
+            logger.debug("Failed to serialize join analysis", e);
+          }
+
+          final String failureMsg = materialization.getFailure() != null ? materialization.getFailure().getMessage() : null;
+
+          return new MaterializationInfo(
+            materialization.getReflectionId().getId(),
+            materialization.getId().getId(),
+            new Timestamp(materialization.getCreatedAt()),
+            new Timestamp(Optional.fromNullable(materialization.getExpiration()).or(0L)),
+            footPrint,
+            materialization.getSeriesId(),
+            materialization.getInitRefreshJobId(),
+            materialization.getSeriesOrdinal(),
+            joinAnalysisJson,
+            materialization.getState().toString(),
+            Optional.fromNullable(failureMsg).or("NONE"),
+            dataPartitionsToString(materialization.getPartitionList()),
+            new Timestamp(Optional.fromNullable(materialization.getLastRefreshFromPds()).or(0L))
           );
-        }}).toList();
+        }
+      });
+  }
+
+  private String dataPartitionsToString(List<DataPartition> partitions) {
+    if (partitions == null || partitions.isEmpty()) {
+      return "";
+    }
+
+    final StringBuilder dataPartitions = new StringBuilder();
+    for (int i = 0; i < partitions.size() - 1; i++) {
+      dataPartitions.append(partitions.get(i).getAddress()).append(", ");
+    }
+    dataPartitions.append(partitions.get(partitions.size() - 1).getAddress());
+    return dataPartitions.toString();
   }
 
   @Override
-  public List<LayoutInfo> getLayouts() {
-    List<LayoutInfo> layouts = new ArrayList<>();
-    for(Acceleration accel : getAccelerations(new IndexedStore.FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery()))) {
-      for(Layout l : selfOrEmpty(accel.getAggregationLayouts().getLayoutList())){
-        Optional<MaterializedLayout> materializedLayoutIf = materializationStore.get(l.getId());
-        layouts.add(toInfo(accel.getId().getId(), l, materializedLayoutIf));
-      }
-      for(Layout l : selfOrEmpty(accel.getRawLayouts().getLayoutList())){
-        Optional<MaterializedLayout> materializedLayoutIf = materializationStore.get(l.getId());
-        layouts.add(toInfo(accel.getId().getId(), l, materializedLayoutIf));
-      }
-    }
-
-    return layouts;
-  }
-
-  @Override
-  public List<MaterializationInfo> getMaterializations() {
-    List<MaterializationInfo> materializations = new ArrayList<>();
-    for(Acceleration accel : getAccelerations(new IndexedStore.FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery()))){
-
-      for(Layout l : selfOrEmpty(accel.getAggregationLayouts().getLayoutList())){
-        for(Materialization m : getMaterializations(l.getId())){
-          materializations.add(asInfo(accel, l, m));
-        }
-      }
-      for(Layout l : selfOrEmpty(accel.getRawLayouts().getLayoutList())){
-        for(Materialization m : getMaterializations(l.getId())){
-          materializations.add(asInfo(accel, l, m));
-        }
-      }
-    }
-
-    return materializations;
-  }
-
-  private MaterializationInfo asInfo(Acceleration accel, Layout l, Materialization m){
-    return new MaterializationInfo(
-      accel.getId().getId(),
-      l.getId().getId(),
-      m.getId().getId(),
-      m.getJob() != null && m.getJob().getJobEnd() != null ? new Timestamp(m.getJob().getJobEnd()) : null,
-      m.getExpiration() != null ? new Timestamp(m.getExpiration()) : null,
-      m.getJob() != null ? m.getJob().getOutputBytes() : null
-    );
-  }
-
-  private LayoutInfo toInfo(String accelerationId, Layout l, Optional<MaterializedLayout> materializedLayoutIf){
-    return new LayoutInfo(
-      accelerationId,
-      l.getId().getId(),
-      l.getLayoutType().name(),
-      toString(l.getDetails().getDisplayFieldList()),
-      toDimensionString(l.getDetails().getDimensionFieldList()),
-      toString(l.getDetails().getMeasureFieldList()),
-      toString(l.getDetails().getPartitionFieldList()),
-      toString(l.getDetails().getDistributionFieldList()),
-      toString(l.getDetails().getSortFieldList()),
-      materializedLayoutIf.isPresent() && materializedLayoutIf.get().getState() != null ? materializedLayoutIf.get().getState().name():null
-    );
-  }
-
-  private String toDimensionString(final List<LayoutDimensionField> field){
-    return FluentIterable.from(AccelerationUtils.selfOrEmpty(field))
-      .transform(new Function<LayoutDimensionField, String>(){
+  public Iterable<RefreshInfo> getRefreshInfos() {
+    if (contextProvider.get().isCoordinator()) {
+      return FluentIterable.from(reflectionStatusService.get().getRefreshInfos()).transform(new Function<ReflectionRPC.RefreshInfo, RefreshInfo>() {
+        @Nullable
         @Override
-        public String apply(LayoutDimensionField input) {
-          return String.format("%s with granularity %s", SqlUtils.quoteIdentifier(input.getName()), input.getGranularity());
-        }})
-      .join(Joiner.on(", "));
-  }
-
-  private String toString(List<LayoutField> field){
-    if(field == null){
-      return null;
+        public RefreshInfo apply(@Nullable ReflectionRPC.RefreshInfo refreshInfo) {
+          return RefreshInfo.fromRefreshInfo(refreshInfo);
+        }
+      });
     }
-    return FluentIterable.from(field).transform(new Function<LayoutField, String>(){
-
-      @Override
-      public String apply(LayoutField input) {
-        return SqlUtils.quoteIdentifier(input.getName());
-      }}).join(Joiner.on(", "));
+    // need to do RPC call
+    // trying to get master
+    CoordinationProtos.NodeEndpoint master = null;
+    for (CoordinationProtos.NodeEndpoint coordinator : contextProvider.get().getCoordinators()) {
+      if (coordinator.getRoles().getMaster()) {
+        master = coordinator;
+        break;
+      }
+    }
+    if (master == null) {
+      throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+        .build(logger);
+    }
+    final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master);
+    try {
+      final ReflectionRPC.RefreshInfoResp refreshInfosResp =
+        reflectionTunnel.requestRefreshInfos().get(15, TimeUnit.SECONDS);
+      FluentIterable<RefreshInfo> refreshInfos = FluentIterable.from(refreshInfosResp.getRefreshInfoList())
+        .transform(new Function<ReflectionRPC.RefreshInfo, RefreshInfo>() {
+        @Nullable
+        @Override
+        public RefreshInfo apply(@Nullable ReflectionRPC.RefreshInfo refreshInfo) {
+          return RefreshInfo.fromRefreshInfo(refreshInfo);
+        }
+      });
+      return refreshInfos;
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      throw UserException.connectionError(e).message("Error while getting Refresh Information")
+        .build(logger);
+    }
   }
-
 }

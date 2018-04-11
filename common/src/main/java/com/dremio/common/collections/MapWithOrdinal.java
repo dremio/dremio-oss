@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,9 +127,9 @@ public class MapWithOrdinal<K, V> implements Map<K, V> {
 
     @Override
     public Collection<V> values() {
-      return Lists.newArrayList(Iterables.transform(secondary.entries(), new Function<IntObjectMap.Entry<V>, V>() {
+      return Lists.newArrayList(Iterables.transform(secondary.entries(), new Function<IntObjectMap.PrimitiveEntry<V>, V>() {
         @Override
-        public V apply(IntObjectMap.Entry<V> entry) {
+        public V apply(IntObjectMap.PrimitiveEntry<V> entry) {
           return Preconditions.checkNotNull(entry).value();
         }
       }));

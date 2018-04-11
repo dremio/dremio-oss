@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,7 +86,8 @@ export const textInputDisabled = {
   ...typography.formDescription,
   background: '#E8E8E8',
   border: '1px solid #E9E9E9',
-  color: textInput.color
+  color: textInput.color,
+  opacity: 0.67
 };
 
 export const textInputSmall = {

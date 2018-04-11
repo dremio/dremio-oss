@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.PartitionExplorer;
+import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Function;
@@ -47,6 +48,7 @@ public class ClassProducerImpl implements ClassProducer {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassProducerImpl.class);
 
+  private final CompilationOptions compilationOptions;
   private final CodeCompiler compiler;
   private final FunctionLookupContext functionLookupContext;
   private final FunctionContext functionContext;
@@ -54,10 +56,12 @@ public class ClassProducerImpl implements ClassProducer {
   private final BufferManager bufferManager;
 
   public ClassProducerImpl(
+      CompilationOptions compilationOptions,
       CodeCompiler compiler,
       FunctionLookupContext functionLookupContext,
       ContextInformation contextInformation,
       BufferManager bufferManager) {
+    this.compilationOptions = compilationOptions;
     this.compiler = compiler;
     this.functionLookupContext = functionLookupContext;
     this.contextInformation = contextInformation;
@@ -165,6 +169,11 @@ public class ClassProducerImpl implements ClassProducer {
         holdersByType.put(type, valueHolder);
       }
       return valueHolder;
+    }
+
+    @Override
+    public CompilationOptions getCompilationOptions() {
+      return compilationOptions;
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -136,7 +136,6 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-7868")
   public void testGeoShape_ArrayOfGeometryCollection() throws Exception {
 
     double[] point1 = {100.0, 1.0};
@@ -564,7 +563,6 @@ public class TestGeoShapeType extends ElasticBaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-7868")
   public void testGeoShape_ArrayOfSinglePoint() throws Exception {
 
     double[] point1 = new double[]{-77.03653, 38.897676};

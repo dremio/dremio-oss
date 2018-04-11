@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,61 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.graph.GraphVisitor;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.record.BatchSchema;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 public abstract class AbstractSubScan extends AbstractBase implements SubScan {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSubScan.class);
 
   private final BatchSchema schema;
-  private final List<String> tablePath;
+  private final Collection<List<String>> referencedTables;
+
+  public AbstractSubScan(String userName, BatchSchema schema, Collection<List<String>> referencedTableList) {
+    super(userName);
+    this.schema = schema;
+    this.referencedTables = referencedTableList;
+  }
 
   public AbstractSubScan(String userName, BatchSchema schema, List<String> tablePath) {
     super(userName);
     this.schema = schema;
-    this.tablePath = tablePath;
+    if (tablePath == null) {
+      this.referencedTables = ImmutableList.of();
+    } else {
+      this.referencedTables = ImmutableList.of(tablePath);
+    }
+  }
+
+  @JsonIgnore
+  @Deprecated // TODO: SubScan implementations use factory methods (@JsonCreator) that need this method
+  public List<String> getTableSchemaPath() {
+    final Collection<List<String>> paths = getReferencedTables();
+    if (paths.isEmpty()) {
+      return null;
+    } else {
+      return Iterables.getOnlyElement(paths);
+    }
+  }
+
+  @Override
+  public Collection<List<String>> getReferencedTables() {
+    return referencedTables;
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return true;
   }
 
   @Override
@@ -64,11 +98,6 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan {
   @Override
   protected BatchSchema constructSchema(FunctionLookupContext context) {
     return schema;
-  }
-
-  @Override
-  public List<String> getTableSchemaPath() {
-    return tablePath;
   }
 
   @JsonProperty("schema")

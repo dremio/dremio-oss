@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ import { Component } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
-
 import PropTypes from 'prop-types';
 
 import { formLabel } from 'uiTheme/radium/typography';
@@ -28,8 +27,9 @@ import AccelerationRaw from './AccelerationRaw';
 @Radium
 export class AccelerationAdvanced extends Component {
   static propTypes = {
-    acceleration: PropTypes.instanceOf(Immutable.Map).isRequired,
-    fields: PropTypes.object,
+    dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
+    reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
+    fields: PropTypes.object.isRequired,
     location: PropTypes.object.isRequired,
     updateFormDirtyState: PropTypes.func.isRequired,
     values: PropTypes.object.isRequired
@@ -53,23 +53,23 @@ export class AccelerationAdvanced extends Component {
     activeTab: null
   }
 
-  initialLayouts = null;
+  initialReflections = null;
 
   constructor(props) {
     super(props);
 
-    this.initialLayouts = Immutable.fromJS({
-      aggregationLayouts: this.props.values.aggregationLayouts,
-      rawLayouts: this.props.values.rawLayouts
+    this.initialReflections = Immutable.fromJS({
+      aggregationReflections: this.props.values.aggregationReflections,
+      rawReflections: this.props.values.rawReflections
     });
   }
 
   componentWillReceiveProps(nextProps) {
     const { values, updateFormDirtyState } = nextProps;
-    const aggregationLayouts = Immutable.fromJS(values.aggregationLayouts);
-    const rawLayouts = Immutable.fromJS(values.rawLayouts);
+    const aggregationReflections = Immutable.fromJS(values.aggregationReflections);
+    const rawReflections = Immutable.fromJS(values.rawReflections);
 
-    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts));
+    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections));
   }
 
   getActiveTab() {
@@ -78,41 +78,39 @@ export class AccelerationAdvanced extends Component {
     const {layoutId} = (this.props.location.state || {});
     if (!layoutId) return 'RAW';
 
-    const found = this.props.acceleration.getIn([
-      'aggregationLayouts', 'layoutList'
-    ]).some(layout => layout.get('id') === layoutId);
+    const found = this.props.values.aggregationReflections.some(reflection => reflection.id === layoutId);
 
     return found ? 'AGGREGATION' : 'RAW';
   }
 
-  areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts) {
+  areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections) {
     // tracks field's dirty state because of issue in redux-form
     // we need to check dirty state differently since currently we handle array fields at 1 level deep
     // because of fields data come in random order we need to sort them to check dirty state,
-    // only exception is sortFieldList in this case we need to keep order
+    // only exception is sortFields in this case we need to keep order
     const sortByName = (arr) => arr.sortBy((value) => value.get('name'));
     const areEnabledFieldEqual = (layoutGroup, layoutName) => {
-      return layoutGroup.get('enabled') === this.initialLayouts.getIn([layoutName, 'enabled']);
+      return layoutGroup.get('enabled') === this.initialReflections.getIn([layoutName, 'enabled']);
     };
 
-    if (!areEnabledFieldEqual(aggregationLayouts, 'aggregationLayouts')
-      || !areEnabledFieldEqual(rawLayouts, 'rawLayouts')) {
+    if (!areEnabledFieldEqual(aggregationReflections, 'aggregationReflections')
+      || !areEnabledFieldEqual(rawReflections, 'rawReflections')) {
       return false;
     }
 
     const areLayoutListEqual = (layoutList, layoutListName) => {
       return !layoutList.some((layoutListValue, i) => {
-        if (!this.initialLayouts.getIn([layoutListName, 'layoutList', i])) return true;
+        if (!this.initialReflections.getIn([layoutListName, i])) return true;
 
-        const currentLayoutDetails = layoutListValue.get('details');
-        const initialLayoutDetails = this.initialLayouts.getIn([layoutListName, 'layoutList', i, 'details']);
+        const currentLayoutDetails = layoutListValue;
+        const initialLayoutDetails = this.initialReflections.getIn([layoutListName, i]);
 
         return currentLayoutDetails.some((layoutDetails, layoutDetailsName) => {
           if (!Immutable.Iterable.isIterable(layoutDetails)) {
             return layoutDetails !== initialLayoutDetails.get(layoutDetailsName);
           }
 
-          if (layoutDetailsName === 'sortFieldList') {
+          if (layoutDetailsName === 'sortFields') {
             return !layoutDetails.equals(initialLayoutDetails.get(layoutDetailsName));
           }
 
@@ -121,15 +119,15 @@ export class AccelerationAdvanced extends Component {
       });
     };
 
-    return areLayoutListEqual(aggregationLayouts.get('layoutList'), 'aggregationLayouts')
-      && areLayoutListEqual(rawLayouts.get('layoutList'), 'rawLayouts');
+    return areLayoutListEqual(aggregationReflections, 'aggregationReflections')
+      && areLayoutListEqual(rawReflections, 'rawReflections');
   }
 
   renderTableQueries() {
-    const { fields, acceleration } = this.props;
+    const { fields, reflections, dataset } = this.props;
     return this.getActiveTab() === 'AGGREGATION'
-      ? <AccelerationAggregation acceleration={acceleration} fields={fields}/>
-      : <AccelerationRaw acceleration={acceleration} fields={fields}/>;
+      ? <AccelerationAggregation reflections={reflections} dataset={dataset} fields={fields}/>
+      : <AccelerationRaw reflections={reflections} dataset={dataset} fields={fields}/>;
   }
 
   render() {

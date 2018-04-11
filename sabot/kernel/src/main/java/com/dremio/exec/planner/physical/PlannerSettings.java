@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,14 @@ package com.dremio.exec.planner.physical;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.dremio.exec.server.ClusterResourceInformation;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.plan.Context;
-import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.util.CancelFlag;
 
+import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.CachingOptionManager;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValidator;
@@ -99,6 +98,9 @@ public class PlannerSettings implements Context{
   public static final RangeLongValidator LEAF_LIMIT_SIZE  = new RangeLongValidator("planner.leaf_limit_size", 1, Long.MAX_VALUE, 10000);
   public static final RangeLongValidator LEAF_LIMIT_MAX_WIDTH  = new RangeLongValidator("planner.leaf_limit_width", 1, Long.MAX_VALUE, 10);
 
+  public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
+  public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
+
   public static final OptionValidator STORE_QUERY_RESULTS = new QueryLevelOptionValidation(new BooleanValidator("planner.store_query_results", false));
   public static final OptionValidator QUERY_RESULTS_STORE_TABLE = new QueryLevelOptionValidation(new StringValidator("planner.query_results_store_path", "null"));
 
@@ -121,20 +123,37 @@ public class PlannerSettings implements Context{
 
   public static final LongValidator RING_COUNT = new TypeValidators.PowerOfTwoLongValidator("planner.ring_count", 4096, 64);
 
+  public static final BooleanValidator WRITER_TEMP_FILE = new BooleanValidator("planner.writer_temp_file", true);
+
+  /**
+   * Controls whether to use the cached prepared statement handles more than once. Setting it to false will remove the
+   * handle when it is used the first time before it expires. Setting it to true will reuse the handle as many times as
+   * it can before it expires.
+   */
+  public static final BooleanValidator REUSE_PREPARE_HANDLES = new BooleanValidator("planner.reuse_prepare_statement_handles", false);
+
   public static final BooleanValidator VERBOSE_PROFILE = new BooleanValidator("planner.verbose_profile", false);
 
-  public OptionManager options = null;
-  public FunctionImplementationRegistry functionImplementationRegistry = null;
-  private CalciteCatalogReader catalog;
+  public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR =
+      new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor", 0.0, 1.0, 0.0d);
+  public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
+      new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, 1.0d);
+
+  private final SabotConfig sabotConfig;
+  public final OptionManager options;
   private final ClusterResourceInformation clusterInfo;
 
   // This flag is used by AbstractRelOptPlanner to set it's "cancelFlag".
   private final CancelFlag cancelFlag = new CancelFlag(new AtomicBoolean());
 
-  public PlannerSettings(OptionManager options, FunctionImplementationRegistry functionImplementationRegistry, ClusterResourceInformation clusterInfo){
+  public PlannerSettings(SabotConfig config, OptionManager options, ClusterResourceInformation clusterInfo){
+    this.sabotConfig = config;
     this.options = new CachingOptionManager(options);
-    this.functionImplementationRegistry = functionImplementationRegistry;
     this.clusterInfo = clusterInfo;
+  }
+
+  public SabotConfig getSabotConfig() {
+    return sabotConfig;
   }
 
   public OptionManager getOptions() {
@@ -201,20 +220,12 @@ public class PlannerSettings implements Context{
     this.useDefaultCosting = defcost;
   }
 
-  public void setCatalog(final CalciteCatalogReader catalog) {
-    this.catalog = catalog;
-  }
-
   public long getNumCoresPerExecutor() {
     if (clusterInfo != null) {
       return clusterInfo.getAverageExecutorCores(options);
     } else {
       throw new UnsupportedOperationException("Cluster Resource Information is needed to get average number of cores in executor");
     }
-  }
-
-  public CalciteCatalogReader getCatalog() {
-    return catalog;
   }
 
   public boolean isHashAggEnabled() {
@@ -305,6 +316,14 @@ public class PlannerSettings implements Context{
     return options.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL).string_val;
   }
 
+  public double getFilterMinSelectivityEstimateFactor() {
+    return options.getOption(FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR);
+  }
+
+  public double getFilterMaxSelectivityEstimateFactor(){
+    return options.getOption(FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR);
+  }
+
   public long getIdentifierMaxLength(){
     return options.getOption(IDENTIFIER_MAX_LENGTH.getOptionName()).num_val;
   }
@@ -339,8 +358,8 @@ public class PlannerSettings implements Context{
       return (T) this;
     } else if(clazz == CalciteConnectionConfig.class){
       return (T) config;
-    } else if (CalciteCatalogReader.class.isAssignableFrom(clazz)) {
-      return clazz.cast(catalog);
+    } if (clazz == SabotConfig.class) {
+      return (T) sabotConfig;
     } else if (CancelFlag.class.isAssignableFrom(clazz)) {
       return clazz.cast(cancelFlag);
     }

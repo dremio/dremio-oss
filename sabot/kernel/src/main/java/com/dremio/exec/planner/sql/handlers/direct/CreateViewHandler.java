@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,44 +21,34 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
-import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.ParserConfig;
-import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
-import com.dremio.exec.store.AbstractSchema;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
+import com.dremio.service.namespace.NamespaceKey;
 
 public class CreateViewHandler extends SimpleDirectHandler {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateViewHandler.class);
 
   private final SqlHandlerConfig config;
-  private final QueryContext context;
-  private final boolean systemUser;
 
 
-  public CreateViewHandler(SqlHandlerConfig config, boolean systemUser) {
-    super();
+  public CreateViewHandler(SqlHandlerConfig config) {
     this.config = config;
-    this.context = config.getContext();
-    this.systemUser = systemUser;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
       SqlCreateView createView = SqlNodeUtil.unwrap(sqlNode, SqlCreateView.class);
-
       final String newViewName = createView.getName();
 
       // Store the viewSql as view def SqlNode is modified as part of the resolving the new table definition below.
@@ -66,23 +56,21 @@ public class CreateViewHandler extends SimpleDirectHandler {
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, createView.getQuery());
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-
       final RelNode newViewRelNode = SqlHandlerUtil.resolveNewTableRel(true, createView.getFieldNames(), validatedRowType, queryRelNode);
+      NamespaceKey viewPath = config.getContext().getCatalog().resolveSingle(createView.getPath());
+      NamespaceKey defaultSchema = config.getContext().getCatalog().getDefaultSchema();
 
-      final SchemaPlus defaultSchema = context.getNewDefaultSchema();
-      final AbstractSchema schemaInstance = SchemaUtilities.resolveToMutableSchemaInstance(defaultSchema, createView.getSchemaPath(), systemUser, MutationType.VIEW);
+      final DremioTable existingTable = config.getConverter().getCatalogReader().getCatalog().getTableNoResolve(viewPath);
+      List<String> viewContext = defaultSchema == null ? null : defaultSchema.getPathComponents();
 
-      final String schemaPath = schemaInstance.getFullSchemaName();
-      final View view = new View(newViewName, viewSql, newViewRelNode.getRowType(), SchemaUtilities.getSchemaPathAsList(defaultSchema));
-
-      final Table existingTable = SqlHandlerUtil.getTableFromSchema(schemaInstance, newViewName);
+      final View view = new View(newViewName, viewSql, newViewRelNode.getRowType(), viewContext);
 
       if (existingTable != null) {
         if (existingTable.getJdbcTableType() != Schema.TableType.VIEW) {
           // existing table is not a view
           throw UserException.validationError()
               .message("A non-view table with given name [%s] already exists in schema [%s]",
-                  newViewName, schemaPath
+                  newViewName, viewPath.getParent()
               )
               .build(logger);
         }
@@ -91,14 +79,15 @@ public class CreateViewHandler extends SimpleDirectHandler {
           // existing table is a view and create view has no "REPLACE" clause
           throw UserException.validationError()
               .message("A view with given name [%s] already exists in schema [%s]",
-                  newViewName, schemaPath
+                  newViewName, viewPath.getParent()
               )
               .build(logger);
         }
       }
 
-      final boolean replaced = schemaInstance.createView(view);
-      return Collections.singletonList(SimpleCommandResult.successful("View '%s' %s successfully in '%s' schema",
-          createView.getName(), replaced ? "replaced" : "created", schemaPath));
+
+      final boolean replaced = config.getContext().getCatalog().createView(viewPath, view);
+      return Collections.singletonList(SimpleCommandResult.successful("View '%s' %s successfully",
+          viewPath, replaced ? "replaced" : "created"));
   }
 }

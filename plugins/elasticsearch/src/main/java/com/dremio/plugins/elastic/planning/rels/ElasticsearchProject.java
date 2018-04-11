@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import org.apache.calcite.rex.RexNode;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -46,11 +47,10 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
-import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.planning.rules.ProjectAnalyzer;
 import com.dremio.plugins.elastic.planning.rules.SchemaField;
-import com.dremio.service.namespace.StoragePluginId;
 
 public class ElasticsearchProject extends ProjectRelBase implements ElasticsearchPrel {
 
@@ -64,13 +64,13 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     super(Prel.PHYSICAL, cluster, traits, input, projects, rowType);
     this.needsScript = !MoreRelOptUtil.isSimpleColumnSelection(this);
     this.pluginId = pluginId;
-    this.scriptsEnabled =  pluginId.<ElasticsearchStoragePluginConfig>getConfig().isEnableScripts();
+    this.scriptsEnabled =  pluginId.<ElasticStoragePluginConfig>getConnectionConf().scriptsEnabled;
   }
 
   public boolean canPushdown(ElasticIntermediateScanPrel scan, FunctionLookupContext functionLookupContext, Set<ElasticSpecialType> disallowedSpecialTypes){
-    ElasticsearchStoragePluginConfig config = scan.getPluginId().getConfig();
-    final boolean scriptsEnabled = config.isEnableScripts();
-    final boolean painlessAllowed = config.isEnablePainless();
+    ElasticStoragePluginConfig config = scan.getPluginId().getConnectionConf();
+    final boolean scriptsEnabled = config.scriptsEnabled;
+    final boolean painlessAllowed = config.usePainless;
     final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
     for (RexNode originalExpression : getProjects()) {
       try {

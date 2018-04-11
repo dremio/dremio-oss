@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,8 +45,8 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
   @Test
   public void runNoExchangeFragment() throws Exception {
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
+         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+         final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
     // run query.
     bit.run();
@@ -107,7 +107,7 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
   @Test
   public void runJSONScanPopFragment() throws Exception {
     try (final ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+         final SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
          final DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       // run query.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,137 +18,75 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 
-import {
-  loadAccelerationById,
-  createEmptyAcceleration,
-  updateAcceleration,
-  deleteAcceleration
-} from 'actions/resources/acceleration';
-import { resetViewState, loadEntities } from 'actions/resources';
-import { getViewState, getEntity } from 'selectors/resources';
+import reflectionActions from 'actions/resources/reflection';
+import { getViewState } from 'selectors/resources';
 // import * as schemas from 'schemas';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import { overlay } from 'uiTheme/radium/overlay';
+// import ApiUtils from 'utils/apiUtils/apiUtils';
+//import { overlay } from 'uiTheme/radium/overlay';
+import { loadDataset } from 'actions/resources/dataset';
 import ViewStateWrapper from '../ViewStateWrapper';
-import Spinner from '../Spinner';
 import AccelerationForm from './AccelerationForm';
 
 const VIEW_ID = 'AccelerationModal';
 
 export class AccelerationController extends Component {
   static propTypes = {
-    entity: PropTypes.instanceOf(Immutable.Map), // optional, used as fallback to determine accelerationId and create an Acceleration on demand
-    loadAccelerationById: PropTypes.func.isRequired,
-    createEmptyAcceleration: PropTypes.func.isRequired,
-    updateAcceleration: PropTypes.func,
-    deleteAcceleration: PropTypes.func,
+    datasetId: PropTypes.string, // populated except during teardown
+    dataset: PropTypes.instanceOf(Immutable.Map),
+    reflections: PropTypes.instanceOf(Immutable.Map),
+
+    getReflections: PropTypes.func.isRequired,
+    getDataset: PropTypes.func.isRequired,
+
     onCancel: PropTypes.func,
     onDone: PropTypes.func,
-    accelerationId: PropTypes.string, // populated directly or by mapStateToProps (except during teardown)
-    acceleration: PropTypes.instanceOf(Immutable.Map),
     viewState: PropTypes.instanceOf(Immutable.Map),
     resetViewState: PropTypes.func,
-    updateFormDirtyState: PropTypes.func,
-    loadEntities: PropTypes.func
+    updateFormDirtyState: PropTypes.func
   };
 
-  pollId = 0; // eslint-disable-line react/sort-comp
+  state = {
+    getComplete: false // need to track ourselves because viewState initial state looks the same as loaded-success
+  }
 
   componentWillMount() {
-    const { entity } = this.props;
-    if (entity) {
-      // at this point we can't tell if an Acceleration exists or not, so let's try to create one
-      // - if it succeeds then that's great, we then will try to load it
-      // - if it fails it means one exists, so we will then go try to load it
-
-      this.props.createEmptyAcceleration(entity, VIEW_ID).then(response => {
-        this.startPollingAccelerationDataWhileNew();
-      });
-    } else {
-      this.startPollingAccelerationDataWhileNew();
-    }
+    return this.props.getReflections(
+      {viewId: VIEW_ID},
+      { path: `dataset/${encodeURIComponent(this.props.datasetId)}/reflection` }
+    ).then((response) => {
+      if (response.payload instanceof Error) return;
+      return this.props.getDataset(this.props.datasetId, VIEW_ID);
+    }).then(() => this.setState({getComplete: true}));
   }
 
-  componentWillUnmount() {
-    this.stopPollingAccelerationData();
-  }
-
-  loadAcceleration = () => {
-    return this.props.loadAccelerationById(this.props.accelerationId, VIEW_ID);
-  }
-
-  getAccelerationVersion(props) {
-    const version = props.acceleration.get('version');
-    // fix for DX-6379 incorrect Configuration Modified message on every initial acceleration
-    // Skip showing conflict when version changed from 0 to 1 during create acceleration
-    return version ? version : undefined;
-  }
-
-  submit = (values) => {
-    return ApiUtils.attachFormSubmitHandlers(
-      this.props.updateAcceleration(values, this.props.acceleration.getIn(['id', 'id']))
-    ).then(() => {
-      this.props.onDone(null, true);
-    });
-  }
-
-  /*
-   * Polling
-   */
-
-  startPollingAccelerationDataWhileNew() {
-    this.stopPollingAccelerationData();
-    this.pollAccelerationData();
-  }
-
-  stopPollingAccelerationData() {
-    clearTimeout(this.pollId);
-    this.pollId = 0;
-  }
-
-  pollAccelerationData = () => {
-    return this.loadAcceleration().then((response) => {
-      if (!response.error) {
-        const result = ApiUtils.getEntityFromResponse('acceleration', response);
-        this.stopPollingAccelerationData();
-        if (result && result.get('state') === 'NEW') {
-          this.pollId = setTimeout(this.pollAccelerationData, 1000);
-        }
-      }
-    });
+  handleSubmitSuccess = (values) => {
+    this.props.onDone(null, true);
+    // future: stay open with refresh (is that even needed?), OR close (user option)
   }
 
   renderContent() {
-    const { acceleration } = this.props;
+    const { viewState, reflections, dataset } = this.props;
 
-    if (!acceleration || acceleration.get('state') === 'NEW') {
-      return null;
+    if (!this.state.getComplete || viewState.get('isFailed')) {
+      return null; // AccelerationForm expects to only be created after data is ready
     }
 
+    if (!dataset || !reflections) return null; // teardown guard
+
     return <AccelerationForm
-      getConflictedValues={this.getAccelerationVersion}
       updateFormDirtyState={this.props.updateFormDirtyState}
-      deleteAcceleration={this.props.deleteAcceleration}
       onCancel={this.props.onCancel}
-      submit={this.submit}
-      acceleration={acceleration}
+      onSubmitSuccess={this.handleSubmitSuccess}
+      dataset={dataset}
+      reflections={reflections}
     />;
   }
 
   render() {
-    const { acceleration, viewState } = this.props;
-
-    // show descriptive spinner first to avoid flashing while polling (but let isFailed trump)
-    if (acceleration && acceleration.get('state') === 'NEW' && !viewState.get('isFailed')) {
-      return <div style={overlay} className='view-state-wrapper-overlay'>
-        <div>
-          <Spinner message={la('Determining Automatic Reflections…')} />
-        </div>
-      </div>;
-    }
+    const { viewState } = this.props;
 
     return (
-      <ViewStateWrapper viewState={this.props.viewState} hideChildrenWhenInProgress>
+      <ViewStateWrapper viewState={viewState}>
         {this.renderContent()}
       </ViewStateWrapper>
     );
@@ -156,27 +94,30 @@ export class AccelerationController extends Component {
 }
 
 function mapStateToProps(state, ownProps) {
-  let { accelerationId, entity } = ownProps;
-  if (!accelerationId && entity) {
-    const entityId = entity.get('id');
+  const reflections = state.resources.entities.get('reflection') ? state.resources.entities.get('reflection').filter(reflection => {
+    return reflection.get('datasetId') === ownProps.datasetId;
+  }) : new Immutable.Map();
 
-    accelerationId = entityId; // the id is defined to be the same as the dataset id
+  const dataset = state.resources.entities.get('dataset') && state.resources.entities.get('dataset').get(ownProps.datasetId);
+
+  let viewState = getViewState(state, VIEW_ID);
+  if (typeof dataset !== 'undefined' && !dataset.has('fields')) {
+    viewState = Immutable.fromJS({
+      isFailed: true,
+      error: {
+        message: la('Dataset missing schema information.')
+      }
+    });
   }
-  const acceleration = getEntity(state, accelerationId, 'acceleration');
 
   return {
-    // TODO: will add selector
-    acceleration,
-    accelerationId,
-    viewState: getViewState(state, VIEW_ID)
+    reflections,
+    dataset,
+    viewState
   };
 }
 
 export default connect(mapStateToProps, {
-  loadAccelerationById,
-  createEmptyAcceleration,
-  updateAcceleration,
-  deleteAcceleration,
-  resetViewState,
-  loadEntities
+  getReflections: reflectionActions.getList.dispatch,
+  getDataset: loadDataset
 })(AccelerationController);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec.context;
 
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.Iterator;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -52,18 +53,19 @@ public class OperatorStats {
   public long[] batchesReceivedByInput;
   public long[] sizeInBytesReceivedByInput;
 
+  enum State {
+    NONE,
+    SETUP,
+    PROCESSING,
+    WAIT;
 
-  private boolean inProcessing = false;
-  private boolean inSetup = false;
-  private boolean inWait = false;
+    private static final int Size = State.values().length;
+  }
+  private State currentState = State.NONE;
+  private State savedState = State.NONE;
 
-  protected long processingNanos;
-  protected long setupNanos;
-  protected long waitNanos;
-
-  private long processingMark;
-  private long setupMark;
-  private long waitMark;
+  private long[] stateNanos = new long[State.Size];
+  private long[] stateMark = new long[State.Size];
 
   private long schemas;
   private int inputCount;
@@ -83,13 +85,10 @@ public class OperatorStats {
     this(original.operatorId, original.operatorType, original.inputCount, original.allocator);
 
     if ( !isClean ) {
-      inProcessing = original.inProcessing;
-      inSetup = original.inSetup;
-      inWait = original.inWait;
+      currentState = original.currentState;
+      savedState = original.savedState;
 
-      processingMark = original.processingMark;
-      setupMark = original.setupMark;
-      waitMark = original.waitMark;
+      System.arraycopy(original.stateMark, 0, stateMark, 0, State.Size);
     }
   }
 
@@ -113,7 +112,7 @@ public class OperatorStats {
   }
 
   private String assertionError(String msg){
-    return String.format("Failure while %s for operator id %d. Currently have states of processing:%s, setup:%s, waiting:%s.", msg, operatorId, inProcessing, inSetup, inWait);
+    return String.format("Failure while %s for operator id %d. Currently have currentState:%s savedState:%s", msg, operatorId, currentState.name(), savedState.name());
   }
   /**
    * OperatorStats merger - to merge stats from other OperatorStats
@@ -146,53 +145,61 @@ public class OperatorStats {
    * Clear stats
    */
   public void clear() {
-    processingNanos = 0l;
-    setupNanos = 0l;
-    waitNanos = 0l;
+    Arrays.fill(stateNanos, 01);
     longMetrics.clear();
     doubleMetrics.clear();
   }
 
+  private void startState(State nextState) {
+    if (nextState != State.NONE) {
+      stateMark[nextState.ordinal()] = System.nanoTime();
+    }
+    currentState = nextState;
+  }
+
+  private void stopState() {
+    if (currentState != State.NONE) {
+      int idx = currentState.ordinal();
+      stateNanos[idx] += System.nanoTime() - stateMark[idx];
+      currentState = State.NONE;
+    }
+  }
+
   public void startSetup() {
-    assert !inSetup  : assertionError("starting setup");
-    stopProcessing();
-    inSetup = true;
-    setupMark = System.nanoTime();
+    assert currentState == State.PROCESSING : assertionError("starting setup");
+    stopState();
+    startState(State.SETUP);
   }
 
   public void stopSetup() {
-    assert inSetup :  assertionError("stopping setup");
-    inSetup = false;
-    startProcessing();
-    setupNanos += System.nanoTime() - setupMark;
+    assert currentState == State.SETUP :  assertionError("stopping setup");
+    stopState();
+    startState(State.PROCESSING);
   }
 
   public void startProcessing() {
-    assert !inProcessing : assertionError("starting processing");
-    assert !inSetup : assertionError("starting processing inside a setup block");
-    assert !inWait : assertionError("starting processing inside a wait block");
-    processingMark = System.nanoTime();
-    inProcessing = true;
+    assert currentState == State.NONE :  assertionError("starting processing");
+    startState(State.PROCESSING);
   }
 
   public void stopProcessing() {
-    assert inProcessing : assertionError("stopping processing");
-    processingNanos += System.nanoTime() - processingMark;
-    inProcessing = false;
+    assert currentState == State.PROCESSING : assertionError("stopping processing");
+    stopState();
   }
 
   public void startWait() {
-    assert !inWait : assertionError("starting waiting");
-    stopProcessing();
-    inWait = true;
-    waitMark = System.nanoTime();
+    assert currentState != State.WAIT : assertionError("starting waiting");
+    savedState = currentState;
+    stopState();
+    startState(State.WAIT);
   }
 
   public void stopWait() {
-    assert inWait : assertionError("stopping waiting");
-    inWait = false;
-    startProcessing();
-    waitNanos += System.nanoTime() - waitMark;
+    assert currentState == State.WAIT : assertionError("stopping waiting");
+    stopState();
+    // revert to the saved state
+    startState(savedState);
+    savedState = State.NONE;
   }
 
   public void batchReceived(int inputIndex, long records, long size) {
@@ -206,9 +213,9 @@ public class OperatorStats {
         .newBuilder() //
         .setOperatorType(operatorType) //
         .setOperatorId(operatorId) //
-        .setSetupNanos(setupNanos) //
-        .setProcessNanos(processingNanos)
-        .setWaitNanos(waitNanos);
+        .setSetupNanos(getSetupNanos()) //
+        .setProcessNanos(getProcessingNanos())
+        .setWaitNanos(getWaitNanos());
 
     if(allocator != null){
       b.setPeakLocalMemoryAllocated(allocator.getPeakMemoryAllocation());
@@ -296,8 +303,20 @@ public class OperatorStats {
     doubleMetrics.put(metric.metricId(), value);
   }
 
+  private long getNanos(State state) {
+    return stateNanos[state.ordinal()];
+  }
+
+  public long getSetupNanos() {
+    return getNanos(State.SETUP);
+  }
+
+  public long getProcessingNanos() {
+    return getNanos(State.PROCESSING);
+  }
+
   public long getWaitNanos() {
-    return waitNanos;
+    return getNanos(State.WAIT);
   }
 
   /**
@@ -305,11 +324,7 @@ public class OperatorStats {
    * @param waitNanosOffset - could be negative as well as positive
    */
   public void adjustWaitNanos(long waitNanosOffset) {
-    this.waitNanos += waitNanosOffset;
-  }
-
-  public long getProcessingNanos() {
-    return processingNanos;
+    this.stateNanos[State.WAIT.ordinal()] += waitNanosOffset;
   }
 
   @Override
@@ -322,8 +337,8 @@ public class OperatorStats {
     outputTable.addRow(String.format("Metrics for operator %s", CoreOperatorType.values()[operatorType], operatorId), String.format("id: %d.", operatorId));
     outputTable.addRule();
     outputTable.addRow("metric", "value");
-    outputTable.addRow("Setup time", NumberFormat.getInstance().format(setupNanos) + " ns");
-    outputTable.addRow("Processing time", NumberFormat.getInstance().format(processingNanos) + " ns");
+    outputTable.addRow("Setup time", NumberFormat.getInstance().format(getSetupNanos()) + " ns");
+    outputTable.addRow("Processing time", NumberFormat.getInstance().format(getProcessingNanos()) + " ns");
 
     for(int i =0; i < inputCount; i++){
       outputTable.addRow(String.format("Input[%d] Records", i) , NumberFormat.getInstance().format(recordsReceivedByInput[i]) + " records");

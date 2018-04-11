@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,14 @@ import javax.ws.rs.core.MediaType;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.service.accelerator.AccelerationService;
+import com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.OptionValue;
+import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.service.reflection.ReflectionOptions;
+import com.google.common.base.Preconditions;
 
 /**
  * API for setting low-level development options. Not meant to be a permanent API.
@@ -37,19 +44,20 @@ import com.dremio.service.accelerator.AccelerationService;
 @RolesAllowed({"admin", "user"})
 @Path("/development_options")
 public class DevelopmentOptionsResource {
-
-  private final AccelerationService accelerationService;
+  private ReflectionServiceHelper reflectionServiceHelper;
+  private SabotContext context;
 
   @Inject
-  public DevelopmentOptionsResource(final AccelerationService accelerationService) {
-    this.accelerationService = accelerationService;
+  public DevelopmentOptionsResource(ReflectionServiceHelper reflectionServiceHelper, SabotContext context) {
+    this.reflectionServiceHelper = reflectionServiceHelper;
+    this.context = context;
   }
 
   @GET
   @Path("/acceleration/enabled")
   @Produces(MediaType.APPLICATION_JSON)
   public String isGlobalAccelerationEnabled() {
-    return Boolean.toString(accelerationService.developerService().isQueryAccelerationEnabled());
+    return Boolean.toString(reflectionServiceHelper.isSubstitutionEnabled());
   }
 
   @PUT
@@ -58,32 +66,46 @@ public class DevelopmentOptionsResource {
   @Produces(MediaType.APPLICATION_JSON)
   public String setAccelerationEnabled(/* Body */String body) {
     boolean enabled = Boolean.valueOf(body);
-    accelerationService.developerService().enableQueryAcceleration(enabled);
-
+    reflectionServiceHelper.setSubstitutionEnabled(enabled);
     return body;
-  }
-
-  @GET
-  @Path("/acceleration/graph")
-  public String getDependencyGraph() {
-    return accelerationService.developerService().getDependencyGraph().toString();
-  }
-
-  @POST
-  @Path("/acceleration/build")
-  public void triggerAccelerationNewBuild() {
-    accelerationService.developerService().triggerAccelerationBuild();
-  }
-
-  @POST
-  @Path("/acceleration/compact")
-  public void triggerAccelerationCompaction() {
-    accelerationService.developerService().triggerCompaction();
   }
 
   @POST
   @Path("/acceleration/clearall")
   public void clearMaterializations() {
-    accelerationService.developerService().clearAllAccelerations();
+    reflectionServiceHelper.clearAllReflections();
+  }
+
+  @GET
+  @Path("/acceleration/settings")
+  @Produces(MediaType.APPLICATION_JSON)
+  public SystemSettingsApiDescriptor getSystemSettings() {
+    SystemOptionManager optionManager = context.getOptionManager();
+    return new SystemSettingsApiDescriptor()
+      .setLimit((int) optionManager.getOption(ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS))
+      .setAccelerateAggregation(optionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS))
+      .setAccelerateRaw(optionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS))
+      .setLayoutRefreshMaxAttempts((int) optionManager.getOption(ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS));
+  }
+
+
+  @PUT
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  @Path("/acceleration/settings")
+  public void saveSystemSettings(final SystemSettingsApiDescriptor descriptor) {
+    Preconditions.checkArgument(descriptor.getLimit() != null, "limit is required");
+    Preconditions.checkArgument(descriptor.getLimit() > 0, "limit must be positive");
+    Preconditions.checkArgument(descriptor.getAccelerateAggregation() != null, "accelerateAggregation is required");
+    Preconditions.checkArgument(descriptor.getAccelerateRaw() != null, "accelerateRaw is required");
+
+    SystemOptionManager optionManager = context.getOptionManager();
+
+    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS.getOptionName(), descriptor.getLimit()));
+    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS.getOptionName(), descriptor.getAccelerateAggregation()));
+    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS.getOptionName(), descriptor.getAccelerateRaw()));
+    if (descriptor.getLayoutRefreshMaxAttempts() != null) {
+      optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), descriptor.getLayoutRefreshMaxAttempts()));
+    }
   }
 }

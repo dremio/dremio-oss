@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import "../../../../../services/jobs/src/main/protobuf/job.proto";
 import "acceleration-common.proto";
 import "acceleration-pipeline.proto";
 import "acceleration-intent.proto";
+import "reflection-materialization.proto";
 import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
 
 option java_package = "com.dremio.service.accelerator.proto";
@@ -219,6 +220,7 @@ message ReflectionRelationship {
     optional AccelerationSettings acceleration_settings = 4;
     optional LayoutType reflection_type = 5;
     optional LayoutDescriptor reflection = 6;
+    optional bool snowflake = 7 [default = false];
 }
 
 message AccelerationDetails {

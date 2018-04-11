@@ -220,6 +220,7 @@ All rights reserved.",
 ,underscore,,,1.8.3,https://github.com/jashkenas/underscore,MIT,,,,"Copyright (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative
 Reporters & Editors",
 ,url-parse,,,1.2.0,https://github.com/unshiftio/url-parse,MIT,,,,"Copyright (c) 2015 Unshift.io, Arnout Kazemier,  the Contributors.",
+,url-search-params-polyfill,,,2.0.1,https://github.com/jerrybendy/url-search-params-polyfill,MIT,,,,Copyright (c) 2016 Jerry Bendy,
 ,uuid,,,2.0.3,https://github.com/defunctzombie/node-uuid,MIT,,,,"Copyright (c) 2010-2012 Robert Kieffer
 MIT License - http://opensource.org/licenses/mit-license.php",
 ,warning,,,3.0.0,https://github.com/BerkeleyTrue/warning,BSD-3-Clause,,,,"Copyright (c) 2013-2015, Facebook, Inc.

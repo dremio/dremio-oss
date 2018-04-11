@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,9 @@
  */
 package com.dremio.exec.sql;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.FalseFileFilter;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -29,7 +26,6 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.Collection;
 
 public class TestCTAS extends PlanTestBase {
   @Test // DRILL-2589
@@ -103,7 +99,7 @@ public class TestCTAS extends PlanTestBase {
       test(ctasQuery);
 
       errorMsgTestHelper(ctasQuery,
-          String.format("A table or view with given name [%s] already exists in schema [%s]", newTblName, TEMP_SCHEMA));
+          String.format("A table or view with given name [%s.%s] already exists", TEMP_SCHEMA, newTblName));
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }
@@ -120,8 +116,8 @@ public class TestCTAS extends PlanTestBase {
           String.format("CREATE TABLE %s.%s AS SELECT * FROM cp.`employee.json`", TEMP_SCHEMA, newTblName);
 
       errorMsgTestHelper(ctasQuery,
-          String.format("A table or view with given name [%s] already exists in schema [%s]",
-              newTblName, "dfs_test"));
+          String.format("A table or view with given name [%s.%s] already exists",
+              "dfs_test", newTblName));
     } finally {
       test(String.format("DROP VIEW %s.%s", TEMP_SCHEMA, newTblName));
     }

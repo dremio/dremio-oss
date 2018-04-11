@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,13 +33,12 @@ import com.dremio.dac.explore.model.FilterBase;
 import com.dremio.dac.explore.model.FromBase;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.model.common.Acceptor;
-import com.dremio.dac.model.sources.UnknownConfigMixIn;
 import com.dremio.dac.proto.model.dataset.Order;
 import com.dremio.dac.proto.model.dataset.TransformConvertCase;
 import com.dremio.dac.proto.model.dataset.TransformSorts;
-import com.dremio.dac.proto.model.source.UnknownConfig;
 import com.dremio.dac.server.socket.SocketMessage;
 import com.dremio.datastore.Converter;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -102,7 +101,7 @@ public class JSONUtil {
       // Turns out you can annotate generated classes using mixins!
       m.addMixIn(TransformConvertCase.class, TransformConvertCaseMixin.class);
       m.addMixIn(TransformSorts.class, TransformSortsMixin.class);
-      m.addMixIn(UnknownConfig.class, UnknownConfigMixIn.class);
+      //m.addMixIn(UnknownConfig.class, UnknownConfigMixIn.class);
       Acceptor<?, ?, ?>[] acceptors = {
           ExpressionBase.acceptor,
           ExtractListRuleBase.acceptor,
@@ -158,6 +157,7 @@ public class JSONUtil {
     registerSubtypes(mapper, LogicalOperatorBase.getSubTypes(scanResult));
     registerSubtypes(mapper, StoragePluginConfigBase.getSubTypes(scanResult));
     registerSubtypes(mapper, FormatPluginConfigBase.getSubTypes(scanResult));
+    ConnectionConf.registerSubTypes(mapper, scanResult);
     return mapper;
   }
 

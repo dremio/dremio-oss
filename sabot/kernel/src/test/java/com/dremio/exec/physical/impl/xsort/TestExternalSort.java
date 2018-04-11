@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,18 @@
  */
 package com.dremio.exec.physical.impl.xsort;
 
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionMatcher;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -27,14 +34,28 @@ import java.io.FileOutputStream;
 
 public class TestExternalSort extends BaseTestQuery {
 
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  private void attemptTestNumericTypes(String query, int record_count) throws Exception {
+    TestBuilder builder = testBuilder()
+      .sqlQuery(query)
+      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .ordered()
+      .baselineColumns("a");
+    for (int i = record_count; i >= 0;) {
+      builder.baselineValues((long) i--);
+      if (i >= 0) {
+        builder.baselineValues((double) i--);
+      }
+    }
+    builder.go();
+  }
+
   @Test
-  @Ignore("schema change")
   public void testNumericTypes() throws Exception {
+    final File table_dir = tempFolder.newFolder("numericTypes");
     final int record_count = 10000;
-    String dfs_temp = getDfsTestTmpSchemaLocation();
-    System.out.println(dfs_temp);
-    File table_dir = new File(dfs_temp, "numericTypes");
-    table_dir.mkdir();
     BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(new File(table_dir, "a.json")));
     String format = "{ a : %d }%n";
     for (int i = 0; i <= record_count; i += 2) {
@@ -47,47 +68,26 @@ public class TestExternalSort extends BaseTestQuery {
       os.write(String.format(format, (float) i).getBytes());
     }
     os.close();
-    String query = "select * from dfs_test.tmp.numericTypes order by a desc";
-    TestBuilder builder = testBuilder()
-            .sqlQuery(query)
-            .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-            .ordered()
-            .baselineColumns("a");
-    for (int i = record_count; i >= 0;) {
-      builder.baselineValues((long) i--);
-      if (i >= 0) {
-        builder.baselineValues((double) i--);
-      }
+    String query = String.format("select * from dfs_root.`%s` order by a desc", table_dir.toPath().toString());
+    // First attempt will fail with a schema change error
+    try {
+      attemptTestNumericTypes(query, record_count);
+    } catch (Exception e) {
+      UserExceptionMatcher m = new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ, "SCHEMA_CHANGE ERROR");
+      @SuppressWarnings("deprecation") // deprecated methods used below: usage matches usage in AttemptManager
+      final UserException expectedException = UserException.systemError(e).build();
+      assertTrue(m.matches(expectedException));
     }
-    builder.go();
+    // Second attempt should work, as we'd have learned the schema
+    attemptTestNumericTypes(query, record_count);
   }
 
-  @Test
-  @Ignore("schema change")
-  public void testNumericAndStringTypes() throws Exception {
-    final int record_count = 10000;
-    String dfs_temp = getDfsTestTmpSchemaLocation();
-    System.out.println(dfs_temp);
-    File table_dir = new File(dfs_temp, "numericAndStringTypes");
-    table_dir.mkdir();
-    BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(new File(table_dir, "a.json")));
-    String format = "{ a : %d }%n";
-    for (int i = 0; i <= record_count; i += 2) {
-      os.write(String.format(format, i).getBytes());
-    }
-    os.close();
-    os = new BufferedOutputStream(new FileOutputStream(new File(table_dir, "b.json")));
-    format = "{ a : \"%05d\" }%n";
-    for (int i = 1; i <= record_count; i+=2) {
-      os.write(String.format(format, i).getBytes());
-    }
-    os.close();
-    String query = "select * from dfs_test.tmp.numericAndStringTypes order by a desc";
+  private void attemptTestNumericAndStringTypes(String query, int record_count) throws Exception {
     TestBuilder builder = testBuilder()
-            .sqlQuery(query)
-            .ordered()
-            .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-            .baselineColumns("a");
+      .sqlQuery(query)
+      .ordered()
+      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .baselineColumns("a");
     // Strings come first because order by is desc
     for (int i = record_count; i >= 0;) {
       i--;
@@ -103,40 +103,32 @@ public class TestExternalSort extends BaseTestQuery {
   }
 
   @Test
-  @Ignore
-  public void testNewColumns() throws Exception {
+  public void testNumericAndStringTypes() throws Exception {
+    final File table_dir = tempFolder.newFolder("numericAndStringTypes");
     final int record_count = 10000;
-    String dfs_temp = getDfsTestTmpSchemaLocation();
-    System.out.println(dfs_temp);
-    File table_dir = new File(dfs_temp, "newColumns");
-    table_dir.mkdir();
     BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(new File(table_dir, "a.json")));
-    String format = "{ a : %d, b : %d }%n";
+    String format = "{ a : %d }%n";
     for (int i = 0; i <= record_count; i += 2) {
-      os.write(String.format(format, i, i).getBytes());
+      os.write(String.format(format, i).getBytes());
     }
     os.close();
     os = new BufferedOutputStream(new FileOutputStream(new File(table_dir, "b.json")));
-    format = "{ a : %d, c : %d }%n";
+    format = "{ a : \"%05d\" }%n";
     for (int i = 1; i <= record_count; i+=2) {
-      os.write(String.format(format, i, i).getBytes());
+      os.write(String.format(format, i).getBytes());
     }
     os.close();
-    String query = "select a, b, c from dfs_test.tmp.newColumns order by a desc";
-//    Test framework currently doesn't handle changing schema (i.e. new columns) on the client side
-    TestBuilder builder = testBuilder()
-            .sqlQuery(query)
-            .ordered()
-            .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-            .baselineColumns("a", "b", "c");
-    for (int i = record_count; i >= 0;) {
-      builder.baselineValues((long) i, (long) i--, null);
-      if (i >= 0) {
-        builder.baselineValues((long) i, null, (long) i--);
-      }
+    String query = String.format("select * from dfs_root.`%s` order by a desc", table_dir.toPath().toString());
+    // First attempt will fail with a schema change error
+    try {
+      attemptTestNumericAndStringTypes(query, record_count);
+    } catch (Exception e) {
+      UserExceptionMatcher m = new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ, "SCHEMA_CHANGE ERROR");
+      @SuppressWarnings("deprecation") // deprecated methods used below: usage matches usage in AttemptManager
+      final UserException expectedException = UserException.systemError(e).build();
+      assertTrue(m.matches(expectedException));
     }
-    builder.go();
-    String newQuery = "select * from dfs_test.tmp.newColumns order by a desc";
-    test(newQuery);
+    // Second attempt should work, as we'd have learned the schema
+    attemptTestNumericAndStringTypes(query, record_count);
   }
 }

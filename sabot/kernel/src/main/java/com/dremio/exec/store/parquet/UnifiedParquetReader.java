@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -455,11 +455,16 @@ public class UnifiedParquetReader implements RecordReader {
       @Override
       public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
         final ParquetMetadata footer = unifiedReader.getFooter();
-        long counter = 0;
-        for(final BlockMetaData rowGroup : footer.getBlocks()) {
-          counter += rowGroup.getRowCount();
+        final List<BlockMetaData> blocks = footer.getBlocks();
+        final int rowGroupIdx = unifiedReader.readEntry.getRowGroupIndex();
+        if (blocks.size() <= rowGroupIdx) {
+          throw new IllegalArgumentException(
+              String.format("Invalid rowgroup index in read entry. Given '%d', Max '%d'", rowGroupIdx, blocks.size())
+          );
         }
-        final long rowCount = counter;
+
+        final long rowCount = blocks.get(rowGroupIdx).getRowCount();
+
         final RecordReader reader = new AbstractRecordReader(unifiedReader.context, Collections.<SchemaPath>emptyList()) {
           private long remainingRowCount = rowCount;
 

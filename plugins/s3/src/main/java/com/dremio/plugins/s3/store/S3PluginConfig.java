@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,99 +20,121 @@ import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
+
+import javax.inject.Provider;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.exec.store.dfs.FileSystemConfig;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.Secret;
+import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Maps;
+
+import io.protostuff.Tag;
 
 /**
- * S3 FileSystem plugin config
+ * Connection Configuration for S3.
  */
-@JsonTypeName(S3PluginConfig.NAME)
-public class S3PluginConfig extends FileSystemConfig {
+@SourceType("S3")
+public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
+
   private static final Logger logger = LoggerFactory.getLogger(S3PluginConfig.class);
-
-  public static final String NAME = "s3";
-
   /**
    * Controls how many parallel connections HttpClient spawns.
    * Hadoop configuration property {@link org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
    */
-  public static final int DEFAULT_MAX_CONNECTIONS = 100;
+  public static final int DEFAULT_MAX_CONNECTIONS = 1000;
   public static final String EXTERNAL_BUCKETS = "dremio.s3.external.buckets";
 
-  /**
-   * Instantiate config object with given S3 plugin configs.
-   * @param accessKey S3 access key.
-   * @param accessSecret S3 access secret.
-   * @param secure Is SSL enabled in connections to S3.
-   * @param externalBuckets List of external buckets apart from the buckets owned by the account with given credentials.
-   * @param properties Optional property map.
-   * @param formats Map of supported (format name, format config) entries.
-   */
-  public S3PluginConfig(String accessKey, String accessSecret, boolean secure, List<String> externalBuckets,
-      Map<String, String> properties, Map<String, FormatPluginConfig> formats) {
-    super(null, "/", getConfig(
-        accessKey,
-        accessSecret,
-        secure,
-        externalBuckets,
-        properties),
-        formats,
-        false /* S3 doesn't support impersonation */,
-        SchemaMutability.NONE);
+  //  optional string access_key = 1;
+  //  optional string access_secret = 2;
+  //  optional bool secure = 3;
+  //  repeated string external_bucket = 4;
+  //  repeated Property property = 5;
+
+  @Tag(1)
+  public String accessKey;
+
+  @Tag(2)
+  @Secret
+  public String accessSecret;
+
+  @Tag(3)
+  public boolean secure;
+
+  @JsonProperty("externalBucketList")
+  @Tag(4)
+  public List<String> externalBuckets;
+
+  @JsonProperty("propertyList")
+  @Tag(5)
+  public List<Property> properties;
+
+  @Override
+  public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new S3StoragePlugin(this, context, name, pluginIdProvider);
   }
 
-  @JsonCreator
-  public S3PluginConfig(
-      @JsonProperty("connection") String connection,
-      @JsonProperty("config") Map<String, String> config,
-      @JsonProperty("formats") Map<String, FormatPluginConfig> formats) {
-    super(connection, "/", config, formats, false /* S3 doesn't support impersonation */,
-        SchemaMutability.NONE);
+  @Override
+  public Path getPath() {
+    return new Path("/");
   }
 
-  /**
-   * Helper method to get configuration for S3 implementation of {@link FileSystem} from
-   * given S3 access credentials and property list.
-   */
-  private static Map<String, String> getConfig(final String accessKey, final String accessSecret,
-      final boolean secure, List<String> externalBuckets, final Map<String, String> properties) {
-    final Map<String, String> finalProperties = Maps.newHashMap();
-    finalProperties.put(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///");
-    finalProperties.put("fs.dremioS3.impl", S3FileSystem.class.getName());
-    finalProperties.put(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS));
+  @Override
+  public boolean isImpersonationEnabled() {
+    return false;
+  }
+
+  @Override
+  public String getConnection() {
+    return "dremioS3:///";
+  }
+
+  @Override
+  public SchemaMutability getSchemaMutability() {
+    return SchemaMutability.NONE;
+  }
+
+  @Override
+  public List<Property> getProperties() {
+    final List<Property> finalProperties = new ArrayList<>();
+    finalProperties.add(new Property(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
+    finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
+    finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS)));
+    finalProperties.add(new Property("fs.s3a.fast.upload", "true"));
+    finalProperties.add(new Property("fs.s3a.fast.upload.buffer", "disk"));
+    finalProperties.add(new Property("fs.s3a.fast.upload.active.blocks", "4")); // 256mb (so a single parquet file should be able to flush at once).
+    finalProperties.add(new Property("fs.s3a.threads.max", "24"));
+    finalProperties.add(new Property("fs.s3a.multipart.size", "67108864")); // 64mb
+    finalProperties.add(new Property("fs.s3a.max.total.tasks", "30"));
+
     if(accessKey != null){
-      finalProperties.put(ACCESS_KEY, accessKey);
-      finalProperties.put(SECRET_KEY, accessSecret);
+      finalProperties.add(new Property(ACCESS_KEY, accessKey));
+      finalProperties.add(new Property(SECRET_KEY, accessSecret));
     } else {
       // don't use Constants here as it breaks when using older MapR/AWS files.
-      finalProperties.put("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider");
+      finalProperties.add(new Property("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider"));
     }
 
     if (properties != null && !properties.isEmpty()) {
-      for (Entry<String, String> property : properties.entrySet()) {
-        finalProperties.put(property.getKey(), property.getValue());
-      }
+      finalProperties.addAll(properties);
     }
 
 
-    finalProperties.put(SECURE_CONNECTIONS, String.valueOf(secure));
+    finalProperties.add(new Property(SECURE_CONNECTIONS, String.valueOf(secure)));
     if(externalBuckets != null && !externalBuckets.isEmpty()){
-      finalProperties.put(EXTERNAL_BUCKETS, Joiner.on(",").join(externalBuckets));
+      finalProperties.add(new Property(EXTERNAL_BUCKETS, Joiner.on(",").join(externalBuckets)));
     }else {
       if(accessKey == null){
         throw UserException.validationError()

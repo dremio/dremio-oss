@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +43,8 @@ public final class RenamingCallable<V> implements Callable<V> {
     }
   }
 
-  public static <V> RenamingCallable of(final Callable<V> delegate, final String name) {
-    return new RenamingCallable(delegate, name);
+  public static <V> RenamingCallable<V> of(final Callable<V> delegate, final String name) {
+    return new RenamingCallable<>(delegate, name);
   }
 
   public static RenamingCallable<Void> of(final Runnable delegate, final String name) {

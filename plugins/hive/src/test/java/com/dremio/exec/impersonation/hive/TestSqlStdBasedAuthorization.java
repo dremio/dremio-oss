@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.impersonation.hive;
 
-import com.dremio.common.TestProfileHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.google.common.collect.ImmutableList;
@@ -29,7 +28,6 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdConf
 import org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

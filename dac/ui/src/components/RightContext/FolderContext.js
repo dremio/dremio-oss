@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ export class FolderContext extends Component {
     return <label style={styles.base}>
       <div style={styles.toggleWrap}>
         { toggleView.get('isInProgress') ?
-          <FontIcon type='Loader fa-spin'/>
+          <FontIcon type='Loader spinner'/>
             : <div>
               <Toggle
                 onToggle={this.handleIsPhysicalDatasetChange}

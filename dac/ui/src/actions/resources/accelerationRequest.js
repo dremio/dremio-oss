@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,6 @@ export const getDatasetAccelerationRequest = (fullPath) => ({
       GET_DATASET_ACCELERATION_FAILURE
     ],
     method: 'GET',
-    endpoint: makeUncachebleURL(`${API_URL_V2}/accelerations/dataset/${fullPath}`)
+    endpoint: makeUncachebleURL(`${API_URL_V2}/dataset/${fullPath}/vote`)
   }
 });

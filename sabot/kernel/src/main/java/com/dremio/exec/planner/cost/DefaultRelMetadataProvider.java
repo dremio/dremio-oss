@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,9 @@ public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
   public static final RelMetadataProvider INSTANCE = new DefaultRelMetadataProvider();
   private DefaultRelMetadataProvider() {
     super(ImmutableList.of(
+        // MetadataProvider for Projectable aggregates. Should be before default ones
+        RelMdProjectableAggregate.SOURCE,
+        // Mostly relies on Calcite default with some adjustments...
         RelMdRowCount.SOURCE,
         RelMdDistinctRowCount.SOURCE,
         RelMdPercentageOriginalRows.SOURCE,

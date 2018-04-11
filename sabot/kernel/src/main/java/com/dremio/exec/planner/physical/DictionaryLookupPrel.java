@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ public class DictionaryLookupPrel extends SinglePrel {
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-    DictionaryLookupPOP dictionaryLookupPOP = new DictionaryLookupPOP(creator.getContext().getStorage(), childPOP, dictionaryEncodedFields);
+    DictionaryLookupPOP dictionaryLookupPOP = new DictionaryLookupPOP(creator.getContext().getCatalogService(), childPOP, dictionaryEncodedFields);
     return creator.addMetadata(this, dictionaryLookupPOP);
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,68 @@
  */
 package com.dremio.common.exceptions;
 
+import java.io.IOException;
 import java.util.regex.Pattern;
 
+import com.dremio.common.serde.ProtobufByteStringSerDe;
 import com.dremio.exec.proto.UserBitShared.ExceptionWrapper;
 import com.dremio.exec.proto.UserBitShared.StackTraceElementWrapper;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.ByteString;
 
 /**
  * Utility class that handles error message generation from protobuf error objects.
  */
 public class ErrorHelper {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ErrorHelper.class);
 
-  private final static Pattern IGNORE= Pattern.compile("^(sun|com\\.sun|java).*");
+  private final static Pattern IGNORE = Pattern.compile("^(sun|com\\.sun|java).*");
+
+  private static final ObjectMapper additionalContextMapper = new ObjectMapper();
+
+  static {
+    // for backward compatibility
+    additionalContextMapper.enable(JsonGenerator.Feature.IGNORE_UNKNOWN);
+
+    // register subtypes
+    // TODO: use classpath scanning to register subtypes; that way impls can import classes without bringing
+    // dependencies to "common" module
+    additionalContextMapper.registerSubtypes(InvalidMetadataErrorContext.class);
+  }
+
+  /**
+   * Deserialize type specific additional context information.
+   *
+   * @param byteString serialized byte string
+   * @return additional exception context
+   */
+  public static AdditionalExceptionContext deserializeAdditionalContext(final ByteString byteString) {
+    try {
+      return ProtobufByteStringSerDe.readValue(additionalContextMapper.readerFor(AdditionalExceptionContext.class),
+          byteString, ProtobufByteStringSerDe.Codec.NONE, logger);
+    } catch (IOException ignored) {
+      logger.debug("unable to deserialize additional exception context", ignored);
+      return null;
+    }
+  }
+
+  /**
+   * Serialize type specific additional context information.
+   *
+   * @param typeContext additional exception context
+   * @return serialized bytes
+   */
+  public static ByteString serializeAdditionalContext(final AdditionalExceptionContext typeContext) {
+    try {
+      return ProtobufByteStringSerDe.writeValue(additionalContextMapper, typeContext,
+          ProtobufByteStringSerDe.Codec.NONE);
+    } catch (JsonProcessingException ignored) {
+      logger.debug("unable to serialize additional exception context", ignored);
+      return null;
+    }
+  }
 
   /**
    * Constructs the root error message in the form [root exception class name]: [root exception message]
@@ -162,7 +213,7 @@ public class ErrorHelper {
    * @param ex exception
    * @return null if exception is null or no UserException was found
    */
-  static <T extends Throwable> T findWrappedCause(Throwable ex, Class<T> causeClass) {
+  public static <T extends Throwable> T findWrappedCause(Throwable ex, Class<T> causeClass) {
     if (ex == null) {
       return null;
     }

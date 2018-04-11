@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,11 @@ describe('CellPopover', () => {
     };
     commonProps = {
       ...minimalProps,
-      sortFieldList: []
+      sortFields: []
     };
-    commonProps.sortFieldList.swapFields = sinon.spy();
-    commonProps.sortFieldList.addField = sinon.spy();
-    commonProps.sortFieldList.removeField = sinon.spy();
+    commonProps.sortFields.swapFields = sinon.spy();
+    commonProps.sortFields.addField = sinon.spy();
+    commonProps.sortFields.removeField = sinon.spy();
     context = { router: { push: sinon.spy() } };
     wrapper = shallow(<CellPopover {...commonProps}/>, {context});
     instance = wrapper.instance();
@@ -59,33 +59,33 @@ describe('CellPopover', () => {
 
   describe('#componentWillMount', () => {
     it('should set appropriate drag field list to state', () => {
-      const sortFieldList = [{name: {value: 'name'}}];
-      const w = shallow(<CellPopover {...commonProps} sortFieldList={sortFieldList} />);
-      expect(w.state().dragColumns.sortFieldList).to.be.eql([{name: 'name'}]);
+      const sortFields = [{name: {value: 'name'}}];
+      const w = shallow(<CellPopover {...commonProps} sortFields={sortFields} />);
+      expect(w.state().dragColumns.sortFields).to.be.eql([{name: 'name'}]);
     });
   });
 
   describe('#receiveProps', () => {
     it('should update fields in state when old props are empty', () => {
-      const sortFieldList = [{name: {value: 'name'}}];
-      instance.receiveProps({sortFieldList});
-      expect(wrapper.state().dragColumns.sortFieldList).to.be.eql([{name: 'name'}]);
+      const sortFields = [{name: {value: 'name'}}];
+      instance.receiveProps({sortFields});
+      expect(wrapper.state().dragColumns.sortFields).to.be.eql([{name: 'name'}]);
     });
 
     it('should update fields in state fields were changed', () => {
       const oldFields = [{name: {value: 'name'}}];
       const newFields = [{name: {value: 'name2'}}];
-      instance.receiveProps({sortFieldList: newFields}, {sortFieldList: oldFields});
-      expect(wrapper.state().dragColumns.sortFieldList).to.be.eql([{name: 'name2'}]);
+      instance.receiveProps({sortFields: newFields}, {sortFields: oldFields});
+      expect(wrapper.state().dragColumns.sortFields).to.be.eql([{name: 'name2'}]);
     });
   });
 
   describe('#handleDragEnd', () => {
     it('should reorder columns for field - swap second and first items', () => {
       wrapper.setState({ dragIndex: 0, hoverIndex: 1 });
-      instance.handleDragEnd('sortFieldList', {name: 'name'}, {index: 1});
-      expect(instance.props.sortFieldList.removeField).to.be.calledWith(0);
-      expect(instance.props.sortFieldList.addField)
+      instance.handleDragEnd('sortFields', {name: 'name'}, {index: 1});
+      expect(instance.props.sortFields.removeField).to.be.calledWith(0);
+      expect(instance.props.sortFields.addField)
         .to.be.calledWith({ name: 'name'}, 1);
       expect(wrapper.state('dragIndex')).to.equal(-1);
       expect(wrapper.state('hoverIndex')).to.equal(-1);
@@ -93,9 +93,9 @@ describe('CellPopover', () => {
 
     it('should append dropped item to list and remove it from old position', () => {
       wrapper.setState({ dragIndex: 3, hoverIndex: 1 });
-      instance.handleDragEnd('sortFieldList', {name: 'name'}, { index: 1});
-      expect(instance.props.sortFieldList.removeField).to.be.calledWith(3);
-      expect(instance.props.sortFieldList.addField)
+      instance.handleDragEnd('sortFields', {name: 'name'}, { index: 1});
+      expect(instance.props.sortFields.removeField).to.be.calledWith(3);
+      expect(instance.props.sortFields.addField)
         .to.be.calledWith( { name: 'name'}, 1);
       expect(wrapper.state('dragIndex')).to.equal(-1);
       expect(wrapper.state('hoverIndex')).to.equal(-1);
@@ -106,27 +106,27 @@ describe('CellPopover', () => {
     beforeEach(() => {
       wrapper.setState({
         dragColumns: {
-          sortFieldList: [{name: '1'}, {name: '2'}, {name: '3'}]
+          sortFields: [{name: '1'}, {name: '2'}, {name: '3'}]
         }
       });
     });
 
     it('should append second column at the first position when drag item moved', () => {
-      instance.handleMoveColumn('sortFieldList', 1, 0);
-      expect(wrapper.state().dragColumns.sortFieldList).to.be.eql([{name: '2'}, {name: '1'}, {name: '3'}]);
+      instance.handleMoveColumn('sortFields', 1, 0);
+      expect(wrapper.state().dragColumns.sortFields).to.be.eql([{name: '2'}, {name: '1'}, {name: '3'}]);
       expect(wrapper.state().hoverIndex).to.be.eql(0);
     });
 
     it('should append first column at the third position when drag item moved', () => {
-      instance.handleMoveColumn('sortFieldList', 0, 2);
-      expect(wrapper.state().dragColumns.sortFieldList).to.be.eql([{name: '2'}, {name: '3'}, {name: '1'}]);
+      instance.handleMoveColumn('sortFields', 0, 2);
+      expect(wrapper.state().dragColumns.sortFields).to.be.eql([{name: '2'}, {name: '3'}, {name: '1'}]);
       expect(wrapper.state().hoverIndex).to.be.eql(2);
     });
   });
 
   it('should render columns for drag area', () => {
     wrapper.setProps({
-      sortFieldList: [
+      sortFields: [
         { name: { value: 'A' } },
         { name: { value: 'B' } }
       ],

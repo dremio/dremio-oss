@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,9 @@ package com.dremio.service.scheduler;
 
 import java.util.Iterator;
 
-import org.threeten.bp.Clock;
 import org.threeten.bp.Instant;
 import org.threeten.bp.LocalDateTime;
-import org.threeten.bp.ZoneOffset;
+import org.threeten.bp.ZoneId;
 import org.threeten.bp.temporal.TemporalAdjuster;
 import org.threeten.bp.temporal.TemporalAmount;
 
@@ -28,15 +27,13 @@ class BaseSchedule implements Schedule {
   private final TemporalAmount amount;
   private final TemporalAdjuster adjuster;
   private final Instant at;
+  private final ZoneId zoneId;
 
-  BaseSchedule(Clock clock, TemporalAmount period, TemporalAdjuster adjuster, Instant at) {
-    this(at, period, adjuster);
-  }
-
-  BaseSchedule(Instant at, TemporalAmount period, TemporalAdjuster adjuster) {
+  BaseSchedule(Instant at, TemporalAmount period, TemporalAdjuster adjuster, ZoneId zoneId) {
     this.amount = period;
     this.adjuster = adjuster;
     this.at = at;
+    this.zoneId = zoneId;
   }
 
   @Override
@@ -46,7 +43,7 @@ class BaseSchedule implements Schedule {
 
   @Override
   public Iterator<Instant> iterator() {
-    LocalDateTime at = LocalDateTime.ofInstant(this.at, ZoneOffset.UTC);
+    LocalDateTime at = LocalDateTime.ofInstant(this.at, zoneId);
     LocalDateTime adjustedAt = at.with(adjuster);
     final LocalDateTime start = adjustedAt.isBefore(at)
         ? at.plus(amount).with(adjuster)
@@ -62,7 +59,7 @@ class BaseSchedule implements Schedule {
 
       @Override
       public Instant next() {
-        Instant result = next.toInstant(ZoneOffset.UTC);
+        Instant result = next.atZone(zoneId).toInstant();
         next = next.plus(amount).with(adjuster);
 
         return result;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,7 @@ import java.util.Map;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.util.Util;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.exec.ops.QueryContext;
@@ -35,7 +33,6 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.ParserConfig;
-import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -45,9 +42,6 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.store.AbstractSchema;
-import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.pojo.PojoRecordReader;
@@ -60,6 +54,7 @@ import com.dremio.sabot.op.scan.VectorContainerMutator;
 import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
 
@@ -100,7 +95,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     observer.execStarted(null);
     final BatchSchema schema = PojoRecordReader.getSchema(handler.getResultType());
     final CollectingOutcomeListener listener = new CollectingOutcomeListener();
-    Writer writer = getWriter(context.getOptions(), context.getSchemaInfoProvider());
+    Writer writer = getWriter(context.getOptions());
     //TODO: non-trivial expense. Move elsewhere.
     OperatorCreatorRegistry registry = new OperatorCreatorRegistry(context.getScanResult());
     OperatorContextImpl ocx = createContext(writer);
@@ -153,26 +148,18 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     return "execute and store; direct";
   }
 
-  private Writer getWriter(OptionManager options, SchemaConfig.SchemaInfoProvider infoProvider) throws IOException{
+  private Writer getWriter(OptionManager options) throws IOException{
     final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).string_val;
     final List<String> storeTable = new StrTokenizer(storeTablePath, '.', ParserConfig.QUOTING.string.charAt(0))
         .setIgnoreEmptyTokens(true).getTokenList();
 
-    // store query results as the system user
-    final SchemaPlus systemUserSchema = context.getRootSchema(
-        SchemaConfig
-            .newBuilder(SystemUser.SYSTEM_USERNAME)
-            .setProvider(infoProvider)
-            .build());
-    final AbstractSchema schema = SchemaUtilities.resolveToMutableSchemaInstance(systemUserSchema,
-        Util.skipLast(storeTable), true, MutationType.TABLE);
-
     // Query results are stored in arrow format. If need arises, we can change
     // this to a configuration option.
-    final Map<String, Object> storageOptions = ImmutableMap.<String, Object> of("type",
-        ArrowFormatPlugin.ARROW_DEFAULT_NAME);
+    final Map<String, Object> storageOptions = ImmutableMap.<String, Object> of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
 
-    final CreateTableEntry createTableEntry = schema.createNewTable(Util.last(storeTable), WriterOptions.DEFAULT, storageOptions);
+    final CreateTableEntry createTableEntry = context.getCatalog()
+        .resolveCatalog(SystemUser.SYSTEM_USERNAME)
+        .createNewTable(new NamespaceKey(storeTable), WriterOptions.DEFAULT, storageOptions);
     return createTableEntry.getWriter(null);
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import static com.dremio.dac.model.job.acceleration.UiMapper.toUI;
 import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
 import static com.google.common.collect.ImmutableList.copyOf;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.util.Util;
@@ -26,10 +27,14 @@ import org.apache.calcite.util.Util;
 import com.dremio.dac.model.job.acceleration.AccelerationDetailsUI;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.exec.proto.beans.RequestType;
+import com.dremio.service.accelerator.proto.AccelerationDetails;
+import com.dremio.service.accelerator.proto.ReflectionRelationship;
+import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.job.proto.FileSystemDatasetProfile;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.job.proto.MaterializationSummary;
@@ -47,6 +52,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class JobDetailsUI {
   private final JobId jobId;
+  private final boolean snowflakeAccelerated;
   private final Integer plansConsidered;
   private final Long timeSpentInPlanning;
   private final Long waitInClient;
@@ -60,7 +66,7 @@ public class JobDetailsUI {
   private final List<AttemptDetailsUI> attemptDetails;
   private final String attemptsSummary;
   private final String downloadUrl;
-  private final String failureInfo;
+  private final JobFailureInfo failureInfo;
   private final QueryType queryType;
   private final List<String> datasetPathList;
   private final List<ParentDatasetInfo> parentsList;
@@ -79,7 +85,6 @@ public class JobDetailsUI {
   private final MaterializationSummary materializationFor;
   private final AccelerationDetailsUI acceleration;
 
-
   @JsonCreator
   public JobDetailsUI(
       @JsonProperty("jobId") JobId jobId,
@@ -92,6 +97,7 @@ public class JobDetailsUI {
       @JsonProperty("user") String user,
       @JsonProperty("jobType") RequestType requestType,
       @JsonProperty("accelerated") boolean isAccelerated,
+      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
       @JsonProperty("plansConsidered") Integer plansConsidered,
       @JsonProperty("timeSpentInPlanning") Long timeSpentInPlanning,
       @JsonProperty("waitInClient") Long waitInClient,
@@ -105,7 +111,7 @@ public class JobDetailsUI {
       @JsonProperty("attemptDetails") List<AttemptDetailsUI> attemptDetails,
       @JsonProperty("attemptsSummary") String attemptsSummary,
       @JsonProperty("downloadUrl") String downloadUrl,
-      @JsonProperty("failureInfo") String failureInfo,
+      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
       @JsonProperty("sql") String sql,
       @JsonProperty("description") String description,
       @JsonProperty("stats") JobStats stats,
@@ -124,6 +130,7 @@ public class JobDetailsUI {
     this.user = user;
     this.requestType = requestType;
     this.isAccelerated = isAccelerated;
+    this.snowflakeAccelerated = snowflakeAccelerated;
     this.plansConsidered = plansConsidered;
     this.timeSpentInPlanning = timeSpentInPlanning;
     this.waitInClient = waitInClient;
@@ -148,25 +155,104 @@ public class JobDetailsUI {
     this.acceleration = acceleration;
   }
 
-  public JobDetailsUI(Job job){
-    this(
+  public static JobDetailsUI of(Job job) {
+    JobInfo jobInfo = job.getJobAttempt().getInfo();
+    JobFailureInfo jobFailureInfo = toJobFailureInfo(jobInfo);
+    List<JobAttempt> attempts = job.getAttempts();
+    AccelerationDetails accelerationDetails = deserialize(Util.last(attempts).getAccelerationDetails());
+
+    return new JobDetailsUI(
         job.getJobId(),
         job.getJobAttempt().getDetails(),
-        JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job),
-        job.getJobAttempt().getInfo().getFailureInfo(), job.getJobAttempt().getInfo().getDatasetVersion(),
-        job.hasResults());
+        JobResource.getPaginationURL(job.getJobId()), attempts, JobResource.getDownloadURL(job),
+        jobFailureInfo, job.getJobAttempt().getInfo().getDatasetVersion(),
+        job.hasResults(), accelerationDetails);
   }
 
+  public static JobFailureInfo toJobFailureInfo(JobInfo jobInfo) {
+    if (jobInfo.getDetailedFailureInfo() == null) {
+      // backward compatibility
+      return new JobFailureInfo(jobInfo.getFailureInfo(), JobFailureType.UNKNOWN, null);
+    }
+
+    com.dremio.service.job.proto.JobFailureInfo failureInfo = jobInfo.getDetailedFailureInfo();
+    final JobFailureType failureType;
+    if (failureInfo.getType() == null) {
+      failureType = JobFailureType.UNKNOWN;
+    } else {
+      switch(failureInfo.getType()) {
+      case PARSE:
+        failureType = JobFailureType.PARSE;
+        break;
+
+      case VALIDATION:
+        failureType = JobFailureType.VALIDATION;
+        break;
+
+      case EXECUTION:
+        failureType = JobFailureType.EXECUTION;
+        break;
+
+      default:
+        failureType = JobFailureType.UNKNOWN;
+      }
+    }
+
+    final List<QueryError> errors;
+    if (failureInfo.getErrorsList() == null) {
+      errors = null;
+    } else {
+      errors = new ArrayList<>();
+      for(com.dremio.service.job.proto.JobFailureInfo.Error error: failureInfo.getErrorsList()) {
+        errors.add(new QueryError(error.getMessage(), toRange(error)));
+      }
+    }
+
+    return new JobFailureInfo(failureInfo.getMessage(), failureType, errors);
+  }
+
+  public static boolean wasSnowflakeAccelerated(AccelerationDetails details) {
+    if (details == null || details.getReflectionRelationshipsList() == null) {
+      return false;
+    }
+
+    boolean wasSnowflake = false;
+
+    for (ReflectionRelationship relationship : details.getReflectionRelationshipsList()) {
+      if (relationship.getState() == SubstitutionState.CHOSEN && relationship.getSnowflake()) {
+        wasSnowflake = true;
+        break;
+      }
+    }
+
+    return wasSnowflake;
+  }
+
+  private static QueryError.Range toRange(com.dremio.service.job.proto.JobFailureInfo.Error error) {
+    try {
+      int startLine = error.getStartLine();
+      int startColumn = error.getStartColumn();
+      int endLine = error.getEndLine();
+      int endColumn = error.getEndColumn();
+
+      // Providing the UI with the following convention:
+      // Ranges are 1-based and inclusive.
+      return new QueryError.Range(startLine, startColumn, endLine, endColumn);
+
+    } catch(NullPointerException e) {
+      return null;
+    }
+  }
   public JobDetailsUI(
-      JobId jobId,
-      JobDetails jobDetails,
-      String paginationUrl,
-      List<JobAttempt> attempts,
-      String downloadUrl,
-      String failureInfo,
-      String datasetVersion,
-      Boolean resultsAvailable
-      ) {
+    JobId jobId,
+    JobDetails jobDetails,
+    String paginationUrl,
+    List<JobAttempt> attempts,
+    String downloadUrl,
+    JobFailureInfo failureInfo,
+    String datasetVersion,
+    Boolean resultsAvailable,
+    AccelerationDetails accelerationDetails) {
     this(
         jobId,
         attempts.get(0).getInfo().getQueryType(),
@@ -177,7 +263,8 @@ public class JobDetailsUI {
         Util.last(attempts).getInfo().getFinishTime(), // consider the last attempt finish time as the job finish time
         attempts.get(0).getInfo().getUser(),
         attempts.get(0).getInfo().getRequestType(),
-        attempts.get(0).getInfo().getAcceleration() != null,
+        Util.last(attempts).getInfo().getAcceleration() != null,
+        JobDetailsUI.wasSnowflakeAccelerated(accelerationDetails),
         jobDetails.getPlansConsidered(),
         jobDetails.getTimeSpentInPlanning(),
         jobDetails.getWaitInClient(),
@@ -199,7 +286,7 @@ public class JobDetailsUI {
         datasetVersion,
         resultsAvailable,
         attempts.get(0).getInfo().getMaterializationFor(),
-        toUI(deserialize(attempts.get(0).getAccelerationDetails()))
+        toUI(accelerationDetails)
         );
 
 
@@ -261,7 +348,7 @@ public class JobDetailsUI {
     return downloadUrl;
   }
 
-  public String getFailureInfo() {
+  public JobFailureInfo getFailureInfo() {
     return failureInfo;
   }
 
@@ -331,5 +418,9 @@ public class JobDetailsUI {
 
   public AccelerationDetailsUI getAcceleration() {
     return acceleration;
+  }
+
+  public boolean isSnowflakeAccelerated() {
+    return snowflakeAccelerated;
   }
 }

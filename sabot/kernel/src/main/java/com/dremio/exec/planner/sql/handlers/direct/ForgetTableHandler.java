@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +18,19 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.successful;
 import static java.util.Collections.singletonList;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.SchemaUtilities;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
-import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * Handler for <code>FORGET TABLE tblname</code> command.
@@ -41,72 +38,46 @@ import com.google.common.collect.Iterables;
 public class ForgetTableHandler extends SimpleDirectHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
 
-  private final SchemaPlus defaultSchema;
+  private final static int MAX_RETRIES = 5;
   private final NamespaceService namespaceService;
-  private final AccelerationManager accel;
+  private final Catalog catalog;
 
-  public ForgetTableHandler(SchemaPlus defaultSchema, NamespaceService namespaceService, AccelerationManager accel) {
-    this.defaultSchema = defaultSchema;
+  public ForgetTableHandler(Catalog catalog, NamespaceService namespaceService) {
+    this.catalog = catalog;
     this.namespaceService = namespaceService;
-    this.accel = accel;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlForgetTable sqlForgetTable = SqlNodeUtil.unwrap(sqlNode, SqlForgetTable.class);
+    final NamespaceKey path = catalog.resolveSingle(sqlForgetTable.getPath());
 
-    boolean verified;
-    List<String> path;
-    try {
-      path = SchemaUtilities.verify(defaultSchema, sqlForgetTable.getTable()).getPath();
-      verified = true;
-    } catch(Exception ex){
-      logger.warn("Failure to load verify table before forgetting. Attempting to do case sensitive direct load as fallback.");
-      path = verifySchemaAndComposePath(defaultSchema, sqlForgetTable.getTable());
-      verified = false;
-      if(path == null){
-        throw UserException.parseError().message("Unable to find table.").build(logger);
+    String root = path.getRoot();
+    if(root.startsWith("@") || root.equalsIgnoreCase("sys") || root.equalsIgnoreCase("INFORMATION_SCHEMA")) {
+      throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
+    }
+
+    int count = 0;
+    while(true) {
+      final DremioTable table = catalog.getTableNoResolve(path);
+      if(table == null || table.getJdbcTableType() != TableType.TABLE) {
+        throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
+      }
+
+      try {
+        namespaceService.deleteDataset(table.getPath(), table.getVersion());
+        return singletonList(successful(String.format("Successfully removed table '%s' from namespace.", table.getPath())));
+      } catch (NamespaceNotFoundException ex) {
+        logger.debug("Table to delete not found", ex);
+      } catch (ConcurrentModificationException ex) {
+        if (count++ < MAX_RETRIES) {
+          logger.debug("Concurrent failure.", ex);
+        } else {
+          throw ex;
+        }
       }
     }
 
-    final NamespaceKey tableNSKey = new NamespaceKey(path);
 
-    final DatasetConfig datasetConfig;
-    try {
-      datasetConfig = namespaceService.getDataset(tableNSKey);
-    } catch (NamespaceNotFoundException ex) {
-      if(verified){
-        throw UserException.parseError().message("Unable to find table.").build(logger);
-      } else {
-        throw UserException.parseError().message("Unable to retrieve table due to issues with metadata. Please make sure you use the exact case the table was constructed with when dropping metadata.").build(logger);
-      }
-    }
-
-    if (!RefreshTableHandler.ALTER_METADATA_TYPES.contains(datasetConfig.getType()))  {
-      throw UserException.parseError().message("ALTER TABLE <TABLE> FORGET METADATA is only supported on physical datasets").build(logger);
-    }
-
-    // TODO: There could concurrency issue which could cause the version to be invalid.
-    namespaceService.deleteDataset(tableNSKey, datasetConfig.getVersion());
-
-    accel.dropAcceleration(path, false);
-
-    return singletonList(successful(String.format("Successfully removed table '%s' from namespace (and associated reflections).", sqlForgetTable.getTable().toString())));
   }
-
-
-  private static List<String> verifySchemaAndComposePath(final SchemaPlus defaultSchema, SqlIdentifier identifier){
-    if(identifier.isSimple()){
-      return ImmutableList.of(identifier.getSimple());
-    } else {
-      SchemaPlus plus = SchemaUtilities.findSchema(defaultSchema, identifier.names.subList(0, identifier.names.size() - 1));
-      if(plus == null){
-        return null;
-      }
-
-      List<String> schema = SchemaUtilities.getSchemaPathAsList(plus);
-      return ImmutableList.copyOf(Iterables.concat(schema, ImmutableList.of(identifier.names.get(identifier.names.size() - 1))));
-    }
-  }
-
 }

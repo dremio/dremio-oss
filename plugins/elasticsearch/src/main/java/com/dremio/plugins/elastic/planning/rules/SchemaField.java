@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,9 +42,9 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.SchemaPath.SchemaPathVisitor;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.dremio.exec.record.TypedFieldId;
+import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
-import com.dremio.plugins.elastic.ElasticsearchStoragePluginConfig;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel.IndexMode;
@@ -360,8 +360,8 @@ public class SchemaField extends RexInputRef {
       this.scan = scan;
       this.isV5 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
       this.disallowedSpecialTypes = disallowedSpecialTypes;
-      ElasticsearchStoragePluginConfig config = scan.getPluginId().getConfig();
-      this.isPainless = isV5 && config.isEnablePainless();
+      ElasticStoragePluginConfig config = scan.getPluginId().getConnectionConf();
+      this.isPainless = isV5 && config.usePainless;
     }
 
     @Override

@@ -100,6 +100,7 @@
     "reselect": "^2.5.1",
     "shallowequal": "^0.2.2",
     "url-parse": "^1.2.0",
+    "url-search-params-polyfill": "^2.0.1",
     "uuid": "^2.0.2"
   },
   "devDependencies": {
@@ -120,6 +121,7 @@
     "chai-as-promised": "~5.3.0",
     "chai-immutable": "^1.6.0",
     "chai-string": "~1.4.0",
+    "check-node-version": "^3.2.0",
     "copy-webpack-plugin": "^4.1.1",
     "css-loader": "^0.28.7",
     "csv": "^1.1.1",

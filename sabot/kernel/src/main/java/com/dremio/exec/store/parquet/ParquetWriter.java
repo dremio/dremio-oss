@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.common.store.StoragePluginConfig;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWriter;
 import com.fasterxml.jackson.annotation.JacksonInject;
@@ -49,12 +49,12 @@ public class ParquetWriter extends FileSystemWriter {
           @JsonProperty("userName") String userName,
           @JsonProperty("location") String location,
           @JsonProperty("options") WriterOptions options,
-          @JsonProperty("storage") StoragePluginConfig storageConfig,
-          @JacksonInject StoragePluginRegistry engineRegistry) throws IOException, ExecutionSetupException {
+          @JsonProperty("pluginId") StoragePluginId pluginId,
+          @JacksonInject CatalogService catalogService) throws IOException, ExecutionSetupException {
 
     super(child, userName, options);
-    this.plugin = (FileSystemPlugin) engineRegistry.getPlugin(storageConfig);
-    this.formatPlugin = (ParquetFormatPlugin) engineRegistry.getFormatPlugin(storageConfig, new ParquetFormatConfig());
+    this.plugin = catalogService.getSource(pluginId);
+    this.formatPlugin = (ParquetFormatPlugin) plugin.getFormatPlugin(new ParquetFormatConfig());
     Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
     this.location = location;
   }
@@ -70,14 +70,13 @@ public class ParquetWriter extends FileSystemWriter {
     this.location = location;
   }
 
+  public StoragePluginId getPluginId() {
+    return plugin.getId();
+  }
+
   @JsonProperty("location")
   public String getLocation() {
     return location;
-  }
-
-  @JsonProperty("storage")
-  public StoragePluginConfig getStorageConfig(){
-    return formatPlugin.getStorageConfig();
   }
 
   @JsonIgnore

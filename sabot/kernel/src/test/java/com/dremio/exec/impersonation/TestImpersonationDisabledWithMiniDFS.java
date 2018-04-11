@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.collect.Maps;
 
 /**
@@ -106,7 +110,8 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
 
   @AfterClass
   public static void removeMiniDfsBasedStorage() throws Exception {
-    getSabotContext().getStorage().deletePlugin(MINIDFS_STORAGE_PLUGIN_NAME);
+    SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();
   }
 }

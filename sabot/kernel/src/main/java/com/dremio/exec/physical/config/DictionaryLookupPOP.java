@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -42,20 +42,20 @@ public class DictionaryLookupPOP extends AbstractSingle {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DictionaryLookupPOP.class);
 
   private final Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields;
-  private final StoragePluginRegistry registry;
+  private final CatalogService catalogService;
 
   @JsonCreator
-  public DictionaryLookupPOP(@JacksonInject StoragePluginRegistry registry,
+  public DictionaryLookupPOP(@JacksonInject CatalogService catalogService,
                              @JsonProperty("child") PhysicalOperator child,
                              @JsonProperty("dictionaryEncodedFields") Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields) {
     super(child);
-    this.registry = registry;
+    this.catalogService = catalogService;
     this.dictionaryEncodedFields = dictionaryEncodedFields;
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new DictionaryLookupPOP(registry, child, dictionaryEncodedFields);
+    return new DictionaryLookupPOP(catalogService, child, dictionaryEncodedFields);
   }
 
   @Override
@@ -64,8 +64,8 @@ public class DictionaryLookupPOP extends AbstractSingle {
   }
 
   @JsonIgnore
-  public StoragePluginRegistry getRegistry() {
-    return registry;
+  public CatalogService getCatalogService() {
+    return catalogService;
   }
 
   public Map<String, GlobalDictionaryFieldInfo> getDictionaryEncodedFields() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,9 +29,9 @@ import com.dremio.exec.store.RecordDataType;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.pojo.PojoRecordReader;
+import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
@@ -59,12 +59,25 @@ public enum InfoSchemaTable {
     this.key = new NamespaceKey(ImmutableList.of("INFORMATION_SCHEMA", name()));
   }
 
-  public <T> Iterable<T> asIterable(String catalogName, NamespaceService service, SearchQuery query){
-    return (Iterable<T>) definition.asIterable(catalogName, service, query);
+  public <T> Iterable<T> asIterable(
+      String catalogName,
+      String username,
+      DatasetListingService service,
+      SearchQuery query
+  ) {
+    return (Iterable<T>) definition.asIterable(catalogName, username, service, query);
   }
 
-  public RecordReader asReader(String catalogName, NamespaceService service, SearchQuery query, List<SchemaPath> columns) {
-    return new PojoRecordReader(definition.getRecordClass(), definition.asIterable(catalogName, service, query).iterator(), columns);
+  public RecordReader asReader(
+      String catalogName,
+      String username,
+      DatasetListingService service,
+      SearchQuery query,
+      List<SchemaPath> columns
+  ) {
+    return new PojoRecordReader(definition.getRecordClass(),
+        definition.asIterable(catalogName, username, service, query).iterator(),
+        columns);
   }
 
   public BatchSchema getSchema() {
@@ -73,7 +86,7 @@ public enum InfoSchemaTable {
     return BatchSchema.fromCalciteRowType(type);
   }
 
-  public SourceTableDefinition asTableDefinition() {
+  public SourceTableDefinition asTableDefinition(final DatasetConfig oldDataset) {
     return new SourceTableDefinition() {
 
       @Override
@@ -83,10 +96,18 @@ public enum InfoSchemaTable {
 
       @Override
       public DatasetConfig getDataset() throws Exception {
-        return new DatasetConfig()
-            .setFullPathList(key.getPathComponents())
-            .setId(new EntityId(UUID.randomUUID().toString()))
-            .setType(DatasetType.PHYSICAL_DATASET)
+        final DatasetConfig dataset;
+        if(oldDataset == null) {
+          dataset = new DatasetConfig()
+           .setFullPathList(key.getPathComponents())
+          .setId(new EntityId(UUID.randomUUID().toString()))
+          .setType(DatasetType.PHYSICAL_DATASET);
+
+        } else {
+          dataset = oldDataset;
+        }
+
+        return dataset
             .setName(key.getName())
             .setReadDefinition(new ReadDefinition()
                 .setScanStats(new ScanStats().setRecordCount(100l)
@@ -96,6 +117,7 @@ public enum InfoSchemaTable {
             .setRecordSchema(getSchema().toByteString())
             .setSchemaVersion(DatasetHelper.CURRENT_VERSION);
       }
+
 
       @Override
       public List<DatasetSplit> getSplits() throws Exception {

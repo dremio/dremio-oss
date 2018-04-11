@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,24 +16,19 @@
     limitations under the License.
 
 -->
-<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg">
     <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
     <title>Source/Postgres-Beta</title>
     <desc>Created with Sketch.</desc>
-    <defs>
-        <circle id="path-1" cx="24" cy="24" r="24"></circle>
-    </defs>
     <g id="Elements" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="Source/Postgres-Beta">
             <g id="Source/Postgres">
                 <g>
-                    <mask id="mask-2" fill="white">
-                        <use xlink:href="#path-1"></use>
-                    </mask>
-                    <use id="Mask" fill="#199DCD" xlink:href="#path-1"></use>
-                    <g id="Logo/Postgres" mask="url(#mask-2)">
+                    <g id="Logo/Postgres">
+                      <g id="Source.2f.S3">
+                        <circle id="Oval" cx="24" cy="24" r="23.5" style="fill:#199DCD;"/>
+                      </g>
                         <g transform="translate(7.000000, 8.000000)">
-                            <rect id="Rectangle" fill="#199DCD" x="0" y="0" width="34" height="35"></rect>
                             <g id="Source/Postgres" stroke-width="1" fill="none" transform="translate(1.000000, 2.000000)">
                                 <path d="M15.4504937,20.9548254 C15.3423451,24.8194888 15.4776675,28.711079 15.8559924,29.6568741 C16.2345516,30.6026693 17.0446902,32.442279 19.8305516,31.8457522 C22.1579723,31.3470205 23.0048111,30.3818693 23.3722821,28.2515278 C23.642927,26.6841522 24.1646952,22.3312156 24.2316146,21.4393522" id="Stroke-7" stroke="#FFFFFF" stroke-width="0.976028787" stroke-linecap="round" stroke-linejoin="round"></path>
                                 <path d="M12.1113955,1.58093268 C12.1113955,1.58093268 -0.501075567,-3.57153561 0.0852695214,8.14553756 C0.209972292,10.6382595 3.65995214,27.007118 7.77459698,22.0628839 C9.27821411,20.2548059 10.6380756,18.8367376 10.6380756,18.8367376" id="Stroke-9" stroke="#FFFFFF" stroke-width="0.976028787" stroke-linecap="round" stroke-linejoin="round"></path>

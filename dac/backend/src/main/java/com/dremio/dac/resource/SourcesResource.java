@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,10 @@ import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +75,31 @@ public class SourcesResource {
     return sources;
   }
 
+  /**
+   * Response class for metadata impacting requests
+   */
+  public class MetadataImpactingResponse {
+    private final boolean isMetadataImpacting;
+
+    MetadataImpactingResponse(boolean isMetadataImpacting) {
+      this.isMetadataImpacting = isMetadataImpacting;
+    }
+
+    public boolean getIsMetadataImpacting() {
+      return isMetadataImpacting;
+    }
+  }
+
+  @POST
+  @Path("isMetadataImpacting")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public MetadataImpactingResponse isMetadataImpacating(SourceUI sourceUI) {
+    final SourceConfig sourceConfig = sourceUI.asSourceConfig();
+    return new MetadataImpactingResponse(sourceService.isSourceConfigMetadataImpacting(sourceConfig));
+  }
+
   protected SourceUI newSource(SourceConfig sourceConfig) throws Exception {
-    return SourceUI.get(sourceConfig);
+    return SourceUI.get(sourceConfig, sourceService.getConnectionReader());
   }
 }

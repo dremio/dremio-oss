@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,13 +109,6 @@ public class ExternalSortTracer {
   }
 
   public void setSpillCopyAllocatorState(final BufferAllocator spillCopyAllocator) {
-    /*
-     * As of now there is no external way to get the initialReservation for
-     * an allocator. However, from MemoryRun code we know that for spill
-     * copy allocator, the initial reservation and max allocation is always
-     * the same and is equal to the running maximum batch size successfully
-     * added to memory run (sort tree).
-     */
     if (spillCopyAllocator == null) {
       spillCopyAllocatorState.valid = false;
     } else {

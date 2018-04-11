@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,14 +30,15 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 import com.dremio.PlanTestBase;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.dotfile.DotFileType;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 
 public class BaseTestMiniDFS extends PlanTestBase {
   protected static final String MINIDFS_STORAGE_PLUGIN_NAME = "miniDfsPlugin";
@@ -87,21 +88,24 @@ public class BaseTestMiniDFS extends PlanTestBase {
 
   protected static void addMiniDfsBasedStorage(final Map<String, WorkspaceConfig> workspaces,
       boolean impersonationEnabled) throws Exception {
-    // Create a HDFS based storage plugin based on local storage plugin and add it to plugin registry (connection string
-    // for mini dfs is varies for each run).
-    final StoragePluginRegistry pluginRegistry = getSabotContext().getStorage();
-    final FileSystemConfig lfsPluginConfig = pluginRegistry.getPlugin("dfs_test").getId().getConfig();
+    // Create a HDFS based storage plugin (connection string for mini dfs is varies for each run).
 
+    final CatalogService catalogService = getSabotContext().getCatalogService();
     final Path dirPath = new Path("/");
     FileSystem.mkdirs(fs, dirPath, new FsPermission((short)0777));
     fs.setOwner(dirPath, processUser, processUser);
 
+    final InternalFileConf conf = new InternalFileConf();
+    conf.connection = fs.getUri().toString();
+    conf.path = "/";
+    conf.enableImpersonation = impersonationEnabled;
+    conf.mutability = SchemaMutability.ALL;
 
-    final FileSystemConfig miniDfsPluginConfig =
-        new FileSystemConfig(fs.getUri().toString(), "/",
-            ImmutableMap.<String, String>of(), lfsPluginConfig.getFormats(), impersonationEnabled, SchemaMutability.ALL);
-
-    pluginRegistry.createOrUpdate(MINIDFS_STORAGE_PLUGIN_NAME, miniDfsPluginConfig, true);
+    final SourceConfig config = new SourceConfig();
+    config.setName(MINIDFS_STORAGE_PLUGIN_NAME);
+    config.setConnectionConf(conf);
+    config.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(config);
   }
 
   protected static void createAndAddWorkspace(String name, String path, short permissions, String owner,

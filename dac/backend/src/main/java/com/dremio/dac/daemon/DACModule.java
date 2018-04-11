@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package com.dremio.dac.daemon;
 
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.service.SingletonRegistry;
 
 /**
@@ -27,5 +26,5 @@ public interface DACModule {
   void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster);
 
   void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, boolean isMaster, SourceToStoragePluginConfig configurator);
+      DACConfig dacConfig, boolean isMaster);
 }

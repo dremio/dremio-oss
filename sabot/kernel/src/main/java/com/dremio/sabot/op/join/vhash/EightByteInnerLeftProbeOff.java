@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -248,11 +249,7 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
 
   @Override
   public AutoCloseable traceStart(int numRecords) {
-    return new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
-      }
-    };
+    return AutoCloseables.noop();
   }
 
   @Override

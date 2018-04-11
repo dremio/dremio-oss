@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.helper.QueryIdHelper;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.sabot.driver.OperatorCreator;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
@@ -109,7 +109,7 @@ public class FragmentExecutor {
   private final FlushableSendingAccountor flushable;
   private final FragmentStats stats;
   private final FragmentTicket ticket;
-  private final StoragePluginRegistry storagePluginRegistry;
+  private final CatalogService sources;
 
   private boolean retired = false;
   private boolean isSetup = false;
@@ -148,7 +148,7 @@ public class FragmentExecutor {
       FlushableSendingAccountor flushable,
       FragmentStats stats,
       final FragmentTicket ticket,
-      StoragePluginRegistry storagePluginRegistry,
+      final CatalogService sources,
       DeferredException exception,
       EventProvider eventProvider) {
     super();
@@ -170,7 +170,7 @@ public class FragmentExecutor {
     this.stats = stats;
     this.ticket = ticket;
     this.deferredException = exception;
-    this.storagePluginRegistry = storagePluginRegistry;
+    this.sources = sources;
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
     this.buffers = new IncomingBuffers(deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider, fragment, allocator, config);
     this.eventProvider = eventProvider;
@@ -318,7 +318,7 @@ public class FragmentExecutor {
 
     final OperatorCreator operatorCreator = new UserDelegatingOperatorCreator(contextInfo.getQueryUser(), opCreator);
     pipeline = PipelineCreator.get(
-        new FragmentExecutionContext(fragment.getForeman(), updater, storagePluginRegistry, cancelled),
+        new FragmentExecutionContext(fragment.getForeman(), updater, sources, cancelled),
         buffers,
         operatorCreator,
         contextCreator,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,16 @@
 package com.dremio.exec.server;
 
 
+import static com.dremio.config.DremioConfig.EXECUTOR_CPU;
+
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
 
 import javax.inject.Provider;
+
+import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -41,6 +45,7 @@ import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
@@ -68,10 +73,12 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<AccelerationManager> accelerationManager;
   private final Provider<AccelerationListManager> accelerationListManager;
   private final Provider<NamespaceService.Factory> namespaceServiceFactoryProvider;
+  private final Provider<DatasetListingService> datasetListingServiceProvider;
   private final Provider<UserService> userService;
   private final Provider<CatalogService> catalogService;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final Set<ClusterCoordinator.Role> roles;
+  protected BufferAllocator queryPlannerAllocator;
 
   private SabotContext context;
 
@@ -90,14 +97,17 @@ public class ContextService implements Service, Provider<SabotContext> {
       Provider<AccelerationManager> accelerationManager,
       Provider<AccelerationListManager> accelerationListManager,
       Provider<NamespaceService.Factory> namespaceServiceFactory,
+      Provider<DatasetListingService> datasetListingServiceProvider,
       Provider<UserService> userService,
       Provider<CatalogService> catalogService,
-      Provider<ViewCreatorFactory> viewCreatorFactory
+      Provider<ViewCreatorFactory> viewCreatorFactory,
+      boolean allRoles
       ) {
     this(bindingCreator, bootstrapContext, coord, provider, workStats, kvStoreProvider, fabric, userServer,
         materializationDescriptorProvider, queryObserverFactory, runningQueriesProvider, accelerationManager,
-        accelerationListManager, namespaceServiceFactory, userService, catalogService, viewCreatorFactory,
-        EnumSet.allOf(ClusterCoordinator.Role.class));
+        accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
+        viewCreatorFactory,
+        allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
   }
 
   public ContextService(
@@ -115,11 +125,11 @@ public class ContextService implements Service, Provider<SabotContext> {
       Provider<AccelerationManager> accelerationManager,
       Provider<AccelerationListManager> accelerationListManager,
       Provider<NamespaceService.Factory> namespaceServiceFactoryProvider,
+      Provider<DatasetListingService> datasetListingServiceProvider,
       Provider<UserService> userService,
       Provider<CatalogService> catalogService,
       Provider<ViewCreatorFactory> viewCreatorFactory,
       Set<ClusterCoordinator.Role> roles) {
-    super();
     this.bindingCreator = bindingCreator;
     this.bootstrapContext = bootstrapContext;
     this.provider = provider;
@@ -133,6 +143,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.accelerationManager = accelerationManager;
     this.accelerationListManager = accelerationListManager;
     this.namespaceServiceFactoryProvider = namespaceServiceFactoryProvider;
+    this.datasetListingServiceProvider = datasetListingServiceProvider;
     this.userService = userService;
     this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
@@ -142,6 +153,9 @@ public class ContextService implements Service, Provider<SabotContext> {
 
   @Override
   public void start() throws Exception {
+    queryPlannerAllocator = bootstrapContext.getAllocator().
+      newChildAllocator("query-planning", 0, bootstrapContext.getAllocator().getLimit());
+
     this.context = newSabotContext();
 
     SystemOptionManager optionManager = context.getOptionManager();
@@ -176,7 +190,7 @@ public class ContextService implements Service, Provider<SabotContext> {
         .setFabricPort(fabric.getPort())
         .setStartTime(System.currentTimeMillis())
         .setMaxDirectMemory(SabotConfig.getMaxDirectMemory())
-        .setAvailableCores(Runtime.getRuntime().availableProcessors())
+        .setAvailableCores(Integer.getInteger(EXECUTOR_CPU, Runtime.getRuntime().availableProcessors()))
         .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
 
     String containerId = System.getenv("CONTAINER_ID");
@@ -186,6 +200,7 @@ public class ContextService implements Service, Provider<SabotContext> {
 
     final NodeEndpoint identity = identityBuilder.build();
     return new SabotContext(
+        bootstrapContext.getDremioConfig(),
         identity,
         sConfig,
         roles,
@@ -197,6 +212,7 @@ public class ContextService implements Service, Provider<SabotContext> {
         workStats,
         kvStoreProvider.get(),
         namespaceServiceFactoryProvider.get(),
+        datasetListingServiceProvider.get(),
         userService.get(),
         materializationDescriptorProvider,
         queryObserverFactory,
@@ -204,13 +220,14 @@ public class ContextService implements Service, Provider<SabotContext> {
         accelerationManager,
         accelerationListManager,
         catalogService,
-        viewCreatorFactory
+        viewCreatorFactory,
+        queryPlannerAllocator
        );
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(context);
+    AutoCloseables.close(context, queryPlannerAllocator);
   }
 
   @Override

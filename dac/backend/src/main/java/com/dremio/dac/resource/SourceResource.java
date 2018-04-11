@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 package com.dremio.dac.resource;
 
 import java.io.IOException;
+import java.util.ConcurrentModificationException;
+import java.util.Objects;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -33,10 +35,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.DatasetsResource;
@@ -48,7 +46,6 @@ import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
-import com.dremio.dac.model.sources.Source;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
@@ -61,20 +58,22 @@ import com.dremio.dac.service.errors.SourceFileNotFoundException;
 import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
-import com.dremio.service.accelerator.AccelerationService;
-import com.dremio.service.accelerator.proto.AccelerationEntry;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.google.common.base.Optional;
+import com.dremio.service.reflection.ReflectionService;
+import com.dremio.service.reflection.proto.ReflectionGoal;
 
 /**
  * Rest resource for sources.
@@ -84,39 +83,45 @@ import com.google.common.base.Optional;
 @RolesAllowed({"admin", "user"})
 @Path("/source/{sourceName}")
 public class SourceResource {
-  private static final Logger logger = LoggerFactory.getLogger(SourceResource.class);
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceResource.class);
 
   private final QueryExecutor executor;
   private final Provider<NamespaceService> namespaceService;
-  private final Provider<AccelerationService> accelerationService;
+  private final Provider<ReflectionService> reflectionService;
   private final SourceService sourceService;
   private final SourceName sourceName;
   private final SecurityContext securityContext;
   private final SourcePath sourcePath;
   private final DatasetsResource datasetsResource;
+  private final ConnectionReader cReader;
+  private final Catalog catalog;
 
   @Inject
   public SourceResource(
       Provider<NamespaceService> namespaceService,
-      Provider<AccelerationService> accelerationService,
+      Provider<ReflectionService> reflectionService,
       SourceService sourceService,
       @PathParam("sourceName") SourceName sourceName,
       QueryExecutor executor,
       SecurityContext securityContext,
-      DatasetsResource datasetsResource
-      ) throws SourceNotFoundException, NamespaceException {
+      DatasetsResource datasetsResource,
+      ConnectionReader cReader,
+      Catalog catalog
+      ) throws SourceNotFoundException {
     this.namespaceService = namespaceService;
-    this.accelerationService = accelerationService;
+    this.reflectionService = reflectionService;
     this.sourceService = sourceService;
     this.sourceName = sourceName;
     this.securityContext = securityContext;
     this.datasetsResource = datasetsResource;
     this.sourcePath = new SourcePath(sourceName);
     this.executor = executor;
+    this.cReader = cReader;
+    this.catalog = catalog;
   }
 
   protected SourceUI newSource(SourceConfig config) throws Exception {
-    return SourceUI.get(config);
+    return SourceUI.get(config, cReader);
   }
 
   @GET
@@ -134,6 +139,12 @@ public class SourceResource {
           .setNumberOfDatasets(namespaceService.get().getAllDatasetsCount(new NamespaceKey(config.getName())));
 
       source.setState(sourceState);
+
+      final AccelerationSettings settings = reflectionService.get().getReflectionSettings().getReflectionSettings(sourcePath.toNamespaceKey());
+      if (settings != null) {
+        source.setAccelerationRefreshPeriod(settings.getRefreshPeriod());
+        source.setAccelerationGracePeriod(settings.getGracePeriod());
+      }
       if (includeContents) {
         source.setContents(sourceService.listSource(sourcePath.getSourceName(),
           namespaceService.get().getSource(sourcePath.toNamespaceKey()), securityContext.getUserPrincipal().getName()));
@@ -152,21 +163,14 @@ public class SourceResource {
       throw new ClientErrorException("missing version parameter");
     }
     try {
-      namespaceService.get().deleteSource(new SourcePath(sourceName).toNamespaceKey(), version);
+      SourceConfig config = namespaceService.get().getSource(new SourcePath(sourceName).toNamespaceKey());
+      if(!Objects.equals(config.getVersion(), version)) {
+        throw new ConcurrentModificationException(String.format("Unable to delete source, expected version %s, received version %s.", config.getVersion(), version));
+      }
+      catalog.deleteSource(config);
     } catch (NamespaceNotFoundException nfe) {
       throw new SourceNotFoundException(sourcePath.getSourceName().getName(), nfe);
     }
-    sourceService.unregisterSourceWithRuntime(sourcePath.getSourceName());
-  }
-
-  @POST
-  @Path("/rename")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Source renameSource(@QueryParam("renameTo") String renameTo)
-    throws NamespaceException, SourceNotFoundException {
-    throw UserException.unsupportedError()
-        .message("Renaming a source is not supported")
-        .build(logger);
   }
 
   @GET
@@ -176,8 +180,7 @@ public class SourceResource {
       throws NamespaceException, IOException, SourceFolderNotFoundException, PhysicalDatasetNotFoundException, SourceNotFoundException {
     sourceService.checkSourceExists(sourceName);
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    Folder folder = sourceService.getFolder(sourceName, folderPath, includeContents, securityContext.getUserPrincipal().getName());
-    return folder;
+    return sourceService.getFolder(sourceName, folderPath, includeContents, securityContext.getUserPrincipal().getName());
   }
 
   @GET
@@ -246,7 +249,7 @@ public class SourceResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFileFormat(FileFormat fileFormat, @PathParam("path") String path)
-      throws NamespaceException, SourceFileNotFoundException, SourceNotFoundException {
+      throws SourceFileNotFoundException, SourceNotFoundException {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     return executor.previewPhysicalDataset(filePath.toString(), fileFormat);
   }
@@ -260,12 +263,12 @@ public class SourceResource {
       throw new ClientErrorException("missing version parameter");
     }
 
-    final Optional<AccelerationEntry> acceleration = accelerationService.get().getAccelerationEntryByDataset(new NamespaceKey(filePath.toPathList()));
-    if (acceleration.isPresent()) {
-      accelerationService.get().remove(acceleration.get().getDescriptor().getId());
+    Iterable<ReflectionGoal> reflections = reflectionService.get().getReflectionsByDatasetPath(new NamespaceKey(filePath.toPathList()));
+    for (ReflectionGoal reflection : reflections) {
+      reflectionService.get().remove(reflection);
     }
 
-    sourceService.deletePhysicalDataset(sourceName, filePath, version);
+    sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version);
   }
 
   // format settings for folders.
@@ -293,7 +296,7 @@ public class SourceResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFolderFormat(FileFormat fileFormat, @PathParam("path") String path)
-    throws NamespaceException, SourceFileNotFoundException, SourceNotFoundException {
+    throws SourceFileNotFoundException, SourceNotFoundException {
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
     return executor.previewPhysicalDataset(folderPath.toString(), fileFormat);
   }
@@ -329,12 +332,12 @@ public class SourceResource {
     }
 
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    final Optional<AccelerationEntry> acceleration = accelerationService.get().getAccelerationEntryByDataset(new NamespaceKey(folderPath.toPathList()));
-    if (acceleration.isPresent()) {
-      accelerationService.get().remove(acceleration.get().getDescriptor().getId());
+    Iterable<ReflectionGoal> reflections = reflectionService.get().getReflectionsByDatasetPath(new NamespaceKey(folderPath.toPathList()));
+    for (ReflectionGoal reflection : reflections) {
+      reflectionService.get().remove(reflection);
     }
 
-    sourceService.deletePhysicalDataset(sourceName, folderPath, version);
+    sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(folderPath), version);
   }
 
   @POST

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ import com.dremio.dac.explore.model.DatasetResourcePath;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
-import com.dremio.dac.homefiles.HomeFileConfig;
+import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.common.DACException;
 import com.dremio.dac.model.common.NamespacePath;
@@ -73,6 +73,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.InputValidation;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -82,7 +83,7 @@ import com.dremio.dac.service.errors.FolderNotFoundException;
 import com.dremio.dac.service.errors.HomeNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.file.File;
 import com.dremio.file.FileName;
 import com.dremio.file.FilePath;
@@ -123,18 +124,20 @@ public class HomeResource {
   private final HomePath homePath;
   private final DatasetsResource datasetsResource;
   private final HomeFileTool fileStore;
-  private final CatalogService catalogService;
+  private final CatalogServiceHelper catalogServiceHelper;
+  private final Catalog catalog;
 
   @Inject
   public HomeResource(
-      NamespaceService namespaceService,
-      DatasetVersionMutator datasetService,
-      @Context SecurityContext securityContext,
-      JobsService jobsService,
-      DatasetsResource datasetsResource,
-      HomeFileTool fileStore,
-      CatalogService catalogService,
-      @PathParam("homeName") HomeName homeName) {
+    NamespaceService namespaceService,
+    DatasetVersionMutator datasetService,
+    @Context SecurityContext securityContext,
+    JobsService jobsService,
+    DatasetsResource datasetsResource,
+    HomeFileTool fileStore,
+    CatalogServiceHelper catalogServiceHelper,
+    Catalog catalog,
+    @PathParam("homeName") HomeName homeName) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.securityContext = securityContext;
@@ -143,7 +146,8 @@ public class HomeResource {
     this.homeName = homeName;
     this.homePath = new HomePath(homeName);
     this.fileStore = fileStore;
-    this.catalogService = catalogService;
+    this.catalogServiceHelper = catalogServiceHelper;
+    this.catalog = catalog;
   }
 
   protected Dataset newDataset(DatasetResourcePath resourcePath,
@@ -274,7 +278,7 @@ public class HomeResource {
     fileFormat.setVersion(null);
     final DatasetConfig datasetConfig = toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE,
       securityContext.getUserPrincipal().getName(), null);
-    catalogService.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileConfig.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
+    catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
     fileFormat.setVersion(datasetConfig.getVersion());
     return newFile(
       datasetConfig.getId().getId(),
@@ -297,7 +301,7 @@ public class HomeResource {
     // use file's location directly to query file
     String fileLocation = PathUtils.toDottedPath(new org.apache.hadoop.fs.Path(fileFormat.getLocation()));
     SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
-        SqlUtils.quoteIdentifier(HomeFileConfig.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
+        SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
     JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
         .setSqlQuery(query)
         .setQueryType(QueryType.UI_INITIAL_PREVIEW)
@@ -338,9 +342,7 @@ public class HomeResource {
       throw new ClientErrorException("missing version parameter");
     }
     try {
-      final FileConfig fileConfig = namespaceService.getDataset(filePath.toNamespaceKey()).getPhysicalDataset().getFormatSettings();
-      fileStore.deleteFile(fileConfig.getLocation());
-      namespaceService.deleteDataset(filePath.toNamespaceKey(), version);
+      catalogServiceHelper.deleteHomeDataset(namespaceService.getDataset(filePath.toNamespaceKey()), version);
     } catch (IOException ioe) {
       throw new DACException("Error deleting to file at " + filePath, ioe);
     }
@@ -390,7 +392,7 @@ public class HomeResource {
     newConfig.setName(oldConfig.getName());
     newConfig.setOwner(oldConfig.getOwner());
     newConfig.setLocation(oldConfig.getLocation());
-    catalogService.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileConfig.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), toDatasetConfig(newConfig, DatasetType.PHYSICAL_DATASET_HOME_FILE,
+    catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), toDatasetConfig(newConfig, DatasetType.PHYSICAL_DATASET_HOME_FILE,
       securityContext.getUserPrincipal().getName(), existingDSConfig.getId()));
     return new FileFormatUI(FileFormat.getForFile(newConfig), filePath);
   }

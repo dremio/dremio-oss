@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,14 @@
  */
 package com.dremio.dac.api;
 
-import static com.dremio.service.accelerator.AccelerationServiceImpl.STARTTIME_ORDERING;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SOURCES;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -40,17 +36,13 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.dac.service.reflection.ReflectionStatusUI;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.service.accelerator.AccelerationService;
-import com.dremio.service.accelerator.AccelerationUtils;
-import com.dremio.service.accelerator.proto.Acceleration;
-import com.dremio.service.accelerator.proto.Layout;
-import com.dremio.service.accelerator.proto.Materialization;
-import com.dremio.service.accelerator.proto.MaterializationState;
 import com.dremio.service.jobs.JobTypeStats;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
@@ -58,12 +50,11 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.source.proto.SourceType;
-import com.dremio.service.users.UserService;
+import com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS;
+import com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS;
+import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 
 /**
  * Resource for information about sources.
@@ -80,17 +71,15 @@ public class ClusterStatsResource {
   private final SourceService sourceService;
   private final NamespaceService namespaceService;
   private JobsService jobsService;
-  private AccelerationService accelerationService;
-  private UserService userService;
+  private ReflectionServiceHelper reflectionServiceHelper;
 
   @Inject
-  public ClusterStatsResource(Provider<SabotContext> context, SourceService sourceService, NamespaceService namespaceService, JobsService jobsService, AccelerationService accelerationService, UserService userService) {
+  public ClusterStatsResource(Provider<SabotContext> context, SourceService sourceService, NamespaceService namespaceService, JobsService jobsService, ReflectionServiceHelper reflectionServiceHelper) {
     this.context = context;
     this.sourceService = sourceService;
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
-    this.accelerationService = accelerationService;
-    this.userService = userService;
+    this.reflectionServiceHelper = reflectionServiceHelper;
   }
 
   @GET
@@ -116,7 +105,11 @@ public class ClusterStatsResource {
         logger.warn("Failed to get dataset count", e);
       }
 
-      SourceStats source = new SourceStats(sourceConfig.getId(), sourceConfig.getType(), pdsCount);
+      String type = sourceConfig.getType();
+      if(type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
+        type = sourceConfig.getLegacySourceTypeEnum().name();
+      }
+      SourceStats source = new SourceStats(sourceConfig.getId(), type, pdsCount);
 
       vdsQueries.add(SearchQueryUtils.newTermQuery(DATASET_SOURCES, sourceConfig.getName()));
 
@@ -139,62 +132,35 @@ public class ClusterStatsResource {
     result.setJobStats(jobStats);
 
     // acceleration stats
-    Iterable<Acceleration> accelerations = accelerationService.getAllAccelerations();
+    Iterable<ReflectionGoal> reflections = reflectionServiceHelper.getAllReflections();
 
     int activeReflections = 0;
     int errorReflections = 0;
     Long latestReflectionsSizeBytes = 0L;
-    final long[] totalReflectionSizeBytes = {0L};
+    long totalReflectionSizeBytes = 0L;
     int incrementalReflectionCount = 0;
 
-    for (Acceleration acceleration : accelerations) {
-      Iterable<Layout> layouts = AccelerationUtils.getAllLayouts(acceleration);
+    for (ReflectionGoal reflection : reflections) {
+      String id = reflection.getId().getId();
 
-      for (Layout layout : layouts) {
-        Iterable<Materialization> materializations = accelerationService.getMaterializations(layout.getId());
+      latestReflectionsSizeBytes += reflectionServiceHelper.getCurrentSize(id);
+      totalReflectionSizeBytes += reflectionServiceHelper.getTotalSize(id);
 
-        // we want the last completed/failed materialization for our stats
-        final Set<MaterializationState> states =
-          EnumSet.of(MaterializationState.DONE, MaterializationState.FAILED);
+      ReflectionStatusUI status = reflectionServiceHelper.getStatusForReflection(id);
 
-        List<Materialization> list = STARTTIME_ORDERING
-          .greatestOf(FluentIterable
-            .from(materializations)
-            .filter(new Predicate<Materialization>() {
-              @Override
-              public boolean apply(@Nullable final Materialization materialization) {
-                totalReflectionSizeBytes[0] += materialization.getMetrics().getFootprint();
+      AVAILABILITY_STATUS availability = status.getAvailability();
+      if (availability == AVAILABILITY_STATUS.AVAILABLE) {
+        activeReflections++;
+      } else if (availability == AVAILABILITY_STATUS.INCOMPLETE || status.getRefresh() == REFRESH_STATUS.GIVEN_UP) {
+        errorReflections++;
+      }
 
-                if (!states.contains(materialization.getState())) {
-                  return false;
-                }
-                return true;
-              }
-            }), 1);
-
-        if (!list.isEmpty()) {
-          if (layout.getIncremental()) {
-            incrementalReflectionCount++;
-          }
-
-          switch (list.get(0).getState()) {
-            case DONE:
-              latestReflectionsSizeBytes += list.get(0).getMetrics().getFootprint();
-              activeReflections++;
-              break;
-
-            case FAILED:
-              errorReflections++;
-              break;
-
-            default:
-              break;
-          }
-        }
+      if (reflectionServiceHelper.isReflectionIncremental(id)) {
+        incrementalReflectionCount++;
       }
     }
 
-    ReflectionStats reflectionStats = new ReflectionStats(activeReflections, errorReflections, totalReflectionSizeBytes[0], latestReflectionsSizeBytes, incrementalReflectionCount);
+    ReflectionStats reflectionStats = new ReflectionStats(activeReflections, errorReflections, totalReflectionSizeBytes, latestReflectionsSizeBytes, incrementalReflectionCount);
     result.setReflectionStats(reflectionStats);
 
     return result;
@@ -254,14 +220,14 @@ public class ClusterStatsResource {
    */
   public static class SourceStats {
     private final EntityId id;
-    private final SourceType type;
+    private final String type;
     private final int pdsCount;
     private int vdsCount;
 
     @JsonCreator
     public SourceStats(
         @JsonProperty("id") EntityId id,
-        @JsonProperty("type") SourceType type,
+        @JsonProperty("type") String type,
         @JsonProperty("pdsCount") int pdsCount,
         @JsonProperty("vdsCount") int vdsCount) {
       this.id = id;
@@ -270,7 +236,7 @@ public class ClusterStatsResource {
       this.vdsCount = vdsCount;
     }
 
-    public SourceStats(EntityId id, SourceType type, int pdsCount) {
+    public SourceStats(EntityId id, String type, int pdsCount) {
       this.id = id;
       this.type = type;
       this.pdsCount = pdsCount;
@@ -282,7 +248,7 @@ public class ClusterStatsResource {
     }
 
     public String getType() {
-      return type.name();
+      return type;
     }
 
     public int getPdsCount() {

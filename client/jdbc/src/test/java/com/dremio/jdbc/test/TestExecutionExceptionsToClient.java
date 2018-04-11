@@ -38,7 +38,7 @@ public class TestExecutionExceptionsToClient extends JdbcWithServerTestBase {
   public static void setUpConnection() throws SQLException {
     JdbcWithServerTestBase.setUpConnection();
     try(Statement stmt = getConnection().createStatement()) {
-      stmt.execute(String.format("alter session set `%s` = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
+      stmt.execute(String.format("alter session set \"%s\" = false", ExecConstants.ENABLE_REATTEMPTS.getOptionName()));
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.store.sys;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 
 public class SystemScanDrule extends SourceLogicalConverter {
 
-  public static final RelOptRule INSTANCE = new SystemScanDrule();
-
-  private SystemScanDrule() {
-    super(SystemStoragePlugin.TYPE);
+  public SystemScanDrule(SourceType type) {
+    super(type);
 
   }
   @Override

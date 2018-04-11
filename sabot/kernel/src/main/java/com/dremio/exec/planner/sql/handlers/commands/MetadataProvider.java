@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserProtos.CatalogMetadata;
 import com.dremio.exec.proto.UserProtos.ColumnMetadata;
 import com.dremio.exec.proto.UserProtos.GetCatalogsReq;
@@ -42,6 +44,7 @@ import com.dremio.exec.proto.UserProtos.SchemaMetadata;
 import com.dremio.exec.proto.UserProtos.TableMetadata;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.ischema.tables.CatalogsTable.Catalog;
 import com.dremio.exec.store.ischema.tables.ColumnsTable.Column;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
@@ -49,12 +52,16 @@ import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
 import com.dremio.exec.store.ischema.tables.TablesTable.Table;
 import com.dremio.exec.work.protector.ResponseSenderHandler;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
 /**
@@ -69,7 +76,8 @@ public class MetadataProvider {
   public abstract static class MetadataCommand<R> implements CommandRunner<R> {
     protected final UserSession session;
     protected final SabotContext dContext;
-    protected final NamespaceService namespace;
+    protected final DatasetListingService datasetListing;
+    protected final String username;
     protected final String catalogName;
     protected final InfoSchemaTable table;
     protected final MetadataProviderConditionBuilder builder;
@@ -80,7 +88,8 @@ public class MetadataProvider {
         final InfoSchemaTable table) {
       this.session = Preconditions.checkNotNull(session);
       this.dContext = Preconditions.checkNotNull(dContext);
-      this.namespace = dContext.getNamespaceService(session.getCredentials().getUserName());
+      this.datasetListing = dContext.getDatasetListing();
+      this.username = session.getCredentials().getUserName();
       this.catalogName = session.getCatalogName();
       this.table = table;
       this.builder = new MetadataProviderConditionBuilder();
@@ -145,12 +154,17 @@ public class MetadataProvider {
     public GetCatalogsResp execute() throws Exception {
       final GetCatalogsResp.Builder respBuilder = GetCatalogsResp.newBuilder();
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
-      final Iterable<Catalog> records = FluentIterable.<Catalog>from(table.<Catalog>asIterable(catalogName, namespace, null)).filter(new Predicate<Catalog>() {
-        @Override
-        public boolean apply(Catalog input) {
-          return catalogNamePred.apply(input.CATALOG_NAME);
-        }});
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
+          ? builder.getLikePredicate(req.getCatalogNameFilter())
+          : Predicates.<String>alwaysTrue();
+      final Iterable<Catalog> records =
+          FluentIterable.<Catalog>from(table.<Catalog>asIterable(catalogName, username, datasetListing, null))
+              .filter(new Predicate<Catalog>() {
+                @Override
+                public boolean apply(Catalog input) {
+                  return catalogNamePred.apply(input.CATALOG_NAME);
+                }
+              });
 
       List<CatalogMetadata> metadata = new ArrayList<>();
       for(Catalog c : records) {
@@ -220,12 +234,17 @@ public class MetadataProvider {
 
       final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
-      final Iterable<Schema> records = FluentIterable.<Schema>from(table.<Schema>asIterable(catalogName, namespace, filter)).filter(new Predicate<Schema>() {
-        @Override
-        public boolean apply(Schema input) {
-          return catalogNamePred.apply(input.CATALOG_NAME);
-        }});
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
+          ? builder.getLikePredicate(req.getCatalogNameFilter())
+          : Predicates.<String>alwaysTrue();
+      final Iterable<Schema> records =
+          FluentIterable.<Schema>from(table.<Schema>asIterable(catalogName, username, datasetListing, filter))
+              .filter(new Predicate<Schema>() {
+                @Override
+                public boolean apply(Schema input) {
+                  return catalogNamePred.apply(input.CATALOG_NAME);
+                }
+              });
 
       List<SchemaMetadata> metadata = new ArrayList<>();
       for(Schema s : records) {
@@ -298,15 +317,25 @@ public class MetadataProvider {
     public GetTablesResp execute() throws Exception {
       final GetTablesResp.Builder respBuilder = GetTablesResp.newBuilder();
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
-      final Predicate<String> tableTypeFilter = req.getTableTypeFilterCount() > 0 ? builder.getTableTypePredicate(req.getTableTypeFilterList()) : Predicates.<String>alwaysTrue();
-      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, req.hasTableNameFilter() ? req.getTableNameFilter() : null);
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
+          ? builder.getLikePredicate(req.getCatalogNameFilter())
+          : Predicates.<String>alwaysTrue();
+      final Predicate<String> tableTypeFilter = req.getTableTypeFilterCount() > 0
+          ? builder.getTableTypePredicate(req.getTableTypeFilterList())
+          : Predicates.<String>alwaysTrue();
+      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter()
+          ? req.getSchemaNameFilter()
+          : null,
+          req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      final Iterable<Table> records = FluentIterable.<Table>from(table.<Table>asIterable(catalogName, namespace, filter)).filter(new Predicate<Table>() {
-        @Override
-        public boolean apply(Table input) {
-          return catalogNamePred.apply(input.TABLE_CATALOG) && tableTypeFilter.apply(input.TABLE_TYPE);
-        }});
+      final Iterable<Table> records =
+          FluentIterable.<Table>from(table.<Table>asIterable(catalogName, username, datasetListing, filter))
+              .filter(new Predicate<Table>() {
+                @Override
+                public boolean apply(Table input) {
+                  return catalogNamePred.apply(input.TABLE_CATALOG) && tableTypeFilter.apply(input.TABLE_TYPE);
+                }
+              });
 
       List<TableMetadata> metadata = new ArrayList<>();
       for (Table t : records) {
@@ -378,15 +407,52 @@ public class MetadataProvider {
     public GetColumnsResp execute() throws Exception {
       final GetColumnsResp.Builder respBuilder = GetColumnsResp.newBuilder();
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter() ? builder.getLikePredicate(req.getCatalogNameFilter()) : Predicates.<String>alwaysTrue();
-      final Predicate<String> columnNameFilter = req.hasColumnNameFilter() ? builder.getLikePredicate(req.getColumnNameFilter()) : Predicates.<String>alwaysTrue();
-      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, req.hasTableNameFilter() ? req.getTableNameFilter() : null);
+      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
+          ? builder.getLikePredicate(req.getCatalogNameFilter())
+          : Predicates.<String>alwaysTrue();
+      final Predicate<String> columnNameFilter = req.hasColumnNameFilter()
+          ? builder.getLikePredicate(req.getColumnNameFilter())
+          : Predicates.<String>alwaysTrue();
+      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter()
+          ? req.getSchemaNameFilter()
+          : null,
+          req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      final Iterable<Column> records = FluentIterable.<Column>from(table.<Column>asIterable(catalogName, namespace, filter)).filter(new Predicate<Column>() {
-        @Override
-        public boolean apply(Column input) {
-          return catalogNamePred.apply(input.TABLE_CATALOG) && columnNameFilter.apply(input.COLUMN_NAME);
-        }});
+      final Iterable<Column> originalColumns = table.<Column>asIterable(catalogName, username, datasetListing, filter);
+
+      Iterable<Column> records = Collections.emptyList();
+      if (originalColumns.iterator().hasNext()) {
+        records = FluentIterable.<Column>from(originalColumns).filter(new Predicate<Column>() {
+          @Override
+          public boolean apply(Column input) {
+            return catalogNamePred.apply(input.TABLE_CATALOG) && columnNameFilter.apply(input.COLUMN_NAME);
+          }
+        });
+      }
+
+      if (!originalColumns.iterator().hasNext()
+          && !records.iterator().hasNext()
+          && req.hasSchemaNameFilter()
+          && req.hasTableNameFilter()) {
+        // if we could not get the columns
+        // if we can figure table name we are going to get table
+
+        NamespaceKey tableName = fromFilter(
+          req.getSchemaNameFilter(),
+          req.getTableNameFilter());
+        if (tableName != null ) {
+          dContext.getCatalogService().getCatalog(SchemaConfig.newBuilder(session.getCredentials().getUserName()).build())
+            .getTable(tableName);
+
+          records = FluentIterable.<Column>from(table.<Column>asIterable(catalogName, username, datasetListing,
+            filter)).filter(new Predicate<Column>() {
+            @Override
+            public boolean apply(Column input) {
+              return catalogNamePred.apply(input.TABLE_CATALOG) && columnNameFilter.apply(input.COLUMN_NAME);
+            }
+          });
+        }
+      }
 
       List<ColumnMetadata> metadata = new ArrayList<>();
       for (Column c : records) {
@@ -476,4 +542,59 @@ public class MetadataProvider {
 
     return builder.build();
   }
+
+  private static final String SQL_LIKE_SPECIALS = "_%";
+  /** Helper method to convert schema and table filters into NamespaceKey
+   * This method creates NamespaceKey only if there are no any wildcard characters
+   * Needed to be able to get metadata for a particular table if metadata is being queried
+   * @param schemaFilter
+   * @param tableFilter
+   * @return NamespaceKey (can return null in case there are wildcard characters in any of the filters)
+   */
+  @VisibleForTesting
+  static NamespaceKey fromFilter(UserProtos.LikeFilter schemaFilter, UserProtos.LikeFilter tableFilter) {
+    final StringBuilder sb = new StringBuilder();
+    final List<String> paths = Lists.newArrayList();
+    final List<UserProtos.LikeFilter> filters = ImmutableList.of(schemaFilter, tableFilter);
+
+    for (UserProtos.LikeFilter filter : filters) {
+      final String pattern = filter.getPattern();
+      if (pattern.isEmpty()) {
+        // should have both schema and table filter
+        return null;
+      }
+      final String escape = filter.getEscape();
+
+      final char e = escape == null ? '\\' : escape.charAt(0);
+      boolean escaped = false;
+
+      for (int i = 0; i < pattern.length(); i++) {
+        char c = pattern.charAt(i);
+
+        if(escaped) {
+          sb.append(c);
+          escaped = false;
+          continue;
+        }
+
+        if (c == e) {
+          escaped = true;
+          continue;
+        }
+
+        if (SQL_LIKE_SPECIALS.indexOf(c) >=0) {
+          // unable to deal with likecards
+          return null;
+        }
+        sb.append(c);
+      }
+      paths.add(sb.toString());
+      sb.setLength(0);
+    }
+    if (!paths.isEmpty()) {
+      return new NamespaceKey(paths);
+    }
+    return null;
+  }
+
 }

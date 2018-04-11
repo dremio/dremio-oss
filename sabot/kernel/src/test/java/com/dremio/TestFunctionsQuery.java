@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1197,5 +1197,11 @@ public class TestFunctionsQuery extends BaseTestQuery {
             .baselineColumns("col1")
             .baselineValues(false)
             .go();
+  }
+
+  @Test
+  public void testKvGen() throws Exception {
+    String query = "SELECT KVGEN(CONVERT_FROM('{\"1\": 0.123, \"2\": 0.456, \"3\": 0.789}', 'JSON')) FROM (values (1))";
+    test(query);
   }
 }

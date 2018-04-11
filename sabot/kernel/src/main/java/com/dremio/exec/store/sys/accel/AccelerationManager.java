@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,48 +23,62 @@ import org.slf4j.LoggerFactory;
 public interface AccelerationManager {
   Logger logger = LoggerFactory.getLogger(AccelerationManager.class);
 
-  void addAcceleration(List<String> path);
   void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound);
   void addLayout(List<String> path, LayoutDefinition definition);
+  void addExternalReflection(String name, List<String> table, List<String> targetTable);
   void dropLayout(List<String> path, String layoutId);
   void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable);
   void replanlayout(String layoutId);
+  <T> T unwrap(Class<T> clazz);
+
   AccelerationDetailsPopulator newPopulator();
 
   AccelerationManager NO_OP = new AccelerationManager() {
     @Override
-    public void addAcceleration(List<String> path) {
-      throw new UnsupportedOperationException("AcceleratorManager.addAcceleration() called on a non coordinator node");
-    }
-
-    @Override
     public void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound) {
-      throw new UnsupportedOperationException("AcceleratorManager.dropAcceleration() called on a non coordinator node");
+      throw new UnsupportedOperationException("AccelerationManager.dropAcceleration() called on a non-coordinator node");
     }
 
     @Override
     public void addLayout(List<String> path, LayoutDefinition definition) {
-      throw new UnsupportedOperationException("AcceleratorManager.addLayout() called on a non coordinator node");
+      throw new UnsupportedOperationException("AccelerationManager.addLayout() called on a non-coordinator node");
+    }
+
+    @Override
+    public void addExternalReflection(String name, List<String> table, List<String> targetTable) {
+      throw new UnsupportedOperationException("AccelerationManager.addExternalReflection() called on a non-coordinator node");
     }
 
     @Override
     public void dropLayout(List<String> path, String layoutId) {
-      throw new UnsupportedOperationException("AcceleratorManager.dropLayout() called on a non coordinator node");
+      throw new UnsupportedOperationException("AccelerationManager.dropLayout() called on a non-coordinator node");
     }
 
     @Override
     public void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable) {
-      throw new UnsupportedOperationException("AcceleratorManager.toggleAcceleration() called on a non coordinator node");
+      throw new UnsupportedOperationException("AccelerationManager.toggleAcceleration() called on a non-coordinator node");
     }
 
     @Override
     public void replanlayout(String layoutId) {
-      throw new UnsupportedOperationException("AcceleratorManager.replanlayout() called on a non coordinator node");
+      throw new UnsupportedOperationException("AccelerationManager.replanlayout() called on a non-coordinator node");
     }
 
     @Override
     public AccelerationDetailsPopulator newPopulator() {
       return AccelerationDetailsPopulator.NO_OP;
     }
+
+    @Override
+    public <T> T unwrap(Class<T> clazz) {
+      return null;
+    }
   };
+
+  /**
+   * Provides excluded reflections lookup.
+   */
+  public interface ExcludedReflectionsProvider {
+    List<String> getExcludedReflections(String rId);
+  }
 }

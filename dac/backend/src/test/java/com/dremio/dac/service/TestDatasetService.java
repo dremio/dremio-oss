@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,8 @@ public class TestDatasetService extends BaseTestServer {
     ds1.setVersion(version);
     ds1.setSavedVersion(idVersionPair == null ? null : idVersionPair.getValue());
     ds1.setName(name);
-    ds1.setState(new VirtualDatasetState(new FromTable(path1.toPathString()).wrap()));
+    ds1.setState(new VirtualDatasetState()
+        .setFrom(new FromTable(path1.toPathString()).wrap()));
     ds1.getState().setColumnsList(asList(new Column("foo", new ExpColumnReference("bar").wrap())));
     ds1.setSql("select * from " + table);
     ds1.setId(idVersionPair == null ? null : idVersionPair.getKey());

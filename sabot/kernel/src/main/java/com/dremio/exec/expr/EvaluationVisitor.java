@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,13 +60,16 @@ import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.sabot.exec.context.FunctionContext;
-import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.sun.codemodel.JArray;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClass;
+import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
@@ -352,10 +355,66 @@ public class EvaluationVisitor {
         return generator.declare(CompleteType.INT);
       } else if (e instanceof TypedNullConstant) {
         return generator.declare(e.getCompleteType());
+      } else if (e instanceof InExpression) {
+        return visitInExpression((InExpression) e, generator);
       } else {
         return super.visitUnknown(e, generator);
       }
 
+    }
+
+    @SuppressWarnings("unused")
+    private HoldingContainer visitInExpression(InExpression e, final ClassGenerator<?> generator) {
+      final JCodeModel model = generator.getModel();
+      final JClass listType = e.getListType(model);
+      final JVar valueSet = generator.declareClassField(generator.getNextVar("inMap"), listType);
+
+      buildInSet: {
+        final List<HoldingContainer> constants = FluentIterable.from(e.getConstants()).transform(new com.google.common.base.Function<LogicalExpression, HoldingContainer>(){
+          @Override
+          public HoldingContainer apply(LogicalExpression input) {
+            return input.accept(EvalVisitor.this, generator);
+          }}).toList();
+
+        final HoldingContainer exampleConstant = constants.get(0);
+
+        generator.getMappingSet().enterConstant();
+        final JBlock block = generator.getSetupBlock();
+        JClass holderType = e.getHolderType(model);
+        JArray holders = JExpr.newArray(holderType, constants.size());
+        JVar inVars = block.decl(holderType.array(), generator.getNextVar("inVals"), holders);
+        for(int i =0; i < constants.size(); i++) {
+          block.assign(JExpr.component(inVars, JExpr.lit(i)), constants.get(i).getHolder());
+        }
+
+        block.assign(valueSet, JExpr._new(listType).arg(inVars));
+
+        generator.getMappingSet().exitConstant();
+      }
+
+      buildInEvaluation: {
+        JBlock block = generator.getEvalBlock();
+        HoldingContainer eval = e.getEval().accept(EvalVisitor.this, generator);
+        JClass outType = CompleteType.BIT.getHolderType(model);
+        JVar var = block.decl(outType, generator.getNextVar("inListResult"), JExpr._new(outType));
+        block.assign(var.ref("isSet"), JExpr.lit(1));
+        JInvocation valueFound;
+        if(e.isVarType()) {
+          valueFound = valueSet.invoke("isContained")
+          .arg(eval.getIsSet())
+          .arg(eval.getHolder().ref("start"))
+          .arg(eval.getHolder().ref("end"))
+          .arg(eval.getHolder().ref("buffer"));
+        } else {
+          valueFound = valueSet.invoke("isContained")
+            .arg(eval.getIsSet())
+            .arg(eval.getValue());
+        }
+
+        block.assign(var.ref("value"), valueFound);
+
+        return new HoldingContainer(CompleteType.BIT, var, var.ref("value"), var.ref("isSet"));
+      }
     }
 
     private HoldingContainer visitValueVectorWriteExpression(ValueVectorWriteExpression e, ClassGenerator<?> generator) {
@@ -989,9 +1048,17 @@ public class EvaluationVisitor {
       } else if (generator.getMappingSet().isWithinConstant()) {
         return super.visitBooleanOperator(e, generator).setConstant(true);
       } else {
+
+        // want to optimize a non-constant boolean operator.
+        if(functionContext.getCompilationOptions().enableOrOptimization() && "booleanOr".equals(e.getName())) {
+          List<LogicalExpression> newExpressions = OrInConverter.optimizeMultiOrs(e.args, constantBoundaries, functionContext.getCompilationOptions().getOrOptimizationThreshold());
+          return super.visitBooleanOperator(new BooleanOperator(e.getName(), newExpressions), generator);
+        }
+
         return super.visitBooleanOperator(e, generator);
       }
     }
+
     @Override
     public HoldingContainer visitIfExpression(IfExpression e, ClassGenerator<?> generator) throws RuntimeException {
       if (constantBoundaries.contains(e)) {

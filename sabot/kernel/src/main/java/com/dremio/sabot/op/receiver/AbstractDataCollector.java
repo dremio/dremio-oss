@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -190,14 +190,13 @@ public abstract class AbstractDataCollector implements DataCollector {
 
     public void informUpstreamIfNecessary(){
       if(!done){
-        final FinishedReceiver message = FinishedReceiver
-        .newBuilder()
-          .setReceiver(handle)
-          .setSender(
-              FragmentHandle.newBuilder()
+        final FinishedReceiver message = FinishedReceiver.newBuilder()
+            .setReceiver(handle)
+            .setSender(FragmentHandle.newBuilder()
+                .setQueryId(handle.getQueryId())
                 .setMajorFragmentId(config.getOppositeMajorFragmentId())
                 .setMinorFragmentId(sendingMinorFragmentId))
-          .build();
+            .build();
         tunnelProvider.getExecTunnel(sendingNode).informReceiverFinished(message);
         done = true;
       }

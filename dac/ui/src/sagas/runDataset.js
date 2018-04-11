@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import { loadNextRows } from 'actions/explore/dataset/data';
 import { updateHistoryWithJobState } from 'actions/explore/history';
 
 import socket, { WS_MESSAGE_JOB_PROGRESS } from 'utils/socket';
+import { addNotification } from 'actions/notification';
+
+import Immutable from 'immutable';
 
 import {
   RESUME_RUN_DATASET
@@ -35,7 +38,6 @@ const getJobDoneActionFilter = (jobId) => (action) =>
 
 const getJobProgressActionFilter = (jobId) => (action) =>
   action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && !action.payload.update.isComplete;
-
 
 export default function* watchRunDataset() {
   yield [
@@ -68,6 +70,8 @@ export function* waitForRunToComplete(dataset, paginationUrl, jobId) {
     true
   );
   yield put(updateViewState(viewStateId, { isInProgress: true }));
+
+  if (!socket.isOpen) yield put(addNotification(Immutable.Map({code: 'WS_CLOSED'}), 'error'));
 
   const { jobDone } = yield race({
     jobProgress: call(watchUpdateHistoryOnJobProgress, dataset, jobId),

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
  * corresponding {@code <data type>}; what
  * {@code INFORMATION_SCHEMA.COLUMNS.TYPE_NAME} would list)
  */
-class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
+public class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
 
   @Override
   public String visit(Null paramNull) {

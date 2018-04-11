@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ public class TestResourceLeak extends DremioTest {
     allocator = RootAllocatorFactory.newRoot(config);
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
 
-    bit = new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT);
+    bit = new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT, true);
     bit.run();
     client = QueryTestUtil.createClient(config, clusterCoordinator, 2, null);
   }

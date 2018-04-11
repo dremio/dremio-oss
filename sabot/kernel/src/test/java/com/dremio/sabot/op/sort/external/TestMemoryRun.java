@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ public class TestMemoryRun extends BaseTestOperator {
   @Test
   public void testCloseToCopier() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
-    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer)) {
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer, 2)) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToCopier(memoryRun, 100, totalAdded);
     }
@@ -76,7 +76,7 @@ public class TestMemoryRun extends BaseTestOperator {
   @Test
   public void testCloseToDisk() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
-    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer)) {
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer, 2)) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToDisk(memoryRun, totalAdded);
     }

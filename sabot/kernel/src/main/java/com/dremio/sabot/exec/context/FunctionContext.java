@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,6 +108,12 @@ public interface FunctionContext {
    * TODO (DX-9622)
    */
   FunctionErrorContext getFunctionErrorContext();
+
+  /**
+   * Get Compilation options
+   * @return compilation options.
+   */
+  CompilationOptions getCompilationOptions();
 
   /**
    * Works with value holders cache which holds constant value and its wrapper by type.

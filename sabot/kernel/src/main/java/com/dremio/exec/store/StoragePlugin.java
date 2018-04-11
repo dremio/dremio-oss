@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 import io.protostuff.ByteString;
@@ -94,7 +94,7 @@ public interface StoragePlugin extends Service {
    * Get the convention for this source instance. This allows the source's rules to choose to match only this source's convention.
    * @return
    */
-  StoragePluginId getId();
+  SourceCapabilities getSourceCapabilities();
 
   @Deprecated // Remove this method as the namespace should keep track of views.
   ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig);
@@ -106,7 +106,7 @@ public interface StoragePlugin extends Service {
    *
    * @return A class that has a zero-arg constructor for generating rules.
    */
-  Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass();
+  Class<? extends StoragePluginRulesFactory>  getRulesFactoryClass();
 
   /**
    * The status of the dataset that has been cheked
@@ -140,7 +140,13 @@ public interface StoragePlugin extends Service {
     UpdateStatus getStatus();
 
     /**
-     * Returns an updated dataset iff the UpdateStatus is CHANGED.
+     * Returns an updated dataset if the UpdateStatus is CHANGED or if the dataset
+     * is UNCHANGED.
+     *
+     * A StoragePlugin should supply a dataset with UNCHANGED states if it can
+     * construct one easily after comparing read signatures.
+     *
+     * This method should not be called if the status is DELETED.
      */
     SourceTableDefinition getDataset();
 
@@ -153,7 +159,7 @@ public interface StoragePlugin extends Service {
 
       @Override
       public SourceTableDefinition getDataset() {
-        throw new UnsupportedOperationException("Dataset is unchanged.");
+        return null;
       }};
 
     public CheckResult DELETED = new CheckResult(){

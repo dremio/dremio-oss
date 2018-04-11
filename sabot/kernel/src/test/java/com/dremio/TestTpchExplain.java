@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,15 @@ public class TestTpchExplain extends PlanTestBase {
 
   private static final String EXPLAIN_PREFIX = "EXPLAIN PLAN FOR ";
 
-
-  private void doExplain(String fileName) throws Exception{
-    String query = getFile(fileName);
+  private void doExplainQuery(String query) throws Exception {
     test(query);
     query = EXPLAIN_PREFIX + query;
     test(query);
+  }
+
+  private void doExplain(String fileName) throws Exception{
+    String query = getFile(fileName);
+    doExplainQuery(query);
   }
 
   public static void checkPlan(final String fileName, String[] expected, String[] unexpected) throws Exception{
@@ -56,7 +59,7 @@ public class TestTpchExplain extends PlanTestBase {
   }
 
   @Test
-  @Ignore // DRILL-512
+  @Ignore("cartesian") // DRILL-512
   public void tpch02() throws Exception{
     doExplain("queries/tpch/02.sql");
   }
@@ -108,7 +111,6 @@ public class TestTpchExplain extends PlanTestBase {
   }
 
   @Test
-  @Ignore // cartesion problem
   public void tpch11() throws Exception{
     doExplain("queries/tpch/11.sql");
   }
@@ -150,9 +152,44 @@ public class TestTpchExplain extends PlanTestBase {
   }
 
   @Test
-  @Ignore // non equality join
   public void tpch15() throws Exception{
-    doExplain("queries/tpch/15.sql");
+    // NB: can't use query 15 directly, as it has four distinct parts. doExplain(), above, assumes a single query
+    test("use dfs_test");
+    try {
+      test("create view revenue0 (supplier_no, total_revenue) as\n" +
+        "  select\n" +
+        "    l_suppkey,\n" +
+        "    sum(l_extendedprice * (1 - l_discount))\n" +
+        "  from\n" +
+        "    cp.`tpch/lineitem.parquet`\n" +
+        "  where\n" +
+        "    l_shipdate >= date '1993-05-01'\n" +
+        "    and l_shipdate < date '1993-05-01' + interval '3' month\n" +
+        "  group by\n" +
+        "    l_suppkey;\n");
+      doExplainQuery("select\n" +
+        "    s.s_suppkey,\n" +
+        "      s.s_name,\n" +
+        "      s.s_address,\n" +
+        "      s.s_phone,\n" +
+        "      r.total_revenue\n" +
+        "    from\n" +
+        "    cp.`tpch/supplier.parquet` s,\n" +
+        "      revenue0 r\n" +
+        "      where\n" +
+        "    s.s_suppkey = r.supplier_no\n" +
+        "    and r.total_revenue = (\n" +
+        "      select\n" +
+        "    max(total_revenue)\n" +
+        "    from\n" +
+        "      revenue0\n" +
+        "  )\n" +
+        "    order by\n" +
+        "    s.s_suppkey;\n"
+      );
+    } finally {
+      test("drop view revenue0");
+    }
   }
 
   @Test
@@ -178,7 +215,7 @@ public class TestTpchExplain extends PlanTestBase {
   }
 
   @Test
-  @Ignore // DRILL-519
+  @Ignore("cartesian") // DRILL-519
   public void tpch19() throws Exception{
     doExplain("queries/tpch/19.sql");
   }
@@ -195,13 +232,12 @@ public class TestTpchExplain extends PlanTestBase {
   }
 
   @Test
-  @Ignore
+  @Ignore("cartesian")
   public void tpch21() throws Exception{
     doExplain("queries/tpch/21.sql");
   }
 
   @Test
-  @Ignore // DRILL-518
   public void tpch22() throws Exception{
     doExplain("queries/tpch/22.sql");
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.NASConf;
 
 /**
  * Tests {@link SourceResource} API
@@ -46,8 +46,8 @@ public class TestSourceResource extends BaseTestServer {
     final long refreshPeriod = TimeUnit.HOURS.toMillis(4);
     final long gracePeriod = TimeUnit.HOURS.toMillis(12);
     {
-      final NASConfig nas = new NASConfig();
-      nas.setPath(folder.getRoot().getPath());
+      final NASConf nas = new NASConf();
+      nas.path = folder.getRoot().getPath();
       SourceUI source = new SourceUI();
       source.setName(sourceName);
       source.setCtime(System.currentTimeMillis());
@@ -75,8 +75,8 @@ public class TestSourceResource extends BaseTestServer {
   @Test
   public void testSourceHasDefaultTTL() throws Exception {
     final String sourceName = "src2";
-    final NASConfig nas = new NASConfig();
-    nas.setPath(folder.getRoot().getPath());
+    final NASConf nas = new NASConf();
+    nas.path = folder.getRoot().getPath();
     SourceUI source = new SourceUI();
     source.setName(sourceName);
     source.setCtime(System.currentTimeMillis());
@@ -103,8 +103,8 @@ public class TestSourceResource extends BaseTestServer {
   @Test
   public void testSourceHasDefaultRefreshPolicy() throws Exception {
     final String sourceName = "src3";
-    final NASConfig nas = new NASConfig();
-    nas.setPath(folder.getRoot().getPath());
+    final NASConf nas = new NASConf();
+    nas.path = folder.getRoot().getPath() ;
     SourceUI source = new SourceUI();
     source.setName(sourceName);
     source.setCtime(System.currentTimeMillis());

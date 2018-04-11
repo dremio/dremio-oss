@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractBase;
@@ -38,6 +39,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
 /**
@@ -48,16 +50,19 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
   private final SystemTable table;
   private final List<SchemaPath> columns;
   private final int nodeCount;
+  private final StoragePluginId pluginId;
 
   public SystemGroupScan(
       SystemTable table,
       List<SchemaPath> columns,
-      int nodeCount
+      int nodeCount,
+      StoragePluginId pluginId
       ) {
     super((String) null);
     this.table = table;
     this.columns = columns;
     this.nodeCount = nodeCount;
+    this.pluginId = pluginId;
   }
 
   // If distributed, the scan needs to happen on every node.
@@ -103,9 +108,20 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
     return table.getTableName();
   }
 
-  @Override
+  @Deprecated
   public List<String> getTableSchemaPath() {
     return null;
+  }
+
+  @JsonIgnore
+  @Override
+  public List<List<String>> getReferencedTables() {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return false;
   }
 
   /**
@@ -131,7 +147,7 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
 
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
-    return new SystemSubScan(table, getColumns());
+    return new SystemSubScan(table, getColumns(), pluginId);
   }
 
   @Override
@@ -161,7 +177,7 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
 
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-    return new SystemGroupScan(table, getColumns(), nodeCount);
+    return new SystemGroupScan(table, getColumns(), nodeCount, pluginId);
   }
 
 }

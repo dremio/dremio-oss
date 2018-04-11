@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,6 +93,7 @@ public class ExternalSortOperator implements SingleInputOperator {
   private ExternalSortTracer tracer;
 
   private int maxBatchesInMemory = 0;
+  private int batchsizeMultiplier;
 
   private State state = State.NEEDS_SETUP;
 
@@ -137,7 +138,8 @@ public class ExternalSortOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible incoming) {
     this.tracer = new ExternalSortTracer();
     this.output =  VectorContainer.create(context.getAllocator(), incoming.getSchema());
-    this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema(), tracer);
+    this.batchsizeMultiplier = (int)context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_BATCHSIZE_MULTIPLIER);
+    this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema(), tracer, batchsizeMultiplier);
     this.incoming = incoming;
     state = State.CAN_CONSUME;
 
@@ -218,7 +220,7 @@ public class ExternalSortOperator implements SingleInputOperator {
         copier = diskRuns.createCopier();
         sortState = SortState.COPY_FROM_DISK;
       }
-    } catch (IOException ex) {
+    } catch (Exception ex) {
       throw UserException.dataReadError(ex).message("Failure while attempting to read spill data from disk.")
         .build(logger);
     }
@@ -281,7 +283,7 @@ public class ExternalSortOperator implements SingleInputOperator {
 
     try {
       memoryRun.closeToDisk(diskRuns);
-      memoryRun = new MemoryRun(config, producer, allocator, incoming.getSchema(), tracer);
+      memoryRun = new MemoryRun(config, producer, allocator, incoming.getSchema(), tracer, batchsizeMultiplier);
     } catch (Exception e) {
       throw UserException.dataWriteError(e)
         .message("Failure while attempting to spill sort data to disk.")

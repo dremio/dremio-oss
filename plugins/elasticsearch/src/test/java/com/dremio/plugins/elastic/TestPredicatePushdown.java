@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -606,6 +606,122 @@ public class TestPredicatePushdown extends ElasticPredicatePushdownBase {
       .baselineValues("San Francisco")
       .baselineValues("San Francisco")
       .baselineValues("San Diego")
+      .go();
+  }
+
+  @Test
+  public void testNotLikeWithNulls() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = getNullBusinessData();
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("select city from elasticsearch.%s.%s where city not like '%%Cambridge%%' ", schema, table);
+
+    assertPushDownContains(sql,
+      "{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : {\n" +
+        "        \"exists\" : {\n" +
+        "          \"field\" : \"city\"\n" +
+        "        }\n" +
+        "      },\n" +
+        "      \"must_not\" : {\n" +
+        "        \"regexp\" : {\n" +
+        "          \"city\" : {\n" +
+        "            \"value\" : \".*Cambridge.*\",\n" +
+        "            \"flags_value\" : 65535\n" +
+        "          }\n" +
+        "        }\n" +
+        "      }\n" +
+        "    }\n" +
+        "  }\n" +
+        "}"
+    );
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues("San Francisco")
+      .baselineValues("San Francisco")
+      .go();
+  }
+
+  @Test
+  public void testNotEqualWithNulls() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = getNullBusinessData();
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("select city from elasticsearch.%s.%s where city <> 'Cambridge'", schema, table);
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues("San Francisco")
+      .baselineValues("San Francisco")
+      .go();
+
+  }
+
+  @Test
+  public void testIsNull() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = getNullBusinessData();
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("select city from elasticsearch.%s.%s where city is null", schema, table);
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues(null)
+      .baselineValues(null)
+      .go();
+  }
+
+  @Test
+  public void testNotEqual() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = getNullBusinessData();
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("select city from elasticsearch.%s.%s where city <> ''", schema, table);
+
+    test("explain plan for " + sql);
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues("San Francisco")
+      .baselineValues("San Francisco")
+      .baselineValues("Cambridge")
+      .baselineValues("Cambridge")
+      .go();
+  }
+
+  @Test
+  public void testLessThanWithNulls() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = getNullBusinessData();
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("select stars from elasticsearch.%s.%s where stars < 4", schema, table);
+
+    test("explain plan for " + sql);
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("stars")
+      .baselineValues(3.5f)
+      .baselineValues(1.0f)
       .go();
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,6 +73,7 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.datastore.SearchTypes.SortOrder;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.accelerator.proto.Materialization;
@@ -101,6 +102,7 @@ public class DatasetsResource {
   private final DatasetVersionMutator datasetService;
   private final NamespaceService namespaceService;
   private final DatasetTool tool;
+  private final ConnectionReader connectionReader;
 
   @Inject
   public DatasetsResource(
@@ -108,16 +110,19 @@ public class DatasetsResource {
       DatasetVersionMutator datasetService,
       JobsService jobsService,
       QueryExecutor executor,
+      ConnectionReader connectionReader,
       @Context SecurityContext securityContext) {
-    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext));
+    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext), connectionReader);
   }
 
   protected DatasetsResource(NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
-      DatasetTool tool) {
+      DatasetTool tool,
+      ConnectionReader connectionReader) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.tool = tool;
+    this.connectionReader = connectionReader;
   }
 
   private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context)
@@ -276,7 +281,7 @@ public class DatasetsResource {
     } else if ("source".equals(type)) {
       final NamespaceKey sourceKey = new SourcePath(containerName).toNamespaceKey();
       SourceConfig source = namespaceService.getSource(sourceKey);
-      spaceInfo = SourceUI.get(source)
+      spaceInfo = SourceUI.get(source, connectionReader)
           .setNumberOfDatasets(namespaceService.getAllDatasetsCount(sourceKey));
     } else {
       throw new DACRuntimeException("Incorrect dataset container type provided:" + type);

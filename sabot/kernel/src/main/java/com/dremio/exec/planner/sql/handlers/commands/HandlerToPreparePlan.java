@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,9 +36,12 @@ import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
+import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Take a sql node, plan it and then return an async response.
@@ -92,7 +95,9 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
         .setPrepareId(context.getQueryId())
         .build();
       planCache.put(handle, prepared);
-      observers.planCompleted(null);
+
+      // record a partial plan so that we can grab metadata and use it (for example during view creation of via sql).
+      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.<PlanFragment>of()));
       return 1;
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -182,11 +182,10 @@ public class TestUnionAll extends BaseTestQuery{
   }
 
   @Test // Union All constant literals
-  @Ignore
   public void testUnionAll10() throws Exception {
-    String query = "(select n_name, 'LEFT' as LiteralConstant, n_nationkey, '1' as NumberConstant from cp.`tpch/nation.parquet`) " +
+    String query = "(select n_name, 'LEFT' as LiteralConstant, n_nationkey, 1 as NumberConstant from cp.`tpch/nation.parquet`) " +
               "union all " +
-              "(select 'RIGHT', r_name, '2', r_regionkey from cp.`tpch/region.parquet`)";
+              "(select 'RIGHT', r_name, 2, r_regionkey from cp.`tpch/region.parquet`)";
 
     testBuilder()
         .sqlQuery(query)
@@ -226,52 +225,6 @@ public class TestUnionAll extends BaseTestQuery{
           .csvBaselineFile("testframework/testUnionAllQueries/q12.tsv")
           .baselineTypes(MinorType.VARCHAR, MinorType.INT)
           .baselineColumns("r_name", "r_regionkey")
-          .build().run();
-    } finally {
-      test("drop view nation_view_testunionall");
-      test("drop view region_view_testunionall");
-    }
-  }
-
-  @Ignore
-  @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2002
-  public void testUnionAllViewUnExpandableStar() throws Exception {
-    test("use dfs_test.tmp");
-    test("create view nation_view_testunionall as select * from cp.`tpch/nation.parquet`;");
-
-    try {
-      String query = "(select * from dfs_test.tmp.`nation_view_testunionall`) " +
-                     "union all (select * from cp.`tpch/region.parquet`)";
-      test(query);
-    } catch(UserException ex) {
-      SqlUnsupportedException.errorClassNameToException(ex.getOrCreatePBError(false).getException().getExceptionClass());
-      throw ex;
-    } finally {
-      test("drop view nation_view_testunionall");
-    }
-  }
-
-  @Test
-  @Ignore("changing schema")
-  public void testDiffDataTypesAndModes() throws Exception {
-    test("use dfs_test.tmp");
-    test("create view nation_view_testunionall as select n_name, n_nationkey from cp.`tpch/nation.parquet`;");
-    test("create view region_view_testunionall as select r_name, r_regionkey from cp.`tpch/region.parquet`;");
-
-    String t1 = "(select n_comment, n_regionkey from cp.`tpch/nation.parquet` limit 5)";
-    String t2 = "(select * from nation_view_testunionall  limit 5)";
-    String t3 = "(select full_name, store_id from cp.`employee.json` limit 5)";
-    String t4 = "(select * from region_view_testunionall  limit 5)";
-
-    String query1 = t1 + " union all " + t2 + " union all " + t3 + " union all " + t4;
-
-    try {
-      testBuilder()
-          .sqlQuery(query1)
-          .unOrdered()
-          .csvBaselineFile("testframework/testUnionAllQueries/q13.tsv")
-          .baselineTypes(MinorType.VARCHAR, MinorType.BIGINT)
-          .baselineColumns("n_comment", "n_regionkey")
           .build().run();
     } finally {
       test("drop view nation_view_testunionall");
@@ -502,93 +455,6 @@ public class TestUnionAll extends BaseTestQuery{
         .baselineValues("833")
         .baselineValues("99")
         .build().run();
-  }
-
-  @Test // see DRILL-2639
-  @Ignore("changing schema")
-  public void testUnionAllDiffTypesAtPlanning() throws Exception {
-    String query = "select count(c1) as ct from (select cast(r_regionkey as int) c1 from cp.`tpch/region.parquet`) " +
-        "union all " +
-        "(select cast(r_regionkey as int) c2 from cp.`tpch/region.parquet`)";
-
-    testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("ct")
-        .baselineValues((long) 5)
-        .baselineValues((long) 0)
-        .baselineValues((long) 1)
-        .baselineValues((long) 2)
-        .baselineValues((long) 3)
-        .baselineValues((long) 4)
-        .build().run();
-  }
-
-  @Test // see DRILL-2612
-  @Ignore
-  public void testUnionAllRightEmptyJson() throws Exception {
-    String rootEmpty = FileUtils.getResourceAsFile("/project/pushdown/empty.json").toURI().toString();
-    String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
-
-    String queryRightEmpty = String.format(
-        "select key from dfs_test.`%s` " +
-        "union all " +
-        "select key from dfs_test.`%s`",
-        rootSimple,
-        rootEmpty);
-
-    testBuilder()
-      .sqlQuery(queryRightEmpty)
-      .unOrdered()
-      .baselineColumns("key")
-      .baselineValues(true)
-      .baselineValues(false)
-      .build().run();
-  }
-
-  @Test
-  @Ignore
-  public void testUnionAllLeftEmptyJson() throws Exception {
-    final String rootEmpty = FileUtils.getResourceAsFile("/project/pushdown/empty.json").toURI().toString();
-    final String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
-
-    final String queryLeftEmpty = String.format(
-        "select key from dfs_test.`%s` " +
-        "union all " +
-        "select key from dfs_test.`%s`",
-        rootEmpty,
-        rootSimple);
-
-    testBuilder()
-        .sqlQuery(queryLeftEmpty)
-        .unOrdered()
-        .baselineColumns("key")
-        .baselineValues(true)
-        .baselineValues(false)
-        .build()
-        .run();
-  }
-
-  @Test
-  @Ignore
-  public void testUnionAllBothEmptyJson() throws Exception {
-    final String rootEmpty = FileUtils.getResourceAsFile("/project/pushdown/empty.json").toURI().toString();
-    final String query = String.format(
-            "select key from dfs_test.`%s` " +
-                    "union all " +
-                    "select key from dfs_test.`%s`",
-            rootEmpty,
-            rootEmpty);
-
-    final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
-    final MajorType majorType = Types.optional(MinorType.INT);
-    expectedSchema.add(Pair.of(SchemaPath.getSimplePath("key"), majorType));
-
-    testBuilder()
-        .sqlQuery(query)
-        .schemaBaseLine(expectedSchema)
-        .build()
-        .run();
   }
 
   @Test

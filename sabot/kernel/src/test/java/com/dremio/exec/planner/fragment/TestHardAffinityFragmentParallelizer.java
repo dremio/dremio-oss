@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,20 @@ package com.dremio.exec.planner.fragment;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET_DEFAULT;
 import static com.dremio.exec.planner.fragment.HardAffinityFragmentParallelizer.INSTANCE;
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -306,6 +310,38 @@ public class TestHardAffinityFragmentParallelizer {
     assertTrue(counts.count(N3_EP1) <= 5);
     assertTrue(counts.count(N4_EP2) <= 5);
     assertTrue(counts.count(N1_EP1) <= 5);
+  }
+
+  @Test
+  public void multiNodeClusterNonNormalizedAffinities() throws Exception {
+    final Wrapper wrapper = newWrapper(2000, 1, 250,
+        ImmutableList.of(
+            new EndpointAffinity(N1_EP2, 15, true, 50),
+            new EndpointAffinity(N2_EP2, 15, true, 50),
+            new EndpointAffinity(N3_EP1, 10, true, 50),
+            new EndpointAffinity(N4_EP2, 20, true, 50),
+            new EndpointAffinity(N1_EP1, 20, true, 50)
+        ));
+    INSTANCE.parallelizeFragment(wrapper, newParameters(100, 20, 80), null);
+
+    // Expect the fragment parallelization to be 20 because:
+    // 1. the cost (2000) is above the threshold (SLICE_TARGET_DEFAULT) (which gives 2000/100=20 width) and
+    // 2. Number of mandatory node assignments are 5 (current width 200 satisfies the requirement)
+    // 3. max width per node is 20 which limits the width to 100, but existing width (20) is already less
+    assertEquals(20, wrapper.getWidth());
+
+    final List<NodeEndpoint> assignedEps = wrapper.getAssignedEndpoints();
+    assertEquals(20, assignedEps.size());
+    final HashMultiset<NodeEndpoint> counts = HashMultiset.create();
+    for(final NodeEndpoint ep : assignedEps) {
+      counts.add(ep);
+    }
+    // Each node gets at max 5.
+    assertThat(counts.count(N1_EP2), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
+    assertThat(counts.count(N2_EP2), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
+    assertThat(counts.count(N3_EP1), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
+    assertThat(counts.count(N4_EP2), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
+    assertThat(counts.count(N1_EP1), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
   }
 
   @Test

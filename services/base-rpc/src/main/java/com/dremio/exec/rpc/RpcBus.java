@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
   private static final OutboundRpcMessage PONG = new OutboundRpcMessage(RpcMode.PONG, 0, 0, Acks.OK);
-  private static final boolean ENABLE_SEPARATE_THREADS = "true".equals(System.getProperty("dremio.enable_rpc_offload", "false"));
+  private static final boolean ENABLE_SEPARATE_THREADS = "true".equals(System.getProperty("dremio.enable_rpc_offload", "true"));
 
   public static final long RPC_DELAY_WARNING_THRESHOLD =
       Integer.parseInt(System.getProperty("dremio.exec.rpcDelayWarning", "500"));

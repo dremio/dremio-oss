@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,24 @@ export default function entitiesReducer(state = initialState, action) {
     for (const entityType of action.meta.entityClears) {
       nextState = nextState.set(entityType, new Immutable.Map());
     }
+  }
+
+  if (action.meta && action.meta.emptyEntityCache) {
+    // Remove folders when certain entities (like source or space) are removed to avoid caching outdated data
+    const root = action.meta.emptyEntityCache;
+    const newFolders = nextState.get('folder').filter((folder) => {
+      return folder.get('fullPathList').get(0) !== root;
+    });
+
+    const newFiles = nextState.get('file').filter((file) => {
+      return file.get('fullPathList').get(0) !== root;
+    });
+
+    const newFileFormats = nextState.get('fileFormat').filter((fileFormat) => {
+      return fileFormat.get('fullPath').get(0) !== root;
+    });
+
+    nextState = nextState.set('folder', newFolders).set('file', newFiles).set('fileFormat', newFileFormats);
   }
 
   nextState = isActionWithEntities(action)

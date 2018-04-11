@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,26 @@
  */
 package com.dremio.dac.api;
 
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+
 import com.dremio.service.namespace.source.proto.UpdateMode;
 
 /**
  * Source MetadataPolicy for the public REST API.
  */
 public class MetadataPolicy {
+
+  @Min(1)
   private long authTTLMs;
+
+  @Min(1)
   private long namesRefreshMs;
+
+  @Min(1)
   private long datasetRefreshAfterMs;
+
+  @Min(1)
   private long datasetExpireAfterMs;
   private String datasetUpdateMode;
 
@@ -37,6 +48,7 @@ public class MetadataPolicy {
     this.datasetUpdateMode = policy.getDatasetUpdateMode().name();
   }
 
+  @Min(1)
   public Long getAuthTTLMs() {
     return authTTLMs;
   }
@@ -45,6 +57,7 @@ public class MetadataPolicy {
     this.authTTLMs = authTTLMs;
   }
 
+  @Min(1)
   public long getNamesRefreshMs() {
     return namesRefreshMs;
   }
@@ -53,6 +66,7 @@ public class MetadataPolicy {
     this.namesRefreshMs = namesRefreshMs;
   }
 
+  @Min(1)
   public long getDatasetRefreshAfterMs() {
     return datasetRefreshAfterMs;
   }
@@ -61,6 +75,7 @@ public class MetadataPolicy {
     this.datasetRefreshAfterMs = datasetRefreshAfterMs;
   }
 
+  @Min(1)
   public long getDatasetExpireAfterMs() {
     return datasetExpireAfterMs;
   }
@@ -69,6 +84,7 @@ public class MetadataPolicy {
     this.datasetExpireAfterMs = datasetExpireAfterMs;
   }
 
+  @NotNull
   public String getDatasetUpdateMode() {
     return datasetUpdateMode;
   }
@@ -83,7 +99,6 @@ public class MetadataPolicy {
     metadataPolicy.setNamesRefreshMs(this.getNamesRefreshMs());
     metadataPolicy.setDatasetDefinitionExpireAfterMs(this.getDatasetExpireAfterMs());
     metadataPolicy.setDatasetDefinitionRefreshAfterMs(this.getDatasetRefreshAfterMs());
-    String datasetUpdateMode = this.getDatasetUpdateMode();
     metadataPolicy.setDatasetUpdateMode(UpdateMode.valueOf(this.getDatasetUpdateMode()));
     return metadataPolicy;
   }

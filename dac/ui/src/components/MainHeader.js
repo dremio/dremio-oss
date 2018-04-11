@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,8 @@ export class MainHeader extends Component {
 
   static propTypes = {
     user: PropTypes.instanceOf(Immutable.Map),
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    socketIsOpen: PropTypes.bool.isRequired
   };
 
   static defaultProps = {
@@ -49,7 +50,7 @@ export class MainHeader extends Component {
   };
 
   render() {
-    const { user } = this.props;
+    const { user, socketIsOpen } = this.props;
     return (
       <div className='explore-header'>
         <Link
@@ -59,7 +60,7 @@ export class MainHeader extends Component {
           <Art
             src={'NarwhalLogoWithNameLight.svg'}
             alt={this.props.intl.formatMessage({id: 'App.NarwhalLogo'})}
-            style={styles.logoIcon} />
+            style={{...styles.logoIcon, filter: `saturate(${socketIsOpen ? 1 : 0})`}} />
         </Link>
         <div className='header-wrap'>
           <div className='left-part'>
@@ -103,7 +104,8 @@ export class MainHeader extends Component {
 }
 
 const mapStateToProps = state => ({
-  user: state.account.get('user')
+  user: state.account.get('user'),
+  socketIsOpen: state.serverStatus.get('socketIsOpen')
 });
 
 export default connect(mapStateToProps)(MainHeader);

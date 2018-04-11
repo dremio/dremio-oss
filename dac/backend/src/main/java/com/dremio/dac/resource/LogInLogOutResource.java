@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,13 +109,13 @@ public class LogInLogOutResource {
       // Make sure the logged-in user has a home space. If not create one.
       try {
         final NamespaceService ns = dContext.getNamespaceService(SystemUser.SYSTEM_USERNAME);
-        final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey();
+        final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userConfig.getUserName())).toNamespaceKey();
         try {
           ns.getHome(homeKey);
         } catch (NamespaceNotFoundException nnfe) {
           // create home
           ns.addOrUpdateHome(homeKey,
-              new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName.getName())
+              new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userConfig.getUserName())
           );
         }
       } catch (NamespaceException ex) {

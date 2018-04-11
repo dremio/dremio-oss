@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,32 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import {Component} from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import HOCON from 'hoconfig-js/lib/parser';
 
-import { applyValidators, isRequired, isNumber } from 'utils/validation';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { PROVISION_MANAGERS } from 'constants/provisioningPage/provisionManagers';
+import {applyValidators, isNumber, isRequired} from 'utils/validation';
+import {connectComplexForm} from 'components/Forms/connectComplexForm';
+import {PROVISION_MANAGERS} from 'constants/provisioningPage/provisionManagers';
 import * as PROVISION_DISTRIBUTIONS from 'constants/provisioningPage/provisionDistributions';
-import { ModalForm, modalFormProps } from 'components/Forms';
-import { FormBody } from 'components/Forms';
+import {FormBody, ModalForm, modalFormProps} from 'components/Forms';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 import YarnProperties from 'components/Forms/YarnProperties';
-import { FieldWithError, TextField, Select, Checkbox } from 'components/Fields';
-import { formRow, sectionTitle, label, textInput } from 'uiTheme/radium/forms';
-import { formLabel, formDefault } from 'uiTheme/radium/typography';
+import {Checkbox, FieldWithError, Select, TextField} from 'components/Fields';
+import {formRow, label, sectionTitle, textInput} from 'uiTheme/radium/forms';
+import {formDefault, formLabel} from 'uiTheme/radium/typography';
 import TextFieldList from 'components/Forms/TextFieldList';
-import { formatMessage } from 'utils/locale';
+import {formatMessage} from 'utils/locale';
 import config from 'utils/config';
 
 const FIELDS = [
   'id', 'clusterType', 'resourceManagerHost', 'namenodeHost', 'queue',
   'memoryMB', 'virtualCoreCount', 'dynamicConfig.containerCount',
   'propertyList[].name', // we map from entity.key -> field.name in mapToFormFields to match what Property input expects.
-  'propertyList[].value', 'version', 'distroType', 'isSecure',
+  'propertyList[].value', 'propertyList[].type', 'version', 'distroType', 'isSecure',
   'spillDirectories[]'
 ];
 
@@ -103,7 +102,8 @@ export class YarnForm extends Component {
       return !cluster.propsAsFields.some((propAsField) => propAsField.key === property.get('key'));
     }).map((property) => ({
       name: property.get('key'),
-      value: property.get('value')
+      value: property.get('value'),
+      type: property.get('type')
     })).toJS();
 
     cluster.propsAsFields.forEach((propAsField) => {
@@ -206,7 +206,7 @@ export class YarnForm extends Component {
     }, {subPropertyList: []});
 
     result.subPropertyList = values.propertyList.map(
-      (property) => ({key: property.name, value: property.value})
+      (property) => ({key: property.name, value: property.value, type: property.type})
     ).concat(result.subPropertyList || []);
     delete result.propertyList;
     return result;

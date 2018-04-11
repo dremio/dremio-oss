@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import { mockApiMiddleware } from 'mockApi';
 import createSagaMiddleware from 'redux-saga';
 
 import rootReducer from 'reducers';
-import DevTools from 'containers/DevTools';
 
 import headerMiddleware from './headerMiddleware';
 import lastResponseMiddleware from './lastResponseMiddleware';
@@ -53,9 +52,10 @@ const middleWares = [
   routerMiddleware(browserHistory)
 ].filter(Boolean);
 
-const finalCreateStore = compose(...[
-  applyMiddleware(...middleWares),
-  isDev && DevTools.instrument()
+const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
+
+const finalCreateStore = composeEnhancers(...[
+  applyMiddleware(...middleWares)
 ].filter(Boolean))(createStore);
 
 export default function configureStore(initialState) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
+import Immutable from 'immutable';
 
 import SQLEditor from './SQLEditor';
 
@@ -24,13 +25,26 @@ describe('SQLEditor', () => {
   let wrapper;
   let instance;
 
-  const stubMonaco = () => {
+  const stubMonacoEditorComponent = () => {
     instance.monacoEditorComponent = {
       editor: {
-        setValue: sinon.stub()
+        setValue: sinon.stub(),
+        deltaDecorations: sinon.stub()
       }
     };
   };
+
+  const stubMonaco = () => {
+    instance.monaco = {
+      Range: () => {
+        return { isEmpty: sinon.stub() };
+      },
+      editor: {
+        TrackedRangeStickiness: { NeverGrowsWhenTypingAtEdges: false }
+      }
+    };
+  };
+
   beforeEach(() => {
     minimalProps = {
       height: 300
@@ -91,6 +105,41 @@ describe('SQLEditor', () => {
       instance.componentDidUpdate({...commonProps, defaultValue: 'different value'});
       expect(instance.resetValue).to.be.calledThrice;
     });
+
+    it('should apply decorations in case of errors', () => {
+      sinon.stub(instance, 'applyDecorations');
+      instance.componentDidUpdate({...commonProps, errors: []});
+      expect(instance.applyDecorations).to.be.called;
+    });
+
+    it('should handle empty error list', () => {
+      wrapper.setProps({errors: Immutable.List([])});
+      stubMonacoEditorComponent();
+      instance.applyDecorations();
+      expect(instance.monacoEditorComponent.editor.deltaDecorations).to.be.calledWith([], []);
+    });
+
+    it('should handle errors w/o range', () => {
+      wrapper.setProps({errors: Immutable.List([{message: 'test'}])});
+      stubMonacoEditorComponent();
+      stubMonaco();
+      instance.applyDecorations();
+      expect(instance.monacoEditorComponent.editor.deltaDecorations).to.be.calledWith([], []);
+    });
+
+    it('should handle errors with range', () => {
+      wrapper.setProps({errors: Immutable.List([{message: 'test', range:{
+        startLine: 1,
+        startColumn: 1,
+        endLine: 1,
+        endColumn: 2
+      }}])});
+      stubMonacoEditorComponent();
+      stubMonaco();
+      instance.applyDecorations();
+      !expect(instance.monacoEditorComponent.editor.deltaDecorations).not.to.be.calledWith([], []);
+    });
+
   });
 
   describe('#handleChange', () => {
@@ -102,11 +151,18 @@ describe('SQLEditor', () => {
       instance.handleChange();
       expect(commonProps.onChange).to.be.called;
     });
+
+    it('should remove decorations if !reseting', () => {
+      instance.reseting = false;
+      stubMonacoEditorComponent();
+      instance.handleChange();
+      expect(instance.monacoEditorComponent.editor.deltaDecorations).to.be.calledWith([], []);
+    });
   });
 
   describe('#resetValue()', () => {
     it('should setValue', () => {
-      stubMonaco();
+      stubMonacoEditorComponent();
       instance.resetValue();
       expect(instance.monacoEditorComponent.editor.setValue).to.be.calledWith(commonProps.defaultValue);
       expect(instance.reseting).to.be.false;
@@ -114,7 +170,7 @@ describe('SQLEditor', () => {
 
     it('should default defaultValue to empty string', () => {
       wrapper.setProps({defaultValue: undefined});
-      stubMonaco();
+      stubMonacoEditorComponent();
       instance.resetValue();
       expect(instance.monacoEditorComponent.editor.setValue).to.be.calledWith('');
     });

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
-import { getEntity } from 'selectors/resources';
+import { getDatasetAcceleration } from 'selectors/resources';
 import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 import {
@@ -41,7 +41,7 @@ export class DatasetAccelerationButton extends Component {
   }
 
   render() {
-    if (this.props.acceleration.get('state') !== 'ENABLED') {
+    if (!this.props.acceleration.get('enabled')) {
       return null;
     }
     return (
@@ -55,7 +55,7 @@ export class DatasetAccelerationButton extends Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
-  const acceleration = getEntity(state, constructFullPathAndEncode(ownProps.fullPath), 'datasetAcceleration');
+  const acceleration = getDatasetAcceleration(state, ownProps.fullPath);
   return {
     acceleration
   };

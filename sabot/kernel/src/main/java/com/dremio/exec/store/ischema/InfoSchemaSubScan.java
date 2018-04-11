@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSubScan;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -37,17 +38,25 @@ public class InfoSchemaSubScan extends AbstractSubScan {
   private final InfoSchemaTable table;
   private final SearchQuery query;
   private final List<SchemaPath> columns;
+  private final StoragePluginId pluginId;
 
   @JsonCreator
   public InfoSchemaSubScan(
+      @JsonProperty("userName") String userName,
       @JsonProperty("table") InfoSchemaTable table,
       @JsonProperty("query") SearchQuery query,
-      @JsonProperty("columns") List<SchemaPath> columns
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("pluginId") StoragePluginId pluginId
       ) {
-    super(null, table.getSchema(), Arrays.asList("INFORMATION_SCHEMA", table.name()));
+    super(userName, table.getSchema(), Arrays.asList("INFORMATION_SCHEMA", table.name()));
     this.table = table;
     this.query = query;
     this.columns = columns;
+    this.pluginId = pluginId;
+  }
+
+  public StoragePluginId getPluginId() {
+    return pluginId;
   }
 
   public InfoSchemaTable getTable() {

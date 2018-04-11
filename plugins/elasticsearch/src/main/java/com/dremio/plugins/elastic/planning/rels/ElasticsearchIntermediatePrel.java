@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
@@ -27,6 +28,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.exec.calcite.logical.SampleCrel;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -40,7 +42,6 @@ import com.dremio.exec.planner.sql.handlers.PrelFinalizable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.plugins.elastic.planning.rules.StackFinder;
 import com.dremio.service.Pointer;
-import com.dremio.service.namespace.StoragePluginId;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -72,7 +73,7 @@ public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFin
       RelNode input,
       FunctionLookupContext functionLookupContext){
     super(input.getCluster(), traitSet, input);
-    final Pointer<Boolean> hasTerminalPrel = new Pointer<Boolean>(false);
+    final Pointer<Boolean> hasTerminalPrel = new Pointer<>(false);
     List<ElasticsearchPrel> stack = StackFinder.getStack(input);
     nodes = FluentIterable.from(stack).uniqueIndex(new Function<ElasticsearchPrel, Class<? extends ElasticsearchPrel>>(){
       @Override

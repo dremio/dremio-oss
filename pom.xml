@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>1.4.9-201802191836310213_7195059</version>
+  <version>2.0.0-201804102150500749-ee1ef6c</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -40,10 +40,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-
-    <arrow.version>0.8.0-201801160126180805-1bceda5-dremio</arrow.version>
+    <arrow.version>0.8.0-201803292058100752-a14b263-dremio</arrow.version>
     <avatica.version>1.9.0</avatica.version>
-    <calcite.version>1.12.0-201802162217200854-87dbbf1</calcite.version>
+    <calcite.version>1.12.0-201803052252550527-b5c76e0</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -65,7 +64,7 @@
     <logback.version>1.1.3</logback.version>
     <metrics.version>3.0.1</metrics.version>
     <mariadb.connector.version>1.6.2</mariadb.connector.version>
-    <netty.version>4.0.49.Final</netty.version>
+    <netty.version>4.1.17.Final</netty.version>
     <parquet.version>1.8.1-fast-201712141648170019-ab0622b</parquet.version>
     <postgresql.version>42.1.1.jre7</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
@@ -198,6 +197,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
+          <!-- Specify source and test directories to not included generated source directories -->
           <sourceDirectories>
             <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
           </sourceDirectories>
@@ -211,9 +211,21 @@
           <includeTestResources>true</includeTestResources>
           <resourceIncludes>**/*.properties,**/*.conf,**/*.json,**/*.xml</resourceIncludes>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <configLocation>src/main/resources/checkstyle-config.xml</configLocation>
-          <suppressionsLocation>src/main/resources/checkstyle-suppressions.xml</suppressionsLocation>
+          <configLocation>dremio-checkstyle/checkstyle-config.xml</configLocation>
+          <suppressionsLocation>dremio-checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>6.19</version>
+          </dependency>
+          <dependency>
+            <groupId>com.dremio.tools</groupId>
+            <artifactId>dremio-build-tools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>        
         <executions>
           <execution>
             <id>checkstyle-verification</id>
@@ -261,7 +273,7 @@
                   <version>[3.3.9,4)</version>
                 </requireMavenVersion>
                 <requireJavaVersion>
-                  <version>[1.7,1.9)</version>
+                  <version>[1.8,1.9)</version>
                 </requireJavaVersion>
               </rules>
             </configuration>
@@ -279,7 +291,7 @@
                     <exclude>javax.servlet:servlet-api</exclude>
                     <exclude>org.mortbay.jetty:servlet-api</exclude>
                     <exclude>org.mortbay.jetty:servlet-api-2.5</exclude>
-                    <exclude>log4j:log4j</exclude>
+                    <exclude>log4j:*</exclude>
                     <exclude>io.netty:*:4.0</exclude> <!-- exclude netty versions 4.0 and above. some of our dependencies (e.g. ES) still depend on netty 3.x which is fine as versions < 4.0 have a completely different package names -->
                   </excludes>
                   <includes>
@@ -389,7 +401,7 @@
         <version>3.0</version>
         <configuration>
           <inlineHeader>
-Copyright (C) ${license.git.copyrightYears} ${owner}
+Copyright (C) ${project.inceptionYear} ${owner}
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -407,10 +419,9 @@ limitations under the License.
             <owner>Dremio Corporation</owner>
           </properties>
           <project>
-            <inceptionYear>2017</inceptionYear>
+            <inceptionYear>2017-2018</inceptionYear>
           </project>
           <failIfUnknown>true</failIfUnknown>
-          <skipExistingHeaders>true</skipExistingHeaders>
           <useDefaultExcludes>false</useDefaultExcludes>
 
           <includes>
@@ -571,14 +582,6 @@ limitations under the License.
             <mvnw>SCRIPT_STYLE</mvnw>
           </mapping>
         </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>com.mycila</groupId>
-            <artifactId>license-maven-plugin-git</artifactId>
-            <!-- make sure you use the same version as license-maven-plugin -->
-            <version>3.0</version>
-          </dependency>
-        </dependencies>
         <executions>
           <execution>
             <id>default-cli</id>
@@ -594,6 +597,7 @@ limitations under the License.
             </goals>
             <configuration>
               <includes combine.self="override">
+                <skipExistingHeaders>true</skipExistingHeaders>
                 <include>${project.build.directory}/**/*.java</include>
               </includes>
             </configuration>
@@ -649,11 +653,11 @@ limitations under the License.
             <argLine>
               -Xms512M
               -Xmx3G
-              -XX:MaxPermSize=512M
               -XX:MaxDirectMemorySize=5120M
               -XX:+CMSClassUnloadingEnabled
               ${surefire.extra.argLine}
             </argLine>
+            <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <enableAssertions>true</enableAssertions>
             <forkCount>${forkCount}</forkCount>
             <reuseForks>true</reuseForks>
@@ -685,12 +689,12 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.1.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>2.17</version>
+          <version>3.0.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -747,8 +751,8 @@ limitations under the License.
                 <goal>install-node-and-npm</goal>
               </goals>
               <configuration>
-                <nodeVersion>v8.6.0</nodeVersion>
-                <npmVersion>5.4.2</npmVersion>
+                <nodeVersion>v8.9.3</nodeVersion>
+                <npmVersion>5.5.1</npmVersion>
               </configuration>
             </execution>
           </executions>
@@ -783,7 +787,7 @@ limitations under the License.
           <dependencies>
             <dependency>
               <groupId>com.dremio.tools</groupId>
-              <artifactId>dremio-protostuff-templates</artifactId>
+              <artifactId>dremio-build-tools</artifactId>
               <version>${project.version}</version>
             </dependency>
           </dependencies>
@@ -846,6 +850,15 @@ limitations under the License.
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>javacc-maven-plugin</artifactId>
           <version>2.4</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>versions-maven-plugin</artifactId>
+          <version>2.5</version>
+          <configuration>
+            <processAllModules>true</processAllModules>
+            <generateBackupPoms>false</generateBackupPoms>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.antlr</groupId>
@@ -1010,6 +1023,28 @@ limitations under the License.
         <groupId>com.dremio</groupId>
         <artifactId>dremio-common</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.contrib</groupId>
+        <artifactId>dremio-hive-exec-shaded</artifactId>
+        <version>${project.version}</version>
+        <exclusions>
+          <!-- Bug in maven assembly plugin forces us to be declarative 
+               for the exclusions. See MASSEMBLY-675
+          <exclusion>
+            <groupId>*</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          -->
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-exec</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.dremio</groupId>
@@ -1432,6 +1467,10 @@ limitations under the License.
             <artifactId>jgrapht-jdk1.5</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>commons-dbcp</groupId>
+            <artifactId>commons-dbcp</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
           </exclusion>
@@ -1454,6 +1493,17 @@ limitations under the License.
         <artifactId>calcite-core</artifactId>
         <classifier>tests</classifier>
         <version>${calcite.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-dbcp2</artifactId>
+        <version>2.2.0</version>
         <exclusions>
           <exclusion>
             <groupId>commons-logging</groupId>
@@ -2178,6 +2228,10 @@ limitations under the License.
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>apache-curator</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
       </dependency>

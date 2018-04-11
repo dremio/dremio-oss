@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.IndexedStore;
-import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.util.ImpersonationUtil;
@@ -73,7 +72,7 @@ public class JobResultsStore implements Service {
       final BufferAllocator allocator) throws IOException {
     this.storageName = plugin.getName();
     this.dfs = plugin.getFS(ImpersonationUtil.getProcessUserName());
-    this.jobStoreLocation = new Path(plugin.getId().<FileSystemConfig>getConfig().getPath());
+    this.jobStoreLocation = plugin.getConfig().getPath();
     this.dfs.mkdirs(jobStoreLocation);
     this.store = store;
     this.allocator = allocator;

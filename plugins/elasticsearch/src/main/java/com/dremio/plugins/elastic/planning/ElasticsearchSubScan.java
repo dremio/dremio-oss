@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,18 +19,18 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.StoragePluginId;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-
+import com.google.common.collect.Iterables;
 import io.protostuff.ByteString;
 
 /**
@@ -73,7 +73,8 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
     Preconditions.checkArgument(children.isEmpty());
-    return new ElasticsearchSubScan(getUserName(), pluginId, spec, splits, getColumns(), getTableSchemaPath(), getSchema(), extendedProperty);
+    return new ElasticsearchSubScan(getUserName(), pluginId, spec, splits, getColumns(),
+      Iterables.getOnlyElement(getReferencedTables()), getSchema(), extendedProperty);
   }
 
   public ElasticsearchScanSpec getSpec() {

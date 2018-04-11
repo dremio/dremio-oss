@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.exec.rpc;
 
+import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.ExecRPC.RpcType;
@@ -25,11 +26,11 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 
+import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 
-
 public class ExecTunnel {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecTunnel.class);
+//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecTunnel.class);
 
   private final FabricCommandRunner manager;
 
@@ -45,8 +46,19 @@ public class ExecTunnel {
     manager.runCommand(new SendBatchAsyncListen(outcomeListener, batch));
   }
 
+  private static void checkFragmentHandle(FragmentHandle handle) {
+    Preconditions.checkState(handle.hasQueryId(), "must set query id");
+    Preconditions.checkState(handle.hasMajorFragmentId(), "must set major fragment id");
+    Preconditions.checkState(handle.hasMinorFragmentId(), "must set minor fragment id");
+  }
+
   public void informReceiverFinished(RpcOutcomeListener<Ack> outcomeListener, FinishedReceiver finishedReceiver){
-    ReceiverFinished b = new ReceiverFinished(outcomeListener, finishedReceiver);
+    Preconditions.checkNotNull(finishedReceiver.getReceiver(), "must set receiver's handle");
+    checkFragmentHandle(finishedReceiver.getReceiver());
+    Preconditions.checkNotNull(finishedReceiver.getSender(), "must set sender's handle");
+    checkFragmentHandle(finishedReceiver.getSender());
+
+    final ReceiverFinished b = new ReceiverFinished(outcomeListener, finishedReceiver);
     manager.runCommand(b);
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,18 +31,18 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.model.sources.SourceDefinitions;
 import com.dremio.dac.service.errors.ServerErrorException;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -54,7 +54,40 @@ import com.google.common.annotations.VisibleForTesting;
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
 public class SourceResource {
-  private static final Logger logger = LoggerFactory.getLogger(SourceResource.class);
+  /**
+   * 1.5 changed _type to entityType, this class provides backwards compatibility
+   */
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "_type", defaultImpl = SourceDeprecated.class)
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = SourceDeprecated.class, name = "source")
+  })
+  public static class SourceDeprecated extends Source {
+    public SourceDeprecated() {
+    }
+
+    public SourceDeprecated(SourceConfig sourceConfig, AccelerationSettings settings, ConnectionReader reader) {
+      super(sourceConfig, settings, reader);
+    }
+
+    public SourceDeprecated(Source source) {
+      setId(source.getId());
+      setConfig(source.getConfig());
+      setState(source.getState());
+      setTag(source.getTag());
+      setType(source.getType());
+      setName(source.getName());
+      setDescription(source.getDescription());
+      setCreatedAt(source.getCreatedAt());
+      setMetadataPolicy(source.getMetadataPolicy());
+      setAccelerationRefreshPeriodMs(source.getAccelerationRefreshPeriodMs());
+      setAccelerationGracePeriodMs(source.getAccelerationGracePeriodMs());
+    }
+
+    @JsonProperty("_type")
+    public String getDeprecatedEntityType() {
+      return "source";
+    }
+  }
 
   private final SourceService sourceService;
 
@@ -72,9 +105,6 @@ public class SourceResource {
     for (SourceConfig sourceConfig : sourceConfigs) {
       Source source = fromSourceConfig(sourceConfig);
 
-      SourceState state = sourceService.getStateForSource(sourceConfig);
-      source.setState(state);
-
       sources.add(source);
     }
 
@@ -83,16 +113,11 @@ public class SourceResource {
 
   @POST
   @RolesAllowed({"admin"})
-  public Source addSource(Source source) {
+  public SourceDeprecated addSource(SourceDeprecated source) {
     try {
-      SourceConfig newSourceConfig = sourceService.createSource(source.toSourceConfig(), source.getConfig());
+      SourceConfig newSourceConfig = sourceService.createSource(source.toSourceConfig());
 
-      final SourceState sourceState = sourceService.getSourceState(source.getName());
-
-      Source resultSource = fromSourceConfig(newSourceConfig);
-      resultSource.setState(sourceState);
-
-      return resultSource;
+      return fromSourceConfig(newSourceConfig);
     } catch (NamespaceException | ExecutionSetupException e) {
       throw new ServerErrorException(e);
     }
@@ -101,25 +126,21 @@ public class SourceResource {
   @GET
   @RolesAllowed({"admin", "user"})
   @Path("/{id}")
-  public Source getSource(@PathParam("id") String id) {
+  public SourceDeprecated getSource(@PathParam("id") String id) {
     SourceConfig sourceConfig = sourceService.getById(id);
+
     return fromSourceConfig(sourceConfig);
   }
 
   @PUT
   @RolesAllowed({"admin"})
   @Path("/{id}")
-  public Source updateSource(@PathParam("id") String id, Source source) {
-    SourceConfig sourceConfig = null;
+  public SourceDeprecated updateSource(@PathParam("id") String id, SourceDeprecated source) {
+    SourceConfig sourceConfig;
     try {
-      sourceConfig = sourceService.updateSource(id, source.toSourceConfig(), source.getConfig());
+      sourceConfig = sourceService.updateSource(id, source.toSourceConfig());
 
-      Source resultSource = fromSourceConfig(sourceConfig);
-
-      final SourceState sourceState = sourceService.getSourceState(source.getName());
-      resultSource.setState(sourceState);
-
-      return resultSource;
+      return fromSourceConfig(sourceConfig);
     } catch (NamespaceException | ExecutionSetupException e) {
       throw new ServerErrorException(e);
     }
@@ -130,22 +151,12 @@ public class SourceResource {
   @Path("/{id}")
   public Response deleteSource(@PathParam("id") String id) {
     SourceConfig config = sourceService.getById(id);
-
-    try {
-      sourceService.deleteSource(config);
-      return Response.ok().build();
-    } catch (NamespaceException e) {
-      throw new ServerErrorException(e);
-    }
+    sourceService.deleteSource(config);
+    return Response.ok().build();
   }
 
   @VisibleForTesting
-  protected Source fromSourceConfig(SourceConfig sourceConfig) {
-    Source source = new Source(sourceConfig);
-
-    // we should not set fields that expose passwords and other private parts of the source
-    SourceDefinitions.clearSource(source.getConfig());
-
-    return source;
+  protected SourceDeprecated fromSourceConfig(SourceConfig sourceConfig) {
+    return new SourceDeprecated(sourceService.fromSourceConfig(sourceConfig));
   }
 }

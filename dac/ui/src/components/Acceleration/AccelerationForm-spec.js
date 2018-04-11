@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,14 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
+import { formFields } from 'testUtil';
+import { cloneDeep } from 'lodash/lang';
 
-import { ModalForm, FormBody, FormTitle } from 'components/Forms';
-import Button from '../Buttons/Button';
+import {createReflectionFormValues} from 'utils/accelerationUtils';
+
+
+import { ModalForm, FormBody } from 'components/Forms';
+//import Button from '../Buttons/Button';
 import { AccelerationForm } from './AccelerationForm';
 
 describe('AccelerationForm', () => {
@@ -26,43 +31,45 @@ describe('AccelerationForm', () => {
   let values;
 
   beforeEach(() => {
+    values = {
+      version: 1,
+      aggregationReflections: [
+        // WARNING: this might not be exactly accurate - but it's enough for the test
+        createReflectionFormValues({id:'a', measureFields: ['cm1'], dimensionFields: ['cd1'], type: 'AGGREGATION', tag: 'a', enabled: true}),
+        createReflectionFormValues({id:'c', measureFields: ['cm1'], dimensionFields: ['cd1'], type: 'AGGREGATION', tag: null, enabled: true})
+      ],
+      rawReflections: [
+        // WARNING: this might not be exactly accurate - but it's enough for the test
+        createReflectionFormValues({id:'b', displayFields: ['cm1'], type: 'RAW', tag: 'a', enabled: true}),
+        createReflectionFormValues({id:'d', displayFields: ['cm1'], type: 'RAW', tag: null, enabled: true})
+      ],
+      columnsDimensions: [{column: 'cd1'}],
+      columnsMeasures: [{column: 'cm1'}]
+    };
+
     minimalProps = {
       handleSubmit: sinon.stub().returns(sinon.spy()),
+      onSubmitSuccess: sinon.spy(),
       onCancel: sinon.spy(),
-      location: {}
+      location: {},
+      dataset: Immutable.Map(),
+      reflections: Immutable.Map(),
+      values,
+      fields: formFields(values),
+      updateFormDirtyState: sinon.stub(),
+
+      putReflection: sinon.stub().resolves(),
+      postReflection: sinon.stub().resolves(),
+      deleteReflection: sinon.stub().resolves(),
+      lostFieldsByReflection: {}
     };
     commonProps = {
-      showConfirmationDialog: sinon.spy(),
-      acceleration: Immutable.Map(),
+      showConfirmationDialog: sinon.stub(),
       fullPath: '',
-      submit: sinon.stub().returns(Promise.resolve()),
       location: {},
-      fields: {},
       errors: {},
       submitFailed: false,
       ...minimalProps
-    };
-
-    values = {
-      version: 1,
-      aggregationLayouts: {
-        // WARNING: this might not be exactly accurate - but it's enough for the test
-        layoutList: [
-          {id:'a', details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}},
-          {id:null, details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}
-        ],
-        enabled: true
-      },
-      rawLayouts: {
-        // WARNING: this might not be exactly accurate - but it's enough for the test
-        layoutList: [
-          {id:'b', details: {displayFieldList: ['cm1']}},
-          {id:null, details: {displayFieldList: ['cm1']}}
-        ],
-        enabled: true
-      },
-      columnsDimensions: [{column: 'cd1'}],
-      columnsMeasures: [{column: 'cm1'}]
     };
   });
 
@@ -86,57 +93,87 @@ describe('AccelerationForm', () => {
     expect(wrapper.find(FormBody)).to.have.length(1);
   });
 
-  describe('#onSwitchToAdvanced', function() {
-    it('should call showConfirmationDialog if dirty is true', function() {
-      const wrapper = shallow(<AccelerationForm {...commonProps}/>);
-      wrapper.setProps({
-        dirty: true
-      });
-      const instance = wrapper.instance();
-
-      instance.onSwitchToAdvanced();
-      expect(commonProps.showConfirmationDialog).to.be.called;
-    });
-    it('should call toggleMode if dirty is false', function() {
-      const wrapper = shallow(<AccelerationForm {...commonProps}/>);
-      const instance = wrapper.instance();
-      sinon.spy(instance, 'toggleMode');
-
-      instance.onSwitchToAdvanced();
-      expect(instance.toggleMode).to.be.called;
-    });
-  });
-
-  describe('#toggleMode', function() {
-    it('should toggle mode value when value valid', function() {
-      const instance = shallow(<AccelerationForm {...commonProps}/>).instance();
-      instance.setState({
-        mode: 'AUTO'
-      });
-      instance.toggleMode();
-      expect(instance.state.mode).to.be.equal('MANUAL');
+  describe('#prepare', function() {
+    let props;
+    let expectedValues;
+    beforeEach(() => {
+      props = {
+        ...commonProps
+      };
+      expectedValues = [...values.aggregationReflections, ...values.rawReflections];
     });
 
-    it('should not toggle mode value when value invalid', function() {
-      const instance = shallow(<AccelerationForm {...commonProps}/>).instance();
-      instance.setState({
-        mode: null
-      });
-      instance.toggleMode();
-      expect(instance.state.mode).to.be.null;
-    });
-  });
-
-  describe('#canSubmit', function() {
-    it('should return true when acceleartion unknown', function() {
-      const instance = shallow(<AccelerationForm {...commonProps}/>).instance();
-      expect(instance.canSubmit()).to.be.true;
-    });
-
-    it('should return false when acceleartion has state NEW', function() {
-      const props = {...commonProps, acceleration: Immutable.Map({state: 'NEW'})};
+    it('should remove disabled RAW in BASIC (only)', function() {
+      values.rawReflections[0].enabled = false;
       const instance = shallow(<AccelerationForm {...props}/>).instance();
-      expect(instance.canSubmit()).to.be.false;
+      let result = instance.prepare(cloneDeep(values));
+      expect(result).to.be.eql({errors: {}, reflections: expectedValues});
+
+      instance.setState({
+        mode: 'BASIC'
+      });
+      result = instance.prepare(cloneDeep(values));
+      values.rawReflections[0].shouldDelete = true;
+      expect(result).to.be.eql({errors: {}, reflections: expectedValues});
+    });
+
+    it('should remove disabled AGGREGATION in BASIC (only) if unconfigured', function() {
+      values.aggregationReflections[0].enabled = false;
+      values.aggregationReflections[0].measureFields.length = 0;
+      values.aggregationReflections[0].dimensionFields.length = 0;
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      let result = instance.prepare(cloneDeep(values));
+      expect(result).to.be.eql({errors: {}, reflections: expectedValues});
+
+      instance.setState({
+        mode: 'BASIC'
+      });
+      result = instance.prepare(cloneDeep(values));
+      values.aggregationReflections[0].shouldDelete = true;
+      expect(result).to.be.eql({errors: {}, reflections: expectedValues});
+    });
+
+    it('should not remove disabled AGGREGATION in BASIC if configured', function() {
+      values.aggregationReflections[0].enabled = false;
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      instance.setState({
+        mode: 'BASIC'
+      });
+      const result = instance.prepare(cloneDeep(values));
+      expect(result).to.be.eql({errors: {}, reflections: expectedValues});
+    });
+
+    it('should validate raw reflection (missing display)', function() {
+      values.rawReflections[0].displayFields.length = 0;
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      expect(instance.prepare(cloneDeep(values))).to.be.eql({errors: {'b': 'At least one display field per raw Reflection is required.'}, reflections: expectedValues});
+    });
+
+    it('should validate aggregation reflection (missing measure and dimension)', function() {
+      values.aggregationReflections[0].dimensionFields.length = 0;
+      values.aggregationReflections[0].measureFields.length = 0;
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      expect(instance.prepare(cloneDeep(values))).to.be.eql({errors: {'a': 'At least one dimension or measure field per aggregation Reflection is required.'}, reflections: expectedValues});
+    });
+
+    it('should not validate disabled aggregation reflection', function() {
+      values.aggregationReflections[0].enabled = false;
+      values.aggregationReflections[0].measureFields.length = 0;
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      expect(instance.prepare(cloneDeep(values))).to.be.eql({errors: {}, reflections: expectedValues});
+    });
+
+    it('should filter new reflections that have been deleted', function() {
+      values.rawReflections[1].displayFields.shouldDelete = true;
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      values.rawReflections.length = 1;
+      expect(instance.prepare(cloneDeep(values))).to.be.eql({errors: {}, reflections: [...values.aggregationReflections, ...values.rawReflections]});
+    });
+
+    it('all good', function() {
+      const instance = shallow(<AccelerationForm {...props}/>).instance();
+      const result = instance.prepare(cloneDeep(values));
+      expect(result).to.be.eql({errors: {}, reflections: expectedValues});
     });
   });
 
@@ -144,204 +181,36 @@ describe('AccelerationForm', () => {
     let props;
     beforeEach(() => {
       props = {
-        ...commonProps,
-        acceleration: Immutable.fromJS({
-          state: 'NEW',
-          mode: 'AUTO',
-          id: {},
-          type: 't1',
-          version: 1,
-          context: {
-            dataset: Immutable.Map(),
-            datasetSchema: Immutable.Map()
-          }
-        })
+        ...commonProps
       };
     });
 
-
-    it('should validate layouts in MANUAL with rawLayouts enabled (missing display)', function() {
-      values.rawLayouts.layoutList[0].details.displayFieldList.length = 0;
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.setState({
-        mode: 'MANUAL'
-      });
-      return expect(instance.submitForm(values)).to.be.rejected;
-    });
-
-    it('should not validate layouts in MANUAL with rawLayouts disabled', function() {
-      values.rawLayouts.enabled = false;
-      values.rawLayouts.layoutList[0].details.displayFieldList.length = 0;
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.setState({
-        mode: 'MANUAL'
-      });
-      return expect(instance.submitForm(values)).to.not.be.rejected;
-    });
-
-    it('should not validate layouts in AUTO', function() {
-      values.rawLayouts.layoutList[0].details.displayFieldList.length = 0;
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      return expect(instance.submitForm(values)).to.not.be.rejected;
-    });
-
-
-    it('should validate layouts in AUTO with aggregationLayouts enabled (missing measure)', function() {
-      values.columnsMeasures.length = 0;
+    it('should ultimately reject if there is a client-side validation error', function() {
+      values.rawReflections[0].displayFields.length = 0;
       const instance = shallow(<AccelerationForm {...props}/>).instance();
       return expect(instance.submitForm(values)).to.be.rejected;
     });
 
-    it('should validate layouts in AUTO with aggregationLayouts enabled (missing dimension)', function() {
-      values.columnsDimensions.length = 0;
+    it('should ultimately reject if there is a server-side validation error', function() {
+      commonProps.putReflection.rejects();
       const instance = shallow(<AccelerationForm {...props}/>).instance();
       return expect(instance.submitForm(values)).to.be.rejected;
     });
 
-    it('should not validate layouts in AUTO with aggregationLayouts disabled', function() {
-      values.aggregationLayouts.enabled = false;
-      values.columnsDimensions.length = 0;
+    it.skip('all good', function() {
       const instance = shallow(<AccelerationForm {...props}/>).instance();
-      return expect(instance.submitForm(values)).to.not.be.rejected;
-    });
-
-    it('should not validate MANUAL layouts in AUTO', function() {
-      values.aggregationLayouts.layoutList[0].details.measureFieldList.length = 0; // invalid for MANUAL
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      return expect(instance.submitForm(values)).to.not.be.rejected;
-    });
-
-    it('should validate layouts in MANUAL with aggregationLayouts enabled (missing measure)', function() {
-      values.aggregationLayouts.layoutList[0].details.measureFieldList.length = 0;
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.setState({
-        mode: 'MANUAL'
+      values.rawReflections.length = 1;
+      values.rawReflections[0].shouldDelete = true;
+      return instance.submitForm(values).then(data => {
+        expect(commonProps.putReflection).to.have.been.calledWith(values.aggregationReflections[0]);
+        expect(commonProps.postReflection).to.have.been.calledWith(values.aggregationReflections[1]);
+        expect(commonProps.deleteReflection).to.have.been.calledWith(values.rawReflections[0]);
       });
-      return expect(instance.submitForm(values)).to.be.rejected;
-    });
-
-    it('should validate layouts in MANUAL with aggregationLayouts enabled (missing dimension)', function() {
-      values.aggregationLayouts.layoutList[0].details.dimensionFieldList.length = 0;
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.setState({
-        mode: 'MANUAL'
-      });
-      return expect(instance.submitForm(values)).to.be.rejected;
-    });
-
-    it('should not validate layouts in MANUAL with aggregationLayouts disabled', function() {
-      values.aggregationLayouts.enabled = false;
-      values.aggregationLayouts.layoutList[0].details.measureFieldList.length = 0;
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.setState({
-        mode: 'MANUAL'
-      });
-      return expect(instance.submitForm(values)).to.not.be.rejected;
-    });
-
-    it('should not validate AUTO layouts in MANUAL', function() {
-      values.columnsDimensions.length = 0; // invalid for AUTO
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.setState({
-        mode: 'MANUAL'
-      });
-      return expect(instance.submitForm(values)).to.not.be.rejected;
-    });
-
-    it('submit should be called if all good', function() {
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      instance.submitForm(values);
-      expect(commonProps.submit.getCall(0).args[0]).to.be.eql({
-        'aggregationLayouts': {
-          // WARNING: this might not be exactly accurate - but it's enough for the test
-          layoutList: [
-            {id:'a', details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}},
-            {details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}
-          ],
-          enabled: true
-        },
-        'rawLayouts': {
-          // WARNING: this might not be exactly accurate - but it's enough for the test
-          layoutList: [
-            {id:'b', details: {displayFieldList: ['cm1']}},
-            {details: {displayFieldList: ['cm1']}}
-          ],
-          enabled: true
-        },
-        'context': {
-          'dataset': {},
-          'datasetSchema': {},
-          'logicalAggregation': {
-            'dimensionList': [
-              {
-                'name': 'cd1'
-              }
-            ],
-            'measureList': [
-              {
-                'name': 'cm1'
-              }
-            ]
-          }
-        },
-        'id': {},
-        'mode': 'AUTO',
-        'version': 1,
-        'state': 'NEW',
-        'type': 't1'
-      });
-    });
-  });
-
-  describe('#renderHeader', function() { // todo: these tests way too brittle
-
-    it('should render FormTitle with Button with common props', function() {
-      const props = {...commonProps, acceleration: Immutable.Map({mode: 'AUTO'})};
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-      expect(instance.renderHeader()).to.be.eql(
-        <div>
-          <div style={{float: 'right'}}>
-            <Button
-              disableSubmit
-              onClick={instance.clearReflections}
-              type='CUSTOM' text={la('Clear All Reflections')}
-            />
-            <Button
-              disableSubmit onClick={instance.onSwitchToAdvanced}
-              style={{ marginLeft: 10 }}
-              type='CUSTOM'
-              text={la('Switch to Advanced')}
-            />
-          </div>
-          <FormTitle>
-            {la('Reflections')}
-          </FormTitle>
-        </div>
-      );
-    });
-
-    it('should render FormTitle without Button with minimal props', function() {
-      const instance = shallow(<AccelerationForm {...minimalProps}/>).instance();
-      expect(instance.renderHeader()).to.be.eql(
-        <div>
-          <div style={{float: 'right'}}>
-            <Button
-              disableSubmit
-              onClick={instance.clearReflections}
-              type='CUSTOM' text={la('Clear All Reflections')}
-            />
-            {null}
-          </div>
-          <FormTitle>
-            {la('Reflections')}
-          </FormTitle>
-        </div>
-      );
     });
   });
 
   describe('#renderExtraErrorMessages', () => {
-    it('should render without nav warning and errorList of there are none', () => {
+    it('nothing', () => {
       const wrapper = shallow(<AccelerationForm {...commonProps}/>);
       const instance = wrapper.instance();
       expect(instance.renderExtraErrorMessages().length).to.equal(0);
@@ -352,18 +221,9 @@ describe('AccelerationForm', () => {
       const instance = wrapper.instance();
       wrapper.setProps({
         location: {state: { layoutId: 'a'}},
-        acceleration: commonProps.acceleration.merge(values)
+        reflections: Immutable.fromJS({a: Immutable.fromJS(values.aggregationReflections[0]).set('status', Immutable.fromJS({}))})
       });
       expect(instance.renderExtraErrorMessages().length).to.equal(0);
-    });
-
-    it('should render just errorList as needed', () => {
-      const wrapper = shallow(<AccelerationForm {...commonProps}/>);
-      const instance = wrapper.instance();
-      wrapper.setProps({
-        acceleration: commonProps.acceleration.merge({errorList: ['error']})
-      });
-      expect(instance.renderExtraErrorMessages().length).to.equal(1);
     });
 
     it('should render just nav warning as needed', () => {
@@ -371,16 +231,16 @@ describe('AccelerationForm', () => {
       const instance = wrapper.instance();
       wrapper.setProps({
         location: {state: { layoutId: 'foo'}},
-        acceleration: commonProps.acceleration.merge(values)
+        reflections: Immutable.fromJS({a: Immutable.fromJS(values.aggregationReflections[0]).set('status', Immutable.fromJS({}))})
       });
       expect(instance.renderExtraErrorMessages().length).to.equal(1);
     });
 
-    it('should render just OUT_OF_DATE warning as needed', () => {
+    it('should render just INVALID warning as needed', () => {
       const wrapper = shallow(<AccelerationForm {...commonProps}/>);
       const instance = wrapper.instance();
       wrapper.setProps({
-        acceleration: commonProps.acceleration.merge({state: 'OUT_OF_DATE'})
+        reflections: Immutable.fromJS({a: Immutable.fromJS(values.aggregationReflections[0]).set('status', Immutable.fromJS({config: 'INVALID'}))})
       });
       expect(instance.renderExtraErrorMessages().length).to.equal(1);
     });
@@ -390,26 +250,9 @@ describe('AccelerationForm', () => {
       const instance = wrapper.instance();
       wrapper.setProps({
         location: {state: { layoutId: 'foo'}},
-        acceleration: commonProps.acceleration.merge({state: 'OUT_OF_DATE', errorList: ['error']}).merge(values)
+        reflections: Immutable.fromJS({a: Immutable.fromJS(values.aggregationReflections[0]).set('status', Immutable.fromJS({config: 'INVALID'}))})
       });
-      expect(instance.renderExtraErrorMessages().length).to.equal(3);
-    });
-  });
-
-  describe('#deleteAcceleration', () => {
-    it('should call props.onCancel when acceleration was deleted', () => {
-      const props = {
-        ...commonProps,
-        deleteAcceleration: sinon.stub().returns(Promise.resolve()),
-        updateFormDirtyState: sinon.stub(),
-        acceleration: Immutable.Map({ id: { id: 'abc' } })
-      };
-      const instance = shallow(<AccelerationForm {...props}/>).instance();
-
-      instance.deleteAcceleration().then(() => {
-        expect(props.onCancel).to.have.been.called;
-      });
-      expect(props.updateFormDirtyState).to.be.calledWith(false);
+      expect(instance.renderExtraErrorMessages().length).to.equal(2);
     });
   });
 });

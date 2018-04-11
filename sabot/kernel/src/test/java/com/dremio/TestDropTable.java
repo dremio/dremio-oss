@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ public class TestDropTable extends PlanTestBase {
   private static final String DROP_TABLE_IF_EXISTS = "drop table if exists %s";
   private static final String DROP_VIEW_IF_EXISTS = "drop view if exists %s";
   private static final String BACK_TICK = "`";
+  private static final String REFRESH = "alter table %s refresh metadata";
 
   @Test
   public void testDropJsonTable() throws Exception {
@@ -47,17 +48,19 @@ public class TestDropTable extends PlanTestBase {
         .sqlQuery(dropSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", tableName))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tableName))
         .go();
   }
 
   @Test
   public void testDropParquetTable() throws Exception {
     test("use dfs_test");
-    final String tableName = "simple_json";
+    final String tableName = "simple_parquet";
 
     // create a parquet table
     test(String.format(CREATE_SIMPLE_TABLE, tableName));
+
+    testNoResult(REFRESH, tableName);
 
     // drop the table
     final String dropSql = String.format(DROP_TABLE, tableName);
@@ -65,7 +68,7 @@ public class TestDropTable extends PlanTestBase {
         .sqlQuery(dropSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", tableName))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tableName))
         .go();
   }
 
@@ -79,13 +82,15 @@ public class TestDropTable extends PlanTestBase {
     // create a csv table
     test(String.format(CREATE_SIMPLE_TABLE, csvTable));
 
+    testNoResult(REFRESH, csvTable);
+
     // drop the table
     String dropSql = String.format(DROP_TABLE, csvTable);
     testBuilder()
         .sqlQuery(dropSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", csvTable))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", csvTable))
         .go();
 
     test("alter session set `store.format` = 'psv'");
@@ -100,7 +105,7 @@ public class TestDropTable extends PlanTestBase {
         .sqlQuery(dropSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", psvTable))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", psvTable))
         .go();
 
     test("alter session set `store.format` = 'tsv'");
@@ -115,7 +120,7 @@ public class TestDropTable extends PlanTestBase {
         .sqlQuery(dropSql)
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", tsvTable))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tsvTable))
         .go();
   }
 
@@ -127,12 +132,12 @@ public class TestDropTable extends PlanTestBase {
     // create a parquet table
     test(String.format(CREATE_SIMPLE_TABLE, tableName));
 
+    testNoResult(REFRESH, tableName);
+
     // create a json table within the same directory
     test("alter session set `store.format` = 'json'");
     final String nestedJsonTable = tableName + Path.SEPARATOR + "json_table";
     test(String.format(CREATE_SIMPLE_TABLE, BACK_TICK + nestedJsonTable + BACK_TICK));
-
-    test("show files from " + tableName);
 
     boolean dropFailed = false;
     // this should fail, because the directory contains non-homogenous files
@@ -150,7 +155,7 @@ public class TestDropTable extends PlanTestBase {
         .sqlQuery(String.format(DROP_TABLE, BACK_TICK + nestedJsonTable + BACK_TICK))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", nestedJsonTable))
+        .baselineValues(true, String.format("Table [dfs_test.`%s`] dropped", nestedJsonTable))
         .go();
 
     // Now drop should succeed
@@ -158,22 +163,8 @@ public class TestDropTable extends PlanTestBase {
         .sqlQuery(String.format(DROP_TABLE, tableName))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", tableName))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tableName))
         .go();
-  }
-
-  @Test
-  @Ignore
-  public void testDropOnImmutableSchema() throws Exception {
-    boolean dropFailed = false;
-    try {
-      test("drop table dfs.`/tmp`");
-    } catch (UserException e) {
-      Assert.assertTrue(e.getMessage().contains("PARSE ERROR"));
-      dropFailed = true;
-    }
-
-    Assert.assertTrue("Dropping table on immutable schema failed", dropFailed);
   }
 
   @Test // DRILL-4673
@@ -183,11 +174,14 @@ public class TestDropTable extends PlanTestBase {
 
     // successful dropping of existent table
     test(String.format(CREATE_SIMPLE_TABLE, existentTableName));
+
+    testNoResult(REFRESH, existentTableName);
+
     testBuilder()
         .sqlQuery(String.format(DROP_TABLE_IF_EXISTS, existentTableName))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [%s] dropped", existentTableName))
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", existentTableName))
         .go();
   }
 
@@ -218,7 +212,7 @@ public class TestDropTable extends PlanTestBase {
           .sqlQuery(String.format(DROP_TABLE_IF_EXISTS, viewName))
           .unOrdered()
           .baselineColumns("ok", "summary")
-          .baselineValues(true, String.format("Table [%s] not found", viewName))
+          .baselineValues(true, String.format("Table [dfs_test.%s] not found.", viewName))
           .go();
     } finally {
       test(String.format(DROP_VIEW_IF_EXISTS, viewName));
@@ -228,9 +222,9 @@ public class TestDropTable extends PlanTestBase {
   @Test
   public void testDropNonExistentTable() throws Exception {
     test("CREATE TABLE dfs_test.testDropNonExistentTable as SELECT * FROM sys.version");
+    testNoResult(REFRESH, "dfs_test.testDropNonExistentTable");
     test("DROP TABLE dfs_test.testDropNonExistentTable");
-    errorMsgTestHelper("DROP TABLE dfs_test.testDropNonExistentTable",
-        "VALIDATION ERROR: Table [dfs_test.testDropNonExistentTable] not found");
+    errorMsgTestHelper("DROP TABLE dfs_test.testDropNonExistentTable", "VALIDATION ERROR: Table [dfs_test.testDropNonExistentTable] not found");
     test("DROP TABLE IF EXISTS dfs_test.testDropNonExistentTable");
   }
 }

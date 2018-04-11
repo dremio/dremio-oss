@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,6 +76,8 @@ public class VectorizedProbe implements AutoCloseable {
   private int nextProbeIndex = 0;
   private int remainderBuildBatchIndex = -1;
   private int remainderBuildRecordIndex = -1;
+  private long unmatchedBuildCount = 0;
+  private long unmatchedProbeCount = 0;
 
   public VectorizedProbe(
       BufferAllocator allocator,
@@ -158,10 +160,10 @@ public class VectorizedProbe implements AutoCloseable {
   public int probeBatch(final int records) {
     final int targetRecordsPerBatch = this.targetRecordsPerBatch;
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
-    final boolean projectUnmatchedBuild = this.projectUnmatchedBuild;
     final BitSet[] matches = this.matches;
     final ArrowBuf[] starts = this.starts;
     final ArrowBuf[] links = this.links;
+    long unmatchedProbeCount = this.unmatchedProbeCount;
 
     // we have two incoming options: we're starting on a new batch or we're picking up an existing batch.
     final int probeMax = records;
@@ -192,6 +194,7 @@ public class VectorizedProbe implements AutoCloseable {
             PlatformDependent.putInt(projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
             outputRecords++;
           }
+          unmatchedProbeCount++;
           currentProbeIndex++;
           continue;
 
@@ -209,11 +212,11 @@ public class VectorizedProbe implements AutoCloseable {
 
       /* Record in the build side at currentCompositeBuildIdx has a matching record in the probe
        * side. Set the bit corresponding to this index so if we are doing a FULL or RIGHT
-       * join we keep track of which records we need to project at the end
+       * join we keep track of which records we need to project at the end, or for all joins, we can
+       * record stats on how many unmatched records there were
        */
-      if(projectUnmatchedBuild){
-        matches[currentBuildBatchIndex].set(currentBuildRecordIndex);
-      }
+      matches[currentBuildBatchIndex].set(currentBuildRecordIndex);
+
       PlatformDependent.putShort(probeSv2Addr + outputRecords * 2, (short) currentProbeIndex);
       final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
       PlatformDependent.putInt(projectBuildOffsetAddrStart, currentBuildBatchIndex);
@@ -249,6 +252,8 @@ public class VectorizedProbe implements AutoCloseable {
         this.nextProbeIndex = currentProbeIndex;
         this.remainderBuildBatchIndex = currentBuildBatchIndex;
         this.remainderBuildRecordIndex = currentBuildRecordIndex;
+        this.unmatchedProbeCount = unmatchedProbeCount;
+
         return -outputRecords;
       }
     }
@@ -257,6 +262,7 @@ public class VectorizedProbe implements AutoCloseable {
     this.nextProbeIndex = 0;
     this.remainderBuildBatchIndex = -1;
     this.remainderBuildRecordIndex = -1;
+    this.unmatchedProbeCount = unmatchedProbeCount;
     return outputRecords;
   }
 
@@ -323,6 +329,14 @@ public class VectorizedProbe implements AutoCloseable {
     }
   }
 
+  public long getUnmatchedBuildCount() {
+    long unmatchedCount = 0;
+    for (int i = 0; i < matches.length; i++) {
+      unmatchedCount += (matchMaxes[i] - matches[i].cardinality());
+    }
+    return unmatchedBuildCount;
+  }
+
   private void allocateOnlyProbe(int records){
     for(FieldBufferCopier c : probeCopiers){
       c.allocate(records);
@@ -369,6 +383,10 @@ public class VectorizedProbe implements AutoCloseable {
 
   public long getBuildNonMatchCopyTime(){
     return projectBuildNonMatchesWatch.elapsed(TimeUnit.NANOSECONDS);
+  }
+
+  public long getUnmatchedProbeCount() {
+    return unmatchedProbeCount;
   }
 
   @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -284,12 +284,22 @@ public class SabotConfig extends NestedConfig {
     return new SabotConfig(effectiveConfig.resolve(), enableServerConfigs);
   }
 
-  public <T> Class<T> getClassAt(String location, Class<T> clazz) throws SabotConfigurationException {
+  public <T> Class<? extends T> getClassAt(String location, Class<T> clazz) throws SabotConfigurationException {
+    Class<? extends T> c = getClassAt(location, clazz, null);
+
+    if(c != null) {
+      return c;
+    }
+
+    throw new SabotConfigurationException(String.format(
+        "No class defined at location '%s'. Expected a definition of the class []",
+        location, clazz.getCanonicalName()));
+  }
+
+  public <T> Class<? extends T> getClassAt(String location, Class<T> clazz, Class<? extends T> defaultClazz) throws SabotConfigurationException {
     final String className = getString(location);
     if (className == null) {
-      throw new SabotConfigurationException(String.format(
-          "No class defined at location '%s'. Expected a definition of the class []",
-          location, clazz.getCanonicalName()));
+      return defaultClazz;
     }
 
     try {
@@ -310,7 +320,7 @@ public class SabotConfig extends NestedConfig {
   }
 
   public <T> T getInstanceOf(String location, Class<T> clazz) throws SabotConfigurationException{
-    final Class<T> c = getClassAt(location, clazz);
+    final Class<? extends T> c = getClassAt(location, clazz);
     try {
       final T t = c.newInstance();
       return t;

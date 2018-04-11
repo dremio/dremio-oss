@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ export class AccelerationUpdatesForm extends Component {
     errors: PropTypes.object,
     accelerationSettings: PropTypes.instanceOf(Immutable.Map),
     datasetFields: PropTypes.instanceOf(Immutable.List),
-    entityType: PropTypes.string
+    entityType: PropTypes.string,
+    entity: PropTypes.instanceOf(Immutable.Map)
   };
 
   whyCannotUseIncremental() {
@@ -127,6 +128,7 @@ export class AccelerationUpdatesForm extends Component {
         <DataFreshnessSection
           fields={fields}
           entityType='dataset'
+          dataset={this.props.entity}
         />
       </div>
     );
@@ -174,8 +176,10 @@ const styles = {
 
 const mapStateToProps = (state, ownProps) => {
   const settings = ownProps.accelerationSettings || Immutable.Map({});
-  const accelerationRefreshPeriod = settings.get('accelerationRefreshPeriod') || DataFreshnessSection.defaultFormValueRefreshInterval();
-  const accelerationGracePeriod = settings.get('accelerationGracePeriod') || DataFreshnessSection.defaultFormValueGracePeriod();
+
+  const accelerationRefreshPeriod = settings.has('accelerationRefreshPeriod') ? settings.get('accelerationRefreshPeriod') : DataFreshnessSection.defaultFormValueRefreshInterval();
+  const accelerationGracePeriod = settings.has('accelerationGracePeriod') ? settings.get('accelerationGracePeriod') : DataFreshnessSection.defaultFormValueGracePeriod();
+
   return {
     initialValues: {
       method: settings.get('method') || 'FULL',
@@ -190,3 +194,4 @@ export default connectComplexForm({
   form: 'accelerationUpdatesForm',
   fields: FIELDS
 }, SECTIONS, mapStateToProps, null)(AccelerationUpdatesForm);
+

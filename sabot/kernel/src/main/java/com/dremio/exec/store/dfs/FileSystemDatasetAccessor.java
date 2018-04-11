@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,18 +61,15 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
 
   private DatasetConfig datasetConfig;
   private ReadDefinition readDefinition;
-  private String tableName;
   private List<DatasetSplit> splits;
 
   public FileSystemDatasetAccessor(FileSystemWrapper fs,
                                    FileSelection fileSelection,
                                    FileSystemPlugin fsPlugin,
                                    NamespaceKey tableSchemaPath,
-                                   String tableName,
                                    FileUpdateKey updateKey,
                                    FormatPlugin formatPlugin,
                                    DatasetConfig oldConfig) {
-    this.tableName = tableName;
     this.updateKey = updateKey;
     this.fsPlugin =  fsPlugin;
     this.datasetPath = tableSchemaPath;
@@ -105,10 +102,6 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
 
   public ReadDefinition getMetaData() {
     return readDefinition;
-  }
-
-  public String getTableName() {
-    return tableName;
   }
 
   @Override

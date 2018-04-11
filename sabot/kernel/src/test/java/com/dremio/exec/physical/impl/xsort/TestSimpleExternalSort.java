@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.NullableBigIntVector;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,6 +35,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -44,7 +45,6 @@ import com.dremio.test.DremioTest;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
-@Ignore
 public class TestSimpleExternalSort extends BaseTestQuery {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleExternalSort.class);
 
@@ -73,16 +73,14 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
       loader.load(b.getHeader().getDef(),b.getData());
-      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class,
+      NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class,
               loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
 
-      BigIntVector.Accessor a1 = c1.getAccessor();
-
-      for (int i =0; i < c1.getAccessor().getValueCount(); i++) {
+      for (int i =0; i < c1.getValueCount(); i++) {
         recordCount++;
-        assertTrue(String.format("%d > %d", previousBigInt, a1.get(i)), previousBigInt >= a1.get(i));
-        previousBigInt = a1.get(i);
+        assertTrue(String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+        previousBigInt = c1.get(i);
       }
       loader.clear();
       b.release();
@@ -114,15 +112,12 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
       loader.load(b.getHeader().getDef(),b.getData());
-      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+      NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
-
-      BigIntVector.Accessor a1 = c1.getAccessor();
-
-      for (int i =0; i < c1.getAccessor().getValueCount(); i++) {
+      for (int i =0; i < c1.getValueCount(); i++) {
         recordCount++;
-        assertTrue(String.format("%d > %d", previousBigInt, a1.get(i)), previousBigInt >= a1.get(i));
-        previousBigInt = a1.get(i);
+        assertTrue(String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+        previousBigInt = c1.get(i);
       }
       loader.clear();
       b.release();
@@ -131,6 +126,8 @@ public class TestSimpleExternalSort extends BaseTestQuery {
     System.out.println(String.format("Sorted %,d records in %d batches.", recordCount, batchCount));
   }
 
+  // TODO: this test does not need fixtures setup in BaseTestQuery, since SabotNode are started below. So move it.
+  @Ignore("DX-3872")
   @Test
   public void sortOneKeyDescendingExternalSort() throws Throwable{
 
@@ -138,9 +135,9 @@ public class TestSimpleExternalSort extends BaseTestQuery {
     ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
 
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit1 = new SabotNode(config, clusterCoordinator, classpathScanResult);
-        SabotNode bit2 = new SabotNode(config, clusterCoordinator, classpathScanResult);
-        DremioClient client = new DremioClient(config, clusterCoordinator)) {
+         SabotNode bit1 = new SabotNode(config, clusterCoordinator, classpathScanResult, true);
+         SabotNode bit2 = new SabotNode(config, clusterCoordinator, classpathScanResult, false);
+         DremioClient client = new DremioClient(config, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
@@ -168,15 +165,12 @@ public class TestSimpleExternalSort extends BaseTestQuery {
         batchCount++;
         RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
         loader.load(b.getHeader().getDef(),b.getData());
-        BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+        NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
-
-        BigIntVector.Accessor a1 = c1.getAccessor();
-
-        for (int i =0; i < c1.getAccessor().getValueCount(); i++) {
+        for (int i =0; i < c1.getValueCount(); i++) {
           recordCount++;
-          assertTrue(String.format("%d < %d", previousBigInt, a1.get(i)), previousBigInt >= a1.get(i));
-          previousBigInt = a1.get(i);
+          assertTrue(String.format("%d < %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+          previousBigInt = c1.get(i);
         }
         loader.clear();
         b.release();
@@ -186,13 +180,15 @@ public class TestSimpleExternalSort extends BaseTestQuery {
     }
   }
 
+  // TODO: this test does not need fixtures setup in BaseTestQuery, since SabotNode are started below. So move it.
+  @Ignore("DX-9925")
   @Test
   public void outOfMemoryExternalSort() throws Throwable{
     SabotConfig config = SabotConfig.create("dremio-oom-xsort.conf");
 
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit1 = new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT);
-        DremioClient client = new DremioClient(config, clusterCoordinator)) {
+         SabotNode bit1 = new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT, true);
+         DremioClient client = new DremioClient(config, clusterCoordinator)) {
       bit1.run();
       client.connect();
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
@@ -218,17 +214,14 @@ public class TestSimpleExternalSort extends BaseTestQuery {
         batchCount++;
         RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
         loader.load(b.getHeader().getDef(),b.getData());
-        BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+        NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
-
-        BigIntVector.Accessor a1 = c1.getAccessor();
-
-        for (int i =0; i < c1.getAccessor().getValueCount(); i++) {
+        for (int i =0; i < c1.getValueCount(); i++) {
           recordCount++;
-          assertTrue(String.format("%d < %d", previousBigInt, a1.get(i)), previousBigInt >= a1.get(i));
-          previousBigInt = a1.get(i);
+          assertTrue(String.format("%d < %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+          previousBigInt = c1.get(i);
         }
-        assertTrue(String.format("%d == %d", a1.get(0), a1.get(a1.getValueCount() - 1)), a1.get(0) != a1.get(a1.getValueCount() - 1));
+        assertTrue(String.format("%d == %d", c1.get(0), c1.get(c1.getValueCount() - 1)), c1.get(0) != c1.get(c1.getValueCount() - 1));
         loader.clear();
         b.release();
       }

@@ -1,6 +1,6 @@
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>1.4.9-201802191836310213_7195059</version>
+    <version>2.0.0-201804102150500749-ee1ef6c</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -500,6 +500,24 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>3.0</version>
+        <configuration>
+          <excludes combine.children="append">
+            <!-- external CSS/javascript code -->
+            <exclude>src/main/resources/rest/static/css/bootstrap.min.css</exclude>
+            <exclude>src/main/resources/rest/static/js/bootstrap.min.js</exclude>
+            <exclude>src/main/resources/rest/static/js/d3.v3.js</exclude>
+            <exclude>src/main/resources/rest/static/js/dagre-d3.min.js</exclude>
+            <exclude>src/main/resources/rest/static/js/html5shiv.js</exclude>
+            <exclude>src/main/resources/rest/static/js/jquery.form.js</exclude>
+            <exclude>src/main/resources/rest/static/js/jquery.min.js</exclude>
+            <exclude>src/main/resources/rest/static/js/respond.min.js</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <forkCount>${forkCount}</forkCount>
@@ -510,7 +528,6 @@
             -Ddremio.test.query.printing.silent=true
             -Xms512m
             -Xmx3g
-            -XX:MaxPermSize=1512M
             -XX:MaxDirectMemorySize=3072M
             -XX:+CMSClassUnloadingEnabled
             -XX:-OmitStackTraceInFastThrow
@@ -561,7 +578,6 @@
                 -Ddremio.test.query.printing.silent=true
                 -Xms512m
                 -Xmx3g
-                -XX:MaxPermSize=1512M
                 -XX:MaxDirectMemorySize=3072M
                 -XX:+CMSClassUnloadingEnabled
                 -XX:-OmitStackTraceInFastThrow

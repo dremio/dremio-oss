@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.dremio;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -33,8 +32,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.inject.Provider;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -44,6 +41,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.GlobFilter;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
+import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -77,7 +75,6 @@ import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
 import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
 import com.dremio.exec.server.options.TypeValidators.LongValidator;
 import com.dremio.exec.server.options.TypeValidators.StringValidator;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
@@ -90,6 +87,7 @@ import com.dremio.service.BindingProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
@@ -155,31 +153,45 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
-  public static final class SabotNodeRule extends ExternalResource {
-    private static final Provider<SabotNode> DEFAULT_SUPPLIER = new Provider<SabotNode>() {
-      @Override
-      public SabotNode get() {
-        try {
-          return new SabotNode(config, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-        } catch (Exception e) {
-          throw Throwables.propagate(e);
-        }
-      }
-    };
+  public static final class SabotProviderConfig {
+    private final boolean allRoles;
 
-    private Provider<SabotNode> provider = DEFAULT_SUPPLIER;
+    public SabotProviderConfig(boolean allRoles) {
+      this.allRoles = allRoles;
+    }
+
+    public boolean allRoles() {
+      return allRoles;
+    }
+  }
+
+  public static final class SabotNodeRule extends ExternalResource {
+    private static final Function<SabotProviderConfig, SabotNode> DEFAULT_PROVIDER =
+        new Function<SabotProviderConfig, SabotNode>() {
+          @Override
+          public SabotNode apply(SabotProviderConfig input) {
+            try {
+              return new SabotNode(config, clusterCoordinator, CLASSPATH_SCAN_RESULT, input.allRoles());
+            } catch (Exception e) {
+              throw Throwables.propagate(e);
+            }
+          }
+        };
+
+    private Function<SabotProviderConfig, SabotNode> provider = DEFAULT_PROVIDER;
 
     @Override
     protected void before() throws Throwable {
-      provider = DEFAULT_SUPPLIER;
+      provider = DEFAULT_PROVIDER;
     }
 
-    public SabotNode newSabotNode() {
-      return provider.get();
+    SabotNode newSabotNode(SabotProviderConfig config) {
+      return provider.apply(config);
     }
 
-    public Provider<SabotNode> setSabotNodeProvider(Provider<SabotNode> provider) {
-      Provider<SabotNode> previous = this.provider;
+    public Function<SabotProviderConfig, SabotNode>
+    setSabotNodeProvider(Function<SabotProviderConfig, SabotNode> provider) {
+      final Function<SabotProviderConfig, SabotNode> previous = this.provider;
       this.provider = Preconditions.checkNotNull(provider);
       return previous;
     }
@@ -291,12 +303,13 @@ public class BaseTestQuery extends ExecTest {
 
     nodes = new SabotNode[nodeCount];
     for(int i = 0; i < nodeCount; i++) {
-      nodes[i] = SABOT_NODE_RULE.newSabotNode();
+      // first node has all roles, and all others are only executors
+      nodes[i] = SABOT_NODE_RULE.newSabotNode(new SabotProviderConfig(i == 0));
       BINDER_RULE.updateBindingCreator(nodes[i].getBindingCreator());
       nodes[i].run();
-
-      final StoragePluginRegistry pluginRegistry = nodes[i].getContext().getStorage();
-      TestUtilities.updateDfsTestTmpSchemaLocation(pluginRegistry, dfsTestTmpSchemaLocation);
+      if(i == 0) {
+        TestUtilities.addDefaultTestPlugins(nodes[i].getContext().getCatalogService(), dfsTestTmpSchemaLocation);
+      }
     }
 
     client = QueryTestUtil.createClient(config,  clusterCoordinator, MAX_WIDTH_PER_NODE, null);
@@ -413,10 +426,6 @@ public class BaseTestQuery extends ExecTest {
 
   protected static List<QueryDataBatch> testSqlWithResults(String sql) throws Exception{
     return testRunAndReturn(QueryType.SQL, sql);
-  }
-
-  protected static List<QueryDataBatch> testLogicalWithResults(String logical) throws Exception{
-    return testRunAndReturn(QueryType.LOGICAL, logical);
   }
 
   protected static List<QueryDataBatch> testPhysicalWithResults(String physical) throws Exception{
@@ -566,8 +575,7 @@ public class BaseTestQuery extends ExecTest {
       fail("Expected a UserException when running " + testSqlQuery);
     } catch (final Exception actualException) {
       try {
-        assertTrue("message of Exception when running " + testSqlQuery + " did not contain " + expectedErrorMsg + "\n"
-            + actualException.getMessage(), actualException.getMessage().contains(expectedErrorMsg));
+        Assert.assertThat(actualException.getMessage(), CoreMatchers.containsString(expectedErrorMsg));
       } catch (AssertionError e) {
         e.addSuppressed(actualException);
         throw e;

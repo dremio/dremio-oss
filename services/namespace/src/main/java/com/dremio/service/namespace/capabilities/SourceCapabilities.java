@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.dremio.service.namespace.capabilities;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
@@ -50,6 +51,9 @@ public final class SourceCapabilities {
   @JsonCreator
   public SourceCapabilities(
       @JsonProperty("capabilitiesList") List<CapabilityValue<?,?>> capabilities){
+    if(capabilities == null) {
+      capabilities = ImmutableList.of();
+    }
     ImmutableMap.Builder<Capability<?>, CapabilityValue<?,?>> builder = ImmutableMap.builder();
     for(CapabilityValue<?, ?> c : capabilities){
       builder.put(c.getCapability(), c);
@@ -102,6 +106,7 @@ public final class SourceCapabilities {
   }
 
   // for serialization.
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<CapabilityValue<?,?>> getCapabilitiesList(){
     return ImmutableList.copyOf(values.values());
   }

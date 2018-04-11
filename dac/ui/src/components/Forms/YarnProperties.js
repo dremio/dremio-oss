@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import {Component} from 'react';
 import PropTypes from 'prop-types';
 import uuid from 'uuid';
 
 import FieldList, {AddButton, RemoveButton} from 'components/Fields/FieldList';
-import Property from 'components/Forms/Property';
-import { section, sectionTitle, description } from 'uiTheme/radium/forms';
+import YarnProperty from 'components/Forms/YarnProperty';
+import {description, section, sectionTitle} from 'uiTheme/radium/forms';
 
 PropertyItem.propTypes = {
   style: PropTypes.object,
@@ -31,8 +31,8 @@ PropertyItem.propTypes = {
 // todo: chris also curious why the `PropertyItem` wrapper is needed (couldn't `Property` just own all of this)
 function PropertyItem({style, item, onRemove}) {
   return (
-    <div className='property-item' style={{...styles.item, style}}>
-      <Property fields={item} />
+    <div className='property-item' style={{...styles.item, style, paddingBottom: 10}}>
+      <YarnProperty fields={item} />
       {onRemove && <RemoveButton onClick={onRemove} style={styles.removeButton}/> }
     </div>
   );
@@ -40,7 +40,7 @@ function PropertyItem({style, item, onRemove}) {
 
 export default class YarnProperties extends Component {
   static getFields() {
-    return Property.getFields().map(field => `propertyList[].${field}`);
+    return YarnProperty.getFields().map(field => `propertyList[].${field}`);
   }
 
   static propTypes = {
@@ -60,7 +60,7 @@ export default class YarnProperties extends Component {
   static validate(values) {
     return {
       propertyList: values.propertyList.map((property) => {
-        return Property.validate(property);
+        return YarnProperty.validate(property);
       })
     };
   }
@@ -71,7 +71,7 @@ export default class YarnProperties extends Component {
   addItem = (e) => {
     const {fields: {propertyList}} = this.props;
     e.preventDefault();
-    propertyList.addField({id: uuid.v4(), name: '', value: ''});
+    propertyList.addField({id: uuid.v4(), name: '', value: '', type: 'JAVA_PROP'});
   }
 
   render() {

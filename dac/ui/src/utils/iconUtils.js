@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,10 +55,12 @@ export function getIconStatusDatabase(status) {
 export function getIconByEntityType(type) {
   switch (type && type.toUpperCase()) {
   case 'DATASET':
+  case 'VIRTUAL':
   case 'VIRTUAL_DATASET':
     return 'VirtualDataset';
   case 'PHYSICALDATASET':
   case 'PHYSICAL_DATASET':
+  case 'PHYSICAL':
   case 'TABLE':
     return 'PhysicalDataset';
   case 'SPACE':

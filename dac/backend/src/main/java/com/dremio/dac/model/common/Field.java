@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,11 @@ import com.dremio.dac.proto.model.dataset.DataType;
  * Class representing a dataset field
  */
 public class Field {
-  private final String name;
-  private final DataType type;
+  private String name;
+  private DataType type;
+
+  public Field() {
+  }
 
   public Field(String name, DataType type) {
     this.name = name;
@@ -43,5 +46,13 @@ public class Field {
       "name='" + name + '\'' +
       ", type=" + type +
       '}';
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public void setType(DataType type) {
+    this.type = type;
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import java.util.Iterator;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -33,7 +33,6 @@ import com.dremio.exec.planner.physical.CustomPrel;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
@@ -44,7 +43,7 @@ import com.dremio.exec.record.BatchSchema;
  * inspection and RelMdOrigins determination. Beyond that, three tree should not be used. (For example,
  * it won't show up when doing EXPLAIN).
  */
-public class ElasticScanPrel extends AbstractRelNode implements LeafPrel, CustomPrel {
+public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticScanPrel.class);
 
@@ -59,7 +58,7 @@ public class ElasticScanPrel extends AbstractRelNode implements LeafPrel, Custom
       ElasticsearchPrel input,
       ScanBuilder scanBuilder,
       FunctionLookupContext functionLookupContext) {
-    super(cluster, traitSet);
+    super(cluster, traitSet, scanBuilder.getTable());
     this.input = input;
     this.rowType = input.getRowType();
     this.scanBuilder = scanBuilder;

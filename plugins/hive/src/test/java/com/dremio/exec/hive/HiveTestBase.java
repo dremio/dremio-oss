@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ public class HiveTestBase extends PlanTestBase {
     if (sabotContext == null) {
       throw new RuntimeException("context null!!!");
     }
-    hiveTest.addHiveTestPlugin(getSabotContext().getStorage());
+    hiveTest.addHiveTestPlugin(getSabotContext().getCatalogService());
     test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
@@ -48,7 +48,7 @@ public class HiveTestBase extends PlanTestBase {
   public static void cleanupHiveTestData() throws Exception{
     test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(getSabotContext().getStorage());
+      hiveTest.deleteHiveTestPlugin(getSabotContext().getCatalogService());
     }
   }
 }

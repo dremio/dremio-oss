@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import com.google.common.base.Preconditions;
 
 /**
- * For no-op relnodes for jdbc (e.g. jdbc drel, prel, and intermdiate nodes).  Just points to the subtree.
+ * For no-op relnodes for jdbc (e.g. jdbc drel, prel, and intermediate nodes).  Just points to the subtree.
  */
 public abstract class JdbcRelBase extends AbstractRelNode {
   protected final RelNode jdbcSubTree;

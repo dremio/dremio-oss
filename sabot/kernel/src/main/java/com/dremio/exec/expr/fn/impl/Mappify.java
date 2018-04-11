@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,7 +103,7 @@ public class Mappify {
               ArrowType.Struct.INSTANCE,
               CompleteType.VARCHAR.toField(MappifyUtility.fieldKey),
               valueType.toField(MappifyUtility.fieldValue))
-          .toField("list"));
+          .toField("$data$"));
     }
   }
 }

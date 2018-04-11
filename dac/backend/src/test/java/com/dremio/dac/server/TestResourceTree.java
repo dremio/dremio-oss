@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import java.nio.file.Files;
+import java.util.ConcurrentModificationException;
+import java.util.concurrent.TimeUnit;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.model.resourcetree.ResourceList;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity.ResourceType;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.TestNamespaceService;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 
 /**
  * Test resource tree.
@@ -44,10 +51,10 @@ public class TestResourceTree extends BaseTestServer {
 
     getPopulator().populateTestUsers();
 
-    TestNamespaceService.addSource(ns, "src1");
-    TestNamespaceService.addSource(ns, "src2");
-    TestNamespaceService.addSource(ns, "src3");
-    TestNamespaceService.addSource(ns, "src4");
+    addSource(ns, "src1");
+    addSource(ns, "src2");
+    addSource(ns, "src3");
+    addSource(ns, "src4");
 
     TestNamespaceService.addSpace(ns, "space1");
     TestNamespaceService.addSpace(ns, "space2");
@@ -69,13 +76,30 @@ public class TestResourceTree extends BaseTestServer {
     TestNamespaceService.addDS(ns, "space2.foo2.bar2.ds5");
   }
 
+  public static SourceConfig addSource(NamespaceService ns, String name) throws Exception {
+    final NASConf conf = new NASConf();
+    conf.path = Files.createTempDirectory(null).toString();
+    final SourceConfig src = new SourceConfig()
+        .setName(name)
+        .setCtime(100L)
+        .setConnectionConf(conf)
+        .setAccelerationRefreshPeriod(TimeUnit.HOURS.toMillis(24))
+        .setAccelerationGracePeriod(TimeUnit.HOURS.toMillis(48));
+    try {
+      l(CatalogService.class).createSourceIfMissingWithThrow(src);
+    } catch (ConcurrentModificationException e) {
+      // noop - changed signature to throw
+    }
+    return src;
+  }
+
   @Test
   public void testResourceTreeRoot() throws Exception {
     ResourceList resourceList = expectSuccess(getBuilder(getAPIv2().path("resourcetree")
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showHomes", true)).buildGet(), ResourceList.class);
-    assertEquals(7, resourceList.count(ResourceType.SOURCE));
+    assertEquals(5, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
     assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
@@ -165,7 +189,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
-    assertEquals(7, resourceList.count(ResourceType.SOURCE));
+    assertEquals(5, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
     assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
@@ -227,7 +251,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", false)).buildGet(), ResourceList.class);
-    assertEquals(7, resourceList.count(ResourceType.SOURCE));
+    assertEquals(5, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
 
     // space2
@@ -251,7 +275,7 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSources", true)
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
-    assertEquals(7, resourceList.count(ResourceType.SOURCE));
+    assertEquals(5, resourceList.count(ResourceType.SOURCE));
     assertEquals(3, resourceList.count(ResourceType.SPACE));
 
     // space1

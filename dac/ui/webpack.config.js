@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
- * Licensed under the Apache License, Version 2.0 (the 'License');
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 const fs = require('fs');
 const path = require('path');
 const childProcess = require('child_process');
@@ -108,7 +107,7 @@ const loaders = [
         loader: 'react-svg-loader',
         options: {
           svgo: {
-            plugins: [{removeDimensions: true}]
+            plugins: [{removeDimensions: true}, {convertPathData: false}] // disable convertPathData pending https://github.com/svg/svgo/issues/863
           }
         }
       }
@@ -236,10 +235,18 @@ if (minify) {
   }));
 }
 
+if (isRelease) {
+  plugins.push(new webpack.SourceMapDevToolPlugin({
+    filename: '[file].map',
+    append: '\n//# sourceMappingURL=[url]'
+  }));
+}
+
 const polyfill = [
   './src/polyfills',
   'element-closest',
-  'babel-polyfill'
+  'babel-polyfill',
+  'url-search-params-polyfill'
 ];
 
 const config = {

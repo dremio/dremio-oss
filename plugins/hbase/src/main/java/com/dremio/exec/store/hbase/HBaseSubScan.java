@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,16 +20,17 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.StoragePluginId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 
 // Class containing information for reading a single HBase region
 @JsonTypeName("hbase-region-scan")
@@ -69,7 +70,8 @@ public class HBaseSubScan extends SubScanWithProjection {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
-    return new HBaseSubScan(getPluginId(), getUserName(), getScans(), getColumns(), getSchema(), getTableSchemaPath());
+    return new HBaseSubScan(getPluginId(), getUserName(), getScans(), getColumns(), getSchema(),
+      Iterables.getOnlyElement(getReferencedTables()));
   }
 
   @Override

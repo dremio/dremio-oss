@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.dremio.dac.server;
 
 import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.ElementType.METHOD;
 
 import java.util.Set;
 
@@ -30,11 +29,8 @@ import org.hibernate.validator.cfg.ConstraintMapping;
 import org.hibernate.validator.cfg.defs.NotBlankDef;
 import org.hibernate.validator.cfg.defs.NotEmptyDef;
 import org.hibernate.validator.cfg.defs.NotNullDef;
-import org.hibernate.validator.cfg.defs.PatternDef;
 
 import com.dremio.dac.model.common.ValidationErrorMessages;
-import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.proto.model.dataset.Dimension;
 import com.dremio.dac.proto.model.dataset.FieldConvertTextToDate;
 import com.dremio.dac.proto.model.dataset.Measure;
@@ -49,121 +45,26 @@ import com.dremio.dac.proto.model.dataset.TransformSort;
 import com.dremio.dac.proto.model.dataset.TransformSorts;
 import com.dremio.dac.proto.model.dataset.TransformSplitByDataType;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
-import com.dremio.dac.proto.model.source.DB2Config;
-import com.dremio.dac.proto.model.source.ElasticConfig;
-import com.dremio.dac.proto.model.source.HdfsConfig;
-import com.dremio.dac.proto.model.source.Host;
-import com.dremio.dac.proto.model.source.MSSQLConfig;
-import com.dremio.dac.proto.model.source.MongoConfig;
-import com.dremio.dac.proto.model.source.MySQLConfig;
-import com.dremio.dac.proto.model.source.NASConfig;
-import com.dremio.dac.proto.model.source.OracleConfig;
-import com.dremio.dac.proto.model.source.PostgresConfig;
-import com.dremio.dac.proto.model.source.Property;
-import com.dremio.dac.proto.model.source.S3Config;
 import com.dremio.dac.service.errors.ClientErrorException;
-import com.dremio.file.FileName;
 
 /**
  * general bean validation
  */
 public class InputValidation {
 
-  private final HibernateValidatorConfiguration configuration;
-  private final ConstraintMapping constraints;
   private final Validator validator;
 
   public InputValidation() {
-    this.configuration = Validation.byProvider(HibernateValidator.class).configure();
-    this.constraints = configuration.createConstraintMapping();
 
-    configureConstraints();
-
-    this.validator = this.configuration.addMapping(constraints)
+    HibernateValidatorConfiguration config = Validation.byProvider(HibernateValidator.class).configure();
+    this.validator = config
+        .addMapping(configureTransforms(config.createConstraintMapping()))
         .buildValidatorFactory()
         .getValidator();
   }
 
-  /**
-   * definition of bean validation
-   */
-  private void configureConstraints() {
-    configureTransforms();
-    configureSources();
-    configureSpace();
-    configureGeneral();
-  }
 
-  /**
-   * constraints for Spaces
-   */
-  private void configureSpace() {
-    constraints.type(Space.class)
-      .property("name", METHOD).constraint(new PatternDef().regexp("^[^.\"]+$").message("Space name can not contain periods or double quotes"));
-  }
-
-  /**
-   * constraints for Sources
-   */
-  private void configureSources() {
-    constraints.type(SourceUI.class)
-      .property("name", FIELD).constraint(new PatternDef().regexp("^[^.\"]+$").message("Source name can not contain periods or double quotes"));
-
-    constraints.type(Host.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef())
-    .property("port", FIELD).constraint(new NotNullDef());
-
-    constraints.type(ElasticConfig.class)
-    .property("host", FIELD).constraint(new NotEmptyDef());
-
-    constraints.type(HdfsConfig.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(MongoConfig.class)
-    .property("host", FIELD).constraint(new NotEmptyDef())
-    .property("useSsl", FIELD).constraint(new NotNullDef());
-
-    constraints.type(MSSQLConfig.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef())
-    .property("port", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(MySQLConfig.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef())
-    .property("port", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(NASConfig.class)
-    .property("path", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(OracleConfig.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef())
-    .property("port", FIELD).constraint(new NotBlankDef())
-    .property("username", FIELD).constraint(new NotBlankDef())
-    .property("password", FIELD).constraint(new NotBlankDef())
-    .property("instance", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(DB2Config.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef())
-    .property("port", FIELD).constraint(new NotBlankDef())
-    .property("databaseName", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(PostgresConfig.class)
-    .property("hostname", FIELD).constraint(new NotBlankDef())
-    .property("port", FIELD).constraint(new NotBlankDef())
-    .property("databaseName", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(S3Config.class)
-    .property("secure", FIELD).constraint(new NotNullDef());
-    // TODO These fields are only required when there are no external buckets
-    // .property("accessKey", FIELD).constraint(new NotBlankDef())
-    // .property("accessSecret", FIELD).constraint(new NotBlankDef());
-
-    constraints.type(Property.class)
-    .property("name", FIELD).constraint(new NotBlankDef())
-    .property("value", FIELD).constraint(new NotBlankDef());
-
-  }
-
-  private void configureTransforms() {
+  private ConstraintMapping configureTransforms(ConstraintMapping constraints) {
     constraints.type(TransformSort.class)
     .property("sortedColumnName", FIELD).constraint(new NotBlankDef());
     //  order
@@ -225,12 +126,8 @@ public class InputValidation {
     .property("type", FIELD).constraint(new NotNullDef());
 
     constraints.type(TransformGroupBy.class).constraint(new TransformGroupByConstraintDef());
-  }
 
-  public void configureGeneral() {
-    constraints.type(FileName.class)
-      .property("name", FIELD).constraint(new PatternDef().regexp("^[^@:{/]+$").message("File name cannot contain a colon, forward slash, at sign, or open curly bracket."))
-      .constraint(new PatternDef().regexp("^[^.].*$").message("File name cannot start with period"));
+    return constraints;
   }
 
   /**

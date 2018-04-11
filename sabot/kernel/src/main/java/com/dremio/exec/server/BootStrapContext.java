@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.metrics.Metrics;
 
@@ -41,15 +42,17 @@ public class BootStrapContext implements AutoCloseable {
   private final ScanResult classpathScan;
   private final CloseableThreadPool executor;
   private final LogicalPlanPersistence lpPersistance;
+  private final DremioConfig dremioConfig;
   private final NodeDebugContextProvider nodeDebugContextProvider;
 
-  public BootStrapContext(SabotConfig config, ScanResult classpathScan) {
-    this.config = config;
+  public BootStrapContext(DremioConfig config, ScanResult classpathScan) {
+    this.config = config.getSabotConfig();
     this.classpathScan = classpathScan;
     this.metrics = Metrics.getInstance();
-    this.allocator = RootAllocatorFactory.newRoot(config);
+    this.allocator = RootAllocatorFactory.newRoot(config.getSabotConfig());
     this.executor = new CloseableThreadPool("dremio-general-");
-    this.lpPersistance = new LogicalPlanPersistence(config, classpathScan);
+    this.lpPersistance = new LogicalPlanPersistence(config.getSabotConfig(), classpathScan);
+    this.dremioConfig = config;
 
     registerMetrics();
 
@@ -72,6 +75,10 @@ public class BootStrapContext implements AutoCloseable {
         return MemoryIterator.getDirectBean().getMemoryUsed();
       }
     });
+  }
+
+  public DremioConfig getDremioConfig() {
+    return dremioConfig;
   }
 
   public ExecutorService getExecutor() {

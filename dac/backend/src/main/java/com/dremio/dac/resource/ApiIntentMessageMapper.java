@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.resource;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +43,7 @@ import com.dremio.service.accelerator.proto.AccelerationDescriptor;
 import com.dremio.service.accelerator.proto.AccelerationRequest;
 import com.dremio.service.accelerator.proto.AccelerationStateDescriptor;
 import com.dremio.service.accelerator.proto.DatasetConfigDescriptor;
+import com.dremio.service.accelerator.proto.DimensionGranularity;
 import com.dremio.service.accelerator.proto.LayoutContainerDescriptor;
 import com.dremio.service.accelerator.proto.LayoutDescriptor;
 import com.dremio.service.accelerator.proto.LayoutDetailsDescriptor;
@@ -51,8 +53,14 @@ import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.LayoutType;
 import com.dremio.service.accelerator.proto.LogicalAggregationDescriptor;
 import com.dremio.service.accelerator.proto.ParentDatasetDescriptor;
+import com.dremio.service.accelerator.proto.PartitionDistributionStrategy;
 import com.dremio.service.accelerator.proto.VirtualDatasetDescriptor;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.dremio.service.reflection.proto.ReflectionDetails;
+import com.dremio.service.reflection.proto.ReflectionDimensionField;
+import com.dremio.service.reflection.proto.ReflectionField;
+import com.dremio.service.reflection.proto.ReflectionGoal;
+import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
@@ -164,6 +172,35 @@ public class ApiIntentMessageMapper {
         ;
   }
 
+  static LayoutType toOld(ReflectionType type) {
+    return LayoutType.valueOf(type.number);
+  }
+
+  private static PartitionDistributionStrategy toOld(com.dremio.service.reflection.proto.PartitionDistributionStrategy strategy) {
+    return PartitionDistributionStrategy.valueOf(strategy.number);
+  }
+
+  public static LayoutApiDescriptor toApiMessage(final ReflectionGoal goal) {
+    if (goal == null) {
+      return null;
+    }
+
+    final ReflectionDetails details = goal.getDetails();
+    return new LayoutApiDescriptor()
+      .setId(goal.getId().getId())
+      .setName(goal.getName())
+      .setType(toOld(goal.getType()))
+      .setDetails(new LayoutDetailsApiDescriptor()
+        .setDisplayFieldList(toApiFields(details.getDisplayFieldList()))
+        .setDimensionFieldList(toApiDimensionFields(details.getDimensionFieldList()))
+        .setMeasureFieldList(toApiFields(details.getMeasureFieldList()))
+        .setPartitionFieldList(toApiFields(details.getPartitionFieldList()))
+        .setSortFieldList(toApiFields(details.getSortFieldList()))
+        .setDistributionFieldList(toApiFields(details.getDistributionFieldList()))
+        .setPartitionDistributionStrategy(toOld(details.getPartitionDistributionStrategy()))
+      );
+  }
+
   public static LayoutApiDescriptor toApiMessage(final LayoutDescriptor descriptor, final LayoutType type) {
     if (descriptor == null) {
       return null;
@@ -216,6 +253,27 @@ public class ApiIntentMessageMapper {
         .toList();
   }
 
+  private static DimensionGranularity toOld(com.dremio.service.reflection.proto.DimensionGranularity granularity) {
+    return DimensionGranularity.valueOf(granularity.number);
+  }
+
+  private static List<LayoutDimensionFieldApiDescriptor> toApiDimensionFields(final Iterable<ReflectionDimensionField> fields) {
+    if (fields == null) {
+      return Collections.emptyList();
+    }
+    return FluentIterable
+      .from(fields)
+      .transform(new Function<ReflectionDimensionField, LayoutDimensionFieldApiDescriptor>() {
+        @Override
+        public LayoutDimensionFieldApiDescriptor apply(final ReflectionDimensionField input) {
+          return new LayoutDimensionFieldApiDescriptor()
+            .setName(input.getName())
+            .setGranularity(toOld(input.getGranularity()));
+        }
+      })
+      .toList();
+  }
+
   private static List<LayoutFieldApiDescriptor> toApiFields(final List<LayoutFieldDescriptor> fields) {
     return FluentIterable
         .from(AccelerationUtils.selfOrEmpty(fields))
@@ -227,6 +285,20 @@ public class ApiIntentMessageMapper {
           }
         })
         .toList();
+  }
+
+  private static List<LayoutFieldApiDescriptor> toApiFields(final Iterable<ReflectionField> fields) {
+    if (fields == null) {
+      return Collections.emptyList();
+    }
+    return FluentIterable.from(fields)
+      .transform(new Function<ReflectionField, LayoutFieldApiDescriptor>() {
+        @Override
+        public LayoutFieldApiDescriptor apply(final ReflectionField input) {
+          return new LayoutFieldApiDescriptor().setName(input.getName());
+        }
+      })
+      .toList();
   }
 
   public AccelerationStateApiDescriptor toApiMessage(final AccelerationStateDescriptor intent) {

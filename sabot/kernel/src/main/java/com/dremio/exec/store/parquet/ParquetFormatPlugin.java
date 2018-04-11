@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import static java.lang.String.format;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -33,8 +32,6 @@ import org.apache.parquet.hadoop.ParquetFileWriter;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.store.StoragePluginConfig;
-import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -44,7 +41,6 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ClassPathFileSystem;
 import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
 import com.dremio.exec.store.dfs.BaseFormatPlugin;
 import com.dremio.exec.store.dfs.BasicFormatMatcher;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -60,7 +56,6 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.proto.DictionaryEncodedColumns;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
 public class ParquetFormatPlugin extends BaseFormatPlugin {
@@ -78,22 +73,19 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   private final SabotContext context;
   private final ParquetFormatMatcher formatMatcher;
   private final ParquetFormatConfig config;
-  private final StoragePluginConfig storageConfig;
   private final String name;
   private FileSystemPlugin fsPlugin;
 
-  public ParquetFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig, FileSystemPlugin fsPlugin){
-    this(name, context, storageConfig, new ParquetFormatConfig(), fsPlugin);
+  public ParquetFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin){
+    this(name, context, new ParquetFormatConfig(), fsPlugin);
     this.fsPlugin = (FileSystemPlugin) fsPlugin;
   }
 
-  public ParquetFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig,
-      ParquetFormatConfig formatConfig, FileSystemPlugin fsPlugin){
+  public ParquetFormatPlugin(String name, SabotContext context, ParquetFormatConfig formatConfig, FileSystemPlugin fsPlugin){
     super(context, fsPlugin);
     this.context = context;
     this.config = formatConfig;
     this.formatMatcher = new ParquetFormatMatcher(this, config);
-    this.storageConfig = storageConfig;
     this.name = name == null ? DEFAULT_NAME : name;
     this.fsPlugin = (FileSystemPlugin) fsPlugin;
   }
@@ -106,11 +98,6 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   @Override
   public boolean supportsRead() {
     return true;
-  }
-
-  @Override
-  public Set<StoragePluginOptimizerRule> getOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-    return ImmutableSet.of();
   }
 
   @Override
@@ -142,11 +129,6 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns) throws IOException {
     return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.getSelectionRoot(), columns, schema,
       globalDictionaryColumns, null);
-  }
-
-  @Override
-  public StoragePluginConfig getStorageConfig() {
-    return storageConfig;
   }
 
   @Override

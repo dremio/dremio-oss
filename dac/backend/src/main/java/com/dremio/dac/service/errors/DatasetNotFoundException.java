@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,11 @@ public class DatasetNotFoundException extends NotFoundException {
   public DatasetNotFoundException(DatasetPath path, String message, Exception error) {
     super(new DatasetResourcePath(path), message, error);
     this.path = path;
+  }
+
+  public DatasetNotFoundException(String id) {
+    super(id, "dataset");
+    this.path = null;
   }
 
   public DatasetPath getDatasetPath() {

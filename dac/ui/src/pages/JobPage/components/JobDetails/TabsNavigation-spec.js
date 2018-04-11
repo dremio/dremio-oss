@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ describe('TabsNavigation', () => {
     const tabs = wrapper.find('TabsNavigationItem');
     const expectedLabels = [
       '{"0":{"id":"Common.Overview"}}',
-      '{"0":{"id":"Job.Details"}}',
+      '{"0":{"id":"Common.Details"}}',
       '{"0":{"id":"Acceleration.Acceleration"}}',
       '{"0":{"id":"Job.Profiles"}}'
     ];
@@ -64,7 +64,7 @@ describe('TabsNavigation', () => {
     const tabs = wrapper.find('TabsNavigationItem');
     const expectedLabels = [
       '{"0":{"id":"Common.Overview"}}',
-      '{"0":{"id":"Job.Details"}}',
+      '{"0":{"id":"Common.Details"}}',
       '{"0":{"id":"Acceleration.Acceleration"}}',
       '{"0":{"id":"Job.Profile"}}'
     ];

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,7 +77,6 @@ public class PutSourceResource {
       source.setName(sourceName.getName());
       source.setCtime(System.currentTimeMillis());
 
-      // first we need to make sure the source can be created successfully.
       SourceConfig sourceConfig = sourceService.registerSourceWithRuntime(source);
 
       final SourceState sourceState = sourceService.getSourceState(sourcePath.getSourceName().getName());

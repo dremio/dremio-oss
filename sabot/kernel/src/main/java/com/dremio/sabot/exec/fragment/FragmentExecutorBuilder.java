@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ import com.dremio.exec.server.options.OptionList;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
@@ -90,7 +90,7 @@ public class FragmentExecutorBuilder {
   private final PhysicalPlanReader planReader;
   private final SchemaChangeListener schemaUpdater;
   private final Set<ClusterCoordinator.Role> roles;
-  private final StoragePluginRegistry storagePluginRegistry;
+  private final CatalogService sources;
   private final ContextInformationFactory contextInformationFactory;
   private final NodeDebugContextProvider nodeDebugContextProvider;
 
@@ -105,7 +105,7 @@ public class FragmentExecutorBuilder {
       ScanResult scanResult,
       PhysicalPlanReader planReader,
       NamespaceService namespace,
-      StoragePluginRegistry storagePluginRegistry,
+      CatalogService sources,
       ContextInformationFactory contextInformationFactory,
       FunctionImplementationRegistry functions,
       NodeDebugContextProvider nodeDebugContextProvider,
@@ -124,7 +124,7 @@ public class FragmentExecutorBuilder {
     this.compiler = new CodeCompiler(config, optionManager);
     this.schemaUpdater = new NamespaceUpdater(namespace);
     this.roles = roles;
-    this.storagePluginRegistry = storagePluginRegistry;
+    this.sources = sources;
     this.contextInformationFactory = contextInformationFactory;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
   }
@@ -223,7 +223,7 @@ public class FragmentExecutorBuilder {
           flushable,
           stats,
           ticket,
-          storagePluginRegistry,
+          sources,
           exception,
           eventProvider
           );

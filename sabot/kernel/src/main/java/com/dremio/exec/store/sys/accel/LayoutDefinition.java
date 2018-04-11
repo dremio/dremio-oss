@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.dremio.exec.store.sys.accel;
 import java.util.List;
 
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
-import com.dremio.exec.planner.sql.parser.SqlAddLayout.NameAndGranularity;
+import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndGranularity;
 
 public class LayoutDefinition {
 

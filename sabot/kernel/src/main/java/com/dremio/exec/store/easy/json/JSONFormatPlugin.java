@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import java.util.Objects;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
@@ -44,12 +43,12 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   private static final boolean IS_COMPRESSIBLE = true;
   private static final String DEFAULT_NAME = "json";
 
-  public JSONFormatPlugin(String name, SabotContext context, StoragePluginConfig storageConfig, FileSystemPlugin fsPlugin) {
-    this(name, context, storageConfig, new JSONFormatConfig(), fsPlugin);
+  public JSONFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin) {
+    this(name, context, new JSONFormatConfig(), fsPlugin);
   }
 
-  public JSONFormatPlugin(String name, SabotContext context, StoragePluginConfig config, JSONFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
-    super(name, context, config, formatPluginConfig, true, false, false, IS_COMPRESSIBLE, formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
+  public JSONFormatPlugin(String name, SabotContext context, JSONFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
+    super(name, context, formatPluginConfig, true, false, false, IS_COMPRESSIBLE, formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
   }
 
   @Override

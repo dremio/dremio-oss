@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,9 @@ import static com.dremio.TestBuilder.mapOf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.arrow.vector.NullableVarCharVector;
@@ -33,7 +31,6 @@ import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.joda.time.LocalDateTime;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
@@ -43,10 +40,7 @@ import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.util.ByteBufUtil.HadoopWritables;
-import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -54,8 +48,6 @@ public class TestConvertFunctions extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestConvertFunctions.class);
 
   private static final FunctionErrorContext context = FunctionErrorContextBuilder.builder().build();
-  private static final String CONVERSION_TEST_LOGICAL_PLAN = "functions/conv/conversionTestWithLogicalPlan.json";
-  private static final String CONVERSION_TEST_PHYSICAL_PLAN = "functions/conv/conversionTestWithPhysicalPlan.json";
 
   private static final float DELTA = (float) 0.0001;
 
@@ -299,27 +291,6 @@ public class TestConvertFunctions extends BaseTestQuery {
            + " from"
            + "   cp.`employee.json` LIMIT 1",
            new byte[] {(byte) 0xBE, (byte) 0xBA, (byte) 0xFE, (byte) 0xCA});
-  }
-
-
-  @Ignore // TODO(DRILL-2326) remove this when we get rid of the scalar replacement option test cases below
-  @Test
-  public void testBigIntVarCharReturnTripConvertLogical() throws Exception {
-    final String logicalPlan = Resources.toString(
-        Resources.getResource(CONVERSION_TEST_LOGICAL_PLAN), Charsets.UTF_8);
-    final List<QueryDataBatch> results =  testLogicalWithResults(logicalPlan);
-    int count = 0;
-    final RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
-    for (QueryDataBatch result : results) {
-      count += result.getHeader().getRowCount();
-      loader.load(result.getHeader().getDef(), result.getData());
-      if (loader.getRecordCount() > 0) {
-        VectorUtil.showVectorAccessibleContent(loader);
-      }
-      loader.clear();
-      result.release();
-    }
-    assertTrue(count == 10);
   }
 
   @Test

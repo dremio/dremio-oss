@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,19 +55,20 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class TestAllDataTypes extends ElasticBaseTestQuery {
-  private static final Logger logger = LoggerFactory.getLogger(TestNullValues.class);
+  private static final Logger logger = LoggerFactory.getLogger(TestAllDataTypes.class);
   DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD").withZone(DateTimeZone.UTC);
 
   private static final String SPECIAL_COLUMN_NAME_1 = "@column_name_with_symbols";
   private static final String SPECIAL_COLUMN_NAME_2 = "column name with spaces";
-  private static final String SPECIAL_COLUMN_NAME_3 = "column_with_special_characters''\"#";
+  private static final String SPECIAL_COLUMN_NAME_3 = "column_with_special_characters''\"#`";
   private static final String SPECIAL_COLUMN_NAME_4 = "_name";
   protected static final String[] SPECIAL_COLUMNS = new String[] {SPECIAL_COLUMN_NAME_1, SPECIAL_COLUMN_NAME_2, SPECIAL_COLUMN_NAME_3, SPECIAL_COLUMN_NAME_4};
-  private static String[] SPECIAL_COLUMNS_IN_BACKTICKS;
+  private static String[] SPECIAL_COLUMNS_IN_BACKTICKS = new String[4];
+  private static String[] SPECIAL_COLUMNS_FOR_SQL = new String[4];
   static {
-    SPECIAL_COLUMNS_IN_BACKTICKS = new String[4];
     for (int i = 0; i < SPECIAL_COLUMNS.length; i++) {
-      SPECIAL_COLUMNS_IN_BACKTICKS[i] = "`" + SPECIAL_COLUMNS[i] + "`";
+      SPECIAL_COLUMNS_IN_BACKTICKS[i] = "`" + SPECIAL_COLUMNS[i].replace("`", "\\`") + "`";
+      SPECIAL_COLUMNS_FOR_SQL[i] = "`" + SPECIAL_COLUMNS[i].replace("`", "``") + "`";
     }
   }
 
@@ -362,13 +363,13 @@ public class TestAllDataTypes extends ElasticBaseTestQuery {
 
   @Test
   public void testOddColumnNames() throws Exception {
-    String columns = Joiner.on(",").join(SPECIAL_COLUMNS_IN_BACKTICKS);
+    String columns = Joiner.on(",").join(SPECIAL_COLUMNS_FOR_SQL);
     final String sqlQuery = "select " + columns + " from elasticsearch." + schema + "." + table;
     // Not using the json based matching here so we can also check for proper serialization of the weird column names
     // in the list of columns that should be included for the elastic scan operator, that is outside of the JSON pushdown
     // portion of the plan
     testPlanSubstrPatterns(sqlQuery, new String[] {
-      "columns=[[`@column_name_with_symbols`, `column name with spaces`, `column_with_special_characters''\"#`, `_name`]], pushdown\n" +
+      "columns=[[`@column_name_with_symbols`, `column name with spaces`, `column_with_special_characters''\"#\\``, `_name`]], pushdown\n" +
         " =[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,31 +25,32 @@ import java.util.EnumSet;
 import javax.inject.Provider;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.store.ViewCreatorFactory;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
-import com.dremio.dac.homefiles.HomeFileConfig;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.server.APIServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.RestServerV2;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenManagerImpl;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DACViewCreatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.exec.MasterElectionService;
 import com.dremio.dac.service.exec.MasterStatusListener;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.RemoteKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.BootStrapContext;
@@ -58,8 +59,6 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogServiceImpl;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PDFSService;
 import com.dremio.exec.store.dfs.PDFSService.PDFSMode;
@@ -86,16 +85,21 @@ import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.accelerator.AccelerationListManagerImpl;
-import com.dremio.service.accelerator.AccelerationService;
-import com.dremio.service.accelerator.AccelerationServiceImpl;
-import com.dremio.service.accelerator.AcceleratorStoragePluginService;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.listing.DatasetListingInvoker;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.reflection.ExecutorOnlyReflectionService;
+import com.dremio.service.reflection.ReflectionService;
+import com.dremio.service.reflection.ReflectionServiceImpl;
+import com.dremio.service.reflection.ReflectionStatusService;
+import com.dremio.service.reflection.ReflectionStatusServiceImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SimpleUserService;
@@ -110,7 +114,6 @@ import com.google.common.base.Throwables;
 public class DACDaemonModule implements DACModule {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DACDaemonModule.class);
 
-  public static final String ACCELERATOR_STORAGEPLUGIN_NAME = "__accelerator";
   public static final String JOBS_STORAGEPLUGIN_NAME = "__jobResultsStore";
   public static final String SCRATCH_STORAGEPLUGIN_NAME = "$scratch";
 
@@ -122,7 +125,7 @@ public class DACDaemonModule implements DACModule {
     final DremioConfig config = dacConfig.getConfig();
     final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
 
-    bootstrapRegistry.bindSelf(new BootStrapContext(config.getSabotConfig(), scanResult));
+    bootstrapRegistry.bindSelf(new BootStrapContext(config, scanResult));
 
     // Start cluster coordinator before all other services so that non master nodes can poll for master status
     if (dacConfig.getClusterMode() == ClusterMode.LOCAL) {
@@ -167,14 +170,23 @@ public class DACDaemonModule implements DACModule {
 
   @Override
   public void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, boolean isMaster, SourceToStoragePluginConfig configurator) {
+      DACConfig dacConfig, boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
 
+    final boolean isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
+    final boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
 
-    boolean isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
-    boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
+    final Provider<NodeEndpoint> masterEndpoint = new Provider<NodeEndpoint>() {
+      private final Provider<MasterStatusListener> masterStatusListener =
+          registry.provider(MasterStatusListener.class);
+
+      @Override
+      public NodeEndpoint get() {
+        return masterStatusListener.get().getMasterNode();
+      }
+    };
 
     EnumSet<ClusterCoordinator.Role> roles = EnumSet.noneOf(ClusterCoordinator.Role.class);
     if (isMaster) {
@@ -189,14 +201,13 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindSelf(config);
 
+    ConnectionReader connectionReader = new ConnectionReader(scanResult);
+    registry.bind(ConnectionReader.class, connectionReader);
+
     // register default providers.
 
     registry.bind(MaterializationDescriptorProvider.class, MaterializationDescriptorProvider.EMPTY);
     registry.bind(QueryObserverFactory.class, QueryObserverFactory.DEFAULT);
-
-    if(isCoordinator){
-      registry.bind(SourceToStoragePluginConfig.class, configurator);
-    }
 
     // copy bootstrap bindings to the main registry.
     bootstrapRegistry.copyBindings(registry);
@@ -267,13 +278,28 @@ public class DACDaemonModule implements DACModule {
         registry.provider(KVStoreProvider.class),
         registry.provider(JobsService.class),
         registry.provider(NamespaceService.Factory.class),
-        registry.provider(AccelerationService.class)
+        registry.provider(ReflectionService.class),
+        registry.provider(CatalogService.class)
       )
     );
 
 
     final boolean isInternalUGS = setupUserService(registry, dacConfig.getConfig());
     registry.bind(NamespaceService.Factory.class, NamespaceServiceImpl.Factory.class);
+    final DatasetListingService localListing;
+    if (isMaster) {
+      localListing = new DatasetListingServiceImpl(registry.provider(NamespaceService.Factory.class));
+    } else {
+      localListing = DatasetListingService.UNSUPPORTED;
+    }
+    // this is the delegate service for localListing (calls start/close internally)
+    registry.bind(DatasetListingService.class,
+        new DatasetListingInvoker(
+            isMaster,
+            masterEndpoint,
+            registry.provider(FabricService.class),
+            bootstrap.getAllocator(),
+            localListing));
 
     // RPC Endpoints.
 
@@ -294,7 +320,6 @@ public class DACDaemonModule implements DACModule {
         registry.provider(ExecToCoordHandler.class)
         ));
 
-    registry.bindSelf(HomeFileConfig.class);
     registry.bindSelf(HomeFileTool.class);
 
     // Context Service.
@@ -313,6 +338,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(AccelerationManager.class),
         registry.provider(AccelerationListManager.class),
         registry.provider(NamespaceService.Factory.class),
+        registry.provider(DatasetListingService.class),
         registry.provider(UserService.class),
         registry.provider(CatalogService.class),
         registry.provider(ViewCreatorFactory.class),
@@ -328,17 +354,16 @@ public class DACDaemonModule implements DACModule {
         isExecutor ? PDFSMode.DATA : PDFSMode.CLIENT
         ));
 
-    registry.bind(SchedulerService.class, new LocalSchedulerService(isCoordinator ? config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT) : 1));
+    registry.bind(SchedulerService.class, new LocalSchedulerService(config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT)));
     registry.bindSelf(new SystemTablePluginConfigProvider());
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
-        registry.provider(KVStoreProvider.class),
-        registry.getBindingCreator(),
-        isMaster,
-        isCoordinator,
-        registry.provider(SystemTablePluginConfigProvider.class)));
+        registry.provider(SystemTablePluginConfigProvider.class),
+        registry.provider(FabricService.class)
+        )
+        );
 
 
     registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
@@ -352,9 +377,9 @@ public class DACDaemonModule implements DACModule {
               @Override
               public FileSystemPlugin get() {
                 try {
-                  StoragePluginRegistry storagePluginRegistry = registry.provider(StoragePluginRegistry.class).get();
-                  return (FileSystemPlugin) storagePluginRegistry.getPlugin(JOBS_STORAGEPLUGIN_NAME);
-                } catch(ExecutionSetupException e) {
+                  CatalogService storagePluginRegistry = registry.provider(CatalogService.class).get();
+                  return (FileSystemPlugin) storagePluginRegistry.getSource(JOBS_STORAGEPLUGIN_NAME);
+                } catch(Exception e) {
                   throw Throwables.propagate(e);
                 }
               }
@@ -390,7 +415,7 @@ public class DACDaemonModule implements DACModule {
               registry.provider(NodeEndpoint.class),
               registry.provider(SabotContext.class),
               registry.provider(FabricService.class),
-              registry.provider(StoragePluginRegistry.class),
+              registry.provider(CatalogService.class),
               registry.provider(ContextInformationFactory.class),
               registry.getBindingCreator()));
     } else {
@@ -400,38 +425,49 @@ public class DACDaemonModule implements DACModule {
     final Provider<FileSystemPlugin> acceleratorStoragePluginProvider = new Provider<FileSystemPlugin>() {
       @Override
       public FileSystemPlugin get() {
-        StoragePluginRegistry storagePluginRegistry = registry.provider(StoragePluginRegistry.class).get();
+        CatalogService catalogService = registry.provider(CatalogService.class).get();
 
         try {
-          return (FileSystemPlugin) storagePluginRegistry.getPlugin(ACCELERATOR_STORAGEPLUGIN_NAME);
-        } catch(ExecutionSetupException e) {
+          return (FileSystemPlugin) catalogService.getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
+        } catch(Exception e) {
           throw Throwables.propagate(e);
         }
       }
     };
 
-    registry.bindSelf(new AcceleratorStoragePluginService(acceleratorStoragePluginProvider));
-
     registry.bind(AccelerationManager.class, AccelerationManager.NO_OP);
 
     if (isCoordinator) {
-      registry.bind(AccelerationService.class, new AccelerationServiceImpl(
-          registry.getBindingCreator(),
-          registry.provider(SabotContext.class),
-          registry.provider(KVStoreProvider.class),
-          registry.provider(SchedulerService.class),
-          registry.provider(JobsService.class),
-          registry.provider(CatalogService.class),
-          acceleratorStoragePluginProvider,
-          bootstrap.getExecutor()));
+      registry.bind(ReflectionService.class, new ReflectionServiceImpl(
+        sabotConfig,
+        registry.provider(KVStoreProvider.class),
+        registry.provider(SchedulerService.class),
+        registry.provider(JobsService.class),
+        registry.provider(CatalogService.class),
+        acceleratorStoragePluginProvider,
+        registry.provider(SabotContext.class),
+        registry.provider(ReflectionStatusService.class),
+        bootstrap.getExecutor(),
+        registry.getBindingCreator(),
+        isMaster
+      ));
+      registry.bind(ReflectionStatusService.class, new ReflectionStatusServiceImpl(
+        registry.provider(SabotContext.class),
+        registry.provider(CatalogService.class),
+        registry.provider(KVStoreProvider.class),
+        registry.provider(ReflectionService.class).get().getCacheViewerProvider()
+      ));
+    } else {
+      registry.bind(ReflectionService.class, new ExecutorOnlyReflectionService());
+      registry.bind(ReflectionStatusService.class, ReflectionStatusService.NOOP);
     }
 
-    if (isExecutor) {
-      registry.bind(AccelerationListManager.class, new AccelerationListManagerImpl(
-          registry.provider(KVStoreProvider.class),
-          registry.provider(SabotContext.class)
-          ));
-    }
+    registry.bind(AccelerationListManager.class, new AccelerationListManagerImpl(
+      registry.provider(KVStoreProvider.class),
+      registry.provider(SabotContext.class),
+      registry.provider(ReflectionStatusService.class),
+      registry.provider(FabricService.class),
+      registry.getBindingCreator()));
 
     if(isCoordinator){
       final Provider<ClusterCoordinator> coordProvider = registry.provider(ClusterCoordinator.class);
@@ -450,11 +486,12 @@ public class DACDaemonModule implements DACModule {
     }
 
     registry.bind(SupportService.class, new SupportService(
-        dacConfig,
-        registry.provider(KVStoreProvider.class),
-        registry.provider(JobsService.class),
-        registry.provider(UserService.class),
-        registry.provider(SabotContext.class)));
+      dacConfig,
+      registry.provider(KVStoreProvider.class),
+      registry.provider(JobsService.class),
+      registry.provider(UserService.class),
+      registry.provider(SabotContext.class),
+      registry.provider(CatalogService.class)));
 
     if(isCoordinator){
       registry.bindSelf(new ServerHealthMonitor(registry.provider(MasterStatusListener.class)));
@@ -471,13 +508,13 @@ public class DACDaemonModule implements DACModule {
       registry.bind(SampleDataPopulatorService.class,
           new SampleDataPopulatorService(
               registry.provider(SabotContext.class),
-              registry.provider(StoragePluginRegistry.class),
               registry.provider(KVStoreProvider.class),
-              registry.provider(SourceToStoragePluginConfig.class),
               registry.provider(UserService.class),
               registry.provider(InitializerRegistry.class),
               registry.provider(JobsService.class),
               registry.provider(CatalogService.class),
+              registry.provider(ReflectionServiceHelper.class),
+              registry.provider(ConnectionReader.class),
               dacConfig.prepopulate,
               dacConfig.addDefaultUser));
 
@@ -506,6 +543,8 @@ public class DACDaemonModule implements DACModule {
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
+    registry.bindSelf(ReflectionServiceHelper.class);
+    registry.bindSelf(CatalogServiceHelper.class);
   }
 
   /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,12 +37,12 @@ import org.apache.calcite.sql.SqlExplainLevel;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.StoragePluginId;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
@@ -73,8 +73,8 @@ public abstract class ScanRelBase extends TableScan {
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment) {
     super(cluster, traitSet, table);
-    this.pluginId = pluginId;
-    this.tableMetadata = tableMetadata;
+    this.pluginId = Preconditions.checkNotNull(pluginId);
+    this.tableMetadata = Preconditions.checkNotNull(tableMetadata);
     Preconditions.checkArgument(observedRowcountAdjustment >= 0 && observedRowcountAdjustment <= 1, "observedRowcountAdjustment cannot be set to " + observedRowcountAdjustment);
     this.observedRowcountAdjustment = observedRowcountAdjustment;
     this.projectedColumns = projectedColumns != null ? ImmutableList.copyOf(projectedColumns) : getAllColumns(table);

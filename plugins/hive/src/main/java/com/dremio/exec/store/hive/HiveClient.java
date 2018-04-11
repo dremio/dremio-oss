@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -37,6 +38,7 @@ import org.apache.thrift.TException;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 
 /**
  * Override HiveMetaStoreClient to provide additional capabilities such as caching, reconnecting with user
@@ -133,17 +135,25 @@ public class HiveClient implements AutoCloseable {
     Preconditions.checkState(this.client == null,
         "Already connected. If need to reconnect use reconnect() method.");
     reloginExpiringKeytabUser();
-    doAsCommand(
-        new UGIDoAsCommand<Void>() {
-          @Override
-          public Void run() throws Exception {
-            client = new HiveMetaStoreClient(hiveConf);
-            return null;
-          }
-        },
-        ImpersonationUtil.getProcessUserUGI(),
-        "Failed to connect to Hive Metastore"
-    );
+
+    try {
+      doAsCommand(
+          new UGIDoAsCommand<Void>() {
+            @Override
+            public Void run() throws Exception {
+              client = new HiveMetaStoreClient(hiveConf);
+              return null;
+            }
+          },
+          ImpersonationUtil.getProcessUserUGI(),
+          "Failed to connect to Hive Metastore"
+      );
+    } catch (UndeclaredThrowableException e) {
+      // If an exception is thrown from doAsCommand() above (internally in UserGroupInformation#doAs), it will get
+      // wrapped as an UndeclaredThrowableException. We want to identify and rethrow MetaExceptions that have occurred.
+      Throwables.propagateIfInstanceOf(e.getUndeclaredThrowable(), MetaException.class);
+      throw e;
+    }
   }
 
   List<String> getDatabases(boolean ignoreAuthzErrors) throws TException{
@@ -241,7 +251,7 @@ public class HiveClient implements AutoCloseable {
       synchronized (client) {
         value = cmd.run(client);
       }
-    } catch (NoSuchObjectException | MetaException e) {
+    } catch (NoSuchObjectException e) {
       throw e;
     } catch (TException e) {
       logger.warn("Failure to run Hive command. Will retry once. ", e);

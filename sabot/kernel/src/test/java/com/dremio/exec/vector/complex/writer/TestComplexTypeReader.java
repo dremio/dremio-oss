@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -201,14 +201,12 @@ public class TestComplexTypeReader extends BaseTestQuery{
   }
 
   @Test
-  @Ignore("kvgen")
   public void testKeyValueGen() throws Exception {
     test("select kvgen(x) from cp.`jsoninput/input2.json`");
     test("select kvgen(bigintegercol), kvgen(float8col) from cp.`jsoninput/input3.json`");
   }
 
   @Test
-  @Ignore("kvgen")
   // Functions tests kvgen functionality where the 'value' part of the map is complex
   public void testKVGenWithComplexValues() throws Exception {
     // test where 'value' is a list of integers
@@ -231,7 +229,6 @@ public class TestComplexTypeReader extends BaseTestQuery{
   }
 
   @Test
-  @Ignore("kvgen")
   // Test SplitUpComplexExpressions rule which splits complex expression into multiple projects
   public void testComplexAndSimpleColumnSelection() throws Exception {
     test("select t.a.b, kvgen(t.a.c) from cp.`jsoninput/input4.json` t");

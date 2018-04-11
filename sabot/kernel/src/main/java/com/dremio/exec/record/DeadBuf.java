@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,15 @@ package com.dremio.exec.record;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufProcessor;
 import io.netty.buffer.ArrowBuf;
+import io.netty.util.ByteProcessor;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 import java.nio.charset.Charset;
@@ -38,6 +39,194 @@ public class DeadBuf extends ByteBuf {
 
   private DeadBuf(){}
 
+  @Override
+  public int readMediumLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf setIntLE(int index, int value) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf setShortLE(int index, int value) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int setBytes(int index, FileChannel in, long position, int length) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int getUnsignedShortLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf readRetainedSlice(int length) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public short readShortLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public long getUnsignedIntLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public long getLongLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  public ByteBuf writeLongLE(long value) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf asReadOnly() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf retainedDuplicate() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf setLongLE(int index, long value) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int readBytes(FileChannel out, long position, int length) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int getIntLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public boolean isReadOnly() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf writeMediumLE(int value) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public short getShortLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int getMediumLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int writeBytes(FileChannel in, long position, int length) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf setMediumLE(int index, int value) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public long readLongLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int readIntLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public CharSequence getCharSequence(int index, int length, Charset charset) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int writeCharSequence(CharSequence charSequence, Charset charset) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int setCharSequence(int index, CharSequence charSequence, Charset charset) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public CharSequence readCharSequence(int length, Charset charset) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public long readUnsignedIntLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int readUnsignedShortLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int readUnsignedMediumLE() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf writeShortLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf writeIntLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf retainedSlice() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf retainedSlice(int index, int length) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int getUnsignedMediumLE(int index) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public int getBytes(int index, FileChannel out, long position, int length) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public ByteBuf touch() {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
+
+  @Override
+  public final ByteBuf touch(Object hint) {
+    throw new UnsupportedOperationException(ERROR_MESSAGE);
+  }
 
   @Override
   public boolean isReadable(int size) {
@@ -799,25 +988,25 @@ public class DeadBuf extends ByteBuf {
 
 
   @Override
-  public int forEachByte(ByteBufProcessor arg0) {
+  public int forEachByte(ByteProcessor arg0) {
     return 0;
   }
 
 
   @Override
-  public int forEachByte(int arg0, int arg1, ByteBufProcessor arg2) {
+  public int forEachByte(int arg0, int arg1, ByteProcessor arg2) {
     return 0;
   }
 
 
   @Override
-  public int forEachByteDesc(ByteBufProcessor arg0) {
+  public int forEachByteDesc(ByteProcessor arg0) {
     return 0;
   }
 
 
   @Override
-  public int forEachByteDesc(int arg0, int arg1, ByteBufProcessor arg2) {
+  public int forEachByteDesc(int arg0, int arg1, ByteProcessor arg2) {
     return 0;
   }
 
@@ -838,6 +1027,4 @@ public class DeadBuf extends ByteBuf {
   public String toString() {
     return null;
   }
-
-
 }

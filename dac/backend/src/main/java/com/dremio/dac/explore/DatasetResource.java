@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.DatasetName;
@@ -50,8 +51,8 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.accelerator.AccelerationService;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
@@ -67,11 +68,13 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
+import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.users.UserNotFoundException;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import io.protostuff.ByteString;
@@ -93,24 +96,25 @@ public class DatasetResource {
   private final SecurityContext securityContext;
   private final DatasetPath datasetPath;
   private final NamespaceService namespaceService;
-  private final AccelerationService accelerationService;
+  private ReflectionSettings reflectionSettings;
+  private ReflectionServiceHelper reflectionServiceHelper;
 
   @Inject
   public DatasetResource(
-      NamespaceService namespaceService,
-      DatasetVersionMutator datasetService,
-      JobsService jobsService,
-      @Context SecurityContext securityContext,
-      AccelerationService accelerationService,
-      @PathParam("cpath") DatasetPath datasetPath) {
+    NamespaceService namespaceService,
+    DatasetVersionMutator datasetService,
+    JobsService jobsService,
+    @Context SecurityContext securityContext,
+    ReflectionServiceHelper reflectionServiceHelper,
+    @PathParam("cpath") DatasetPath datasetPath) {
     this.datasetService = datasetService;
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.securityContext = securityContext;
     this.datasetPath = datasetPath;
-    this.accelerationService = accelerationService;
+    this.reflectionSettings = reflectionServiceHelper.getReflectionSettings();
+    this.reflectionServiceHelper = reflectionServiceHelper;
   }
-
 
   @GET
   @Path("descendants/count")
@@ -141,7 +145,7 @@ public class DatasetResource {
       throw new IllegalArgumentException(msg);
     }
 
-    final AccelerationSettings settings = config.getPhysicalDataset().getAccelerationSettings();
+    final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
       .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
       .setAccelerationGracePeriod(settings.getGracePeriod())
@@ -196,7 +200,7 @@ public class DatasetResource {
       Preconditions.checkArgument(Strings.isNullOrEmpty(descriptor.getRefreshField()), "leave refresh field empty for full updates");
     }
 
-    final AccelerationSettings settings = config.getPhysicalDataset().getAccelerationSettings();
+    final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final boolean settingsUpdated = !Objects.equals(settings.getRefreshPeriod(), descriptor.getAccelerationRefreshPeriod()) ||
       !Objects.equals(settings.getGracePeriod(), descriptor.getAccelerationGracePeriod()) ||
       !Objects.equals(settings.getMethod(), descriptor.getMethod()) ||
@@ -206,9 +210,7 @@ public class DatasetResource {
         .setGracePeriod(descriptor.getAccelerationGracePeriod())
         .setMethod(descriptor.getMethod())
         .setRefreshField(descriptor.getRefreshField());
-      namespaceService.addOrUpdateDataset(datasetPath.toNamespaceKey(), config);
-      // we need to rebuild the dependency graph to ensure existing refresh chains take the updated settings into account
-      accelerationService.startBuildDependencyGraph();
+      reflectionSettings.setReflectionSettings(datasetPath.toNamespaceKey(), settings);
     }
   }
 
@@ -237,6 +239,7 @@ public class DatasetResource {
     DatasetUI datasetUI = newDataset(virtualDataset);
 
     datasetService.deleteDataset(datasetPath, savedVersion);
+    reflectionSettings.removeSettings(datasetPath.toNamespaceKey());
     return datasetUI;
   }
 
@@ -306,8 +309,11 @@ public class DatasetResource {
         .setSqlQuery(query)
         .setQueryType(QueryType.UI_PREVIEW)
         .build(), NoOpJobStatusListener.INSTANCE));
-
-    return InitialDataPreviewResponse.of(job.getData().truncate(limit));
+    try {
+      return InitialDataPreviewResponse.of(job.getData().truncate(limit));
+    } catch(UserException e) {
+      throw DatasetTool.toInvalidQueryException(e, query.getSql(), ImmutableList.<String> of());
+    }
   }
 
   protected DatasetUI newDataset(VirtualDatasetUI vds) throws NamespaceException {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,12 +30,13 @@ import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.InitializerRegistry;
-import com.dremio.service.accelerator.AccelerationService;
-import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.reflection.ReflectionService;
+import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.google.common.base.Throwables;
 
 /**
@@ -46,20 +47,23 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService.Factory> namespaceServiceFactory;
-  private final Provider<AccelerationService> accelerationService;
+  private Provider<ReflectionService> reflectionService;
+  private final Provider<CatalogService> catalogService;
 
   public DACViewCreatorFactory(Provider<InitializerRegistry> initializerRegistry,
                                 Provider<KVStoreProvider> kvStoreProvider,
                                 Provider<JobsService> jobsService,
                                 Provider<NamespaceService.Factory> namespaceServiceFactory,
-                                Provider<AccelerationService> accelerationService
+                                Provider<ReflectionService> reflectionService,
+                                Provider<CatalogService> catalogService
   ) {
     this.initializerRegistry = initializerRegistry;
     this.kvStoreProvider = kvStoreProvider;
     this.jobsService = jobsService;
     this.namespaceServiceFactory = namespaceServiceFactory;
+    this.catalogService = catalogService;
 
-    this.accelerationService = accelerationService;
+    this.reflectionService = reflectionService;
   }
 
   @Override
@@ -73,14 +77,14 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
   protected class DACViewCreator implements ViewCreator {
     private final String userName;
     private final JobsService jobsService = DACViewCreatorFactory.this.jobsService.get();
-    private final AccelerationService accelerationService = DACViewCreatorFactory.this.accelerationService.get();
     private final DatasetVersionMutator datasetService;
     private final NamespaceService namespaceService;
 
-    protected DACViewCreator(String userName) {
+    DACViewCreator(String userName) {
       this.userName = userName;
       namespaceService = namespaceServiceFactory.get().get(userName);
-      datasetService = new DatasetVersionMutator(initializerRegistry.get(), kvStoreProvider.get(), namespaceService, jobsService);
+      datasetService = new DatasetVersionMutator(initializerRegistry.get(), kvStoreProvider.get(), namespaceService,
+        jobsService, catalogService.get());
     }
 
     @Override
@@ -125,7 +129,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
         VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
         newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null);
       } catch (Exception e) {
-        Throwables.propagate(e);
+        throw Throwables.propagate(e);
       }
     }
 
@@ -148,9 +152,11 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
         // will only get here if user had permission to delete dataset
 
-        // remove acceleration
-        final AccelerationId id = new AccelerationId(virtualDataset.getId());
-        accelerationService.remove(id);
+        // remove corresponding reflection
+        Iterable<ReflectionGoal> reflections = reflectionService.get().getReflectionsByDatasetId(virtualDataset.getId());
+        for (ReflectionGoal reflection : reflections) {
+          reflectionService.get().remove(reflection);
+        }
 
       } catch (Exception e) {
         Throwables.propagate(e);
@@ -162,5 +168,5 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
   public void close() {}
 
   @Override
-  public void start() throws Exception {}
+  public void start() {}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import com.dremio.sabot.op.sender.partition.PartitionSenderOperator;
 import com.dremio.sabot.op.sender.roundrobin.RoundRobinOperator;
 import com.dremio.sabot.op.sender.single.SingleSenderOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
+import com.dremio.sabot.op.writer.WriterOperator;
 
 /**
  * Registry of operator metrics.
@@ -52,6 +53,7 @@ public class OperatorMetricRegistry {
     register(CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     register(CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
     register(CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
+    register(CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);
   }
 
   private static void register(final int operatorType, final Class<? extends MetricDef> metricDef) {

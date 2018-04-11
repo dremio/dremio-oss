@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 /**
  * NamespaceKey describes list representation of dotted schema path.
@@ -53,8 +54,16 @@ public class NamespaceKey {
     return pathComponents;
   }
 
+  public NamespaceKey getChild(String name) {
+    return new NamespaceKey(ImmutableList.copyOf(Iterables.concat(pathComponents, ImmutableList.of(name))));
+  }
+
   public String getSchemaPath() {
     return schemaPath;
+  }
+
+  public String getLeaf() {
+    return pathComponents.get(pathComponents.size() - 1);
   }
 
   @Override
@@ -81,7 +90,7 @@ public class NamespaceKey {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj != null) {
+    if (obj != null && obj instanceof NamespaceKey) {
       NamespaceKey o = (NamespaceKey) obj;
       return pathComponents.equals(o.pathComponents);
     }

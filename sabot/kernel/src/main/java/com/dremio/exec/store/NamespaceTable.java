@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,18 +27,21 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
-import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-public class NamespaceTable implements TranslatableTable {
+public class NamespaceTable implements DremioTable {
 
   /**
    * In the future, we should move this to field extended metadata once we get to Arrow upstream has this.
@@ -73,6 +76,16 @@ public class NamespaceTable implements TranslatableTable {
         return (double) dataset.getReadDefinition().getScanStats().getRecordCount();
       }
     };
+  }
+
+  @Override
+  public BatchSchema getSchema() {
+    return dataset.getSchema();
+  }
+
+  @Override
+  public DatasetConfig getDatasetConfig() {
+    return dataset.getDatasetConfig();
   }
 
   @Override
@@ -120,5 +133,14 @@ public class NamespaceTable implements TranslatableTable {
     }
   }
 
+  @Override
+  public NamespaceKey getPath() {
+    return dataset.getName();
+  }
+
+  @Override
+  public long getVersion() {
+    return dataset.getVersion();
+  }
 
 }

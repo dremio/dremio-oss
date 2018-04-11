@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -112,11 +113,11 @@ public class TestWebSocket extends BaseTestServer {
                 .queryParam("newVersion", newVersion())
         ).buildPost(entity(new TransformSort("id", ASC), JSON)), InitialTransformAndRunResponse.class);
     socket.send(new SocketMessage.ListenProgress(runResp.getJobId()));
-    List<Payload> payloads = socket.awaitCompletion(2, 10);
+    List<Payload> payloads = socket.awaitCompletion(10);
     if (payloads.get(1) instanceof ErrorPayload) {
       Assert.fail(((ErrorPayload) payloads.get(1)).getMessage());
     }
-    JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(1);
+    JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
   }
 
@@ -130,23 +131,22 @@ public class TestWebSocket extends BaseTestServer {
    ).buildPost(Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
    InitialRunResponse runResponse = expectSuccess(invocation, InitialRunResponse.class);
    socket.send(new SocketMessage.ListenProgress(runResponse.getJobId()));
-   List<Payload> payloads = socket.awaitCompletion(2, 10);
+   List<Payload> payloads = socket.awaitCompletion(10);
    if (payloads.get(1) instanceof ErrorPayload) {
      Assert.fail(((ErrorPayload) payloads.get(1)).getMessage());
    }
-   JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(1);
+   JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
    assertTrue(progressUpdate.getUpdate().isComplete());
  }
-
 
   @Test
   public void jobProgress() throws Exception {
     final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
     final InitialRunResponse runResp = expectSuccess(getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run")).buildGet(), InitialRunResponse.class);
     socket.send(new SocketMessage.ListenProgress(runResp.getJobId()));
-    List<Payload> payloads = socket.awaitCompletion(2, 10);
+    List<Payload> payloads = socket.awaitCompletion(10);
     assertEquals(payloads.get(0), new SocketMessage.ConnectionEstablished(SocketServlet.SOCKET_TIMEOUT_MS));
-    JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(1);
+    JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
     expectSuccess(getBuilder(runResp.getPaginationUrl() + "?offset=0&limit=50").buildGet(), JobDataFragment.class);
   }
@@ -157,7 +157,7 @@ public class TestWebSocket extends BaseTestServer {
     final InitialRunResponse runResp = expectSuccess(getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run")).buildGet(), InitialRunResponse.class);
     socket.send(new SocketMessage.ListenDetails(runResp.getJobId()));
     List<Payload> payloads = socket.awaitCompletion(2, 10);
-    JobDetailsUpdate detailsUpdate = (JobDetailsUpdate) payloads.get(1);
+    JobDetailsUpdate detailsUpdate = (JobDetailsUpdate) payloads.get(payloads.size() - 1);
     assertTrue(detailsUpdate.getJobId().equals(runResp.getJobId()));
   }
 
@@ -217,6 +217,27 @@ public class TestWebSocket extends BaseTestServer {
       return Lists.newArrayList(messages);
     }
 
+    public List<Payload> awaitCompletion(long secondsToWait) throws InterruptedException{
+      boolean completed = false;
+
+      while (!completed) {
+        messagesArrived.tryAcquire(secondsToWait, TimeUnit.SECONDS);
+        ArrayList<Payload> payloads = Lists.newArrayList(messages);
+
+        Payload payload = payloads.get(payloads.size() - 1);
+
+        if (payload instanceof JobProgressUpdate) {
+          JobProgressUpdate update = (JobProgressUpdate) payload;
+
+          if (update.getUpdate().isComplete()) {
+            completed = true;
+          }
+
+        }
+      }
+
+      return Lists.newArrayList(messages);
+    }
   }
 
 }

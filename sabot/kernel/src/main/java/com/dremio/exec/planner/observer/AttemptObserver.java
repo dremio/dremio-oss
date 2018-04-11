@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -72,6 +73,12 @@ public interface AttemptObserver {
    */
   void planConvertedToRel(RelNode converted, long millisTaken);
 
+  /**
+   * Generic ability to record extra information in a job.
+   * @param name The name of the extra info. This can be thought of as a list rather than set and calls with the same name will all be recorded.
+   * @param bytes The data to persist.
+   */
+  void recordExtraInfo(String name, byte[] bytes);
 
   /**
    * Convert Scan query
@@ -106,6 +113,7 @@ public interface AttemptObserver {
    */
   void planText(String text, long millisTaken);
 
+  void finalPrel(Prel prel);
 
   /**
    * Parallelization planning started

@@ -1,0 +1,55 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.accelerator.proto;
+
+import "reflection.proto";
+import "reflection-common.proto";
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+
+option java_package = "com.dremio.service.reflection.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "VotingProtobuf";
+
+// messages used by voting service
+
+// top level entry representing a dataset and the votes it has
+message AutoReflection {
+  //dataset id
+  optional string datasetId = 1;
+  //raw reflection Id if it exists
+  optional string rawReflection = 2;
+  //aggregate reflection id if it exists
+  optional string aggReflection = 3;
+  //version of reflection
+  optional int64 version = 4;
+}
+
+message VoteKey {
+  optional string datasetId = 1;
+  optional string username = 2;
+}
+
+message Vote {
+  //dataset
+  optional string datasetId = 1;
+  //username of requester
+  optional string username = 2;
+  //date the vote happened
+  optional int64 createdAt = 3;
+  //version
+  optional int64 version = 4;
+}

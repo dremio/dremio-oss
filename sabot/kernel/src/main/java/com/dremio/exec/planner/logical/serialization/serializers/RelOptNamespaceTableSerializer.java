@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.prepare.CalciteCatalogReader;
-import org.apache.calcite.prepare.RelOptTableImpl;
 
+import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.service.namespace.NamespaceKey;
@@ -34,10 +34,10 @@ import com.google.common.base.Preconditions;
 
 public class RelOptNamespaceTableSerializer extends Serializer<RelOptNamespaceTable> {
 
-  private final CalciteCatalogReader catalog;
+  private final DremioCatalogReader catalog;
   private final RelOptCluster cluster;
 
-  public RelOptNamespaceTableSerializer(final CalciteCatalogReader catalog, final RelOptCluster cluster) {
+  public RelOptNamespaceTableSerializer(final DremioCatalogReader catalog, final RelOptCluster cluster) {
     this.catalog = Preconditions.checkNotNull(catalog, "catalog is required");
     this.cluster = cluster;
   }
@@ -51,7 +51,7 @@ public class RelOptNamespaceTableSerializer extends Serializer<RelOptNamespaceTa
   @Override
   public RelOptNamespaceTable read(final Kryo kryo, final Input input, final Class<RelOptNamespaceTable> type) {
     final List<String> path = kryo.readObject(input, ArrayList.class);
-    final RelOptTableImpl relOptTable = catalog.getTable(path);
+    final DremioPrepareTable relOptTable = catalog.getTable(path);
     if(relOptTable == null){
       throw new IllegalStateException("Unable to retrieve table: " + new NamespaceKey(path));
     }

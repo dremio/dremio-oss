@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
@@ -447,7 +448,7 @@ public class TestHiveStorage extends HiveTestBase {
   @Test
   public void queryingTablesInNonDefaultFS() throws Exception {
     // Update the default FS settings in Hive test storage plugin to non-local FS
-    hiveTest.updatePluginConfig(getSabotContext().getStorage(),
+    hiveTest.updatePluginConfig(getSabotContext().getCatalogService(),
         ImmutableMap.of(FileSystem.FS_DEFAULT_NAME_KEY, "hdfs://localhost:9001"));
 
     testBuilder()
@@ -653,7 +654,7 @@ public class TestHiveStorage extends HiveTestBase {
 
   @Test
   public void testReadSignatures() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW);
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.avro")))).size());
@@ -670,15 +671,15 @@ public class TestHiveStorage extends HiveTestBase {
 
   @Test
   public void testCheckReadSignature() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW);
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
     DatasetConfig datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")));
-    assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
+    assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
     datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")));
-    assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
+    assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
       datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
     new File(hiveTest.getWhDir() + "/db1.db/kv_db1", "000000_0").setLastModified(System.currentTimeMillis());
@@ -688,11 +689,11 @@ public class TestHiveStorage extends HiveTestBase {
       newFile.createNewFile();
 
       datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")));
-      assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
+      assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
       datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")));
-      assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getStoragePlugin("hive").checkReadSignature(
+      assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
     } finally {
       newFile.delete();
@@ -701,13 +702,13 @@ public class TestHiveStorage extends HiveTestBase {
 
   @Test
   public void testCheckHasPermission() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW);
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
 
     NamespaceKey dataset = new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1"));
     DatasetConfig datasetConfig = ns.getDataset(dataset);
-    assertTrue(getSabotContext().getCatalogService().getStoragePlugin("hive").hasAccessPermission(ImpersonationUtil.getProcessUserName(), dataset, datasetConfig));
+    assertTrue(getSabotContext().getCatalogService().getSource("hive").hasAccessPermission(ImpersonationUtil.getProcessUserName(), dataset, datasetConfig));
 
     final Path tableFile = new Path(hiveTest.getWhDir() + "/db1.db/kv_db1/000000_0");
     final Path tableDir = new Path(hiveTest.getWhDir() + "/db1.db/kv_db1");
@@ -716,7 +717,7 @@ public class TestHiveStorage extends HiveTestBase {
     try {
       // no read on file
       localFs.setPermission(tableFile, new FsPermission(FsAction.WRITE_EXECUTE, FsAction.WRITE_EXECUTE, FsAction.WRITE_EXECUTE));
-      assertFalse(getSabotContext().getCatalogService().getStoragePlugin("hive").hasAccessPermission(ImpersonationUtil.getProcessUserName(), dataset, datasetConfig));
+      assertFalse(getSabotContext().getCatalogService().getSource("hive").hasAccessPermission(ImpersonationUtil.getProcessUserName(), dataset, datasetConfig));
     } finally {
       localFs.setPermission(tableFile, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     }
@@ -724,7 +725,7 @@ public class TestHiveStorage extends HiveTestBase {
     try {
       // no exec on dir
       localFs.setPermission(tableDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
-      assertFalse(getSabotContext().getCatalogService().getStoragePlugin("hive").hasAccessPermission(ImpersonationUtil.getProcessUserName(), dataset, datasetConfig));
+      assertFalse(getSabotContext().getCatalogService().getSource("hive").hasAccessPermission(ImpersonationUtil.getProcessUserName(), dataset, datasetConfig));
     } finally {
       localFs.setPermission(tableDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     }
@@ -753,7 +754,7 @@ public class TestHiveStorage extends HiveTestBase {
         .setAuthTtlMs(0l)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
         .setDatasetDefinitionTtlMs(0l)
-        .setNamesRefreshMs(0l));
+        .setNamesRefreshMs(0l), UpdateType.FULL);
 
     List<NamespaceKey> tables1 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
     assertEquals(tables0.size(), tables1.size());
@@ -767,7 +768,7 @@ public class TestHiveStorage extends HiveTestBase {
         .setAuthTtlMs(0l)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
         .setDatasetDefinitionTtlMs(0l)
-        .setNamesRefreshMs(0l));
+        .setNamesRefreshMs(0l), UpdateType.FULL);
 
     // make sure new table is visible
     List<NamespaceKey> tables2 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
@@ -800,7 +801,7 @@ public class TestHiveStorage extends HiveTestBase {
       .setAuthTtlMs(0l)
       .setDatasetUpdateMode(UpdateMode.PREFETCH)
       .setDatasetDefinitionTtlMs(0l)
-      .setNamesRefreshMs(0l));
+      .setNamesRefreshMs(0l), UpdateType.FULL);
 
     // make sure table is deleted from namespace
     List<NamespaceKey> tables4 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
@@ -810,5 +811,15 @@ public class TestHiveStorage extends HiveTestBase {
       new NamespaceKey(PathUtils.parseFullPath("hive.`default`.foo_bar")), Type.DATASET));
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
       new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
+  }
+
+  @Test // DX-11011
+  public void parquetSkipAllMultipleRowGroups() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM hive.parquet_mult_rowgroups")
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(128L)
+        .go();
   }
 }

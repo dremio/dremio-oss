@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,9 +38,6 @@ public interface DatasetIndexKeys {
   // name and schema without escaping for use in jdbc/odbc and information metadata probes. (for case sensitive matching)
   IndexKey UNQUOTED_NAME = new IndexKey("uname", "SEARCH_NAME", String.class, null, false, false);
   IndexKey UNQUOTED_SCHEMA = new IndexKey("uschm","SEARCH_SCHEMA", String.class, null, false, false);
-
-  // lower case path without escaping.
-  IndexKey UNQUOTED_LC_PATH = new IndexKey("ulpth", "SEARCH_PATH_LC", String.class, null, false, false);
 
   // lower-cased paths for case insensitive matching.
   IndexKey UNQUOTED_LC_NAME = new IndexKey("ulname", UNQUOTED_NAME.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class, null, false, false);

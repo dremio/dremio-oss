@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ class AggregateForm extends Component {
   }
 
   static propTypes = {
-    dataset: PropTypes.instanceOf(Immutable.Map),
+    dataset: PropTypes.instanceOf(Immutable.Map), // NOTE: some users pass a fake DS with just displayFullPath
     fields: PropTypes.object,
     values: PropTypes.object,
     columns: PropTypes.instanceOf(Immutable.List),
@@ -86,7 +86,7 @@ class AggregateForm extends Component {
         if (dropData.type === 'dimensions') {
           columnsDimensions.removeField(dropData.index);
         }
-        newColumn.measure = ['FLOAT', 'DECIMAL', 'INTEGER'].includes(columnToAdd && columnToAdd.get('type'))
+        newColumn.measure = ['FLOAT', 'DECIMAL', 'INTEGER', 'BIGINT', 'DOUBLE'].includes(columnToAdd && columnToAdd.getIn(['type', 'name']))
           ? 'Sum' : 'Count';
         columnsMeasures.addField(newColumn);
       } else if (!isAlreadySelected(fields.columnsDimensions, columnName)) {
@@ -110,14 +110,44 @@ class AggregateForm extends Component {
     }
   }
 
+  // TODO: ugly hack, we run into timing issues where columsn are re-added as we are removing since its atomic removal
   handleClearAllDimensions = () => {
     const { fields: { columnsDimensions } } = this.props;
-    columnsDimensions.forEach(() => columnsDimensions.removeField());
+
+    const target = columnsDimensions.length;
+    let count = 0;
+
+    function doit() {
+      columnsDimensions.removeField().then(() => {
+        count++;
+
+        if (count < target) {
+          doit();
+        }
+      });
+    }
+
+    doit();
   }
 
+  // TODO: ugly hack, we run into timing issues where columsn are re-added as we are removing since its atomic removal
   handleClearAllMeasures = () => {
     const { fields: { columnsMeasures } } = this.props;
-    columnsMeasures.forEach(() => columnsMeasures.removeField());
+
+    const target = columnsMeasures.length;
+    let count = 0;
+
+    function doit() {
+      columnsMeasures.removeField().then(() => {
+        count++;
+
+        if (count < target) {
+          doit();
+        }
+      });
+    }
+
+    doit();
   }
 
   stopDrag = () => {

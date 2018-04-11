@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 Dremio Corporation
+# Copyright (C) 2017-2018 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -157,7 +157,7 @@ if [ -z "$JAVA_HOME" ]; then
 +======================================================================+
 |      Error: JAVA_HOME is not set and Java could not be found         |
 +----------------------------------------------------------------------+
-| Dremio requires Java 1.7 or later.                                   |
+| Dremio requires Java 1.8 or later.                                   |
 +======================================================================+
 EOF
     exit 1
@@ -169,16 +169,31 @@ if $is_cygwin; then
 else
   JAVA_BIN="java"
 fi
-JAVA=`find -L "$JAVA_HOME" -name $JAVA_BIN -type f | head -n 1`
-if [ ! -e "$JAVA" ]; then
-  echo "Java not found at JAVA_HOME=$JAVA_HOME."
+
+if [ -z "$JAVA" ]; then
+  JAVA="${JAVA_HOME}/bin/${JAVA_BIN}"
+  if [ ! -f "${JAVA}" ]; then
+    JAVA=`find -L "$JAVA_HOME" -name "$JAVA_BIN" -type f | head -n 1`
+  fi
+fi
+if [ ! -x "$JAVA" ]; then
+  echo "Java not found or Java binary not executable at JAVA_HOME=$JAVA_HOME/JAVA=$JAVA."
   exit 1
 fi
-# Ensure that Java version is at least 1.7
-JAVA_VERSION_STRING=`"$JAVA" -version 2>&1 | grep "version"`
-echo "$JAVA_VERSION_STRING" | egrep -e "1\.4|1\.5|1\.6" > /dev/null
-if [ $? -eq 0 ]; then
-  echo "Java 1.7 or later is required to run Apache Dremio."
+# Ensure that Java version is at least 1.8
+JAVA_VERSION_STRING=`"$JAVA" -version 2>&1 | grep "version" | sed 's/.*"\(.*\)".*/\1/g'`
+JAVA_MAJOR_VERSION=
+if `echo $JAVA_VERSION_STRING | egrep -q -e "^1\.[0-9]{1,}\."`; then
+    JAVA_MAJOR_VERSION=`echo $JAVA_VERSION_STRING | sed 's/^1\.\([0-9]\{1,\}\)\..*/\1/g'`
+elif `echo $JAVA_VERSION_STRING | egrep -q -e "^[0-9]{1,}\."`; then
+    JAVA_MAJOR_VERSION=`echo $JAVA_VERSION_STRING | sed 's/^\([0-9]\{1,\}\)\..*/\1/g'`
+else
+    echo "Cannot parse java version: ${JAVA_VERSION_STRING}"
+    exit 1
+fi
+
+if [ $JAVA_MAJOR_VERSION -lt 8 ]; then
+  echo "Java 1.8 or later is required to run Dremio."
   exit 1
 fi
 
@@ -202,8 +217,9 @@ export MALLOC_TRIM_THRESHOLD_=131072
 export MALLOC_TOP_PAD_=131072
 export MALLOC_MMAP_MAX_=65536
 
-# Variables exported form this script
-export JAVA_SCRIPT_VERSION
+# Variables exported from this script
+export JAVA_VERSION_STRING
+export JAVA_MAJOR_VERSION
 export HADOOP_HOME
 export is_cygwin
 export DREMIO_HOME

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -172,8 +172,7 @@ class ByteStoreManager implements AutoCloseable {
       try {
         return RocksDB.open(dboptions, path, columnNames, familyHandles);
       } catch (RocksDBException e) {
-        // Check env/env_posix.cc for actual error message
-        if (e.getStatus().getCode() != Status.Code.IOError || !e.getStatus().getState().startsWith("lock ")) {
+        if (e.getStatus().getCode() != Status.Code.IOError || !e.getStatus().getState().contains("While lock")) {
           throw e;
         }
 

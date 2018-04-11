@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordDataType;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.sys.OptionIterator.OptionValueWrapper;
-import com.dremio.exec.store.sys.accel.AccelerationInfo;
-import com.dremio.exec.store.sys.accel.LayoutInfo;
-import com.dremio.exec.store.sys.accel.MaterializationInfo;
+import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.exec.store.sys.accel.AccelerationListManager.MaterializationInfo;
+import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionInfo;
 import com.dremio.exec.work.WorkStats.FragmentInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.DatasetHelper;
@@ -114,17 +114,17 @@ public enum SystemTable {
     }
   },
 
-  ACCELERATIONS("accelerations", false, AccelerationInfo.class){
+  REFLECTIONS("reflections", false, ReflectionInfo.class) {
     @Override
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getAccelerations().iterator();
+      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getReflections().iterator();
     }
   },
 
-  LAYOUTS("layouts", false, LayoutInfo.class){
+  REFRESH("refreshes", false, AccelerationListManager.RefreshInfo.class) {
     @Override
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getLayouts().iterator();
+      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getRefreshInfos().iterator();
     }
   },
 
@@ -170,7 +170,7 @@ public enum SystemTable {
     return BatchSchema.fromCalciteRowType(type);
   }
 
-  public SourceTableDefinition asTableDefinition() {
+  public SourceTableDefinition asTableDefinition(final DatasetConfig oldDataset) {
     return new SourceTableDefinition() {
 
       @Override
@@ -180,10 +180,18 @@ public enum SystemTable {
 
       @Override
       public DatasetConfig getDataset() throws Exception {
-        return new DatasetConfig()
-            .setFullPathList(key.getPathComponents())
-            .setId(new EntityId(UUID.randomUUID().toString()))
-            .setType(DatasetType.PHYSICAL_DATASET)
+        final DatasetConfig dataset;
+        if(oldDataset == null) {
+          dataset = new DatasetConfig()
+           .setFullPathList(key.getPathComponents())
+          .setId(new EntityId(UUID.randomUUID().toString()))
+          .setType(DatasetType.PHYSICAL_DATASET);
+
+        } else {
+          dataset = oldDataset;
+        }
+
+        return dataset
             .setName(key.getName())
             .setReadDefinition(new ReadDefinition()
                 .setScanStats(new ScanStats().setRecordCount(100l)

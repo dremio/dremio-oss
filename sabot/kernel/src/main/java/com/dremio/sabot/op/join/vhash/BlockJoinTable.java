@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class BlockJoinTable implements JoinTable {
@@ -44,6 +43,7 @@ public class BlockJoinTable implements JoinTable {
   private final Stopwatch probeFindWatch = Stopwatch.createUnstarted();
   private final Stopwatch pivotBuildWatch = Stopwatch.createUnstarted();
   private final Stopwatch insertWatch = Stopwatch.createUnstarted();
+  private boolean tableTracing;
 
   public BlockJoinTable(PivotDef buildPivot, PivotDef probePivot, BufferAllocator allocator, NullComparator nullMask, int minSize, int varFieldAverageSize) {
     super();
@@ -52,6 +52,7 @@ public class BlockJoinTable implements JoinTable {
     this.probePivot = probePivot;
     this.allocator = allocator;
     this.nullMask = nullMask;
+    this.tableTracing = false;
   }
 
   public long getProbePivotTime(TimeUnit unit){
@@ -82,15 +83,19 @@ public class BlockJoinTable implements JoinTable {
       final long keyFixedAddr = fbv.getMemoryAddress();
       final long keyVarAddr = var.getMemoryAddress();
 
-      table.traceInsertStart(records);
+      if (tableTracing) {
+        table.traceInsertStart(records);
+      }
       insertWatch.start();
       long ordAddr = findAddr;
       for(int i =0 ; i < records; i++, ordAddr += 4){
         PlatformDependent.putInt(ordAddr, table.add(keyFixedAddr, keyVarAddr, i));
       }
       insertWatch.stop();
-      table.traceOrdinals(findAddr, records);
-      table.traceInsertEnd();
+      if (tableTracing) {
+        table.traceOrdinals(findAddr, records);
+        table.traceInsertEnd();
+      }
     }
   }
 
@@ -200,11 +205,13 @@ public class BlockJoinTable implements JoinTable {
 
   @Override
   public AutoCloseable traceStart(int numRecords) {
+    tableTracing = true;
     table.traceStart(numRecords);
     return new AutoCloseable() {
       @Override
       public void close() throws Exception {
         table.traceEnd();
+        tableTracing = false;
       }
     };
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 @JsonTypeName("mock-sub-scan")
@@ -82,11 +83,20 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
     return CoreOperatorType.MOCK_SUB_SCAN_VALUE;
   }
 
-  @Override
+  @Deprecated
   public List<String> getTableSchemaPath() {
     return null;
   }
 
+  @Override
+  public List<List<String>> getReferencedTables() {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return false;
+  }
 
   @Override
   @JsonIgnore

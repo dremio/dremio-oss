@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
-import { shallow } from 'enzyme';
-import { minimalFormProps } from 'testUtil';
+import {shallow} from 'enzyme';
+import {minimalFormProps} from 'testUtil';
 import * as PROVISION_DISTRIBUTIONS from 'constants/provisioningPage/provisionDistributions';
-import { YarnForm } from './YarnForm';
+import {YarnForm} from './YarnForm';
 
 describe('YarnForm', () => {
   let minimalProps;
@@ -147,19 +147,18 @@ describe('YarnForm', () => {
         subPropertyList: [
           {
             key: 'yarn.resourcemanager.hostname',
-            value: 'localhost'
+            value: 'localhost',
+            type: 'type'
           },
           {
             key: 'fs.defaultFS',
-            value: 'hdfs://localhost'
+            value: 'hdfs://localhost',
+            type: 'type'
           },
           {
             key: 'paths.spilling',
-            value: JSON.stringify(['/path1', '/path2'])
-          },
-          {
-            key: 'prop1',
-            value: 'value1'
+            value: JSON.stringify(['/path1', '/path2']),
+            type: 'type'
           }
         ]
       });
@@ -170,30 +169,24 @@ describe('YarnForm', () => {
         },
         memoryMB: '1.17',
         namenodeHost: 'hdfs://localhost',
-        propertyList: [
-          {
-            name: 'prop1',
-            value: 'value1'
-          }
-        ],
+        propertyList: [],
         spillDirectories: ['/path1', '/path2'],
         resourceManagerHost: 'localhost',
         subPropertyList: [
           {
             key: 'yarn.resourcemanager.hostname',
-            value: 'localhost'
+            value: 'localhost',
+            type: 'type'
           },
           {
             key: 'fs.defaultFS',
-            value: 'hdfs://localhost'
+            value: 'hdfs://localhost',
+            type: 'type'
           },
           {
             key: 'paths.spilling',
-            value: JSON.stringify(['/path1', '/path2'])
-          },
-          {
-            key: 'prop1',
-            value: 'value1'
+            value: JSON.stringify(['/path1', '/path2']),
+            type: 'type'
           }
         ],
         virtualCoreCount: 1
@@ -210,12 +203,7 @@ describe('YarnForm', () => {
         },
         memoryMB: '1.17',
         namenodeHost: 'hdfs://localhost',
-        propertyList: [
-          {
-            name: 'prop1',
-            value: 'value1'
-          }
-        ],
+        propertyList: [],
         resourceManagerHost: 'localhost',
         virtualCoreCount: 1
       };
@@ -226,10 +214,6 @@ describe('YarnForm', () => {
         },
         memoryMB: 1198.08,
         subPropertyList: [
-          {
-            key: 'prop1',
-            value: 'value1'
-          },
           {
             key: 'fs.defaultFS',
             value: 'hdfs://localhost'

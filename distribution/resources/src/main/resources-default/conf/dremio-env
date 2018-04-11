@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 Dremio Corporation
+# Copyright (C) 2017-2018 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,6 +73,14 @@
 #
 #DREMIO_STOP_TIMEOUT=120
 
-# Extra Java options
+# Extra Java options - shared between dremio and dremio-admin commands
 #
 #DREMIO_JAVA_EXTRA_OPTS=
+
+# Extra Java options - client only (dremio-admin command)
+#
+#DREMIO_JAVA_CLIENT_EXTRA_OPTS=
+
+# Extra Java options - server only (dremio command)
+#
+#DREMIO_JAVA_SERVER_EXTRA_OPTS=

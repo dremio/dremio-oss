@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,36 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { Toggle } from 'components/Fields';
+
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
-import {getUniqueName} from 'utils/pathUtils';
+import {createReflectionFormValues} from 'utils/accelerationUtils';
+
 import { commonStyles } from '../commonStyles';
 import AccelerationGridController from './AccelerationGridController';
 
 export default class AccelerationAggregation extends Component {
   static propTypes = {
-    acceleration: PropTypes.instanceOf(Immutable.Map),
+    dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
+    reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object
   };
 
   static getFields() {
     return [
-      'aggregationLayouts.enabled',
-      'aggregationLayouts.layoutList[].id',
-      'aggregationLayouts.layoutList[].name',
-      'aggregationLayouts.layoutList[].details.partitionDistributionStrategy',
-      'aggregationLayouts.layoutList[].details.partitionFieldList[].name',
-      'aggregationLayouts.layoutList[].details.sortFieldList[].name',
-      'aggregationLayouts.layoutList[].details.dimensionFieldList[].name',
-      'aggregationLayouts.layoutList[].details.dimensionFieldList[].granularity',
-      'aggregationLayouts.layoutList[].details.measureFieldList[].name',
-      'aggregationLayouts.layoutList[].details.distributionFieldList[].name'
+      'aggregationReflections[].id',
+      'aggregationReflections[].tag',
+      'aggregationReflections[].type',
+      'aggregationReflections[].name',
+      'aggregationReflections[].enabled',
+      'aggregationReflections[].partitionDistributionStrategy',
+      'aggregationReflections[].partitionFields[].name',
+      'aggregationReflections[].sortFields[].name',
+      'aggregationReflections[].dimensionFields[].name',
+      'aggregationReflections[].dimensionFields[].granularity',
+      'aggregationReflections[].measureFields[].name',
+      'aggregationReflections[].distributionFields[].name',
+      'aggregationReflections[].shouldDelete'
     ];
   }
 
@@ -49,40 +54,22 @@ export default class AccelerationAggregation extends Component {
   }
 
   addNewLayout = () => {
-    const { aggregationLayouts } = this.props.fields;
-    const name = getUniqueName(la('New Reflection'), proposedName => {
-      return !aggregationLayouts.layoutList.some(layout => layout.name.value === proposedName);
-    });
-    aggregationLayouts.layoutList.addField({
-      name,
-      details: {
-        dimensionFieldList: [],
-        measureFieldList: [],
-        partitionFieldList: [],
-        sortFieldList: [],
-        partitionDistributionStrategy: 'CONSOLIDATED'
-      }
-    });
-  }
+    const { aggregationReflections } = this.props.fields;
 
-  removeLayout = columnIndex => {
-    const { aggregationLayouts } = this.props.fields;
-    if (aggregationLayouts.layoutList.length > 1) {
-      aggregationLayouts.layoutList.removeField(columnIndex);
-    }
+    const reflection = createReflectionFormValues({
+      type: 'AGGREGATION'
+    }, aggregationReflections.map(e => e.name.value));
+
+    aggregationReflections.addField(reflection);
   }
 
   renderHeader = () => {
-    const { enabled } = this.props.fields.aggregationLayouts;
-    const toggleLabel = (
-      <h3 style={commonStyles.toggleLabel}>
-        <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
-        {la('Aggregation Reflections')}
-      </h3>
-    );
     return (
       <div style={commonStyles.header}>
-        <Toggle {...enabled} label={toggleLabel} style={commonStyles.toggle}/>
+        <h3 style={commonStyles.toggleLabel}>
+          <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
+          {la('Aggregation Reflections')}
+        </h3>
         <SimpleButton
           onClick={this.addNewLayout}
           buttonStyle='secondary'
@@ -93,15 +80,16 @@ export default class AccelerationAggregation extends Component {
   }
 
   render() {
-    const {acceleration, fields: {aggregationLayouts}} = this.props;
+    const {dataset, reflections, fields: {aggregationReflections}} = this.props;
     return (
       <div style={styles.base}>
         {this.renderHeader()}
         <AccelerationGridController
-          acceleration={acceleration}
-          layoutFields={aggregationLayouts.layoutList}
+          dataset={dataset}
+          reflections={reflections}
+          layoutFields={aggregationReflections}
           activeTab='aggregation'
-          removeLayout={this.removeLayout}/>
+          />
       </div>
     );
   }

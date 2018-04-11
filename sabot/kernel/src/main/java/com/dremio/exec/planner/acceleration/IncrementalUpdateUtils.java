@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,13 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.service.Pointer;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -192,6 +186,14 @@ public class IncrementalUpdateUtils {
 
       return relBuilder.build();
     }
+
+    @Override
+    public RelNode visit(TableScan tableScan) {
+      if (!(tableScan instanceof IncrementallyUpdateable)) {
+        return tableScan;
+      }
+      return updateScan((IncrementallyUpdateable) tableScan);
+    }
   }
 
   /**
@@ -278,107 +280,6 @@ public class IncrementalUpdateUtils {
     }
   }
 
-  /**
-   * Visitor that checks if a logical plan can support incremental update. The supported pattern right now is a plan
-   * that contains only Filters, Projects, Scans, and Aggregates. There can only be one Aggregate in the plan, and the
-   * Scan most support incremental update.
-   */
-  public static class IncrementalChecker extends RoutingShuttle {
-    private final NamespaceService namespaceService;
-
-    private RelNode unsupportedOperator = null;
-    private boolean isIncremental = false;
-    private int aggCount = 0;
-
-    public IncrementalChecker(NamespaceService namespaceService) {
-      this.namespaceService = namespaceService;
-    }
-
-    public boolean isIncremental() {
-      if (!isIncremental) {
-        logger.debug("Cannot do incremental update because the table is not incrementally updateable");
-        return false;
-      }
-
-      if (unsupportedOperator != null) {
-        logger.debug("Cannot do incremental update because {} does not support incremental update", unsupportedOperator.getRelTypeName());
-        return false;
-      }
-
-      if (aggCount > 1) {
-        logger.debug("Cannot do incremental update because has multiple aggregate operators");
-        return false;
-      }
-
-      return true;
-    }
-
-    @Override
-    public RelNode visit(RelNode other) {
-      if (unsupportedOperator == null) {
-        unsupportedOperator = other;
-      }
-      return other;
-    }
-
-    @Override
-    public RelNode visit(TableScan tableScan) {
-      List<String> tablePath = tableScan.getTable().getQualifiedName();
-      try {
-        boolean tableIsIncremental = namespaceService.getDataset(new NamespaceKey(tablePath)).getPhysicalDataset().getAccelerationSettings().getMethod() == RefreshMethod.INCREMENTAL;
-        isIncremental = tableIsIncremental;
-      } catch (NamespaceException e) {
-        isIncremental = false;
-      }
-      return tableScan;
-    }
-
-    public RelNode visit(LogicalAggregate aggregate) {
-      aggCount++;
-      return visitChild(aggregate, 0, aggregate.getInput());
-    }
-
-    @Override
-    public RelNode visit(LogicalProject project) {
-      return visitChild(project, 0, project.getInput());
-    }
-
-    @Override
-    public RelNode visit(LogicalFilter filter) {
-      return visitChild(filter, 0, filter.getInput());
-    }
-  }
-
-  /**
-   * Check if a plan can support incremental update
-   * @param plan
-   * @param namespaceService
-   * @return
-   */
-  public static boolean getIncremental(RelNode plan, final NamespaceService namespaceService) {
-    IncrementalChecker checker = new IncrementalChecker(namespaceService);
-    plan.accept(checker);
-    return checker.isIncremental();
-  }
-
-  public static String findRefreshField(RelNode plan, final NamespaceService namespaceService) {
-    final Pointer<String> refreshField = new Pointer<>();
-    plan.accept(new StatelessRelShuttleImpl() {
-      @Override
-      public RelNode visit(TableScan tableScan) {
-        List<String> tablePath = tableScan.getTable().getQualifiedName();
-        try {
-          String field = namespaceService.getDataset(new NamespaceKey(tablePath)).getPhysicalDataset().getAccelerationSettings().getRefreshField();
-          refreshField.value = field;
-        } catch (NamespaceException e) {
-          throw new RuntimeException(e);
-        }
-        return tableScan;
-      }
-    });
-    return refreshField.value;
-  }
-
   public static class ColumnMaterializationShuttle extends MaterializationShuttle {
 
     private final long value;
@@ -388,6 +289,7 @@ public class IncrementalUpdateUtils {
       this.value = value;
     }
 
+    @Override
     public RexNode generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory){
       return rexBuilder.makeLiteral(value, typeFactory.createSqlType(SqlTypeName.BIGINT), false);
     }
@@ -407,10 +309,12 @@ public class IncrementalUpdateUtils {
       this.timeStamp = timeStamp;
     }
 
+    @Override
     public RelNode updateScan(IncrementallyUpdateable updateable){
       return updateable.projectInvisibleColumn(UPDATE_COLUMN);
     }
 
+    @Override
     public RexNode generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory){
       return rexBuilder.makeLiteral(timeStamp, typeFactory.createSqlType(SqlTypeName.BIGINT), false);
     }

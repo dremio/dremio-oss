@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,14 +25,16 @@ import com.google.common.collect.ImmutableList;
  */
 public class SubstitutionSettings {
 
-  private static final SubstitutionSettings EMPTY = new SubstitutionSettings(ImmutableList.<String>of(), false);
+  private static final SubstitutionSettings EMPTY = new SubstitutionSettings(ImmutableList.<String>of());
 
-  private final List<String> exclusions;
-  private final boolean includeIncompleteDatasets;
+  private List<String> exclusions;
 
-  public SubstitutionSettings(List<String> exclusions, boolean includeIncompleteDatasets) {
+  public SubstitutionSettings(List<String> exclusions) {
     this.exclusions = ImmutableList.copyOf(exclusions);
-    this.includeIncompleteDatasets = includeIncompleteDatasets;
+  }
+
+  public void setExclusions(List<String> exclusions) {
+    this.exclusions = ImmutableList.copyOf(exclusions);
   }
 
   public static SubstitutionSettings of() {
@@ -46,14 +48,6 @@ public class SubstitutionSettings {
    */
   public List<String> getExclusions() {
     return exclusions;
-  }
-
-  /**
-   * can include incomplete datasets
-   * @return boolean
-   */
-  public boolean isIncludingIncompleteDatasets() {
-    return includeIncompleteDatasets;
   }
 
 }

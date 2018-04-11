@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 
@@ -63,9 +62,9 @@ public class DatasetDownloadManager {
 
   private final JobsService jobsService;
   private final FileSystem fs;
-  private final URI storageLocation;
+  private final Path storageLocation;
 
-  public DatasetDownloadManager(JobsService jobsService, URI storageLocation, FileSystem fs) {
+  public DatasetDownloadManager(JobsService jobsService, Path storageLocation, FileSystem fs) {
     this.jobsService = jobsService;
     this.storageLocation = storageLocation;
     this.fs = fs;
@@ -117,14 +116,14 @@ public class DatasetDownloadManager {
   }
 
   public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo) throws IOException {
-    final Path jobDataDir = new Path(storageLocation.getPath(), downloadInfo.getDownloadId());
+    final Path jobDataDir = new Path(storageLocation, downloadInfo.getDownloadId());
     final FileStatus[] files = fs.listStatus(jobDataDir);
     Preconditions.checkArgument(files.length == 1, format("Found %d files in download dir %s, must have only one file.", files.length, jobDataDir));
     return new DownloadDataResponse(fs.open(files[0].getPath()), downloadInfo.getFileName(), files[0].getLen());
   }
 
   public void cleanupDownloadData(String downloadId) throws IOException {
-    final Path jobDataDir = new Path(storageLocation.getPath(), downloadId);
+    final Path jobDataDir = new Path(storageLocation, downloadId);
     logger.debug("Cleaning up data at {}", jobDataDir);
     fs.delete(jobDataDir, true);
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ import com.dremio.dac.explore.model.InitialTransformAndRunResponse;
 import com.dremio.dac.model.job.AttemptDetailsUI;
 import com.dremio.dac.model.job.AttemptsHelper;
 import com.dremio.dac.model.job.JobDetailsUI;
+import com.dremio.dac.model.job.JobFailureInfo;
+import com.dremio.dac.model.job.JobFailureType;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.proto.model.dataset.TransformSort;
 import com.dremio.dac.resource.JobResource;
@@ -52,8 +54,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.ExternalIdHelper;
@@ -451,10 +452,10 @@ public class TestJobService extends BaseTestServer {
         .build(), NoOpJobStatusListener.INSTANCE);
     ctasJob.getData().loadIfNecessary();
 
-    FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(StoragePluginRegistry.class).getPlugin("$scratch");
+    FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class).getSource("$scratch");
 
     // Make sure the table data files exist
-    File ctasTableDir = new File(plugin.getId().<FileSystemConfig>getConfig().getPath(), "ctas");
+    File ctasTableDir = new File(plugin.getConfig().getPath().toString(), "ctas");
     assertTrue(ctasTableDir.exists());
     assertTrue(ctasTableDir.list().length >= 1);
 
@@ -478,7 +479,7 @@ public class TestJobService extends BaseTestServer {
     job.getJobAttempt().setDetails(new JobDetails());
     job.getJobAttempt().setAttemptId(attemptId);
 
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, true);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, true, null);
 
     assertEquals("", detailsUI.getAttemptsSummary());
     assertEquals(1, detailsUI.getAttemptDetails().size());
@@ -512,7 +513,7 @@ public class TestJobService extends BaseTestServer {
     //make sure that the job output directory is gone
     assertFalse(jobsService.getJobResultsStore().jobOutputDirectoryExists(job.getJobId()));
     job = jobsService.getJob(job.getJobId());
-    assertFalse(new JobDetailsUI(job).getResultsAvailable());
+    assertFalse(JobDetailsUI.of(job).getResultsAvailable());
 
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 30));
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS.getOptionName(), 0));
@@ -526,7 +527,7 @@ public class TestJobService extends BaseTestServer {
     job.getJobAttempt().setDetails(new JobDetails());
     job.getJobAttempt().setAttemptId(attemptId);
 
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), "Some error message", null, false);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), new JobFailureInfo("Some error message", JobFailureType.UNKNOWN, null), null, false, null);
 
     assertEquals("", detailsUI.getAttemptsSummary());
     assertEquals(1, detailsUI.getAttemptDetails().size());
@@ -569,7 +570,7 @@ public class TestJobService extends BaseTestServer {
     job.addAttempt(jobAttempt);
 
     // retrieve the UI jobDetails
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, false);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, false, null);
 
     assertEquals(JobState.COMPLETED, detailsUI.getState());
     assertEquals(Long.valueOf(100L), detailsUI.getStartTime());

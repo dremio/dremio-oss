@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 package com.dremio.sabot.exec.fragment;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
-import com.dremio.service.namespace.StoragePluginId;
 import com.google.common.util.concurrent.ListenableFuture;
 
 /**
@@ -30,14 +30,14 @@ public class FragmentExecutionContext {
 
   private final NodeEndpoint foreman;
   private final SchemaChangeListener schemaUpdater;
-  private final StoragePluginRegistry registry;
+  private final CatalogService sources;
   private final ListenableFuture<Boolean> cancelled;
 
-  public FragmentExecutionContext(NodeEndpoint foreman, SchemaChangeListener schemaUpdater, StoragePluginRegistry registry, ListenableFuture<Boolean> cancelled) {
+  public FragmentExecutionContext(NodeEndpoint foreman, SchemaChangeListener schemaUpdater, CatalogService sources, ListenableFuture<Boolean> cancelled) {
     super();
     this.foreman = foreman;
     this.schemaUpdater = schemaUpdater;
-    this.registry = registry;
+    this.sources = sources;
     this.cancelled = cancelled;
   }
 
@@ -55,7 +55,7 @@ public class FragmentExecutionContext {
 
   @SuppressWarnings("unchecked")
   public <T extends StoragePlugin> T getStoragePlugin(StoragePluginId pluginId) throws ExecutionSetupException {
-    StoragePlugin plugin = registry.getPlugin(pluginId);
+    StoragePlugin plugin = sources.getSource(pluginId);
     if(plugin == null){
       return null;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
  */
 package com.dremio.dac.server;
 
-import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.Space;
@@ -27,47 +28,52 @@ import com.dremio.file.FileName;
  * Test input validation
  */
 public class TestInputValidation {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testSpaceValidation() {
-    Assert.assertTrue(didThrowValidationError(new Space(null, "\"", null, null, null, 0, null), "Space name can not contain periods or double quotes"));
-    Assert.assertTrue(didThrowValidationError(new Space(null, ".", null, null, null, 0, null), "Space name can not contain periods or double quotes"));
-    Assert.assertTrue(didThrowValidationError(new Space(null, "longer \" test", null, null, null, 0, null), "Space name can not contain periods or double quotes"));
+    checkError(new Space(null, "\"", null, null, null, 0, null));
+    checkError(new Space(null, ".", null, null, null, 0, null));
+    checkError(new Space(null, "longer \" test", null, null, null, 0, null));
   }
 
   @Test
   public void testSourceValidation() {
     SourceUI config = new SourceUI();
     config.setName("\"");
-    Assert.assertTrue(didThrowValidationError(config, "Source name can not contain periods or double quotes"));
+    checkError(config);
 
     config.setName(".");
-    Assert.assertTrue(didThrowValidationError(config, "Source name can not contain periods or double quotes"));
+    checkError(config);
 
     config.setName("longer \" test");
-    Assert.assertTrue(didThrowValidationError(config, "Source name can not contain periods or double quotes"));
+    checkError(config);
   }
 
   @Test
   public void testGeneralValidation() {
-    Assert.assertTrue(didThrowValidationError(new FileName("afaf:dadad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
-    Assert.assertTrue(didThrowValidationError(new FileName(":"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
-    Assert.assertTrue(didThrowValidationError(new FileName("/"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
-    Assert.assertTrue(didThrowValidationError(new FileName("ada/adadad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
-    Assert.assertTrue(didThrowValidationError(new FileName("adad@adad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
-    Assert.assertTrue(didThrowValidationError(new FileName("adad{adad"), "File name cannot contain a colon, forward slash, at sign, or open curly bracket."));
-    Assert.assertTrue(didThrowValidationError(new FileName("."), "File name cannot start with period"));
-    Assert.assertTrue(didThrowValidationError(new FileName(".adadd"), "File name cannot start with period"));
-    Assert.assertFalse(didThrowValidationError(new FileName("ad.add"), "File name cannot start with period"));
+    checkError(new FileName("afaf:dadad"));
+    checkError(new FileName(":"));
+    checkError(new FileName("/"));
+    checkError(new FileName("ada/adadad"));
+    checkError(new FileName("adad@adad"));
+    checkError(new FileName("adad{adad"));
+    checkError(new FileName("."));
+    checkError(new FileName(".adadd"));
+    checkError(new FileName("ad.add"));
   }
 
-  private boolean didThrowValidationError(Object o, String expectedMessage) {
-    try {
-      new InputValidation().validate(o);
-    } catch (ClientErrorException e) {
-      return (e.getMessage().contains(expectedMessage));
+  private void checkError(Object o) {
+    checkError(o, null);
+  }
+  private void checkError(Object o, String expectedMessage) {
+    thrown.expect(ClientErrorException.class);
+    if(expectedMessage != null) {
+      thrown.expectMessage(expectedMessage);
     }
-
-    return false;
+    new InputValidation().validate(o);
   }
 }
 

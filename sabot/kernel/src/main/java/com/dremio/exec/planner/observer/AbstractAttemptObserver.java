@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -46,6 +47,10 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void finalPrel(Prel prel) {
+  }
+
+  @Override
   public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
   }
 
@@ -59,6 +64,10 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
 
   @Override
   public void planFindMaterializations(long millisTaken) {
+  }
+
+  @Override
+  public void recordExtraInfo(String name, byte[] bytes) {
   }
 
   @Override

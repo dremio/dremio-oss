@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
+import Immutable from 'immutable';
 import AccelerationRaw from './AccelerationRaw';
 
 describe('AccelerationRaw', () => {
@@ -24,22 +25,17 @@ describe('AccelerationRaw', () => {
   let instance;
   beforeEach(() => {
     minimalProps = {
-      acceleration: Immutable.fromJS({
-        context: {
-          datasetSchema: {
-            fieldList: []
-          }
-        }
+      dataset: Immutable.fromJS({
+        id: '1',
+        path: ['path', 'name']
       }),
+      reflections: Immutable.fromJS({}),
       fields: {
-        rawLayouts: {
-          enabled: false,
-          layoutList: [{name:{value:'col1'}}, {name:{value:'col2'}}]
-        }
+        rawReflections: [{name:{value:'col1'}}, {name:{value:'col2'}}]
       }
     };
-    minimalProps.fields.rawLayouts.layoutList.addField = sinon.spy();
-    minimalProps.fields.rawLayouts.layoutList.removeField = sinon.spy();
+    minimalProps.fields.rawReflections.addField = sinon.spy();
+    minimalProps.fields.rawReflections.removeField = sinon.spy();
     commonProps = {
       ...minimalProps
     };
@@ -52,30 +48,19 @@ describe('AccelerationRaw', () => {
     expect(wrap).to.have.length(1);
   });
 
-  it('should add new layout', () => {
+  it.skip('should add new layout', () => {
     const defaultLayout = {
+      enabled: true,
+      distributionFields: [],
+      partitionFields: [],
+      sortFields: [],
+      partitionDistributionStrategy: 'CONSOLIDATED',
+      shouldDelete: false,
+      displayFields: [],
       name: 'New Reflection',
-      details: {
-        displayFieldList: [],
-        partitionFieldList: [],
-        sortFieldList: [],
-        partitionDistributionStrategy: 'CONSOLIDATED'
-      }
+      type: 'RAW'
     };
     instance.addNewLayout();
-    expect(commonProps.fields.rawLayouts.layoutList.addField).to.have.been.calledWith(defaultLayout);
-  });
-
-  describe('removeLayout', () => {
-    it('should remove layout', () => {
-      instance.removeLayout(1);
-      expect(commonProps.fields.rawLayouts.layoutList.removeField).to.have.been.calledWith(1);
-    });
-
-    it('should not remove layout if we have only one layout', () => {
-      minimalProps.fields.rawLayouts.layoutList.length = 1;
-      instance.removeLayout(1);
-      expect(instance.props.fields.rawLayouts.layoutList.removeField.called).to.be.false;
-    });
+    expect(commonProps.fields.rawReflections.addField).to.have.been.calledWithMatch(defaultLayout);
   });
 });

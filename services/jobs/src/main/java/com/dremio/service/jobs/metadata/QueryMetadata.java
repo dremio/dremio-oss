@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,21 +25,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.logical.JdbcRel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.proto.JoinInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
+import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -51,9 +53,11 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -73,6 +77,7 @@ public class QueryMetadata {
   private final RelDataType rowType;
   private final Optional<List<SqlIdentifier>> ancestors;
   private final Optional<List<FieldOrigin>> fieldOrigins;
+  @Deprecated
   private final Optional<List<JoinInfo>> joins;
   private final Optional<List<ParentDatasetInfo>> parents;
   private final Optional<SqlNode> sqlNode;
@@ -81,13 +86,15 @@ public class QueryMetadata {
   private final Optional<PlanningSet> planningSet;
   private final Optional<RelNode> serializableLogicalPlan;
   private final BatchSchema batchSchema;
+  private final List<ScanPath> scanPaths;
 
   public QueryMetadata(List<SqlIdentifier> ancestors,
                        List<FieldOrigin> fieldOrigins, List<JoinInfo> joins, List<ParentDatasetInfo> parents,
                        SqlNode sqlNode, RelDataType rowType,
                        List<ParentDataset> grandParents, final RelOptCost cost, final PlanningSet planningSet,
                        final RelNode serializableLogicalPlan,
-                       BatchSchema batchSchema) {
+                       BatchSchema batchSchema,
+                       List<ScanPath> scanPaths) {
     this.rowType = rowType;
 
     this.ancestors = Optional.fromNullable(ancestors);
@@ -100,6 +107,7 @@ public class QueryMetadata {
     this.planningSet = Optional.fromNullable(planningSet);
     this.serializableLogicalPlan = Optional.fromNullable(serializableLogicalPlan);
     this.batchSchema = batchSchema;
+    this.scanPaths = scanPaths;
   }
 
   public Optional<List<String>> getReferredTables() {
@@ -151,6 +159,10 @@ public class QueryMetadata {
     return batchSchema;
   }
 
+  public List<ScanPath> getScanPaths() {
+    return scanPaths;
+  }
+
   /**
    * Returns original cost of query past logical planning.
    */
@@ -180,7 +192,8 @@ public class QueryMetadata {
 
     private final NamespaceService namespace;
     private RelDataType rowType;
-    private RelNode logical;
+    private RelNode logicalBefore;
+    private RelNode logicalAfter;
     private RelNode prejoin;
     private SqlNode sql;
     private RelOptCost cost;
@@ -197,8 +210,9 @@ public class QueryMetadata {
       return this;
     }
 
-    public Builder addLogicalPlan(RelNode rel) {
-      this.logical = rel;
+    public Builder addLogicalPlan(RelNode before, RelNode after) {
+      this.logicalBefore = before;
+      this.logicalAfter = after;
       return this;
     }
 
@@ -245,7 +259,7 @@ public class QueryMetadata {
                 AncestorsVisitor.extractAncestors(sql),
                 new Predicate<SqlIdentifier>() {
                   @Override
-                  public boolean apply(@Nullable SqlIdentifier input) {
+                  public boolean apply(SqlIdentifier input) {
                     return !RESERVED_PARENT_NAMES.contains(input.toString());
                   }
                 }
@@ -253,18 +267,10 @@ public class QueryMetadata {
         );
       }
 
-      List<JoinInfo> joins = null;
-      if (logical != null) {
-        joins = JoinExtractor.getJoins(logical);
-        if (prejoin != null && (joins == null || joins.isEmpty())) {
-          joins = JoinExtractor.getJoins(prejoin);
-        }
-      }
-
       List<FieldOrigin> fieldOrigins = null;
-      if (logical != null && rowType != null) {
+      if (logicalBefore != null && rowType != null) {
         try {
-          fieldOrigins = ImmutableList.copyOf(FieldOriginExtractor.getFieldOrigins(logical, rowType));
+          fieldOrigins = ImmutableList.copyOf(FieldOriginExtractor.getFieldOrigins(logicalBefore, rowType));
         } catch (Exception e) {
           // If we fail to extract the column origins, don't fail the query
           logger.debug("Failed to extract column origins for query: " + sql);
@@ -274,12 +280,22 @@ public class QueryMetadata {
       // Make sure there are no duplicate column names
       SqlHandlerUtil.validateRowType(true, Lists.<String>newArrayList(), rowType);
 
-
+      List<ScanPath> scanPaths = null;
+      if (logicalAfter != null) {
+        scanPaths = FluentIterable.from(getScans(logicalAfter))
+          .transform(new Function<List<String>, ScanPath>() {
+            @Override
+            public ScanPath apply(List<String> path) {
+              return new ScanPath().setPathList(path);
+            }
+          })
+          .toList();
+      }
 
       return new QueryMetadata(
         ancestors, // list of parents
         fieldOrigins,
-        joins,
+        null,
         getParentsFromSql(ancestors), // convert parent to ParentDatasetInfo
         sql,
         rowType,
@@ -287,7 +303,8 @@ public class QueryMetadata {
         cost, // query cost past logical
         planningSet,
         serializablePlan,
-        batchSchema
+        batchSchema,
+        scanPaths
       );
     }
 
@@ -369,7 +386,7 @@ public class QueryMetadata {
           result.add(getDataset(datasetPath));
         }
         return result;
-      } catch (RuntimeException e) {
+      } catch (Throwable e) {
         logger.warn(
             "Failure while attempting to extract parents from dataset. This is likely due to  "
             + "a datasource no longer being available that was used in a past job.", e);
@@ -413,7 +430,7 @@ public class QueryMetadata {
       }
 
 
-
+      //TODO we couldn't find a dataset corresponding to path, should we throw an exception instead ??
       return new ParentDatasetInfo().setDatasetPathList(cleanedPathComponents);
     }
   }
@@ -433,4 +450,26 @@ public class QueryMetadata {
     }
     return new ArrayList<>(sources);
   }
+
+  public static List<List<String>> getScans(RelNode logicalPlan) {
+    final ImmutableList.Builder<List<String>> builder = ImmutableList.builder();
+    logicalPlan.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(final TableScan scan) {
+        builder.add(scan.getTable().getQualifiedName());
+        return super.visit(scan);
+      }
+
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof JdbcRel) {
+          JdbcRel jdbcRel = (JdbcRel)other;
+          jdbcRel.getJdbcSubTree().accept(this);
+        }
+        return super.visit(other);
+      }
+    });
+    return builder.build();
+  }
+
 }

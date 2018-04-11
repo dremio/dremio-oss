@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.dremio.common.expression;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-
 @JsonPropertyOrder({ "type" })
 public abstract class LogicalExpressionBase implements LogicalExpression {
 
@@ -27,7 +26,7 @@ public abstract class LogicalExpressionBase implements LogicalExpression {
   }
 
   protected void i(StringBuilder sb, int indent) {
-    for (int i = 0; i < indent; i++){
+    for (int i = 0; i < indent; i++) {
       sb.append("  ");
     }
   }
@@ -43,7 +42,7 @@ public abstract class LogicalExpressionBase implements LogicalExpression {
   }
 
   @JsonIgnore
-  public int getCumulativeCost()  {
+  public int getCumulativeCost() {
     int cost = this.getSelfCost();
 
     for (LogicalExpression e : this) {
@@ -53,11 +52,29 @@ public abstract class LogicalExpressionBase implements LogicalExpression {
     return cost;
   }
 
-  public String toString(){
+  public String toString() {
     StringBuilder sb = new StringBuilder();
     ExpressionStringBuilder esb = new ExpressionStringBuilder();
     this.accept(esb, sb);
     return sb.toString();
+  }
 
+  @Override
+  public int hashCode() {
+    return toString().hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    }
+    if (this == obj) {
+      return true;
+    }
+    if (!this.getClass().equals(obj)) {
+      return false;
+    }
+    return this.toString().equals(obj.toString());
   }
 }

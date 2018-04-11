@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,8 +64,10 @@ public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
     switch (call.getKind()) {
     case SELECT:
       SqlSelect select = (SqlSelect)call;
-      SqlNode from = select.getFrom();
-      result.addAll(extractAncestorsFromFrom(from));
+      final SqlNode from = select.getFrom();
+      if (from != null) {
+        result.addAll(extractAncestorsFromFrom(from));
+      }
       break;
     default:
       result.addAll(visitAll(call.getOperandList()));

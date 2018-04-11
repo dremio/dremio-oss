@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,12 +38,15 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
 
   protected VectorAccessible incoming;
   protected OutputEntryListener listener;
+  protected WriteStatsListener writeStatsListener;
 
   private EventBasedRecordWriter eventBasedRecordWriter;
   
-  public final void setup(final VectorAccessible incoming, OutputEntryListener listener) throws IOException {
+  public final void setup(final VectorAccessible incoming, OutputEntryListener listener,
+                          WriteStatsListener statsListener) throws IOException {
     this.incoming = incoming;
     this.listener = listener;
+    this.writeStatsListener = writeStatsListener;
     setup();
   }
   

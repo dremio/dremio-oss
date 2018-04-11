@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import static com.dremio.exec.store.easy.arrow.ArrowFormatPlugin.MAGIC_STRING;
 import java.io.IOException;
 import java.util.List;
 
+import com.dremio.sabot.exec.context.OperatorStats;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -52,6 +53,7 @@ public class ArrowRecordWriter implements RecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EventBasedRecordWriter.class);
 
   private final EasyWriter writerConfig;
+  private final OperatorStats stats;
   private final List<Path> listOfFilesCreated;
   private final ArrowFileFooter.Builder footerBuilder;
 
@@ -64,7 +66,8 @@ public class ArrowRecordWriter implements RecordWriter {
 
   private Path currentFile;
   private FSDataOutputStream currentFileOutputStream;
-  private OutputEntryListener listener;
+  private OutputEntryListener outputEntryListener;
+  private WriteStatsListener writeStatsListener;
   private VectorAccessible incoming;
 
   private long recordCount;
@@ -74,6 +77,7 @@ public class ArrowRecordWriter implements RecordWriter {
     final FragmentHandle handle = context.getFragmentHandle();
 
     this.writerConfig = writerConfig;
+    this.stats = context.getStats();
     this.listOfFilesCreated = Lists.newArrayList();
     this.footerBuilder = ArrowFileFooter.newBuilder();
     this.location = new Path(writerConfig.getLocation());
@@ -82,12 +86,13 @@ public class ArrowRecordWriter implements RecordWriter {
   }
 
   @Override
-  public void setup(VectorAccessible incoming, OutputEntryListener listener) throws IOException {
+  public void setup(VectorAccessible incoming, OutputEntryListener outputEntryListener, WriteStatsListener writeStatsListener) throws IOException {
     Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE, "SelectionVector remover is not supported.");
 
     this.incoming = incoming;
-    this.listener = listener;
-    this.fs = FileSystemWrapper.get(location, writerConfig.getFsConf());
+    this.outputEntryListener = outputEntryListener;
+    this.writeStatsListener = writeStatsListener;
+    this.fs = FileSystemWrapper.get(location, writerConfig.getFsConf(), stats);
     this.currentFile = fs.canonicalizePath(new Path(location, String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
     this.relativePath = currentFile.getName();
     this.currentFileOutputStream = fs.create(currentFile);
@@ -124,6 +129,7 @@ public class ArrowRecordWriter implements RecordWriter {
     final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(writableBatch, null/*allocator*/);
 
     serializer.writeToStream(currentFileOutputStream);
+    final long endOffset = currentFileOutputStream.getPos();
 
     final ArrowRecordBatchSummary summary =
         ArrowRecordBatchSummary
@@ -135,6 +141,7 @@ public class ArrowRecordWriter implements RecordWriter {
     footerBuilder.addBatch(summary);
 
     this.recordCount += recordCount;
+    writeStatsListener.bytesWritten(endOffset - startOffset);
 
     return recordCount;
   }
@@ -172,7 +179,7 @@ public class ArrowRecordWriter implements RecordWriter {
               .setPath(relativePath)
               .build();
 
-      listener.recordsWritten(recordCount, currentFile.toString(), lastFileMetadata.toByteArray(), null);
+      outputEntryListener.recordsWritten(recordCount, currentFile.toString(), lastFileMetadata.toByteArray(), null);
     }
   }
 

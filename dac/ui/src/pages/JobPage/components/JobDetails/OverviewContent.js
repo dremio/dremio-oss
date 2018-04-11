@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,6 @@ class OverviewContent extends Component {
 
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map).isRequired,
-    failureInfo: PropTypes.string,
     intl: PropTypes.object.isRequired
   };
 
@@ -138,9 +137,11 @@ class OverviewContent extends Component {
   }
 
   renderErrorLog() {
-    const { failureInfo } = this.props;
-    return failureInfo ? (
-      <JobErrorLog error={failureInfo} />
+    const failureInfo = this.props.jobDetails.get('failureInfo');
+
+    // TODO: move this into JobErrorLog
+    return (failureInfo && failureInfo.has('errors') && failureInfo.get('errors').size > 0) ? (
+      <JobErrorLog failureInfo={failureInfo} />
     ) : null;
   }
 
@@ -232,8 +233,8 @@ class OverviewContent extends Component {
             ...this.context.location,
             state: {
               modal: 'AccelerationModal',
-              accelerationId: materializationFor.get('accelerationId'),
-              layoutId: materializationFor.get('layoutId')
+              datasetId: materializationFor.get('datasetId'),
+              layoutId: materializationFor.get('reflectionId')
             }
           }}>{intl.formatMessage({ id: 'Job.ShowReflection' })}</LinkButton>}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,34 +19,21 @@ import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.su
 import static java.util.Collections.singletonList;
 
 import java.util.List;
-import java.util.Set;
-
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.google.common.collect.ImmutableSet;
 
 /**
  * Handler for <code>REFRESH TABLE tblname</code> command.
  */
 public class RefreshTableHandler extends SimpleDirectHandler {
 
-  static final Set<DatasetType> ALTER_METADATA_TYPES = ImmutableSet.of(
-      DatasetType.PHYSICAL_DATASET,
-      DatasetType.PHYSICAL_DATASET_SOURCE_FILE,
-      DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER
-      );
+  private final Catalog catalog;
 
-  private final SchemaPlus defaultSchema;
-  private final CatalogService catalog;
-
-  public RefreshTableHandler(SchemaPlus defaultSchema, CatalogService catalog) {
-    this.defaultSchema = defaultSchema;
+  public RefreshTableHandler(Catalog catalog) {
     this.catalog = catalog;
   }
 
@@ -54,9 +41,8 @@ public class RefreshTableHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlRefreshTable sqlRefreshTable = SqlNodeUtil.unwrap(sqlNode, SqlRefreshTable.class);
 
-    final NamespaceKey tableNSKey = new NamespaceKey(sqlRefreshTable.getTable().names);
-
-    UpdateStatus status = catalog.refreshDataset(tableNSKey);
+    final NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
+    UpdateStatus status = catalog.refreshDataset(tableNSKey, false);
 
     final String message;
     switch(status){

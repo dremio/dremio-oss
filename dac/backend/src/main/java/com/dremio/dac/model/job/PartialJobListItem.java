@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,10 @@
  */
 package com.dremio.dac.model.job;
 
+import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
+
 import com.dremio.exec.proto.beans.RequestType;
+import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.Job;
@@ -30,11 +33,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class PartialJobListItem {
   private final String id;
   private final JobState state;
+  private final JobFailureInfo failureInfo;
   private final String user;
   private final Long startTime;
   private final Long endTime;
   private final String description;
   private final boolean accelerated;
+  private final boolean snowflakeAccelerated;
   private final RequestType requestType;
   private final String datasetVersion;
   private final boolean isComplete;
@@ -43,16 +48,19 @@ public class PartialJobListItem {
   public PartialJobListItem(
       @JsonProperty("id") String id,
       @JsonProperty("state") JobState state,
+      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
       @JsonProperty("user") String user,
       @JsonProperty("startTime") Long startTime,
       @JsonProperty("endTime") Long endTime,
       @JsonProperty("description") String description,
       @JsonProperty("requestType") RequestType requestType,
       @JsonProperty("accelerated") boolean accelerated,
-      @JsonProperty("datasetVersion") String datasetVersion) {
+      @JsonProperty("datasetVersion") String datasetVersion,
+      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated) {
     super();
     this.id = id;
     this.state = state;
+    this.failureInfo = failureInfo;
     this.user = user;
     this.startTime = startTime;
     this.endTime = endTime;
@@ -61,6 +69,7 @@ public class PartialJobListItem {
     this.requestType = requestType;
     this.datasetVersion = datasetVersion;
     this.isComplete = isComplete(state);
+    this.snowflakeAccelerated = snowflakeAccelerated;
   }
 
   public PartialJobListItem(Job input) {
@@ -69,14 +78,17 @@ public class PartialJobListItem {
 
     this.id = input.getJobId().getId();
     this.state = lastAttempt.getState();
+    this.failureInfo = JobDetailsUI.toJobFailureInfo(input.getJobAttempt().getInfo());
     this.user = firstAttempt.getInfo().getUser();
     this.startTime = firstAttempt.getInfo().getStartTime();
     this.endTime = lastAttempt.getInfo().getFinishTime();
     this.description = firstAttempt.getInfo().getDescription();
-    this.accelerated = firstAttempt.getInfo().getAcceleration() != null;
+    this.accelerated = lastAttempt.getInfo().getAcceleration() != null;
     this.requestType =  firstAttempt.getInfo().getRequestType();
     this.datasetVersion = firstAttempt.getInfo().getDatasetVersion();
     this.isComplete = isComplete(state);
+    AccelerationDetails accelerationDetails = deserialize(lastAttempt.getAccelerationDetails());
+    this.snowflakeAccelerated = this.accelerated && JobDetailsUI.wasSnowflakeAccelerated(accelerationDetails);
   }
 
   private boolean isComplete(JobState state){
@@ -103,6 +115,10 @@ public class PartialJobListItem {
 
   public JobState getState() {
     return state;
+  }
+
+  public JobFailureInfo getFailureInfo() {
+    return failureInfo;
   }
 
   public String getUser() {
@@ -138,4 +154,7 @@ public class PartialJobListItem {
     return isComplete;
   }
 
+  public boolean isSnowflakeAccelerated() {
+    return snowflakeAccelerated;
+  }
 }

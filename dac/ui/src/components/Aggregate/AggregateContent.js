@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import ColumnDragItem from 'utils/ColumnDragItem';
 
 import ColumnDragArea from './components/ColumnDragArea';
 import MeasureDragArea, { MEASURE_DRAG_AREA_TEXT } from './components/MeasureDragArea';
-import { fieldAreaWidth, borderSolidGray, whiteBackground } from './aggregateStyles';
+import { borderSolidGray, fieldAreaWidth, whiteBackground } from './aggregateStyles';
 
-export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST']);
+export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST', 'STRUCT']);
 
 @Radium
 class AggregateContent extends Component {

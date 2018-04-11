@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class SqlCreateTable extends SqlCall {
@@ -156,20 +156,8 @@ public class SqlCreateTable extends SqlCall {
     query.unparse(writer, leftPrec, rightPrec);
   }
 
-  public List<String> getSchemaPath() {
-    if (tblName.isSimple()) {
-      return ImmutableList.of();
-    }
-
-    return tblName.names.subList(0, tblName.names.size() - 1);
-  }
-
-  public String getName() {
-    if (tblName.isSimple()) {
-      return tblName.getSimple();
-    }
-
-    return tblName.names.get(tblName.names.size() - 1);
+  public NamespaceKey getPath() {
+    return new NamespaceKey(tblName.names);
   }
 
   public List<String> getFieldNames() {

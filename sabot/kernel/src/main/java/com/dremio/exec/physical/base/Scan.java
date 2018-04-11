@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
@@ -23,13 +24,20 @@ import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public interface Scan extends Leaf {
+
   /**
-   * Get the schema path of this table in the namespace hierarchy. For example
-   * ["a", "b", "c"].
+   * Get the list of schema paths of tables referenced by this Scan. Each table's schema path, in the namespace
+   * hierarchy, is a list of strings. For example ["mysql", "database", "table"].
    *
-   * @return The table path as a list of strings.
+   * @return list of referenced tables
    */
-  List<String> getTableSchemaPath();
+  @JsonProperty("referenced-tables")
+  Collection<List<String>> getReferencedTables();
+
+  /**
+   * If schema of referenced tables may be learnt in case of schema changes.
+   */
+  boolean mayLearnSchema();
 
   /**
    * Similar to base class functionality although FunctionLookupContext can be

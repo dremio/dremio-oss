@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,14 +24,11 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
-import com.dremio.plugins.Version;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.plugins.elastic.ElasticActions.Health;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
 import com.dremio.plugins.elastic.ElasticActions.Result;
@@ -44,9 +41,8 @@ import com.dremio.plugins.elastic.planning.ElasticRulesFactory;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.capabilities.BooleanCapability;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
@@ -84,33 +80,29 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   public static final BooleanCapability ENABLE_V5_FEATURES = new BooleanCapability("enable_elastic_v5_feature", false);
   public static final BooleanCapability SUPPORTS_NEW_FEATURES = new BooleanCapability("supports_new_features", false);
 
-
-  private final StoragePluginType elasticType;
   private final String name;
   private final SabotContext context;
-  private final ElasticsearchStoragePluginConfig config;
+  private final ElasticStoragePluginConfig config;
   private final ElasticConnectionPool connectionPool;
-  private Version minVersionInCluster;
 
-  public ElasticsearchStoragePlugin(ElasticsearchStoragePluginConfig config, SabotContext context, String name) {
+  public ElasticsearchStoragePlugin(ElasticStoragePluginConfig config, SabotContext context, String name) {
     this.config = config;
     this.context = context;
     this.name = name;
     this.connectionPool = new ElasticConnectionPool(
-        config.getHosts(),
-        config.isEnableSSL(),
-        config.getUsername(),
-        config.getPassword(),
-        config.getReadTimeoutMillis(),
-        config.isEnableWhitelist());
-    this.elasticType = new StoragePluginType("elastic", context.getConfig().getClass("dremio.plugins.elastic.rulesfactory", StoragePluginTypeRulesFactory.class, ElasticRulesFactory.class));
+        config.hosts,
+        config.sslEnabled,
+        config.username,
+        config.password,
+        config.readTimeoutMillis,
+        config.useWhitelist);
   }
 
   public SabotContext getContext() {
     return context;
   }
 
-  public ElasticsearchStoragePluginConfig getConfig(){
+  public ElasticStoragePluginConfig getConfig(){
     return config;
   }
 
@@ -133,8 +125,9 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     }
   }
 
-  public StoragePluginId getId(){
-    return new StoragePluginId(name, config, connectionPool.getCapabilities(), elasticType);
+  @Override
+  public SourceCapabilities getSourceCapabilities() {
+    return connectionPool.getCapabilities();
   }
 
   @Override
@@ -243,9 +236,13 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
         switch (clusterHealth) {
           case "green":
             if (connectionPool.getCapabilities().getCapability(SUPPORTS_NEW_FEATURES)) {
-              return SourceState.goodState(String.format("Elastic version %s.", minVersionInCluster));
+              return SourceState.goodState(String.format("Elastic version %s.",
+                  connectionPool.getMinVersionInCluster()));
             } else {
-              return SourceState.warnState(String.format("Detected Elastic version %s. Full query pushdown in Dremio requires version %s or above.", minVersionInCluster, ElasticConnectionPool.MIN_VERSION_TO_ENABLE_NEW_FEATURES));
+              return SourceState.warnState(
+                  String.format("Detected Elastic version %s. Full query pushdown in Dremio requires version %s or above.",
+                      connectionPool.getMinVersionInCluster(),
+                      ElasticConnectionPool.MIN_VERSION_TO_ENABLE_NEW_FEATURES));
             }
           case "yellow":
             return SourceState.warnState("Elastic cluster health is yellow.");
@@ -299,7 +296,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     boolean failures = false;
 
     ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
-    final boolean includeHiddenSchemas = config.isShowHiddenSchemas();
+    final boolean includeHiddenSchemas = config.showHiddenIndices;
         for(ElasticIndex index : clusterMetadata.getIndices()){
       for(ElasticMapping mapping : index.getMappings()){
         try {
@@ -393,8 +390,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
-    return null;
+  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
+    return context.getConfig().getClass("dremio.plugins.elastic.rulesfactory", StoragePluginRulesFactory.class, ElasticRulesFactory.class);
   }
 
   @Override

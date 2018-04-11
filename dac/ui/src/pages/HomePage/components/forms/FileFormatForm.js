@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -215,7 +215,8 @@ export class FileFormatForm extends Component {
               tableData={previewData}
               location={this.context.location}
               dragType='groupBy'
-              exploreViewState={previewViewState}/>}
+              exploreViewState={previewViewState}
+              shouldRenderInvisibles/>} {/*EXPERIMENTAL: rendering invisibles here should be safe because we've disabled most other cell features*/}
           </div>
         </ViewStateWrapper>
       </ModalForm>

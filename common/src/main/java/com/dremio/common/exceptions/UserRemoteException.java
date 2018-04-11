@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ public class UserRemoteException extends UserException {
 
   private final DremioPBError error;
 
-  public UserRemoteException(DremioPBError error) {
-    super(error.getErrorType(), "Dremio Remote Exception", null);
+  private UserRemoteException(DremioPBError error, AdditionalExceptionContext additionalExceptionContext) {
+    super(error.getErrorType(), "Dremio Remote Exception", null, additionalExceptionContext);
     this.error = error;
   }
 
@@ -82,5 +82,17 @@ public class UserRemoteException extends UserException {
   @Override
   public List<String> getContextStrings() {
     return error.getContextList();
+  }
+
+  /**
+   * Creates (or deserializes) a {@link UserRemoteException} from a {@link DremioPBError}.
+   *
+   * @param error serialized error message
+   * @return user remote exception
+   */
+  public static UserRemoteException create(DremioPBError error) {
+    final AdditionalExceptionContext additionalContext = error.getTypeSpecificContext() == null ? null :
+        ErrorHelper.deserializeAdditionalContext(error.getTypeSpecificContext());
+    return new UserRemoteException(error, additionalContext);
   }
 }

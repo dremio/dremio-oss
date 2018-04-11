@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
   @BeforeClass
   public static void generateHive() throws Exception{
     hiveTest = HiveTestDataGenerator.getInstance();
-    hiveTest.addHiveTestPlugin(getSabotContext().getStorage());
+    hiveTest.addHiveTestPlugin(getSabotContext().getCatalogService());
     test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
@@ -121,7 +121,7 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
   @AfterClass
   public static void cleanupHiveTestData() throws Exception{
     if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(getSabotContext().getStorage());
+      hiveTest.deleteHiveTestPlugin(getSabotContext().getCatalogService());
     }
   }
 }

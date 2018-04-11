@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,13 +58,13 @@ import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
 import com.dremio.dac.proto.model.dataset.TransformType;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
-import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.server.ServerErrorException;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -80,6 +80,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUser;
+import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
@@ -259,20 +260,20 @@ public class SampleDataPopulator implements AutoCloseable {
       SourceUI source = new SourceUI();
       source.setName("LocalFS1");
       source.setCtime(System.currentTimeMillis());
-      final NASConfig nas = new NASConfig();
-      nas.setPath(path.toFile().getPath());
+      final NASConf nas = new NASConf();
+      nas.path = path.toFile().getPath();
       source.setConfig(nas);
-      sourceService.registerSourceWithRuntime(source);
+      sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
     }
 
     {
       SourceUI source = new SourceUI();
       source.setName("LocalFS2");
       source.setCtime(System.currentTimeMillis());
-      final NASConfig nas = new NASConfig();
-      nas.setPath(path.toFile().getPath());
+      final NASConf nas = new NASConf();
+      nas.path = path.toFile().getPath();
       source.setConfig(nas);
-      sourceService.registerSourceWithRuntime(source);
+      sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
 
     }
 
@@ -280,10 +281,10 @@ public class SampleDataPopulator implements AutoCloseable {
       SourceUI source = new SourceUI();
       source.setName("LocalRootRO");
       source.setCtime(System.currentTimeMillis());
-      final NASConfig nas = new NASConfig();
-      nas.setPath("/");
+      final NASConf nas = new NASConf();
+      nas.path = "/";
       source.setConfig(nas);
-      sourceService.registerSourceWithRuntime(source);
+      sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
     }
   }
 

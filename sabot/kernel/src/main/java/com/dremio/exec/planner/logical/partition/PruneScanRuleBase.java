@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
@@ -71,6 +72,7 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.HashVisitor;
 import com.dremio.exec.expr.TypeHelper;
@@ -87,7 +89,6 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.SplitsKey;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.MetadataUtils;
 import com.dremio.exec.store.dfs.PruneableScan;
@@ -95,7 +96,6 @@ import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.parquet.FilterCondition.FilterProperties;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.PartitionValue;
 import com.google.common.base.Function;
@@ -111,12 +111,12 @@ import com.google.common.collect.Maps;
 /**
  * Prune partitions based on partition values
  */
-public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> extends StoragePluginOptimizerRule {
+public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> extends RelOptRule {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PruneScanRuleBase.class);
 
   public static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
   final private OptimizerRulesContext optimizerContext;
-  final protected StoragePluginType pluginType;
+  final protected SourceType pluginType;
 
   /**
    * A logic expression and split holder which can be used as a key for map
@@ -163,16 +163,16 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   // Local cache to speed multiple evaluations of the pruning
   private final Map<EvaluationPruningKey, EvaluationPruningResult> evalutationPruningCache = new HashMap<>();
 
-  private PruneScanRuleBase(StoragePluginType pluginType, RelOptRuleOperand operand, String id, OptimizerRulesContext optimizerContext) {
+  private PruneScanRuleBase(SourceType pluginType, RelOptRuleOperand operand, String id, OptimizerRulesContext optimizerContext) {
     super(operand, id);
     this.pluginType = pluginType;
     this.optimizerContext = optimizerContext;
   }
 
   public static class PruneScanRuleFilterOnProject<T extends ScanRelBase & PruneableScan> extends PruneScanRuleBase<T> {
-    public PruneScanRuleFilterOnProject(StoragePluginType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
+    public PruneScanRuleFilterOnProject(SourceType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
       super(pluginType, RelOptHelper.some(FilterRel.class, RelOptHelper.some(ProjectRel.class, RelOptHelper.any(clazz))),
-          pluginType.generateRuleName("NewPruneScanRule:Filter_On_Project"), optimizerContext);
+          pluginType.value() + "NewPruneScanRule:Filter_On_Project", optimizerContext);
     }
 
     @Override
@@ -202,8 +202,8 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   }
 
   public static class PruneScanRuleFilterOnScan<T extends ScanRelBase & PruneableScan> extends PruneScanRuleBase<T> {
-    public PruneScanRuleFilterOnScan(StoragePluginType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
-      super(pluginType, RelOptHelper.some(FilterRel.class, RelOptHelper.any(clazz)), pluginType.generateRuleName("NewPruneScanRule:Filter_On_Scan"), optimizerContext);
+    public PruneScanRuleFilterOnScan(SourceType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
+      super(pluginType, RelOptHelper.some(FilterRel.class, RelOptHelper.any(clazz)), pluginType.value() + "NewPruneScanRule:Filter_On_Scan", optimizerContext);
     }
 
     @Override

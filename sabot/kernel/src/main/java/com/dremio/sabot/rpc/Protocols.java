@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,4 +23,6 @@ public interface Protocols {
   int COORD_TO_COORD = 1;
   int COORD_TO_EXEC = 2;
   int EXEC_TO_EXEC = 3;
+  int CATALOG = 11;
+  int REFLECTIONS_EXEC_TO_COORD = 13;
 }

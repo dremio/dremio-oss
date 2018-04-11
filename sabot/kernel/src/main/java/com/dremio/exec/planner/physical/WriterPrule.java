@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,21 +92,27 @@ public class WriterPrule extends Prule {
     final String userName = fileEntry.getUserName();
     final Path finalStructuredPath = new Path(finalPath);
 
-    final String tempPath = new Path(finalStructuredPath.getParent(), "." + finalStructuredPath.getName()).toString() + "-" + System.currentTimeMillis();
-    final FileSystemPlugin plugin = fileEntry.getPlugin();
-
     final RelTraitSet traits = writer.getTraitSet()
       .plus(DistributionTrait.SINGLETON)
       .plus(Prel.PHYSICAL);
 
-    final WriterPrel childWithTempPath = new WriterPrel(child.getCluster(),
-      child.getTraitSet(),
-      rel,
-      ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath),
-      writer.getExpectedInboundRowType()
-    );
+    final FileSystemPlugin plugin = fileEntry.getPlugin();
 
-    final RelNode newChild = convert(childWithTempPath, traits);
-    return new WriterCommitterPrel(writer.getCluster(), traits, newChild, plugin, tempPath, finalPath, userName);
+    if (PrelUtil.getPlannerSettings(rel.getCluster()).options.getOption(PlannerSettings.WRITER_TEMP_FILE)) {
+
+      final String tempPath = new Path(finalStructuredPath.getParent(), "." + finalStructuredPath.getName()).toString() + "-" + System.currentTimeMillis();
+
+      final WriterPrel childWithTempPath = new WriterPrel(child.getCluster(),
+        child.getTraitSet(),
+        rel,
+        ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath),
+        writer.getExpectedInboundRowType()
+      );
+
+      final RelNode newChild = convert(childWithTempPath, traits);
+      return new WriterCommitterPrel(writer.getCluster(), traits, newChild, plugin, tempPath, finalPath, userName);
+    } else {
+      return new WriterCommitterPrel(writer.getCluster(), traits, child, plugin, null, finalPath, userName);
+    }
   }
 }

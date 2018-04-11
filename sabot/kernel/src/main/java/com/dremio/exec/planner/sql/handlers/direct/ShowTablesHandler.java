@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,72 +16,64 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.SchemaUtilities;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
-import com.dremio.exec.store.AbstractSchema;
-import com.google.common.base.Joiner;
+import com.dremio.exec.store.ischema.tables.TablesTable.Table;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 
 public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.ShowTableResult> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ShowTablesHandler.class);
 
-  private final SchemaPlus defaultSchema;
+  private final Catalog catalog;
 
-  public ShowTablesHandler(SchemaPlus defaultSchema){
-    this.defaultSchema = defaultSchema;
+  public ShowTablesHandler(Catalog catalog){
+    this.catalog = catalog;
   }
 
   @Override
   public List<ShowTableResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlShowTables node = SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class);
-    final SqlIdentifier db = node.getDb();
-    final SchemaPlus schema;
-    final List<String> names;
+    final NamespaceKey path = node.getDb() != null ? new NamespaceKey(node.getDb().names) : catalog.getDefaultSchema();
 
-    if (db == null) {
-      final AbstractSchema schemaInstance = SchemaUtilities.unwrapAsSchemaInstance(defaultSchema);
-      names = schemaInstance.getSchemaPath();
-      schema = defaultSchema;
-
-    } else {
-      names = db.names;
-      schema = SchemaUtilities.findSchema(defaultSchema, names);
-      if(schema == null){
-        throw UserException.validationError()
-            .message("Unable to find schema [%s] requested.", SchemaUtilities.toSchemaPath(names))
-            .build(logger);
-      }
-    }
-
-    if (SchemaUtilities.isRootSchema(schema)) {
+    if(path == null) {
       // If the default schema is a root schema, throw an error to select a default schema
       throw UserException.validationError()
-          .message("No default schema selected. Select a schema using 'USE schema' command")
-          .build(logger);
+        .message("No default schema selected. Select a schema using 'USE schema' command")
+        .build(logger);
+    }
+
+    if(!catalog.containerExists(path)) {
+      throw UserException.validationError()
+        .message("Invalid schema %s.", path)
+        .build(logger);
     }
 
     final Pattern likePattern = SqlNodeUtil.getPattern(node.getLikePattern());
     final Matcher m = likePattern.matcher("");
 
-    final String concatenatedSchemaName = Joiner.on('.').join(names);
-    final List<ShowTableResult> results = new ArrayList<>();
-    for(String table : schema.getTableNames()){
-      m.reset(table);
-      if(m.matches()){
-        results.add(new ShowTableResult(concatenatedSchemaName, table));
-      }
-    }
+    return FluentIterable.from(catalog.listDatasets(path))
+        .filter(new Predicate<Table>() {
 
-    return results;
+      @Override
+      public boolean apply(Table input) {
+        m.reset(input.TABLE_NAME);
+        return m.matches();
+      }}).transform(new Function<Table, ShowTableResult>(){
+
+      @Override
+      public ShowTableResult apply(Table input) {
+        return new ShowTableResult(input.TABLE_SCHEMA, input.TABLE_NAME);
+      }}).toList();
   }
 
   @Override

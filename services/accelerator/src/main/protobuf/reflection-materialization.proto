@@ -1,0 +1,116 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.reflection.proto;
+
+import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "reflection-common.proto";
+
+option java_package = "com.dremio.service.reflection.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "ReflectionMaterializationProtobuf";
+
+// messages used by reflection service
+
+message MaterializationId {
+  required string id = 1;
+}
+
+message Materialization {
+  optional MaterializationId id = 1;
+  optional int64 version = 2;
+  optional int64 created_at = 3;
+  optional int64 modified_at = 4;
+  optional ReflectionId reflectionId = 5;
+  optional MaterializationState state = 6 [default = RUNNING];
+  optional int64 expiration = 12; // REMOVE, should be computed
+  optional int64 last_refresh_from_pds = 14;
+  optional bytes logicalPlan = 15;
+  optional int64 reflection_goal_version = 17;
+  optional JoinAnalysis join_analysis = 18;
+  optional Failure failure = 13; // failure details set if state is failed
+  
+  optional int64 seriesId = 23;
+  repeated DataPartition partition = 8; // nodes containing materialized data
+  optional int64 init_refresh_submit = 19;
+  optional int64 init_refresh_execution = 20;
+  optional string init_refresh_job_id = 21;
+  optional int32 seriesOrdinal = 22 [default = 0];
+}
+
+message RefreshId {
+  required string id = 1;
+}
+
+message Refresh {
+  optional RefreshId id = 1;
+  optional ReflectionId reflectionId = 2;
+  optional int64 seriesId = 3;
+  optional int64 created_at = 4;
+  optional int64 modified_at = 5;
+  optional string path = 6; 
+  optional JobDetails job = 7;
+  optional MaterializationMetrics metrics = 8;
+  optional int64 updateId = 9;
+  repeated DataPartition partition = 10; // nodes containing materialized data
+  optional int32 seriesOrdinal = 11 [default = 0]; // refresh order in its series, 0 for initial refresh
+}
+
+// materialization job details
+message JobDetails {
+  optional string jobId = 1;
+  optional int64 jobStart = 2;
+  optional int64 jobEnd = 3;
+  optional int64 inputBytes = 4;
+  optional int64 inputRecords = 5;
+  optional int64 outputBytes = 6;
+  optional int64 outputRecords = 7;
+}
+
+message RefreshDecision {
+  optional bool initialRefresh = 1;
+  optional int64 updateId = 2;
+  optional int64 seriesId = 3;
+  optional com.dremio.service.namespace.dataset.proto.AccelerationSettings accelerationSettings = 4;
+  optional int32 datasetHash = 5;
+  optional bytes logicalPlan = 6;
+  repeated ScanPath scanPaths = 7;
+  optional int32 seriesOrdinal = 8 [default = 0];
+}
+
+// data partition host address
+message DataPartition {
+  required string address = 1;
+}
+
+// details about materialization
+message MaterializationMetrics {
+  // how many bytes does
+  required int64 footprint = 1 [default = 0];
+  // original query cost of running view definition
+  required double originalCost = 2 [default = 1.0];
+}
+
+message JoinDependencyProperties {
+  message Dependency {
+    repeated string foreign_key_table = 1;
+    repeated string unique_key_table = 2;
+  }
+
+  repeated Dependency dependency = 1;
+}
+

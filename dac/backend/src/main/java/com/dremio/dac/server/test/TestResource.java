@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,27 +28,29 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.SecurityContext;
 
 import org.glassfish.jersey.server.mvc.Viewable;
 
 import com.dremio.dac.admin.ProfileResource;
 import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.annotations.RestResourceUsedForTesting;
-import com.dremio.dac.server.SourceToStoragePluginConfig;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.users.UserService;
-import com.google.common.collect.Sets;
 
 /**
  * Test Resource.
@@ -60,32 +62,34 @@ public class TestResource {
   private final KVStoreProvider provider;
   private final SabotContext context;
   private final UserService userService;
-  private final StoragePluginRegistry plugins;
-  private final SourceToStoragePluginConfig configurator;
   private final InitializerRegistry init;
+  private final SecurityContext security;
+  private ConnectionReader connectionReader;
   private final JobsService jobsService;
   private final CatalogService catalogService;
+  private final ReflectionServiceHelper reflectionHelper;
 
   @Inject
   public TestResource(InitializerRegistry init, SabotContext context, UserService userService,
-                      KVStoreProvider provider, StoragePluginRegistry plugins,
-                      SourceToStoragePluginConfig configurator, JobsService jobsService,
-                      CatalogService catalogService) {
+                      KVStoreProvider provider, JobsService jobsService,
+                      CatalogService catalogService, ReflectionServiceHelper reflectionHelper,
+                      SecurityContext security, ConnectionReader connectionReader) {
     this.init = init;
     this.provider = provider;
     this.context = context;
     this.userService = userService;
-    this.plugins = plugins;
-    this.configurator = configurator;
     this.jobsService = jobsService;
     this.catalogService = catalogService;
+    this.reflectionHelper = reflectionHelper;
+    this.security = security;
+    this.connectionReader = connectionReader;
   }
 
   @Bootstrap
   @POST
   @Path("create")
   public void createTestDataset() throws Exception {
-    context.getStorage().updateNamespace(Sets.newHashSet("cp"), CatalogService.REFRESH_EVERYTHING_NOW);
+    refreshNow("cp");
 
     // TODO: Clean up this mess
     SampleDataPopulator.addDefaultFirstUser(userService, new NamespaceServiceImpl(provider));
@@ -99,19 +103,23 @@ public class TestResource {
   }
 
   private DatasetVersionMutator newDS(NamespaceService nsWithAuth) {
-    return new DatasetVersionMutator(init, provider, nsWithAuth, jobsService);
+    return new DatasetVersionMutator(init, provider, nsWithAuth, jobsService, catalogService);
   }
 
   private SourceService newSourceService(NamespaceService nsWithAuth, DatasetVersionMutator ds) {
-    return new SourceService(plugins, nsWithAuth, configurator, ds, catalogService);
+    return new SourceService(nsWithAuth, ds, catalogService, reflectionHelper, connectionReader, security);
+  }
+
+  public void refreshNow(String...sources) throws NamespaceException {
+    for(String source : sources) {
+      context.getCatalogService().refreshSource(new NamespaceKey(source), CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    }
   }
 
   @POST
   @Path("clear")
   public void clearTestDataset() throws Exception {
-    ((LocalKVStoreProvider) provider).deleteEverything();
-    context.getStorage().updateNamespace(Sets.newHashSet("__jobResultsStore", "__home", "__accelerator", "__datasetDownload", "$scratch", "sys", "INFORMATION_SCHEMA"),
-      CatalogService.REFRESH_EVERYTHING_NOW);
+    TestUtilities.clear(catalogService, provider, null, null);
   }
 
   @GET

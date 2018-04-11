@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,28 @@
 package com.dremio.exec.planner.sql;
 
 import org.apache.calcite.plan.CopyWithCluster;
-import org.apache.calcite.plan.RelOptCluster;
 
 import com.google.common.base.Preconditions;
 
-
 /**
- * Cached implementation that deserializes the rel tree once, then copies over the materialization
- * to the target {@link RelOptCluster}
+ * {@link MaterializationDescriptor} that caches the expanded {@link DremioRelOptMaterialization}
  */
 public class CachedMaterializationDescriptor extends MaterializationDescriptor {
 
   private final DremioRelOptMaterialization materialization;
 
   public CachedMaterializationDescriptor(MaterializationDescriptor descriptor, DremioRelOptMaterialization materialization) {
-    super(descriptor.getAccelerationId(),
-          descriptor.getLayoutInfo(),
+    super(descriptor.getLayoutInfo(),
           descriptor.getMaterializationId(),
-          descriptor.getUpdateId(),
+          descriptor.getVersion(),
           descriptor.getExpirationTimestamp(),
           descriptor.getPlan(),
           descriptor.getPath(),
           descriptor.getOriginalCost(),
+          descriptor.getJobStart(),
+          descriptor.getPartition(),
           descriptor.getIncrementalUpdateSettings(),
-          descriptor.isComplete());
+          descriptor.getJoinDependencyProperties());
     this.materialization = Preconditions.checkNotNull(materialization, "materialization is required");
   }
 

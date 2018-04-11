@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.exec.planner.cost;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
@@ -27,11 +28,10 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.planner.common.FlattenRelBase;
 import com.dremio.exec.planner.common.JdbcRelBase;
-import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.physical.FlattenPrel;
 
-public class RelMdRowCount extends  org.apache.calcite.rel.metadata.RelMdRowCount {
+public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount {
   private static final RelMdRowCount INSTANCE = new RelMdRowCount();
 
   public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.ROW_COUNT.method, INSTANCE);
@@ -42,14 +42,15 @@ public class RelMdRowCount extends  org.apache.calcite.rel.metadata.RelMdRowCoun
 
     if (groupKey.isEmpty()) {
       return 1.0;
-    } else {
-      return rel.estimateRowCount(mq);
     }
+
+    return rel.estimateRowCount(mq);
   }
 
   // DX-3859:  Need to make sure that join row count is calculated in a reasonable manner.  Calcite's default
   // implementation is leftRowCount * rightRowCount * discountBySelectivity, which is too large (cartesian join).
   // Since we do not support cartesian join, we should just take the maximum of the two join input row counts.
+  @Override
   public Double getRowCount(Join rel, RelMetadataQuery mq) {
     if (rel.getCondition().isAlwaysTrue()) {
       return super.getRowCount(rel, mq);
@@ -62,7 +63,7 @@ public class RelMdRowCount extends  org.apache.calcite.rel.metadata.RelMdRowCoun
     if (rel.getJoinFilter().isAlwaysTrue()) {
       double rowCount = 1;
       for (RelNode input : rel.getInputs()) {
-        rowCount *= input.estimateRowCount(mq);
+        rowCount *= mq.getRowCount(input);
       }
       return rowCount;
     } else {
@@ -88,5 +89,10 @@ public class RelMdRowCount extends  org.apache.calcite.rel.metadata.RelMdRowCoun
 
   public Double getRowCount(JdbcRelBase jdbc, RelMetadataQuery mq) {
     return jdbc.getJdbcSubTree().estimateRowCount(mq);
+  }
+
+  @Override
+  public Double getRowCount(Filter rel, RelMetadataQuery mq) {
+    return rel.estimateRowCount(mq);
   }
 }

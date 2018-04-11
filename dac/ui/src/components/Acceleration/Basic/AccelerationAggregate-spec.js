@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,15 +26,18 @@ describe('AccelerationAggregate', () => {
 
   beforeEach(() => {
     minimalProps = {
+      dataset: Immutable.fromJS({
+        fields: [
+          {name: 'c1', type: {name: 't1'}}
+        ]
+      }),
       fields: {
-        aggregationLayouts: {
+        aggregationReflections: [{
           enabled: true
-        }
+        }]
       }
     };
     commonProps = {
-      acceleration: Immutable.Map(),
-      fullPath: '',
       location: {},
       style: {},
       textStyle: {},
@@ -80,24 +83,11 @@ describe('AccelerationAggregate', () => {
     });
   });
 
-  describe('#mapToDataset', function() {
-
-    it('should return displayFullPath', function() {
-      const instance = shallow(<AccelerationAggregate {...commonProps}/>).instance();
-      const props = {
-        fullPath: 'path'
-      };
-      expect(instance.mapToDataset(props)).to.be.eql(Immutable.fromJS({
-        displayFullPath: Immutable.List(['path'])
-      }));
-    });
-  });
-
   describe('#mapSchemaToColumns', function() {
 
     it('should return columns', function() {
       const instance = shallow(<AccelerationAggregate {...commonProps}/>).instance();
-      const acceleration = Immutable.fromJS({
+      const acceleration = Immutable.fromJS({ // update
         context: {
           datasetSchema: {
             fieldList: [

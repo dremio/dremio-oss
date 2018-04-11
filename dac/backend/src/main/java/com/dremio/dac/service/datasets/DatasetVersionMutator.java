@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,22 +26,16 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.MIN_VERSION;
 import static java.lang.String.format;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Map.Entry;
 
 import javax.inject.Inject;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
-import com.dremio.config.DremioConfig;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.common.RootEntity.RootType;
@@ -63,12 +57,8 @@ import com.dremio.datastore.Serializer;
 import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.StringSerializer;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.service.BindingProvider;
-import com.dremio.service.Initializer;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.jobs.Job;
@@ -92,9 +82,10 @@ public class DatasetVersionMutator {
   private static final Logger logger = LoggerFactory.getLogger(DatasetVersionMutator.class);
 
   private final NamespaceService namespaceService;
+  private final InitializerRegistry init;
   private final JobsService jobsService;
+  private final CatalogService catalogService;
 
-  private final DatasetDownloadManager datasetDownloadManager;
   private final KVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
 
   @Inject
@@ -102,14 +93,19 @@ public class DatasetVersionMutator {
       final InitializerRegistry init,
       final KVStoreProvider kv,
       final NamespaceService namespaceService,
-      final JobsService jobsService) {
+      final JobsService jobsService,
+      final CatalogService catalogService) {
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.datasetVersions = kv.getStore(VersionStoreCreator.class);
-    InitializerImpl initd = init.get(InitializerImpl.class);
-    this.datasetDownloadManager = new DatasetDownloadManager(jobsService, initd.getDownloadRootDir(), initd.getFileSystem());
+    this.catalogService = catalogService;
+    this.init = init;
   }
 
+  private DatasetDownloadManager downloadManager() {
+    final FileSystemPlugin downloadPlugin = catalogService.getSource(DATASET_DOWNLOAD_STORAGE_PLUGIN);
+    return new DatasetDownloadManager(jobsService, downloadPlugin.getConfig().getPath(), downloadPlugin.getFs());
+  }
   private void validate(DatasetPath path, VirtualDatasetUI ds) {
     if (ds.getSqlFieldsList() == null || ds.getSqlFieldsList().isEmpty()) {
       throw new IllegalArgumentException("SqlFields can't be null for " + path);
@@ -328,7 +324,7 @@ public class DatasetVersionMutator {
 
     final FindByCondition condition = new FindByCondition()
         .setCondition(searchQuery)
-        .setLimit(100)
+        .setLimit(100) // TODO(DX-10859): this should be in the function API
         .addSorting(DEFAULT_SORTING);
 
     final List<DatasetConfig> datasets = Lists.newArrayList();
@@ -344,12 +340,12 @@ public class DatasetVersionMutator {
                              int limit, String userName) throws DatasetVersionNotFoundException, IOException {
     // TODO check if user can access this dataset.
     final VirtualDatasetUI vds = getVersion(datasetPath, datasetVersion);
-    return datasetDownloadManager.scheduleDownload(datasetPath, vds, downloadFormat, limit, userName);
+    return downloadManager().scheduleDownload(datasetPath, vds, downloadFormat, limit, userName);
   }
 
   public DownloadDataResponse downloadData(DownloadInfo downloadInfo, String userName) throws IOException {
     // TODO check if user can access this dataset.
-    return datasetDownloadManager.getDownloadData(downloadInfo);
+    return downloadManager().getDownloadData(downloadInfo);
   }
 
 
@@ -365,41 +361,6 @@ public class DatasetVersionMutator {
           .keySerializer(VersionDatasetKeySerializer.class)
           .valueSerializer(VirtualDatasetVersionSerializer.class)
           .build();
-    }
-
-  }
-
-  /**
-   * Directory initializer for downloads
-   */
-  public static class InitializerImpl implements Initializer<InitializerImpl> {
-
-    private FileSystem fs;
-    private URI downloadRootDir;
-
-    @Override
-    public InitializerImpl initialize(BindingProvider provider) throws ExecutionSetupException, IllegalArgumentException, IOException {
-      final StoragePluginRegistry plugins = provider.lookup(StoragePluginRegistry.class);
-      final DremioConfig config = provider.lookup(DremioConfig.class);
-
-      final Configuration fsConf = new Configuration();
-      this.downloadRootDir = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
-      this.fs = FileSystemWrapper.get(downloadRootDir, fsConf);
-      fs.mkdirs(new Path(downloadRootDir.getPath()));
-
-      // TODO: Make this SYSTEM_TABLE and update write pattern to write all files as system user.
-      final SchemaMutability mutability = SchemaMutability.USER_TABLE;
-      FileSystemConfig fileSystemConfig = new FileSystemConfig(downloadRootDir, mutability);
-      plugins.createOrUpdate(DATASET_DOWNLOAD_STORAGE_PLUGIN, fileSystemConfig, null, true);
-      return this;
-    }
-
-    public FileSystem getFileSystem() {
-      return fs;
-    }
-
-    public URI getDownloadRootDir() {
-      return downloadRootDir;
     }
 
   }

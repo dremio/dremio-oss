@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
     defaultValue: PropTypes.string,
     isGrayed: PropTypes.bool,
     context: PropTypes.instanceOf(Immutable.List),
+    errors: PropTypes.instanceOf(Immutable.List),
     name: PropTypes.string,
     sqlSize: PropTypes.number,
     datasetsPanel: PropTypes.bool,
@@ -264,7 +265,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
 
   render() {
     const height = this.props.sqlSize - MARGIN_SQL_EDITOR;
-    const { datasetsPanel, funcHelpPanel, isGrayed } = this.props;
+    const { datasetsPanel, funcHelpPanel, isGrayed, errors } = this.props;
     const { query } = this.context.location;
     const widthSqlEditor = funcHelpPanel || datasetsPanel ? styles.smallerSqlEditor : {};
     return (
@@ -284,6 +285,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
             ref={(ref) => this.sqlEditor = ref}
             defaultValue={this.props.defaultValue}
             onChange={this.handleChange}
+            errors={errors}
             />
           { query.type !== 'transform' && this.renderContext() }
         </div>

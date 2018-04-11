@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,8 +56,8 @@ describe('AggregateForm', () => {
       }])
     };
 
-    commonProps.fields.columnsDimensions.addField = sinon.spy();
-    commonProps.fields.columnsDimensions.removeField = sinon.spy();
+    commonProps.fields.columnsDimensions.addField = sinon.stub().resolves();
+    commonProps.fields.columnsDimensions.removeField = sinon.stub().resolves();
 
     wrapper = shallow(<AggregateForm {...commonProps}/>);
     instance = wrapper.instance();
@@ -169,10 +169,17 @@ describe('AggregateForm', () => {
       wrapper.setProps({ fields });
     });
 
-    it('should clear all measures column', () => {
+    it('should clear all measures column', (done) => {
       const calledTimes = fields.columnsMeasures.length;
+
+      fields.columnsMeasures.removeField = sinon.stub().resolves();
+
       instance.handleClearAllMeasures();
-      expect(fields.columnsMeasures.removeField).to.have.callCount(calledTimes);
+
+      setTimeout(() => {
+        expect(fields.columnsMeasures.removeField).to.have.callCount(calledTimes);
+        done();
+      }, 100);
     });
   });
 });

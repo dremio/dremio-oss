@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,9 +62,8 @@ public final class ProtocolBuilder {
   }
 
   @SuppressWarnings("unchecked")
-  public <REQUEST extends MessageLite, RESPONSE extends MessageLite> SendEndpointCreator<REQUEST, RESPONSE> register(
-      int id,
-      ReceiveHandler<REQUEST, RESPONSE> handler) {
+  public <REQUEST extends MessageLite, RESPONSE extends MessageLite>
+  SendEndpointCreator<REQUEST, RESPONSE> register(int id, ReceiveHandler<REQUEST, RESPONSE> handler) {
     Preconditions.checkArgument(id > -1 && id < 2048, "A request id must be between 0 and 2047.");
     Preconditions.checkNotNull(handler);
     Preconditions.checkArgument(!handlers.containsKey(id), "Only a single handler can be registered per id. You tried to register a handler for id %d twice.", id);

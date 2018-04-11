@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,11 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
+import com.dremio.exec.store.RecordWriter.WriteStatsListener;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Charsets;
 
@@ -40,7 +43,9 @@ public class WriterOperator implements SingleInputOperator {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOperator.class);
 
   private final Listener listener = new Listener();
+  private final StatsListener statsListener = new StatsListener();
   private final OperatorContext context;
+  private final OperatorStats stats;
   private final RecordWriter recordWriter;
   private final String fragmentUniqueId;
   private final VectorContainer output;
@@ -61,13 +66,29 @@ public class WriterOperator implements SingleInputOperator {
 
   private WritePartition partition = null;
 
+  private long writtenRecords = 0L;
+  private long writtenRecordLimit = 0L;
+  private boolean reachedOutputLimit = false;
+
+  public static enum Metric implements MetricDef {
+    BYTES_WRITTEN,    // Number of bytes written to the output file(s)
+    OUTPUT_LIMITED;   // 1, if the output limit was reached; 0, if not
+
+    @Override
+    public int metricId() {
+      return ordinal();
+    }
+  }
+
   public WriterOperator(OperatorContext context, WriterOptions options, RecordWriter recordWriter) throws OutOfMemoryException {
     this.context = context;
+    this.stats = context.getStats();
     this.output = VectorContainer.create(context.getAllocator(), RecordWriter.SCHEMA);
     this.options = options;
     final FragmentHandle handle = context.getFragmentHandle();
     this.fragmentUniqueId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
     this.recordWriter = recordWriter;
+    this.writtenRecordLimit = options.getRecordLimit();
   }
 
   @Override
@@ -77,9 +98,9 @@ public class WriterOperator implements SingleInputOperator {
     if(options.hasPartitions()){
       partitionManager = new PartitionWriteManager(options, incoming);
       this.maskedContainer = partitionManager.getMaskedContainer();
-      recordWriter.setup(maskedContainer, listener);
+      recordWriter.setup(maskedContainer, listener, statsListener);
     } else {
-      recordWriter.setup(incoming, listener);
+      recordWriter.setup(incoming, listener, statsListener);
     }
 
     // Create the RecordWriter.SCHEMA vectors.
@@ -105,7 +126,14 @@ public class WriterOperator implements SingleInputOperator {
         recordWriter.startPartition(partition);
       }
       recordWriter.writeBatch(0, records);
-      moveToCanProduceStateIfOutputExists();
+      writtenRecords += records;
+      if (writtenRecords > writtenRecordLimit) {
+        recordWriter.close();
+        reachedOutputLimit = true;
+        state = State.CAN_PRODUCE;
+      } else {
+        moveToCanProduceStateIfOutputExists();
+      }
       return;
     }
 
@@ -168,7 +196,8 @@ public class WriterOperator implements SingleInputOperator {
 
     listener.entries.clear();
 
-    if(completedInput){
+    if(completedInput || reachedOutputLimit) {
+      stats.addLongStat(Metric.OUTPUT_LIMITED, reachedOutputLimit ? 1 : 0);
       state = State.DONE;
     } else {
       state = State.CAN_CONSUME;
@@ -214,6 +243,12 @@ public class WriterOperator implements SingleInputOperator {
       entries.add(new OutputEntry(recordCount, path, metadata, partitionNumber));
     }
 
+  }
+
+  private class StatsListener implements WriteStatsListener {
+    public void bytesWritten(long byteCount) {
+      stats.addLongStat(Metric.BYTES_WRITTEN, byteCount);
+    }
   }
 
   private class OutputEntry {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -306,11 +306,6 @@ public class TestInfoSchema extends BaseTestQuery {
   public void useSchemaNegative() throws Exception{
     errorMsgTestHelper("USE invalid.schema",
       "Schema [invalid.schema] is not valid with respect to either root schema or current default schema.");
-  }
-
-  @Test
-  public void showFiles() throws Exception {
-    test("show files from dfs_test");
   }
 
   @Ignore("Sensitive to tmp directory changes during execution.")

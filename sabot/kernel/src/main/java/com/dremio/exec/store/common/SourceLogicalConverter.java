@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,20 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
-import com.dremio.service.namespace.StoragePluginType;
 
 public abstract class SourceLogicalConverter extends ConverterRule {
 
-  private final StoragePluginType pluginType;
+  private final SourceType pluginType;
 
-  public SourceLogicalConverter(StoragePluginType pluginType) {
-    super(ScanCrel.class, Convention.NONE, Rel.LOGICAL, pluginType.generateRuleName("LogicalScanConverter"));
+  public SourceLogicalConverter(Class<? extends ConnectionConf<?, ?>> clazz) {
+    this(clazz.getAnnotation(SourceType.class));
+  }
+
+  public SourceLogicalConverter(SourceType pluginType) {
+    super(ScanCrel.class, Convention.NONE, Rel.LOGICAL, pluginType.value() + "LogicalScanConverter");
     this.pluginType = pluginType;
   }
 

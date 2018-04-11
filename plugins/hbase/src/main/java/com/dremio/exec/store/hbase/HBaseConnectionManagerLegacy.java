@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -137,7 +137,7 @@ public final class HBaseConnectionManagerLegacy {
     }
 
     public Configuration getHBaseConf() {
-      HBaseStoragePluginConfig config = pluginId.getConfig();
+      HBaseConf config = pluginId.getConnectionConf();
       return config.getHBaseConf();
     }
 

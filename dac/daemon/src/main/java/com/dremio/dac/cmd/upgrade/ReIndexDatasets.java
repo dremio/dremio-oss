@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 public class ReIndexDatasets extends UpgradeTask {
 
   public ReIndexDatasets() {
-    super("ReIndex stores", VERSION_120, VERSION_140);
+    super("ReIndex stores", VERSION_120, VERSION_150);
     }
 
   @Override

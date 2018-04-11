@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,13 +40,17 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.JoinRecommendation;
 import com.dremio.dac.explore.model.JoinRecommendations;
 import com.dremio.dac.proto.model.dataset.JoinType;
-import com.dremio.service.job.proto.JoinConditionInfo;
-import com.dremio.service.job.proto.JoinInfo;
+import com.dremio.service.job.proto.JoinAnalysis;
+import com.dremio.service.job.proto.JoinCondition;
+import com.dremio.service.job.proto.JoinStats;
+import com.dremio.service.job.proto.JoinTable;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableListMultimap.Builder;
 
@@ -99,16 +103,30 @@ public class JobsBasedRecommender implements JoinRecommender {
           continue;
         }
         long recency = now - startTime;
-        List<JoinInfo> joins = getJoins(job);
+        JoinAnalysis joinAnalysis = getJoins(job);
 
-        if (joins != null) {
-          for (final JoinInfo join : joins) {
-            if (parents.contains(join.getLeftTablePathList())) {
-              addJoinReco(refs, recommendations, recency, join, join.getRightTablePathList(), join.getLeftTablePathList());
+        if (joinAnalysis != null && joinAnalysis.getJoinStatsList() != null && joinAnalysis.getJoinTablesList() != null) {
+          Map<Integer,JoinTable> joinTables = FluentIterable.from(joinAnalysis.getJoinTablesList())
+            .uniqueIndex(new Function<JoinTable, Integer>() {
+              @Override
+              public Integer apply(JoinTable joinTable) {
+                return joinTable.getTableId();
+              }
+            });
+
+          for (final JoinStats join : joinAnalysis.getJoinStatsList()) {
+            // ignore if join analysis is missing join conditions
+            if (join.getJoinConditionsList() == null || join.getJoinConditionsList().isEmpty()) {
+              continue;
+            }
+            List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
+            List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
+            if (parents.contains(leftTablePathList)) {
+              addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList);
             }
             // we can add it both ways if both tables are there
-            if (parents.contains(join.getRightTablePathList())) {
-              addJoinReco(refs, recommendations, recency, join, join.getLeftTablePathList(), join.getRightTablePathList());
+            if (parents.contains(rightTablePathList)) {
+              addJoinReco(refs, recommendations, recency, join, leftTablePathList, rightTablePathList);
             }
           }
         }
@@ -124,15 +142,13 @@ public class JobsBasedRecommender implements JoinRecommender {
     List<JoinRecoForScoring> mergedRecommendations = new ArrayList<>();
     for (Entry<JoinRecommendation, Collection<JoinRecoForScoring>> recos : index.asMap().entrySet()) {
       JoinRecommendation key = recos.getKey();
-      int degreesOfSeparation = Integer.MAX_VALUE;
       long recency = Long.MAX_VALUE;
       int jobCount = 0;
       for (JoinRecoForScoring joinReco : recos.getValue()) {
-        degreesOfSeparation = Math.min(degreesOfSeparation, joinReco.degreesOfSeparation);
-        recency = Math.min(degreesOfSeparation, joinReco.recency);
+        recency = Math.min(recency, joinReco.recency);
         jobCount += joinReco.jobCount;
       }
-      mergedRecommendations.add(new JoinRecoForScoring(key, degreesOfSeparation, jobCount, recency));
+      mergedRecommendations.add(new JoinRecoForScoring(key, jobCount, recency));
     }
     Collections.sort(mergedRecommendations);
     return recos(mergedRecommendations);
@@ -159,14 +175,17 @@ public class JobsBasedRecommender implements JoinRecommender {
 
   private void addJoinReco(
       Map<Origin, String> refs, List<JoinRecoForScoring> recommendations, long recency,
-      JoinInfo join, List<String> rightTable, List<String> leftTable) {
-    Map<String, String> j = translateConditions(refs, leftTable, rightTable, join.getConditionsList());
+      JoinStats joinStats, List<String> rightTable, List<String> leftTable) {
+    Map<String, String> j = translateConditions(joinStats);
     if (j != null) {
-      recommendations.add(new JoinRecoForScoring(new JoinRecommendation(toJoinType(join.getJoinType()), rightTable, j), join.getDegreesOfSeparation(), 1, recency));
+      recommendations.add(new JoinRecoForScoring(new JoinRecommendation(toJoinType(joinStats.getJoinType()), rightTable, j), 1, recency));
     }
   }
 
   private JoinType toJoinType(com.dremio.service.job.proto.JoinType joinType) {
+    if (joinType == null) {
+      return null;
+    }
     switch(joinType) {
     case Inner:
       return JoinType.Inner;
@@ -189,44 +208,17 @@ public class JobsBasedRecommender implements JoinRecommender {
     return joinRecommendations;
   }
 
-  private Map<String, String> translateConditions(
-      Map<Origin, String> refs,
-      List<String> leftTable, List<String> rightTable,
-      List<JoinConditionInfo> conditions) {
+  private Map<String, String> translateConditions(JoinStats stats) {
     SortedMap<String, String> joinConditions = new TreeMap<>();
     // translate names if needed
-    for (JoinConditionInfo condition : conditions) {
-      String leftColumn;
-      String rightColumn;
-      // figure out which is which
-      if (condition.getTableAList().equals(leftTable) &&
-          condition.getTableBList().equals(rightTable)) {
-        leftColumn = condition.getColumnA();
-        rightColumn = condition.getColumnB();
-      } else if (
-          condition.getTableBList().equals(leftTable) &&
-          condition.getTableAList().equals(rightTable)) {
-        leftColumn = condition.getColumnB();
-        rightColumn = condition.getColumnA();
-      } else {
-        // this join condition refers a col that is not in the dataset
-        return null;
-      }
-      String leftColumAlias = refs.get(new Origin(leftColumn, false).setTableList(leftTable));
-      if (leftColumAlias != null) {
-        // if this column is actually in the dataset, translate the name
-        leftColumn = leftColumAlias;
-      } else {
-        // this join condition refers a col that is not in the dataset
-        return null;
-      }
-      joinConditions.put(leftColumn, rightColumn);
+    for (JoinCondition joinCondition : stats.getJoinConditionsList()) {
+      joinConditions.put(joinCondition.getProbeSideColumn(), joinCondition.getBuildSideColumn());
     }
     return joinConditions;
   }
 
-  private List<JoinInfo> getJoins(Job job) {
-    return job.getJobAttempt().getInfo().getJoinsList();
+  private JoinAnalysis getJoins(Job job) {
+    return job.getJobAttempt().getInfo().getJoinAnalysis();
   }
 
 
@@ -234,29 +226,21 @@ public class JobsBasedRecommender implements JoinRecommender {
     private final JoinRecommendation joinReco;
     // for scoring
     private final int jobCount;
-    private final int degreesOfSeparation;
     private final long recency;
 
     public JoinRecoForScoring(
         JoinRecommendation joinReco,
-        int degreesOfSeparation,
         int jobCount,
         long recency) {
       this.joinReco = joinReco;
-      this.degreesOfSeparation = degreesOfSeparation;
       this.jobCount = jobCount;
       this.recency = recency;
     }
 
     @Override
     public int compareTo(JoinRecoForScoring other) {
-      // we want less
-      int c = Integer.compare(degreesOfSeparation, other.degreesOfSeparation);
-      if (c != 0) {
-        return c;
-      }
       // we want more
-      c = - Integer.compare(jobCount, other.jobCount);
+      int c = - Integer.compare(jobCount, other.jobCount);
       if (c != 0) {
         return c;
       }

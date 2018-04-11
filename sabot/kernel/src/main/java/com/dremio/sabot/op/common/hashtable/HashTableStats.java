@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ public class HashTableStats {
     stats.setLongStat(Metric.RESIZING_TIME_NANOS, resizingTime);
   }
 
-  public static enum Metric implements MetricDef {
+  public enum Metric implements MetricDef {
 
     NUM_BUCKETS,
     NUM_ENTRIES,
@@ -60,7 +60,10 @@ public class HashTableStats {
     PROBE_COPY_NANOS,
     BUILD_COPY_NANOS,
     BUILD_COPY_NOMATCH_NANOS,
-    LINK_TIME_NANOS
+    LINK_TIME_NANOS,
+    UNMATCHED_BUILD_COUNT,
+    UNMATCHED_PROBE_COUNT,
+    OUTPUT_RECORDS
     ;
 
     @Override

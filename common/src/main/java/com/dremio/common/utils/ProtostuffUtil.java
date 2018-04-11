@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,6 +66,24 @@ public final class ProtostuffUtil {
         .build(logger);
     }
   }
+
+  /**
+   *
+   * @param to immutable
+   * @param from immutable
+   * @param <T>
+   * @return result of merge from into to
+   */
+  public static <T extends Message<T>> T merge(T to, T from) throws IOException {
+    Schema<T> schema = from.cachedSchema();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    GraphIOUtil.writeDelimitedTo(new DataOutputStream(out), from, schema);
+    ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
+    T cloneTo = copy(to);
+    GraphIOUtil.mergeDelimitedFrom(in, cloneTo, schema);
+    return cloneTo;
+  }
+
 
   /**
    * Convert a JSON stream into a Java object

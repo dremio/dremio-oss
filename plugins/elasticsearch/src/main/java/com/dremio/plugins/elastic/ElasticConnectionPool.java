@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserException.Builder;
+import com.dremio.exec.catalog.conf.Host;
 import com.dremio.plugins.Version;
 import com.dremio.plugins.elastic.ElasticActions.ContextListener;
 import com.dremio.plugins.elastic.ElasticActions.ElasticAction;
@@ -66,6 +67,7 @@ import com.dremio.ssl.SSLHelper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
@@ -99,7 +101,7 @@ public class ElasticConnectionPool implements AutoCloseable {
 
   private volatile ImmutableMap<String, WebTarget> clients;
   private Client client;
-  private final String delimitedHosts;
+  private final List<Host> hosts;
   private final String protocol;
   private final String username;
   private final String password;
@@ -133,14 +135,14 @@ public class ElasticConnectionPool implements AutoCloseable {
 
 
   public ElasticConnectionPool(
-      String delimitedHosts,
+      List<Host> hosts,
       boolean enableSsl,
       String username,
       String password,
       int readTimeoutMillis,
       boolean useWhitelist){
     this.protocol = enableSsl ? "https" : "http";
-    this.delimitedHosts = delimitedHosts;
+    this.hosts = ImmutableList.copyOf(hosts);
     this.username = username;
     this.password = password;
     this.readTimeoutMillis = readTimeoutMillis;
@@ -180,9 +182,9 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     @SuppressWarnings("resource")
     final DeferredException ex = new DeferredException();
-    for(String seed :  delimitedHosts.split(",")){
+    for(Host host1 : hosts){
       try {
-        final List<HostAndAddress> hosts = getHostList(seed);
+        final List<HostAndAddress> hosts = getHostList(host1);
         final Set<String> hostSet = new HashSet<>();
 
 
@@ -203,21 +205,21 @@ public class ElasticConnectionPool implements AutoCloseable {
         if(ex.hasException()){
           StringBuilder sb = new StringBuilder();
           sb.append("One or more failures trying to get host list from a defined seed host. Update was ultimately succesful connecting to ");
-          sb.append(seed);
+          sb.append(host1.toCompound());
           sb.append(":\n\n");
           sb.append(getAvailableHosts());
           logger.info(sb.toString(), ex.getAndClear());
         } else {
           StringBuilder sb = new StringBuilder();
           sb.append("Retrieved Elastic host list from ");
-          sb.append(seed);
+          sb.append(host1.toCompound());
           sb.append(":\n\n");
           sb.append(getAvailableHosts());
           logger.info(sb.toString());
         }
         return;
       }catch (Exception e){
-        ex.addException(new RuntimeException(String.format("Failure getting server list from seed host ", seed), e));
+        ex.addException(new RuntimeException(String.format("Failure getting server list from seed host ", host1.toCompound()), e));
       }
     }
 
@@ -308,14 +310,13 @@ public class ElasticConnectionPool implements AutoCloseable {
    * @return A list of host names and http addresses.
    * @throws IOException
    */
-  private List<HostAndAddress> getHostList(String initialHost) throws IOException {
+  private List<HostAndAddress> getHostList(Host initialHost) throws IOException {
     final List<HostAndAddress> hosts = new ArrayList<>();
 
     //check if this is a valid host if whitelist is enabled
     if(useWhitelist) {
-      boolean validHost = false;
-      for (String givenHost : delimitedHosts.split(",")) {
-        hosts.add(new HostAndAddress(givenHost.split(":")[0], givenHost));
+      for (Host givenHost : this.hosts) {
+        hosts.add(new HostAndAddress(givenHost.hostname, givenHost.toCompound()));
       }
 
       return hosts;
@@ -473,10 +474,6 @@ public class ElasticConnectionPool implements AutoCloseable {
   }
 
   private static UserException.Builder addResponseInfo(UserException.Builder builder, Response response) {
-    if(response == null){
-      return builder;
-    }
-
     try {
       builder.addContext("Response Status", response.getStatusInfo().getStatusCode());
       builder.addContext("Response Reason", response.getStatusInfo().getReasonPhrase());
@@ -490,22 +487,49 @@ public class ElasticConnectionPool implements AutoCloseable {
 
   private static UserException handleException(Exception e, ElasticAction2<?> action, ContextListenerImpl listener) {
     if (e instanceof ResponseProcessingException) {
-      throw addResponseInfo(
-          listener.addContext(UserException.dataReadError(e)
-              .message("Failure consuming response from Elastic cluster during %s.", action.getAction())),
-          ((ResponseProcessingException) e).getResponse()).build(logger);
+      final UserException.Builder builder = UserException.dataReadError(e)
+          .message("Failure consuming response from Elastic cluster during %s.", action.getAction());
+
+      listener.addContext(builder);
+
+      final Response response = ((ResponseProcessingException) e).getResponse();
+      if(response != null) {
+        addResponseInfo(builder, response);
+      }
+      return builder.build(logger);
     }
+
     if (e instanceof WebApplicationException) {
-      throw addResponseInfo(
-          listener.addContext(
-              UserException.dataReadError(e).message("Failure executing Elastic request %s.", action.getAction())),
-          ((WebApplicationException) e).getResponse()).build(logger);
-    } else {
-      return listener
-          .addContext(
-              UserException.dataReadError(e).message("Failure executing Elastic request %s.", action.getAction()))
-          .build(logger);
+      final UserException.Builder builder;
+      final Response response = ((WebApplicationException) e).getResponse();
+      if (response == null) {
+        builder = UserException.dataReadError(e)
+            .message("Failure executing Elastic request %s.", action.getAction());
+
+        listener.addContext(builder);
+      } else {
+        switch (Response.Status.fromStatusCode(response.getStatus())) {
+        case NOT_FOUND: { // index not found
+          builder = UserException.invalidMetadataError(e)
+              .message("Failure executing Elastic request %s.", action.getAction());
+          break;
+        }
+        default:
+          builder = UserException.dataReadError(e)
+              .message("Failure executing Elastic request %s.", action.getAction());
+          break;
+        }
+
+        listener.addContext(builder);
+        addResponseInfo(builder, response);
+      }
+
+      return builder.build(logger);
     }
+
+    return listener.addContext(UserException.dataReadError(e)
+        .message("Failure executing Elastic request %s.", action.getAction()))
+        .build(logger);
   }
 
   private static class AsyncCallback<T> implements InvocationCallback<T> {
@@ -543,7 +567,7 @@ public class ElasticConnectionPool implements AutoCloseable {
       // need to cast to jersey since the core javax.ws.rs Invocation doesn't support a typed submission.
       final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener);
       final SettableFuture<T> future = SettableFuture.create();
-      invocation.submit(new GenericType<T>(action.getResponseClass()), new AsyncCallback<T>(future));
+      invocation.submit(new GenericType<T>(action.getResponseClass()), new AsyncCallback<>(future));
       return Futures.makeChecked(future, new Function<Exception, UserException>(){
         @Override
         public UserException apply(Exception input) {

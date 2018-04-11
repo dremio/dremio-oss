@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,15 +31,12 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
-import org.apache.calcite.util.Util;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.exceptions.UserException;
@@ -50,12 +47,10 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.WriterRel;
-import com.dremio.exec.planner.sql.SchemaUtilities;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.store.AbstractSchema;
-import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -227,17 +222,6 @@ public class SqlHandlerUtil {
     }
   }
 
-  public static Table getTableFromSchema(AbstractSchema schema, String tblName) {
-    try {
-      return schema.getTable(tblName);
-    } catch (Exception e) {
-      // TODO: Move to better exception types.
-      throw new RuntimeException(
-          String.format("Failure while trying to check if a table or view with given name [%s] already exists " +
-              "in schema [%s]: %s", tblName, schema.getFullSchemaName(), e.getMessage()), e);
-    }
-  }
-
   public static void unparseSqlNodeList(SqlWriter writer, int leftPrec, int rightPrec, SqlNodeList fieldList) {
     writer.keyword("(");
     fieldList.get(0).unparse(writer, leftPrec, rightPrec);
@@ -263,24 +247,24 @@ public class SqlHandlerUtil {
       return inputRel;
     }
 
-    // store query results as the system user
-    final SchemaPlus systemUserSchema = context.getRootSchema(
-        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
-            .setProvider(context.getSchemaInfoProvider())
-            .build());
     final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).string_val;
     final List<String> storeTable =
         new StrTokenizer(storeTablePath, '.', config.quoting().string.charAt(0))
             .setIgnoreEmptyTokens(true)
             .getTokenList();
 
-    final AbstractSchema schema = SchemaUtilities.resolveToMutableSchemaInstance(systemUserSchema,
-        Util.skipLast(storeTable), true, MutationType.TABLE);
-
     // Query results are stored in arrow format. If need arises, we can change this to a configuration option.
     final Map<String, Object> storageOptions = ImmutableMap.<String, Object>of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
 
-    final CreateTableEntry createTableEntry = schema.createNewTable(Util.last(storeTable), WriterOptions.DEFAULT, storageOptions);
+    WriterOptions writerOptions =
+      options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS)
+      ? WriterOptions.DEFAULT.withRecordLimit(options.getOption(PlannerSettings.OUTPUT_LIMIT_SIZE))
+      : WriterOptions.DEFAULT;
+
+    // store table as system user.
+    final CreateTableEntry createTableEntry = context.getCatalog()
+        .resolveCatalog(SystemUser.SYSTEM_USERNAME)
+        .createNewTable(new NamespaceKey(storeTable), writerOptions, storageOptions);
 
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
     return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry, inputRel.getRowType());

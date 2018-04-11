@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2017 Dremio Corporation
+# Copyright (C) 2017-2018 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 #
 
 usage="Usage: dremio [--config <conf-dir>]\
- (start|stop|status|restart|autorestart)"
+ (start|start-fg||stop|status|restart|autorestart)"
 
 # if no args specified, show usage
 if [ $# -lt 1 ]; then
@@ -51,7 +51,7 @@ shift
 command=dremio
 shift
 
-waitForProcessEnd() {
+wait_for_process_end() {
   pidKilled=$1
   commandName=$2
   processedAt=`date +%s`
@@ -74,8 +74,7 @@ waitForProcessEnd() {
   echo
 }
 
-dremio_rotate_log ()
-{
+dremio_rotate_log() {
     log=$1;
     num=5;
     if [ -n "$2" ]; then
@@ -91,7 +90,25 @@ dremio_rotate_log ()
     fi
 }
 
-check_before_start(){
+dremio_internal_start() {
+    dremio_rotate_log $loggc
+
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
+
+    # Add to the command log file vital stats on our environment.
+    echo "`date` Starting $command on `hostname`" >> $logout
+    echo "`ulimit -a`" >> $logout 2>&1
+    echo $$ > "$pid"
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon \
+        $command "$@" start >> "$logout" 2>&1
+}
+
+check_before_start() {
     mkdir -p "$DREMIO_PID_DIR"
     #ckeck if the process is not running
     if [ -f "$pid" ]; then
@@ -102,8 +119,7 @@ check_before_start(){
     fi
 }
 
-wait_until_done ()
-{
+wait_until_done() {
     p=$1
     cnt=${DREMIO_TIMEOUT:-300}
     origcnt=$cnt
@@ -143,7 +159,11 @@ pid="$DREMIO_PID_DIR/dremio.pid"
 
 DREMIO_GC_LOGS_ENABLED=${DREMIO_GC_LOGS_ENABLED:-"yes"}
 if [ "$DREMIO_GC_LOGS_ENABLED" != "no" ]; then
-  SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${loggc}"
+  if [ "$JAVA_MAJOR_VERSION" -le 8 ]; then
+    SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${loggc}"
+  else
+    SERVER_GC_OPTS="-Xlog:gc*:file=${loggc}:uptime"
+  fi
 fi
 
 # Set default scheduling priority
@@ -161,26 +181,14 @@ case $startStopStatus in
     sleep 1;
   ;;
 
+(start-fg)
+    check_before_start
+    echo starting $command, logging to $logout
+    dremio_internal_start $command $args < /dev/null >> ${logout} 2>&1
+  ;;
+
 (internal_start)
-    dremio_rotate_log $loggc
-
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}m"
-    if echo "$JAVA_VERSION_STRING" | grep '1.7' > /dev/null ; then
-      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxPermSize=${DREMIO_MAX_PERMGEN_MEMORY_SIZE_MB:-512}m"
-    fi
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
-
-    # Add to the command log file vital stats on our environment.
-    echo "`date` Starting $command on `hostname`" >> $logout
-    echo "`ulimit -a`" >> $logout 2>&1
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon \
-        $command "$@" start >> "$logout" 2>&1 &
-    echo $! > "$pid"
-    wait
+    dremio_internal_start 
   ;;
 
 (stop)
@@ -192,7 +200,7 @@ case $startStopStatus in
         echo stopping $command
         echo "`date` Terminating $command pid $pidToKill">> $logout
         kill $pidToKill > /dev/null 2>&1
-        waitForProcessEnd $pidToKill $command
+        wait_for_process_end $pidToKill $command
         rm "$pid"
       else
         retval=$?
@@ -218,7 +226,6 @@ case $startStopStatus in
   ;;
 
 (status)
-
     if [ -f "$pid" ]; then
       TARGET_PID=`cat "$pid"`
       if kill -0 $TARGET_PID > /dev/null 2>&1; then

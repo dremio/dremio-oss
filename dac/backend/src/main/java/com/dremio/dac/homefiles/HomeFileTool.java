@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.homefiles;
 
-import static com.dremio.dac.homefiles.HomeFileConfig.DEFAULT_PERMISSIONS;
 import static java.lang.String.format;
 
 import java.io.IOException;
@@ -32,8 +31,9 @@ import org.apache.hadoop.io.IOUtils;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.file.FilePath;
 import com.dremio.service.namespace.file.FileFormat;
@@ -46,22 +46,25 @@ import com.google.common.base.Preconditions;
  */
 public class HomeFileTool {
 
-  private final HomeFileConfig config;
+  private final HomeFileConf config;
   private final FileSystem fs;
+  private final String hostname;
 
   @Inject
-  public HomeFileTool(HomeFileConfig config, StoragePluginRegistry registry) throws ExecutionSetupException {
-    this.config = config;
-    StoragePlugin plugin = registry.getPlugin(HomeFileConfig.HOME_PLUGIN_NAME);
-    Preconditions.checkNotNull(plugin, "Plugin [%s] not found.", HomeFileConfig.HOME_PLUGIN_NAME);
+  public HomeFileTool(SabotContext context, CatalogService catalog) throws ExecutionSetupException {
+    StoragePlugin plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    Preconditions.checkNotNull(plugin, "Plugin [%s] not found.", HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileSystemStoragePlugin homePlugin = (HomeFileSystemStoragePlugin) plugin;
     this.fs = homePlugin.getProcessFs();
+    this.config = homePlugin.getConfig();
+    this.hostname = context.getDremioConfig().getThisNode();
   }
 
   @VisibleForTesting
-  public HomeFileTool(HomeFileConfig config, FileSystem fs){
+  public HomeFileTool(HomeFileConf config, FileSystem fs, String hostname){
     this.config = config;
     this.fs = fs;
+    this.hostname = hostname;
   }
 
   /**
@@ -71,8 +74,9 @@ public class HomeFileTool {
    * @throws IOException
    */
   public HomeFileTool(DremioConfig config) throws ExecutionSetupException, IOException {
-    this.config = new HomeFileConfig(config);
-    this.fs = this.config.createFileSystem();
+    this.config = new HomeFileConf(config);
+    this.hostname = config.getThisNode();
+    this.fs = this.config.getFilesystemAndCreatePaths(hostname);
   }
 
   /**
@@ -84,7 +88,11 @@ public class HomeFileTool {
    */
   private Path getStagingLocation(FilePath filePath, String extension) {
     FilePath uniquePath = filePath.rename(format("%s_%s-%s", filePath.getFileName().toString(), extension, UUID.randomUUID().toString()));
-    return Path.mergePaths(config.getStagingDir(), PathUtils.toFSPath(uniquePath.toPathList()));
+    return Path.mergePaths(config.getStagingPath(hostname), PathUtils.toFSPath(uniquePath.toPathList()));
+  }
+
+  public HomeFileConf getConf() {
+    return config;
   }
 
   /**
@@ -100,7 +108,7 @@ public class HomeFileTool {
 
   private Path getUploadLocation(FilePath filePath, String extension) {
     FilePath filePathWithExtension = filePath.rename(format("%s_%s", filePath.getFileName().getName(), extension));
-    return Path.mergePaths(config.getUploadsDir(), PathUtils.toFSPath(filePathWithExtension.toPathList()));
+    return Path.mergePaths(config.getInnerUploads(), PathUtils.toFSPath(filePathWithExtension.toPathList()));
   }
 
   /**
@@ -112,7 +120,7 @@ public class HomeFileTool {
    */
   public Path stageFile(FilePath filePath, String extension, InputStream input) throws IOException {
     final Path stagingLocation = getStagingLocation(filePath, extension);
-    fs.mkdirs(stagingLocation, DEFAULT_PERMISSIONS);
+    fs.mkdirs(stagingLocation, HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
     final FSDataOutputStream output = fs.create(filePath(stagingLocation, format("%s.%s", filePath.getFileName().getName(), extension)), true);
     IOUtils.copyBytes(input, output, 1024, true);
     return fs.makeQualified(stagingLocation);
@@ -149,14 +157,14 @@ public class HomeFileTool {
 
   @VisibleForTesting
   public void clearUploads() throws IOException {
-    fs.delete(config.getUploadsDir(), true);
-    fs.mkdirs(config.getUploadsDir());
+    fs.delete(config.getInnerUploads(), true);
+    fs.mkdirs(config.getInnerUploads());
   }
 
   @VisibleForTesting
   public void clear() throws Exception {
     if (fs != null) {
-      fs.delete(new Path(config.getLocation().getPath()), true);
+      fs.delete(config.getBaseUploadsPath(), true);
     }
   }
 

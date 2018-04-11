@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,11 @@ public final class RenamingRunnable implements Runnable {
     } finally {
       current.setName(originalName);
     }
+  }
+
+  @Override
+  public String toString() {
+    return delegate.toString();
   }
 
   public static RenamingRunnable of(final Runnable delegate, final String name) {

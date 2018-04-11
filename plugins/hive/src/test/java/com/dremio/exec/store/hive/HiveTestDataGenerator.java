@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -40,11 +42,18 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.serde.serdeConstants;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.ManagedStoragePlugin;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.impersonation.hive.BaseTestHiveImpersonation;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
 
 public class HiveTestDataGenerator {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestDataGenerator.class);
+
   private static final String HIVE_TEST_PLUGIN_NAME = "hive";
   private static HiveTestDataGenerator instance;
 
@@ -83,10 +92,14 @@ public class HiveTestDataGenerator {
    * Add Hive test storage plugin to the given plugin registry.
    * @throws Exception
    */
-  public void addHiveTestPlugin(final StoragePluginRegistry pluginRegistry) throws Exception {
-    HiveStoragePluginConfig pluginConfig = new HiveStoragePluginConfig(config);
-
-    pluginRegistry.createOrUpdate(HIVE_TEST_PLUGIN_NAME, pluginConfig, true);
+  public void addHiveTestPlugin(final CatalogService pluginRegistry) throws Exception {
+    SourceConfig sc = new SourceConfig();
+    sc.setName(HIVE_TEST_PLUGIN_NAME);
+    HiveStoragePluginConfig conf = BaseTestHiveImpersonation.createHiveStoragePlugin(config);
+    sc.setType(conf.getType());
+    sc.setConfig(conf.toBytesString());
+    sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().createSource(sc);
   }
 
   /**
@@ -95,29 +108,41 @@ public class HiveTestDataGenerator {
    * @param configOverride
    * @throws Exception if fails to update or no Hive plugin currently exists in given plugin registry.
    */
-  public void updatePluginConfig(final StoragePluginRegistry pluginRegistry, Map<String, String> configOverride)
+  public void updatePluginConfig(final CatalogService pluginRegistry, Map<String, String> configOverride)
       throws Exception {
-    HiveStoragePlugin storagePlugin = (HiveStoragePlugin) pluginRegistry.getPlugin(HIVE_TEST_PLUGIN_NAME);
+    HiveStoragePlugin storagePlugin = (HiveStoragePlugin) pluginRegistry.getSource(HIVE_TEST_PLUGIN_NAME);
     if (storagePlugin == null) {
       throw new Exception(
           "Hive test storage plugin doesn't exist. Add a plugin using addHiveTestPlugin()");
     }
 
-    Map<String, String> newConfig = Maps.newHashMap(storagePlugin.getId().<HiveStoragePluginConfig>getConfig().config);
+    ManagedStoragePlugin msp = ((CatalogServiceImpl) pluginRegistry).getManagedSource(HIVE_TEST_PLUGIN_NAME);
+    SourceConfig newSC = msp.getId().getClonedConfig();
+    HiveStoragePluginConfig conf = msp.getId().<HiveStoragePluginConfig>getConnectionConf().clone();
+
+    List<Property> updated = new ArrayList<>();
     for(Entry<String, String> prop : configOverride.entrySet()) {
-      newConfig.put(prop.getKey(), prop.getValue());
+      updated.add(new Property(prop.getKey(), prop.getValue()));
     }
 
-    HiveStoragePluginConfig newPluginConfig = new HiveStoragePluginConfig(newConfig);
+    for(Property p : conf.properties) {
+      if(!configOverride.containsKey(p.name)) {
+        updated.add(p);
+      }
+    }
 
-    pluginRegistry.createOrUpdate(HIVE_TEST_PLUGIN_NAME, newPluginConfig, true);
+    conf.properties = updated;
+    newSC.setConfig(conf.toBytesString());
+    ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().updateSource(newSC);
   }
 
   /**
    * Delete the Hive test plugin from registry.
    */
-  public void deleteHiveTestPlugin(final StoragePluginRegistry pluginRegistry) {
-    pluginRegistry.deletePlugin(HIVE_TEST_PLUGIN_NAME);
+  public void deleteHiveTestPlugin(final CatalogService pluginRegistry) {
+    CatalogServiceImpl impl = (CatalogServiceImpl) pluginRegistry;
+    ManagedStoragePlugin msp = impl.getManagedSource(HIVE_TEST_PLUGIN_NAME);
+    impl.getSystemUserCatalog().deleteSource(msp.getId().getConfig());
   }
 
   public void executeDDL(String query) throws IOException {
@@ -567,11 +592,16 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_sequencefile_large", "sequencefile", "1", "1"));
     executeQuery(hiveDriver, "insert into table skipper.kv_sequencefile_large select * from skipper.kv_text_large");
 
-      // Create a table based on json file
-      executeQuery(hiveDriver, "create table default.simple_json(json string)");
-      final String loadData = String.format("load data local inpath '" +
-          Resources.getResource("simple.json") + "' into table default.simple_json");
-      executeQuery(hiveDriver, loadData);
+    // Create a table based on json file
+    final URL simpleJson = Resources.getResource("simple.json");
+    executeQuery(hiveDriver, "create table default.simple_json(json string)");
+    executeQuery(hiveDriver, "load data local inpath '" + simpleJson + "' into table default.simple_json");
+
+    final URL multiRGParquet = Resources.getResource("multiple_rowgroups.parquet");
+    executeQuery(hiveDriver, "CREATE TABLE parquet_mult_rowgroups(c1 int) stored as parquet");
+    executeQuery(hiveDriver,
+        "LOAD DATA LOCAL INPATH '" + multiRGParquet + "' into table default.parquet_mult_rowgroups");
+
     ss.close();
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PlannerPhase;
@@ -47,30 +49,28 @@ import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRule
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnScan;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.RelOptNamespaceTable;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.dfs.PruneableScan;
-import com.dremio.exec.store.hive.HiveRulesFactory.HiveScanDrel;
 import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.parquet.FilterConditions;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
 import com.google.common.base.Objects;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class HiveRulesFactory implements StoragePluginTypeRulesFactory {
+public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
 
   private static class HiveScanDrule extends SourceLogicalConverter {
 
-    public HiveScanDrule(StoragePluginType pluginType) {
+    public HiveScanDrule(SourceType pluginType) {
       super(pluginType);
     }
 
@@ -116,7 +116,19 @@ public class HiveRulesFactory implements StoragePluginTypeRulesFactory {
 
     protected double getFilterReduction(){
       if(conditions != null && !conditions.isEmpty()){
-        return 0.15d;
+        double selectivity = 0.15d;
+
+        double max = PrelUtil.getPlannerSettings(getCluster()).getFilterMaxSelectivityEstimateFactor();
+        double min = PrelUtil.getPlannerSettings(getCluster()).getFilterMinSelectivityEstimateFactor();
+
+        if(selectivity < min) {
+          selectivity = min;
+        }
+        if(selectivity > max) {
+          selectivity = max;
+        }
+
+        return selectivity;
       }else {
         return 1d;
       }
@@ -262,10 +274,10 @@ public class HiveRulesFactory implements StoragePluginTypeRulesFactory {
   }
 
   private static class HiveScanPrule extends ConverterRule {
-    private final StoragePluginType pluginType;
+    private final SourceType pluginType;
 
-    public HiveScanPrule(StoragePluginType pluginType) {
-      super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.generateRuleName("HiveScanPrule"));
+    public HiveScanPrule(SourceType pluginType) {
+      super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "HiveScanPrule");
       this.pluginType = pluginType;
     }
 
@@ -283,9 +295,9 @@ public class HiveRulesFactory implements StoragePluginTypeRulesFactory {
 
   }
 
+
   @Override
-  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase,
-      StoragePluginType pluginType) {
+  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
     switch(phase){
     case LOGICAL:
       ImmutableSet.Builder<RelOptRule> builder = ImmutableSet.builder();
@@ -293,8 +305,8 @@ public class HiveRulesFactory implements StoragePluginTypeRulesFactory {
       builder.add(EliminateEmptyScans.INSTANCE);
 
       if(optimizerContext.getPlannerSettings().isPartitionPruningEnabled()){
-        builder.add(new PruneScanRuleFilterOnProject<HiveScanDrel>(pluginType, HiveScanDrel.class, optimizerContext));
-        builder.add(new PruneScanRuleFilterOnScan<HiveScanDrel>(pluginType, HiveScanDrel.class, optimizerContext));
+        builder.add(new PruneScanRuleFilterOnProject<>(pluginType, HiveScanDrel.class, optimizerContext));
+        builder.add(new PruneScanRuleFilterOnScan<>(pluginType, HiveScanDrel.class, optimizerContext));
       }
 
       return builder.build();

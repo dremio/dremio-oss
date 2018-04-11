@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,8 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+
+import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
  * A set of utility classes that allows us to centralize operator management without using inheritance and confusing state trees.
@@ -128,7 +130,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       .addContext("SqlOperatorImpl", operatorName)
       .addContext("Location",
         String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
-    if (e instanceof OutOfMemoryException) {
+    if (e instanceof OutOfMemoryException || e instanceof OutOfDirectMemoryError) {
       context.getNodeDebugContextProvider().addMemoryContext(builder);
     }
 

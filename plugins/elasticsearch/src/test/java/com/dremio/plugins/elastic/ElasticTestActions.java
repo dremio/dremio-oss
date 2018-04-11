@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,23 @@ public class ElasticTestActions {
     }
   }
 
+  public enum AliasActionType {
+    ADD,
+    REMOVE
+  }
+
+  public static class AliasActionDef {
+    final AliasActionType actionType;
+    final String index;
+    final String alias;
+
+    public AliasActionDef(AliasActionType actionType, String index, String alias) {
+      this.actionType = actionType;
+      this.index = index;
+      this.alias = alias;
+    }
+  }
+
   public static class CreateAliases extends ElasticAction {
     List<String> aliases = new ArrayList<>();
 
@@ -84,6 +101,11 @@ public class ElasticTestActions {
         quotedIndices.add(String.format("\"%s\"", index));
       }
       aliases.add(String.format("{ \"add\": {\"indices\" : [%s], \"alias\": \"%s\", \"filter\": %s } }", Joiner.on(",").join(quotedIndices), alias, filter));
+      return this;
+    }
+
+    public CreateAliases removeAlias(String index, String alias) {
+      aliases.add(String.format("{ \"remove\": {\"index\" : \"%s\", \"alias\": \"%s\" } }", index, alias));
       return this;
     }
 
@@ -200,8 +222,4 @@ public class ElasticTestActions {
       }
     }
   }
-
-
-
-
 }

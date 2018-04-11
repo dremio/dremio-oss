@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -307,7 +307,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         return this;
       }
 
-      if(name != field.name){
+      if(!Objects.equal(name, field.name)) {
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
         logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "names", name, field.name);

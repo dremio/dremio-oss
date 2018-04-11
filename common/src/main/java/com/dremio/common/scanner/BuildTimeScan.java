@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -47,7 +47,7 @@ public class BuildTimeScan {
   /**
    * @return paths that have the prescanned registry file in them
    */
-  static Set<URL> getPrescannedPaths() {
+  static Collection<URL> getPrescannedPaths() {
     return ClassPathScanner.forResource(REGISTRY_FILE, true);
   }
 
@@ -65,7 +65,7 @@ public class BuildTimeScan {
    * @return the result of the previous scan
    */
   private static ScanResult loadExcept(URL ignored) {
-    Set<URL> preScanned = ClassPathScanner.forResource(REGISTRY_FILE, false);
+    Collection<URL> preScanned = ClassPathScanner.forResource(REGISTRY_FILE, false);
     ScanResult result = null;
     for (URL u : preScanned) {
       if (ignored!= null && u.toString().startsWith(ignored.toString())) {
@@ -132,7 +132,7 @@ public class BuildTimeScan {
       basePath = "/" + basePath;
     }
     URL url = new URL("file:" + basePath);
-    Set<URL> markedPaths = ClassPathScanner.getMarkedPaths();
+    Collection<URL> markedPaths = ClassPathScanner.getMarkedPaths();
     if (!markedPaths.contains(url)) {
       throw new IllegalArgumentException(url + " not in " + markedPaths);
     }

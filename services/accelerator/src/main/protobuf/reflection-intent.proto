@@ -1,0 +1,68 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.reflection.proto;
+
+import "reflection-common.proto";
+import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+
+
+option java_package = "com.dremio.service.reflection.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "ReflectionDacProtobuf";
+
+// defines messages that represent a user intent
+
+enum ReflectionGoalState {
+  ENABLED = 0;
+  DISABLED = 1;
+  DELETED = 2;
+}
+
+message ReflectionGoal {
+  optional ReflectionId id = 1; // const
+  optional int64 version = 2;
+  optional int64 created_at = 3; // const
+  optional int64 modified_at = 4;
+  optional ReflectionType type = 5; // const, user defined
+  optional string dataset_id = 6; // const, user defined
+  optional string name = 7; // user defined
+  optional ReflectionDetails details = 8; // user defined
+  optional ReflectionGoalState state = 9 [default = ENABLED];
+}
+
+message ReflectionDetails {
+  repeated ReflectionField partitionField = 1;
+  repeated ReflectionField sortField = 2;
+  repeated ReflectionDimensionField dimensionField = 3;
+  repeated ReflectionField measureField = 4;
+  repeated ReflectionField displayField = 5;
+  repeated ReflectionField distributionField = 6;
+  optional PartitionDistributionStrategy partitionDistributionStrategy = 7 [default = CONSOLIDATED];
+}
+
+message ReflectionField {
+  // field name
+  required string name = 1;
+}
+
+message ReflectionDimensionField {
+  // field name
+  required string name = 1;
+  // granularity
+  optional DimensionGranularity granularity = 2 [default = DATE];
+}

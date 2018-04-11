@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,8 +97,9 @@ public class SpillManager implements AutoCloseable {
       } catch (IOException ioe) {
         throw withContextParameters(
             UserException.dataWriteError(ioe)
-                .message("Failed to create spill directory for " + caller)
+                .message("Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions.")
                 .addContext("Spill directory path", spillDirPath.toString())
+                .addContext("Caller", caller)
         ).build(logger);
       }
     }
@@ -120,9 +121,10 @@ public class SpillManager implements AutoCloseable {
 
     throw withContextParameters(
         UserException.dataWriteError()
-            .message("Failed to allocate disk space for %s spill files", caller)
-            .addContext("spill id", id)
-            .addContext("all spill locations", allSpillDirectories.toString())
+            .message("Failed to spill to disk. Please check space availability")
+            .addContext("Spill id", id)
+            .addContext("All spill locations", allSpillDirectories.toString())
+            .addContext("Caller", caller)
     ).build(logger);
   }
 
@@ -192,8 +194,9 @@ public class SpillManager implements AutoCloseable {
       if (!fileSystem.mkdirs(spillDir, PERMISSIONS)) {
         throw withContextParameters(
             UserException.dataWriteError()
-                .message("Failed to create directory for " + caller)
+                .message("Failed to create directory for spilling. Please check that the spill location is accessible and confirm read, write & execute permissions.")
                 .addContext("Spill directory", spillDir.toString())
+                .addContext("Caller", caller)
         ).build(logger);
       }
       enableHealthCheck = enabledHealthCheck(fileSystem.getUri().getScheme());

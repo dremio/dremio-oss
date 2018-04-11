@@ -48,11 +48,11 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
     // didn't yet receive a terminal message. To test this, we run CTAS then immediately run a query on the newly
     // created table.
 
-    final String tableName = "dfs_test.`testDDLs`";
+    final String tableName = "dfs_test.\"testDDLs\"";
 
     try (Connection conn = connect(sabotNode.getJDBCConnectionString())) {
       Statement s = conn.createStatement();
-      s.executeQuery(String.format("CREATE TABLE %s AS SELECT * FROM cp.`employee.json`", tableName));
+      s.executeQuery(String.format("CREATE TABLE %s AS SELECT * FROM cp.\"employee.json\"", tableName));
     }
 
     testQuery(String.format("SELECT * FROM %s LIMIT 1", tableName));
@@ -61,30 +61,30 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   @Ignore
   public void testJsonQuery() throws Exception{
-    testQuery("select * from cp.`employee.json`");
+    testQuery("select * from cp.\"employee.json\"");
   }
 
   @Test
   @Ignore
   public void testCast() throws Exception{
-    testQuery(String.format("select R_REGIONKEY, cast(R_NAME as varchar(15)) as region, cast(R_COMMENT as varchar(255)) as comment from dfs.`%s/../../sample-data/region.parquet`", WORKING_PATH));
+    testQuery(String.format("select R_REGIONKEY, cast(R_NAME as varchar(15)) as region, cast(R_COMMENT as varchar(255)) as comment from dfs.\"%s/../../sample-data/region.parquet\"", WORKING_PATH));
   }
 
   @Test
   @Ignore
   public void testWorkspace() throws Exception{
-    testQuery(String.format("select * from dfs_test.home.`%s/../../sample-data/region.parquet`", WORKING_PATH));
+    testQuery(String.format("select * from dfs_test.home.\"%s/../../sample-data/region.parquet\"", WORKING_PATH));
   }
 
   @Test
   @Ignore
   public void testWildcard() throws Exception{
-    testQuery(String.format("select * from dfs_test.`%s/../../sample-data/region.parquet`", WORKING_PATH));
+    testQuery(String.format("select * from dfs_test.\"%s/../../sample-data/region.parquet\"", WORKING_PATH));
   }
 
   @Test
   public void testCharLiteral() throws Exception {
-    testQuery("select 'test literal' from INFORMATION_SCHEMA.`TABLES` LIMIT 1");
+    testQuery("select 'test literal' from INFORMATION_SCHEMA.\"TABLES\" LIMIT 1");
   }
 
   @Test
@@ -180,25 +180,25 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
 
   @Test
   public void testVarCharLiteral() throws Exception {
-    testQuery("select cast('test literal' as VARCHAR) from INFORMATION_SCHEMA.`TABLES` LIMIT 1");
+    testQuery("select cast('test literal' as VARCHAR) from INFORMATION_SCHEMA.\"TABLES\" LIMIT 1");
   }
 
   @Test
   @Ignore
   public void testLogicalExplain() throws Exception{
-    testQuery(String.format("EXPLAIN PLAN WITHOUT IMPLEMENTATION FOR select * from dfs_test.`%s/../../sample-data/region.parquet`", WORKING_PATH));
+    testQuery(String.format("EXPLAIN PLAN WITHOUT IMPLEMENTATION FOR select * from dfs_test.\"%s/../../sample-data/region.parquet\"", WORKING_PATH));
   }
 
   @Test
   @Ignore
   public void testPhysicalExplain() throws Exception{
-    testQuery(String.format("EXPLAIN PLAN FOR select * from dfs_test.`%s/../../sample-data/region.parquet`", WORKING_PATH));
+    testQuery(String.format("EXPLAIN PLAN FOR select * from dfs_test.\"%s/../../sample-data/region.parquet\"", WORKING_PATH));
   }
 
   @Test
   @Ignore
   public void checkUnknownColumn() throws Exception{
-    testQuery(String.format("SELECT unknownColumn FROM dfs_test.`%s/../../sample-data/region.parquet`", WORKING_PATH));
+    testQuery(String.format("SELECT unknownColumn FROM dfs_test.\"%s/../../sample-data/region.parquet\"", WORKING_PATH));
   }
 
   @Test
@@ -216,7 +216,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testSimilarNotSimilar() throws Exception{
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-      .sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.`TABLES` "+
+      .sql("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" "+
         "WHERE TABLE_NAME SIMILAR TO '%(H|I)E%' AND TABLE_NAME NOT SIMILAR TO 'C%'")
       .returns(
         "TABLE_NAME=SCHEMATA\n" +
@@ -228,14 +228,14 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testIntegerLiteral() throws Exception{
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-      .sql("select substring('asd' from 1 for 2) from INFORMATION_SCHEMA.`TABLES` limit 1")
+      .sql("select substring('asd' from 1 for 2) from INFORMATION_SCHEMA.\"TABLES\" limit 1")
       .returns("EXPR$0=as\n");
   }
 
   @Test
   public void testNullOpForNullableType() throws Exception{
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT * FROM cp.`test_null_op.json` WHERE intType IS NULL AND varCharType IS NOT NULL")
+        .sql("SELECT * FROM cp.\"test_null_op.json\" WHERE intType IS NULL AND varCharType IS NOT NULL")
         .returns("intType=null; varCharType=val2");
   }
 
@@ -243,7 +243,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testNullOpForNonNullableType() throws Exception{
     // output of (intType IS NULL) is a non-nullable type
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT * FROM cp.`test_null_op.json` "+
+        .sql("SELECT * FROM cp.\"test_null_op.json\" "+
             "WHERE (intType IS NULL) IS NULL AND (varCharType IS NOT NULL) IS NOT NULL")
         .returns("");
   }
@@ -251,22 +251,22 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testTrueOpForNullableType() throws Exception{
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE booleanType IS TRUE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE booleanType IS TRUE")
         .returns("data=set to true");
 
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE booleanType IS FALSE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE booleanType IS FALSE")
         .returns("data=set to false");
 
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE booleanType IS NOT TRUE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE booleanType IS NOT TRUE")
         .returns(
             "data=set to false\n" +
             "data=not set"
         );
 
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE booleanType IS NOT FALSE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE booleanType IS NOT FALSE")
         .returns(
             "data=set to true\n" +
             "data=not set"
@@ -277,20 +277,20 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testTrueOpForNonNullableType() throws Exception{
     // Output of IS TRUE (and others) is a Non-nullable type
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE (booleanType IS TRUE) IS TRUE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE (booleanType IS TRUE) IS TRUE")
         .returns("data=set to true");
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE (booleanType IS FALSE) IS FALSE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE (booleanType IS FALSE) IS FALSE")
         .returns(
             "data=set to true\n" +
             "data=not set"
         );
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE (booleanType IS NOT TRUE) IS NOT TRUE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE (booleanType IS NOT TRUE) IS NOT TRUE")
         .returns("data=set to true");
 
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT data FROM cp.`test_true_false_op.json` WHERE (booleanType IS NOT FALSE) IS NOT FALSE")
+        .sql("SELECT data FROM cp.\"test_true_false_op.json\" WHERE (booleanType IS NOT FALSE) IS NOT FALSE")
         .returns(
             "data=set to true\n" +
             "data=not set"
@@ -311,7 +311,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
               "interval '1' year, interval '2' day, " +
               "date_add(date '2008-2-23', interval '1 10:20:30' day to second), " +
               "date_add(date '2010-2-23', 1) " +
-              "from cp.`employee.json` limit 1");
+              "from cp.\"employee.json\" limit 1");
 
           resultSet.next();
           final java.sql.Date date = resultSet.getDate(1);
@@ -353,7 +353,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
 
           // show files
           final ResultSet resultSet = statement.executeQuery(
-              "select timestamp '2008-2-23 12:23:23', date '2001-01-01' from cp.`employee.json` limit 1");
+              "select timestamp '2008-2-23 12:23:23', date '2001-01-01' from cp.\"employee.json\" limit 1");
 
           assertEquals( Types.TIMESTAMP, resultSet.getMetaData().getColumnType(1) );
           assertEquals( Types.DATE, resultSet.getMetaData().getColumnType(2) );
@@ -372,7 +372,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testCaseWithNoElse() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT employee_id, CASE WHEN employee_id < 100 THEN first_name END from cp.`employee.json` " +
+        .sql("SELECT employee_id, CASE WHEN employee_id < 100 THEN first_name END from cp.\"employee.json\" " +
             "WHERE employee_id = 99 OR employee_id = 100")
         .returns(
             "employee_id=99; EXPR$1=Elizabeth\n" +
@@ -383,7 +383,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testCaseWithElse() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT employee_id, CASE WHEN employee_id < 100 THEN first_name ELSE 'Test' END from cp.`employee.json` " +
+        .sql("SELECT employee_id, CASE WHEN employee_id < 100 THEN first_name ELSE 'Test' END from cp.\"employee.json\" " +
             "WHERE employee_id = 99 OR employee_id = 100")
         .returns(
             "employee_id=99; EXPR$1=Elizabeth\n" +
@@ -395,7 +395,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testCaseWith2ThensAndNoElse() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("SELECT employee_id, CASE WHEN employee_id < 100 THEN first_name WHEN employee_id = 100 THEN last_name END " +
-            "from cp.`employee.json` " +
+            "from cp.\"employee.json\" " +
             "WHERE employee_id = 99 OR employee_id = 100 OR employee_id = 101")
         .returns(
             "employee_id=99; EXPR$1=Elizabeth\n" +
@@ -408,7 +408,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testCaseWith2ThensAndElse() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("SELECT employee_id, CASE WHEN employee_id < 100 THEN first_name WHEN employee_id = 100 THEN last_name ELSE 'Test' END " +
-            "from cp.`employee.json` " +
+            "from cp.\"employee.json\" " +
             "WHERE employee_id = 99 OR employee_id = 100 OR employee_id = 101")
         .returns(
             "employee_id=99; EXPR$1=Elizabeth\n" +
@@ -421,7 +421,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testAggWithDremioFunc() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("SELECT extract(year from max(to_timestamp(hire_date, 'YYYY-MM-DD HH24:MI:SS.FFF' ))) as MAX_YEAR " +
-            "from cp.`employee.json` ")
+            "from cp.\"employee.json\" ")
         .returns(
             "MAX_YEAR=1998\n"
         );
@@ -430,8 +430,8 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   @Test
   public void testLeftRightReplace() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
-        .sql("SELECT `left`('abcdef', 2) as LEFT_STR, `right`('abcdef', 2) as RIGHT_STR, `replace`('abcdef', 'ab', 'zz') as REPLACE_STR " +
-            "from cp.`employee.json` limit 1")
+        .sql("SELECT \"left\"('abcdef', 2) as LEFT_STR, \"right\"('abcdef', 2) as RIGHT_STR, \"replace\"('abcdef', 'ab', 'zz') as REPLACE_STR " +
+            "from cp.\"employee.json\" limit 1")
         .returns(
             "LEFT_STR=ab; " +
                 "RIGHT_STR=ef; " +
@@ -443,7 +443,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testLengthUTF8VarCharInput() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("select length('Sheri', 'UTF8') as L_UTF8 " +
-            "from cp.`employee.json` where employee_id = 1")
+            "from cp.\"employee.json\" where employee_id = 1")
         .returns(
             "L_UTF8=5\n"
        );
@@ -453,7 +453,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testTimeIntervalAddOverflow() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("select extract(hour from (interval '10 20' day to hour + time '10:00:00')) as TIME_INT_ADD " +
-            "from cp.`employee.json` where employee_id = 1")
+            "from cp.\"employee.json\" where employee_id = 1")
         .returns(
             "TIME_INT_ADD=6\n"
         );

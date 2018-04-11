@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
+import React, {Component} from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import {connect} from 'react-redux';
 import Immutable from 'immutable';
 import invariant from 'invariant';
 
-import { createProvision, editProvision } from 'actions/resources/provisioning';
-import { getEntity } from 'selectors/resources';
-import { showConfirmationDialog } from 'actions/confirmation';
-import { PROVISION_MANAGERS } from 'constants/provisioningPage/provisionManagers';
+import {createProvision, editProvision} from 'actions/resources/provisioning';
+import {getEntity} from 'selectors/resources';
+import {showConfirmationDialog} from 'actions/confirmation';
+import {PROVISION_MANAGERS} from 'constants/provisioningPage/provisionManagers';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 import SelectClusterType from 'pages/AdminPage/subpages/Provisioning/SelectClusterType';
 import Modal from 'components/Modals/Modal';
@@ -161,7 +161,7 @@ export default connect(mapStateToProps, {
 
 const styles = {
   formBody: {
-    width: 670,
+    width: 860,
     margin: '0 auto'
   },
   stepOneStyle: {

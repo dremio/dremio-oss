@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,13 +32,14 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.Pointer;
 import com.dremio.service.job.proto.QueryType;
@@ -54,18 +55,13 @@ public class TestWriter extends BaseTestServer {
     return l(JobsService.class);
   }
 
-  public StoragePluginRegistry getPluginRegistry() {
-    return l(StoragePluginRegistry.class);
-  }
-
   @Rule
   public final TemporaryFolder temp = new TemporaryFolder();
 
 
   @Before
   public void setup() throws Exception {
-    final StoragePluginRegistry registry = getPluginRegistry();
-    TestUtilities.updateDfsTestTmpSchemaLocation(registry, temp.getRoot().toString());
+    TestUtilities.updateDfsTestTmpSchemaLocation((CatalogServiceImpl) l(CatalogService.class), temp.getRoot().toString());
   }
 
   @Test
@@ -116,7 +112,7 @@ public class TestWriter extends BaseTestServer {
     String query = String.format("create table %s.\"%s\" as select * from cp.acceleration.\"employees.json\"", DFS_TEST_PLUGIN_NAME, "xyz");
     final RelNode physical = getPlan(query);
 
-    final Pointer<Boolean> seenWriter = new Pointer<Boolean>(false);
+    final Pointer<Boolean> seenWriter = new Pointer<>(false);
 
     physical.accept(new StatelessRelShuttleImpl() {
       private boolean haveWriterCommiterAvailable = false;

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -35,20 +35,20 @@
                         <rect id="Rectangle" fill="#23CDFF" x="0" y="0" width="16" height="14" rx="3"></rect>
                         <circle id="Oval" fill="#FFFFFF" cx="4" cy="7" r="1">
                           <animate attributeName="r" from="1" to="1"
-                             begin="0s" dur=".9s"
-                             values="1;.5;2;1" calcMode="linear"
+                             begin="0s" dur="1.2s"
+                             values=".5;2;1;.5;.5" calcMode="linear"
                              repeatCount="indefinite" />
                         </circle>
                         <circle id="Oval" fill="#FFFFFF" cx="8" cy="7" r="1">
                           <animate attributeName="r" from="1" to="1"
-                             begin=".3s" dur=".9s"
-                             values="1;.5;2;1" calcMode="linear"
+                             begin=".3s" dur="1.2s"
+                             values=".5;2;1;.5;.5" calcMode="linear"
                              repeatCount="indefinite" />
                         </circle>
                         <circle id="Oval" fill="#FFFFFF" cx="12" cy="7" r="1">
                           <animate attributeName="r" from="1" to="1"
-                             begin=".6s" dur=".9s"
-                             values="1;.5;2;1" calcMode="linear"
+                             begin=".6s" dur="1.2s"
+                             values=".5;2;1;.5;.5" calcMode="linear"
                              repeatCount="indefinite" />
                         </circle>
                     </g>

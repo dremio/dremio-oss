@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
+import javax.inject.Provider;
 
 import org.apache.calcite.schema.Function;
 import org.apache.directory.api.util.Strings;
@@ -46,12 +47,14 @@ import org.apache.hadoop.security.AccessControlException;
 import org.apache.parquet.Preconditions;
 
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.DatasetSplitsPointer;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFile;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.dotfile.DotFileUtil;
@@ -59,7 +62,6 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ClassPathFileSystem;
-import com.dremio.exec.store.DatasetSplitsPointer;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.SchemaConfig;
@@ -67,8 +69,7 @@ import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.SchemaEntity.SchemaEntityType;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -77,8 +78,6 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
 import com.dremio.service.namespace.TableInstance;
 import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -119,14 +118,13 @@ public class FileSystemPlugin implements StoragePlugin {
 
   private static final int PERMISSION_CHECK_TASK_BATCH_SIZE = 10;
 
-  public static final String FILESYSTEM_TYPE_NAME = "dfs";
-
   private final String name;
   private final LogicalPlanPersistence lpPersistance;
-  private final FileSystemConfig config;
+  private final FileSystemConf<?, ?> config;
   private final SabotContext context;
   private final Path basePath;
 
+  private final Provider<StoragePluginId> idProvider;
   private FileSystemWrapper fs;
   private Configuration fsConf;
   private FormatPluginOptionExtractor optionExtractor;
@@ -135,23 +133,19 @@ public class FileSystemPlugin implements StoragePlugin {
   private List<FormatMatcher> dropFileMatchers;
   private CompressionCodecFactory codecFactory;
 
-  public FileSystemPlugin(final FileSystemConfig config, final SabotContext context, final String name) throws ExecutionSetupException {
+  public FileSystemPlugin(final FileSystemConf<?, ?> config, final SabotContext context, final String name, FileSystemWrapper fs, Provider<StoragePluginId> idProvider) {
     this.name = name;
     this.config = config;
-    this.context = context;
-    this.fsConf = getNewFsConf();
-    this.lpPersistance = context.getLpPersistence();
-    this.basePath = new Path(config.getPath());
-  }
-
-  protected FileSystemPlugin(final FileSystemConfig config, final SabotContext context, final String name, FileSystemWrapper fs) throws ExecutionSetupException {
-    this.name = name;
-    this.config = config;
+    this.idProvider = idProvider;
     this.fs = fs;
     this.context = context;
     this.fsConf = getNewFsConf();
     this.lpPersistance = context.getLpPersistence();
-    this.basePath = new Path(config.getPath());
+    this.basePath = config.getPath();
+  }
+
+  public FileSystemConf<?, ?> getConfig(){
+    return config;
   }
 
   @Override
@@ -160,14 +154,8 @@ public class FileSystemPlugin implements StoragePlugin {
   }
 
   @Override
-  public StoragePluginId getId() {
-    if(name == null){
-      throw new IllegalStateException("Attempted to get the id for an ephemeral storage plugin.");
-    }
-    final StoragePluginType pluginType = new StoragePluginType(FILESYSTEM_TYPE_NAME, context.getConfig().getClass("dremio.plugins.dfs.rulesfactory", StoragePluginTypeRulesFactory.class, FileSystemRulesFactory.class));
-    return fs.isPdfs() ?
-        new StoragePluginId(name, config, new SourceCapabilities(REQUIRES_HARD_AFFINITY), pluginType) :
-          new StoragePluginId(name, config, SourceCapabilities.NONE, pluginType);
+  public SourceCapabilities getSourceCapabilities() {
+    return fs.isPdfs() ? new SourceCapabilities(REQUIRES_HARD_AFFINITY) : SourceCapabilities.NONE;
   }
 
   public static final Configuration getNewFsConf() {
@@ -176,6 +164,10 @@ public class FileSystemPlugin implements StoragePlugin {
 
   public Configuration getFsConf() {
     return fsConf;
+  }
+
+  public StoragePluginId getId() {
+    return idProvider.get();
   }
 
   public FileSystemWrapper getFS(String userName) {
@@ -205,8 +197,8 @@ public class FileSystemPlugin implements StoragePlugin {
   }
 
   @Override
-  public Class<? extends StoragePluginInstanceRulesFactory> getRulesFactoryClass() {
-    return null;
+  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
+    return context.getConfig().getClass("dremio.plugins.dfs.rulesfactory", StoragePluginRulesFactory.class, FileSystemRulesFactory.class);
   }
 
   @Override
@@ -214,7 +206,7 @@ public class FileSystemPlugin implements StoragePlugin {
     final FileSystemWrapper fs = getFS(ImpersonationUtil.getProcessUserName());
     if (!fs.isPdfs()) {
       try {
-        fs.listStatus(new Path(config.getPath()));
+        fs.listStatus(config.getPath());
         return SourceState.GOOD;
       } catch (Exception e) {
         return SourceState.badState(e);
@@ -229,7 +221,7 @@ public class FileSystemPlugin implements StoragePlugin {
     List<DotFile> files = Collections.emptyList();
     try {
       try {
-        files = DotFileUtil.getDotFiles(getFS(schemaConfig.getUserName()), new Path(config.getPath()), tableSchemaPath.get(tableSchemaPath.size() - 1), DotFileType.VIEW);
+        files = DotFileUtil.getDotFiles(getFS(schemaConfig.getUserName()), config.getPath(), tableSchemaPath.get(tableSchemaPath.size() - 1), DotFileType.VIEW);
       } catch (AccessControlException e) {
         if (!schemaConfig.getIgnoreAuthErrors()) {
           logger.debug(e.getMessage());
@@ -245,7 +237,7 @@ public class FileSystemPlugin implements StoragePlugin {
         switch (f.getType()) {
         case VIEW:
           try {
-            return new ViewTable(f.getView(lpPersistance), f.getOwner(), schemaConfig.getViewExpansionContext());
+            return new ViewTable(new NamespaceKey(tableSchemaPath), f.getView(lpPersistance), f.getOwner(), null);
           } catch (AccessControlException e) {
             if (!schemaConfig.getIgnoreAuthErrors()) {
               logger.debug(e.getMessage());
@@ -310,8 +302,7 @@ public class FileSystemPlugin implements StoragePlugin {
     return getDatasetWithFormat(datasetPath, oldConfig, formatPluginConfig, ignoreAuthErrors, null);
   }
 
-  SourceTableDefinition getDatasetWithOptions(NamespaceKey datasetPath, TableInstance instance, boolean
-    ignoreAuthErrors, String user) throws Exception{
+  SourceTableDefinition getDatasetWithOptions(NamespaceKey datasetPath, TableInstance instance, boolean ignoreAuthErrors, String user) throws Exception{
     final FormatPluginConfig fconfig = optionExtractor.createConfigForTable(instance);
     return getDatasetWithFormat(datasetPath, null, fconfig, ignoreAuthErrors, user);
   }
@@ -405,12 +396,11 @@ public class FileSystemPlugin implements StoragePlugin {
     return null;
   }
 
-
   @Override
   public void start() throws IOException {
-    if (config.getConfig() != null) {
-      for (Entry<String, String> prop : config.getConfig().entrySet()) {
-        fsConf.set(prop.getKey(), prop.getValue());
+    if (config.getProperties() != null) {
+      for (Property prop : config.getProperties()) {
+        fsConf.set(prop.name, prop.value);
       }
     }
 
@@ -442,6 +432,37 @@ public class FileSystemPlugin implements StoragePlugin {
       this.fs = getFS(SYSTEM_USERNAME);
     }
     dropFileMatchers = matchers.subList(0, matchers.size());
+
+    createIfNecessary();
+  }
+
+  /**
+   * Create the supporting directory for this plugin if it doesn't yet exist.
+   * @throws IOException
+   */
+  private void createIfNecessary() throws IOException {
+    if(!config.createIfMissing()) {
+      return;
+    }
+
+    try {
+      // no need to exists here as FileSystemWrapper does an exists check and this is a noop if already existing.
+      fs.mkdirs(config.getPath());
+    } catch (IOException ex) {
+      try {
+        if(fs.exists(config.getPath())) {
+          // race creation, ignore.
+          return;
+        }
+
+      } catch (IOException existsFailure) {
+        // we're doing the check above to detect a race condition. if we fail, ignore the failure and just fall through to throwing the originally caught exception.
+        ex.addSuppressed(existsFailure);
+      }
+
+      throw new IOException(String.format("Failure to create directory %s.", config.getPath().toString()), ex);
+    }
+
   }
 
   public FormatPlugin getFormatPlugin(String name) {
@@ -493,7 +514,7 @@ public class FileSystemPlugin implements StoragePlugin {
   // Check if all sub directories can be listed/read
   private Collection<FsPermissionTask> getUpdateKeyPermissionTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs) {
     final FileUpdateKey fileUpdateKey = new FileUpdateKey();
-    ProtostuffIOUtil.mergeFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray(), fileUpdateKey, fileUpdateKey.getSchema());
+    ProtostuffIOUtil.mergeFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray(), fileUpdateKey, FileUpdateKey.getSchema());
     if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
       return Collections.emptyList();
     }
@@ -584,10 +605,6 @@ public class FileSystemPlugin implements StoragePlugin {
     }
   }
 
-  public FileSystemConfig getFileSystemConfig() {
-    return config;
-  }
-
   public FileSystemWrapper getFs() {
     return fs;
   }
@@ -623,8 +640,8 @@ public class FileSystemPlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig oldConfig) throws Exception {
-    FileUpdateKey fileUpdateKey = new FileUpdateKey();
+  public CheckResult checkReadSignature(ByteString key, final DatasetConfig oldConfig) throws Exception {
+    final FileUpdateKey fileUpdateKey = new FileUpdateKey();
     ProtostuffIOUtil.mergeFrom(key.toByteArray(), fileUpdateKey, FileUpdateKey.getSchema());
 
     if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
@@ -654,7 +671,6 @@ public class FileSystemPlugin implements StoragePlugin {
     case DELETED:
       return CheckResult.DELETED;
     case UNCHANGED:
-      return CheckResult.UNCHANGED;
     case CHANGED:
       // continue below.
       break;
@@ -662,12 +678,11 @@ public class FileSystemPlugin implements StoragePlugin {
       throw new UnsupportedOperationException(status.name());
     }
 
-
     final SourceTableDefinition newDatasetAccessor = getDataset(new NamespaceKey(oldConfig.getFullPathList()), oldConfig, false);
     return new CheckResult() {
       @Override
       public UpdateStatus getStatus() {
-        return UpdateStatus.CHANGED;
+        return status;
       }
 
       @Override
@@ -731,8 +746,8 @@ public class FileSystemPlugin implements StoragePlugin {
   public void close() {
   }
 
-  public boolean createView(List<String> tableSchemaPath, View view, SchemaConfig schemaConfig) throws IOException {
-    Path viewPath = getViewPath(tableSchemaPath);
+  public boolean createView(NamespaceKey key, View view, SchemaConfig schemaConfig) throws IOException {
+    Path viewPath = getViewPath(key.getPathComponents());
     FileSystemWrapper fs = getFS(schemaConfig.getUserName());
     boolean replaced = fs.exists(viewPath);
     final FsPermission viewPerms =
@@ -803,7 +818,7 @@ public class FileSystemPlugin implements StoragePlugin {
    */
   public void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     FileSystemWrapper fs = getFS(schemaConfig.getUserName());
-    String defaultLocation = config.getPath();
+    String defaultLocation = config.getPath().toString();
     List<String> fullPath = resolveTableNameToValidPath(tableSchemaPath);
     FileSelection fileSelection;
     try {
@@ -854,6 +869,31 @@ public class FileSystemPlugin implements StoragePlugin {
     }
   }
 
+  /**
+   * Fetches a single item from the filesystem plugin
+   */
+  public SchemaEntity get(List<String> path, String userName) {
+    try {
+      final FileStatus status = getFS(userName).getFileStatus(PathUtils.toFSPath(resolveTableNameToValidPath(path)));
+
+      final Set<List<String>> tableNames = Sets.newHashSet();
+      final NamespaceService ns = context.getNamespaceService(userName);
+      final NamespaceKey folderNSKey = new NamespaceKey(path);
+
+      if (ns.exists(folderNSKey)) {
+        for(NameSpaceContainer entity : ns.list(folderNSKey)) {
+          if (entity.getType() == Type.DATASET) {
+            tableNames.add(resolveTableNameToValidPath(entity.getDataset().getFullPathList()));
+          }
+        }
+      }
+
+      List<String> p = PathUtils.toPathComponents(status.getPath());
+      return getSchemaEntity(status, tableNames, p);
+    } catch (IOException | NamespaceException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   public List<SchemaEntity> list(List<String> folderPath, String userName) {
     try {
@@ -878,19 +918,7 @@ public class FileSystemPlugin implements StoragePlugin {
         @Override
         public SchemaEntity apply(@Nullable FileStatus input) {
           List<String> p = PathUtils.toPathComponents(input.getPath());
-          if (input.isDirectory()) {
-            if (tableNames.contains(p)) {
-              return new SchemaEntity(PathUtils.getQuotedFileName(input.getPath()), SchemaEntityType.FOLDER_TABLE, input.getOwner());
-            } else {
-              return new SchemaEntity(PathUtils.getQuotedFileName(input.getPath()), SchemaEntityType.FOLDER, input.getOwner());
-            }
-          } else {
-            if (tableNames.contains(p)) {
-              return new SchemaEntity(PathUtils.getQuotedFileName(input.getPath()), SchemaEntityType.FILE_TABLE, input.getOwner());
-            } else {
-              return new SchemaEntity(PathUtils.getQuotedFileName(input.getPath()), SchemaEntityType.FILE, input.getOwner());
-            }
-          }
+          return getSchemaEntity(input, tableNames, p);
         }
       });
       return ImmutableList.<SchemaEntity>builder().addAll(itr).build();
@@ -901,6 +929,25 @@ public class FileSystemPlugin implements StoragePlugin {
     }
   }
 
+  private SchemaEntity getSchemaEntity(FileStatus status, Set<List<String>> tableNames, List<String> p) {
+    SchemaEntityType entityType;
+
+    if (status.isDirectory()) {
+      if (tableNames.contains(p)) {
+        entityType = SchemaEntityType.FOLDER_TABLE;
+      } else {
+        entityType = SchemaEntityType.FOLDER;
+      }
+    } else {
+      if (tableNames.contains(p)) {
+        entityType = SchemaEntityType.FILE_TABLE;
+      } else {
+        entityType = SchemaEntityType.FILE;
+      }
+    }
+
+    return new SchemaEntity(PathUtils.getQuotedFileName(status.getPath()), entityType, status.getOwner());
+  }
 
   public SchemaMutability getMutability() {
     return config.getSchemaMutability();

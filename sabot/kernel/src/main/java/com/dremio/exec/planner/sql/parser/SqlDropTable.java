@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 
 public class SqlDropTable extends SqlCall {
@@ -76,24 +77,8 @@ public class SqlDropTable extends SqlCall {
     tableName.unparse(writer, leftPrec, rightPrec);
   }
 
-  public List<String> getSchema() {
-    if (tableName.isSimple()) {
-      return ImmutableList.of();
-    }
-
-    return tableName.names.subList(0, tableName.names.size()-1);
-  }
-
-  public String getName() {
-    if (tableName.isSimple()) {
-      return tableName.getSimple();
-    }
-
-    return tableName.names.get(tableName.names.size() - 1);
-  }
-
-  public SqlIdentifier getTableIdentifier() {
-    return tableName;
+  public NamespaceKey getPath() {
+    return new NamespaceKey(tableName.names);
   }
 
   public boolean checkTableExistence() {

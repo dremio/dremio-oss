@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -148,6 +148,25 @@ message DremioPBError{
      * This is a new error type not present in Apache Drill
      */
     CONCURRENT_MODIFICATION = 1014;
+
+    /* Dataset metadata is invalid (or out of date).
+     *
+     * This is used to notify that metadata for a dataset is invalid or out of date. In which case,
+     * dataset refresh has to be triggered, and then the query could be potentially re-attempted.
+     *
+     * This is a new error type not present in Apache Drill
+     */
+    INVALID_DATASET_METADATA = 1015;
+
+    /*
+     * Internal reflection error
+     */
+    REFLECTION_ERROR = 1016;
+
+    /*
+     * Source in bad state
+     */
+    SOURCE_BAD_STATE = 1017;
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -159,6 +178,7 @@ message DremioPBError{
   // these additional fields are not present in Apache Drill
   optional string original_message = 1001;
   repeated string context = 1002;
+  optional bytes typeSpecificContext = 1003;
 }
 
 message ExceptionWrapper {
@@ -291,6 +311,12 @@ message AccelerationProfile {
   optional bytes acceleration_details = 9;
 }
 
+enum ReflectionType {
+  RAW = 1;
+  AGG = 2;
+  EXTERNAL = 3;
+}
+
 message LayoutMaterializedViewProfile {
   optional string layout_id = 1;
   optional string materialization_id = 2;
@@ -311,6 +337,8 @@ message LayoutMaterializedViewProfile {
   repeated string normalized_query_plans = 18 [deprecated = true];
   optional string name = 19;
   optional string optimized_plan = 20;
+  optional ReflectionType type = 21;
+  optional bool snowflake = 22;
 }
 
 message SubstitutionProfile {

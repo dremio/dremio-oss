@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
 import org.apache.arrow.flatbuf.Schema;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.NullableBigIntVector;
@@ -127,8 +124,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.flatbuffers.FlatBufferBuilder;
+import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
-import com.sun.codemodel.JType;
 
 /**
  * Describes the complete type of an arrow Field but without any name. This is
@@ -157,7 +154,7 @@ public class CompleteType {
   public static final CompleteType VARCHAR = new CompleteType(ArrowType.Utf8.INSTANCE);
 
 
-
+  private static final String LIST_DATA_NAME = ListVector.DATA_VECTOR_NAME;
   private final ArrowType type;
   private final ImmutableList<Field> children;
 
@@ -179,11 +176,15 @@ public class CompleteType {
     return new Field(ref.getAsUnescapedPath(), true, type, children);
   }
 
-  private Field toInternalField(boolean isList){
-    final String name = isList ? "$data$" : Describer.describe(type);
-    return toField(name);
-
+  private Field toInternalList() {
+    return toField(LIST_DATA_NAME);
   }
+
+  private Field toInternalField() {
+    final String name = Describer.describeInternal(type);
+    return toField(name);
+  }
+
   public MinorType toMinorType() {
     if (type instanceof ObjectType) {
       return MinorType.GENERIC_OBJECT;
@@ -394,8 +395,8 @@ public class CompleteType {
     return type.getTypeID() == ArrowTypeID.Decimal;
   }
 
-  public JType getHolderType(final JCodeModel model) {
-    return model._ref(getHolderClass());
+  public JClass getHolderType(final JCodeModel model) {
+    return model.ref(getHolderClass());
   }
 
   public Class<? extends FieldVector> getValueVectorClass(){
@@ -667,7 +668,7 @@ public class CompleteType {
         // both are lists
         CompleteType child1 = fromField(type1.getOnlyChild());
         CompleteType child2 = fromField(type2.getOnlyChild());
-        return new CompleteType(type1.getType(), child1.merge(child2).toInternalField(true));
+        return new CompleteType(type1.getType(), child1.merge(child2).toInternalList());
       } else if(type1.isStruct()) {
         // both are structs.
         return new CompleteType(type1.getType(), mergeFieldLists(type1.getChildren(), type2.getChildren()));
@@ -682,8 +683,8 @@ public class CompleteType {
       return type1;
     }
 
-    final List<Field> fields1 = type1.isUnion() ? type1.getChildren() : Collections.singletonList(type1.toField(Describer.describe(type1.getType())));
-    final List<Field> fields2 = type2.isUnion() ? type2.getChildren() : Collections.singletonList(type2.toField(Describer.describe(type2.getType())));
+    final List<Field> fields1 = type1.isUnion() ? type1.getChildren() : Collections.singletonList(type1.toInternalField());
+    final List<Field> fields2 = type2.isUnion() ? type2.getChildren() : Collections.singletonList(type2.toInternalField());
 
     List<Field> mergedFields = mergeFieldLists(fields1, fields2);
     int[] typeIds = getTypeIds(mergedFields);
@@ -801,7 +802,7 @@ public class CompleteType {
   }
 
   public CompleteType asList(){
-    return new CompleteType(ArrowType.List.INSTANCE, this.toField("$data$"));
+    return new CompleteType(ArrowType.List.INSTANCE, this.toField(LIST_DATA_NAME));
   }
 
   public static CompleteType struct(Iterable<Field> fields){

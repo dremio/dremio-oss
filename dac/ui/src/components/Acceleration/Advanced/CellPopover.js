@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,10 @@ export default class CellPopover extends Component {
   static propTypes = {
     anchorEl: PropTypes.object,
     currentCell: PropTypes.string,
-    sortFieldList: PropTypes.array,
+    sortFields: PropTypes.array,
     onRequestClose: PropTypes.func.isRequired,
     onSelectSortItem: PropTypes.func,
-    partitionFieldList: PropTypes.array,
+    partitionFields: PropTypes.array,
     onSelectPartitionItem: PropTypes.func
   };
 
@@ -44,8 +44,8 @@ export default class CellPopover extends Component {
     dragIndex: -1,
     hoverIndex: -1,
     dragColumns: {
-      partitionFieldList: [],
-      sortFieldList: []
+      partitionFields: [],
+      sortFields: []
     }
   }
 
@@ -65,8 +65,8 @@ export default class CellPopover extends Component {
   }
 
   receiveProps(nextProps, oldProps) {
-    const sortFieldsChanged = this.compareColumnAreaFields('sortFieldList', nextProps, oldProps);
-    const partitionFieldsChanged = this.compareColumnAreaFields('partitionFieldList', nextProps, oldProps);
+    const sortFieldsChanged = this.compareColumnAreaFields('sortFields', nextProps, oldProps);
+    const partitionFieldsChanged = this.compareColumnAreaFields('partitionFields', nextProps, oldProps);
     if (sortFieldsChanged || partitionFieldsChanged) {
       this.updateFields(nextProps);
     }
@@ -90,12 +90,12 @@ export default class CellPopover extends Component {
   }
 
   updateFields(props) {
-    const sortFieldList = this.mapColumnAreaFields(props.sortFieldList || []);
-    const partitionFieldList = this.mapColumnAreaFields(props.partitionFieldList || []);
+    const sortFields = this.mapColumnAreaFields(props.sortFields || []);
+    const partitionFields = this.mapColumnAreaFields(props.partitionFields || []);
     this.setState({
       dragColumns: {
-        sortFieldList,
-        partitionFieldList
+        sortFields,
+        partitionFields
       }
     });
   }
@@ -161,19 +161,19 @@ export default class CellPopover extends Component {
   }
 
   renderSortMenu = () => {
-    const { sortFieldList } = this.props;
+    const { sortFields } = this.props;
     return (
       <div style={{ width: WIDTH_MENU }}>
         <MenuItem onClick={() => this.props.onSelectSortItem()} primaryText={la('Off')}/>
         <MenuItem
-          onClick={() => this.props.onSelectSortItem('sortFieldList')}
+          onClick={() => this.props.onSelectSortItem('sortFields')}
           primaryText={la('Sorted')}
         />
-        { sortFieldList.length > 0 &&
+        { sortFields.length > 0 &&
           <div>
             <Divider />
             <span style={{ margin: '5px 5px 0 10px', ...formLabel }}>{la('Sort Order:')}</span>
-            {this.renderColumnArea('sortFieldList')}
+            {this.renderColumnArea('sortFields')}
           </div>
         }
       </div>
@@ -182,7 +182,7 @@ export default class CellPopover extends Component {
 
   // note: this has been disabled pending BE support
   renderPartitionCell = () => {
-    const { partitionFieldList } = this.props;
+    const { partitionFields } = this.props;
     return (
       <div style={{ width: WIDTH_MENU }}>
         <MenuItem
@@ -190,14 +190,14 @@ export default class CellPopover extends Component {
           primaryText={la('Off')}
         />
         <MenuItem
-          onClick={() => this.props.onSelectPartitionItem('partitionFieldList')}
+          onClick={() => this.props.onSelectPartitionItem('partitionFields')}
           primaryText={la('Partitioned')}
         />
-        { partitionFieldList && partitionFieldList.length > 0 &&
+        { partitionFields && partitionFields.length > 0 &&
         <div>
           <Divider />
           <span style={{ margin: '5px 5px 0 10px', ...formLabel }}>{la('Partition Order:')}</span>
-          {this.renderColumnArea('partitionFieldList')}
+          {this.renderColumnArea('partitionFields')}
         </div>
         }
       </div>

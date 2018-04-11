@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,7 +168,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     TransformActor actor = new TransformActor(state, preview, "test_user", executor){
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
-        return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null);
+        return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null, null);
       }
 
       @Override
@@ -183,7 +183,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
   @Before
   public void before() {
-    state = new VirtualDatasetState(parentDataset);
+    state = new VirtualDatasetState()
+        .setFrom(parentDataset);
     state.setColumnsList(asList(new Column("foo", new ExpColumnReference("foo").wrap()), new Column("bar", new ExpColumnReference("bar").wrap())));
     state.setReferredTablesList(ImmutableList.of("parentDS"));
   }
@@ -614,7 +615,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     assertEquals(UnnestList, columnInSub.getValue().getFieldTransformation().getTransformation().getType());
 
     // Sort multiple columns
-    state = new VirtualDatasetState(parentDataset);
+    state = new VirtualDatasetState()
+        .setFrom(parentDataset);
     Expression x = new ExpColumnReference("x").wrap();
     Expression y = new ExpColumnReference("y").wrap();
     state.setColumnsList(asList(new Column("x", x), new Column("y", y)));
@@ -881,7 +883,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     TransformActor actor = new TransformActor(state, false, "test_user", null) {
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
-        return new QueryMetadata(null, null, null, null, sqlNode, rowType, null, null, null, null, BatchSchema.fromCalciteRowType(rowType));
+        return new QueryMetadata(null, null, null, null, sqlNode, rowType, null, null, null, null, BatchSchema.fromCalciteRowType(rowType), null);
       }
 
       @Override

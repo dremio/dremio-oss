@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,20 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.vector.complex.fn.FieldSelection;
 
 public abstract class SubScanWithProjection extends AbstractSubScan {
   private List<SchemaPath> columns;
+
+  public SubScanWithProjection(String userName, BatchSchema schema, Collection<List<String>> referencedTables, List<SchemaPath> columns) {
+    super(userName, schema, referencedTables);
+    this.columns = columns;
+  }
 
   public SubScanWithProjection(String userName, BatchSchema schema, List<String> tablePath, List<SchemaPath> columns) {
     super(userName, schema, tablePath);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,14 +29,25 @@ function getInitialState() {
 
 export default function spaceList(state = getInitialState(), action) {
   switch (action.type) {
+  case AllSpacesActionTypes.REMOVE_SPACE_SUCCESS: {
+    const newSpaces = state.get('spaces').filter((value) => {
+      return value !== action.meta.id;
+    });
+
+    return state.set('spaces', newSpaces);
+  }
+
   case AllSpacesActionTypes.SET_SPACE_PIN_STATE: {
     localStorageUtils.updatePinnedItemState(action.name, { isActivePin: action.isActivePin }, ENTITY_NAME);
     return state.setIn(['spacesById', action.name, 'isActivePin'], action.isActivePin);
   }
+
   case AllSpacesActionTypes.SPACES_LIST_LOAD_SUCCESS: {
     return state.set('spaces', action.payload.getIn(['result', 'spaces']));
   }
-  default:
+
+  default: {
     return state;
+  }
   }
 }

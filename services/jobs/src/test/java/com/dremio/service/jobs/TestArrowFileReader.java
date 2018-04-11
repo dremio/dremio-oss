@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
+import com.dremio.exec.store.RecordWriter.WriteStatsListener;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
@@ -506,13 +507,15 @@ public class TestArrowFileReader {
         new ArrowFormatPluginConfig());
 
     OutputEntryListener outputEntryListener = Mockito.mock(OutputEntryListener.class);
+    WriteStatsListener writeStatsListener = Mockito.mock(WriteStatsListener.class);
     ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
     ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
     ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<Long> bytesWrittenCaptor = ArgumentCaptor.forClass(long.class);
 
     final VectorContainer incoming = batches[0];
-    writer.setup(incoming, outputEntryListener);
+    writer.setup(incoming, outputEntryListener, writeStatsListener);
     writer.writeBatch(0, incoming.getRecordCount());
 
     for(int i=1; i<batches.length; i++) {
@@ -527,6 +530,7 @@ public class TestArrowFileReader {
     writer.close();
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(), partitionCaptor.capture());
+    verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     return ArrowFileReader.toBean(ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,11 @@
 package com.dremio.exec.planner.acceleration;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
+import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.planner.logical.serialization.RelSerializer;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.StoragePluginRegistryImpl;
 import com.esotericsoftware.kryo.Kryo;
 
 /**
@@ -47,9 +45,8 @@ public final class KryoLogicalPlanSerializers {
     // use objenesis for creating mock objects
     kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
 
-    final CalciteCatalogReader catalog = kryo.newInstance(CalciteCatalogReader.class);
-    final StoragePluginRegistry registry = kryo.newInstance(StoragePluginRegistryImpl.class);
-    final RelSerializer serializer = RelSerializer.newBuilder(kryo, cluster, catalog, registry).build();
+    final DremioCatalogReader catalog = kryo.newInstance(DremioCatalogReader.class);
+    final RelSerializer serializer = RelSerializer.newBuilder(kryo, cluster, catalog).build();
 
     return new LogicalPlanSerializer() {
 
@@ -61,6 +58,10 @@ public final class KryoLogicalPlanSerializers {
     };
   }
 
+  public static byte[] serialize(RelNode node) {
+    final LogicalPlanSerializer serializer = KryoLogicalPlanSerializers.forSerialization(node.getCluster());
+    return serializer.serialize(node);
+  }
 
   /**
    * Returns a new {@link LogicalPlanDeserializer}
@@ -68,11 +69,10 @@ public final class KryoLogicalPlanSerializers {
    * @param catalog catalog used during deserializing tables
    * @param registry registry used during deserializing storage plugins
    */
-  public static LogicalPlanDeserializer forDeserialization(final RelOptCluster cluster, final CalciteCatalogReader catalog,
-                                                         final StoragePluginRegistry registry) {
+  public static LogicalPlanDeserializer forDeserialization(final RelOptCluster cluster, final DremioCatalogReader catalog) {
     final Kryo kryo = new Kryo();
     kryo.getFieldSerializerConfig().setUseAsm(true);
-    final RelSerializer serializer = RelSerializer.newBuilder(kryo, cluster, catalog, registry).build();
+    final RelSerializer serializer = RelSerializer.newBuilder(kryo, cluster, catalog).build();
 
     return new LogicalPlanDeserializer() {
 

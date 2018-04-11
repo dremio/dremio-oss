@@ -103,7 +103,7 @@ public class StatementTest extends JdbcWithServerTestBase {
     try(Statement statement = getConnection().createStatement()) {
       assertThat(
           statement.execute(String.format(
-              "ALTER session SET `%s` = '%s'",
+              "ALTER session SET \"%s\" = '%s'",
               ExecConstants.NODE_CONTROL_INJECTIONS,
               controls)),
           equalTo(true));

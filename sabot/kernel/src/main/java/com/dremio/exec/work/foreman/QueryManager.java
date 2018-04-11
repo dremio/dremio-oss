@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlanCaptureAttemptObserver;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -36,28 +37,26 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
-import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
+import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.store.SchemaTreeProvider;
 import com.dremio.exec.work.EndpointListener;
-import com.dremio.exec.work.protector.FragmentsStateListener;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.NodeStatusListener;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -73,7 +72,7 @@ class QueryManager {
   private final QueryContext context;
   private final CompletionListener completionListener;
   private final PlanCaptureAttemptObserver capturer;
-  private final SchemaTreeProvider schemaTreeProvider;
+  private final Catalog catalog;
 
   private ImmutableMap<NodeEndpoint, NodeTracker> nodeMap = ImmutableMap.of();
   private ImmutableMap<FragmentHandle, FragmentData> fragmentDataMap = ImmutableMap.of();
@@ -91,8 +90,6 @@ class QueryManager {
   // How many fragments have finished their execution.
   private final AtomicInteger finishedFragments = new AtomicInteger(0);
 
-  private final FragmentsStateListener fragmentsStateListener;
-
   public QueryManager(
     final QueryId queryId,
     final QueryContext context,
@@ -100,14 +97,12 @@ class QueryManager {
     final Pointer<QueryId> prepareId,
     final AttemptObservers observers,
     final boolean verboseProfiles,
-    final SchemaTreeProvider schemaTreeProvider,
-    final FragmentsStateListener fragmentsStateListener) {
+    final Catalog catalog) {
     this.queryId =  queryId;
     this.completionListener = completionListener;
     this.context = context;
     this.prepareId = prepareId;
-    this.schemaTreeProvider = schemaTreeProvider;
-    this.fragmentsStateListener = fragmentsStateListener;
+    this.catalog = catalog;
 
     capturer = new PlanCaptureAttemptObserver(verboseProfiles, context.getFunctionRegistry(),
       context.getAccelerationManager().newPopulator());
@@ -169,20 +164,7 @@ class QueryManager {
       // since we're in the fragment done clause and this was a change from previous
       final NodeTracker node = nodeMap.get(status.getProfile().getEndpoint());
       node.fragmentComplete();
-      /**
-       * For OOM related reattempts, we ensure that fragments are terminated
-       * from previous attempt before query is reattempted. Every time a fragment is
-       * moved to state FAILED, CANCELLED OR FINISHED, this function is called and
-       * we check if the number of fragments finished is equal to the total number
-       * of plan fragments. Once the condition is met, we invoke the observer
-       * callback and Foreman.Observer will issue the reattempt due to OOM.
-       * If the query failure reason was not OOM, allFragmentsRetired() callback
-       * is a NOOP.
-       */
-
-      if (finishedFragments.incrementAndGet() == fragmentDataMap.size()) {
-        fragmentsStateListener.allFragmentsRetired();
-      }
+      finishedFragments.incrementAndGet();
     }
   }
 
@@ -344,7 +326,7 @@ class QueryManager {
     }
 
     // get stats from schema tree provider
-    profileBuilder.addAllPlanPhases(schemaTreeProvider.getMetadataStatsCollector().getPlanPhaseProfiles());
+    profileBuilder.addAllPlanPhases(catalog.getMetadataStatsCollector().getPlanPhaseProfiles());
 
     for(MajorFragmentReporter reporter : reporters) {
       final MajorFragmentProfile.Builder builder = MajorFragmentProfile.newBuilder().setMajorFragmentId(reporter.majorFragmentId);
@@ -423,6 +405,13 @@ class QueryManager {
       return true;
     }
 
+    /**
+     * @return true if all fragments running on this node already finished
+     */
+    public boolean isDone() {
+      return totalFragments.get() == completedFragments.get();
+    }
+
     @Override
     public String toString() {
       return "NodeTracker [endpoint=" + endpoint + ", totalFragments=" + totalFragments.get() + ", completedFragments="
@@ -467,7 +456,7 @@ class QueryManager {
 
       case FAILED:
         logger.info("Fragment {} failed, cancelling remaining fragments.", QueryIdHelper.getQueryIdentifier(status.getHandle()));
-        completionListener.failed(new UserRemoteException(status.getProfile().getError()));
+        completionListener.failed(UserRemoteException.create(status.getProfile().getError()));
         // fall-through.
       case FINISHED:
       case CANCELLED:
@@ -493,6 +482,12 @@ class QueryManager {
 
     @Override
     public void nodesUnregistered(final Set<NodeEndpoint> unregisteredNodes) {
+      // let's do a pass through all unregistered nodes, check if any of them has running fragments without marking them
+      // as complete for now. Otherwise, the last node may complete successfully and send a completion message to the
+      // foreman which will mark the query as succeeded.
+      // Note that by the time we build and send the failure message, its possible that we get a completion message
+      // from the last fragments that were running on the dead nodes which may cause the query to be marked completed
+      // which is actually correct in this case as the node died after all its fragments completed.
       final StringBuilder failedNodeList = new StringBuilder();
       boolean atLeastOneFailure = false;
 
@@ -503,7 +498,7 @@ class QueryManager {
         }
 
         // mark node as dead.
-        if (!tracker.nodeDead()) {
+        if (tracker.isDone()) {
           continue; // fragments assigned to this SabotNode completed
         }
 
@@ -520,13 +515,20 @@ class QueryManager {
 
       if (atLeastOneFailure) {
         logger.warn("Nodes [{}] no longer registered in cluster.  Canceling query {}",
-            failedNodeList, QueryIdHelper.getQueryId(queryId));
+          failedNodeList, QueryIdHelper.getQueryId(queryId));
 
         completionListener.failed(
-            new ForemanException(String.format("One more more nodes lost connectivity during query.  Identified nodes were [%s].",
-                failedNodeList)));
+          new ForemanException(String.format("One more more nodes lost connectivity during query.  Identified nodes were [%s].",
+            failedNodeList)));
       }
 
+      // now we can call nodeDead() on all unregistered nodes
+      for (final NodeEndpoint ep : unregisteredNodes) {
+        final NodeTracker tracker = nodeMap.get(ep);
+        if (tracker != null) {
+          tracker.nodeDead();
+        }
+      }
     }
   };
 
@@ -566,4 +568,5 @@ class QueryManager {
       perNodeStatus.put(assignment, status);
     }
   }
+
 }

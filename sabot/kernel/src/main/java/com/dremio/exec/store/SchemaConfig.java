@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,38 @@
 package com.dremio.exec.store;
 
 import com.dremio.exec.ops.ViewExpansionContext;
+import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValue;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 
 /**
- * Contains information needed by {@link com.dremio.exec.store.AbstractSchema} implementations.
+ * Contains information needed by Catalog implementations
  */
 public class SchemaConfig {
-  private transient final SchemaInfoProvider provider;
   private final AuthorizationContext authContext;
-  private final boolean exposeSubSchemasAsTopLevelSchemas;
   private final boolean exposeInternalSources;
+  private final NamespaceKey defaultSchema;
+  private final OptionManager optionManager;
+  private final ViewExpansionContext viewExpansionContext;
+  private final Predicate<DatasetConfig> validityChecker;
 
-  private SchemaConfig(final SchemaInfoProvider provider, final AuthorizationContext authContext,
-                       final boolean exposeSubSchemasAsTopLevelSchemas, boolean exposeInternalSources) {
-    this.provider = provider;
+  private SchemaConfig(
+      final AuthorizationContext authContext,
+      final NamespaceKey defaultSchema,
+      final OptionManager optionManager,
+      final ViewExpansionContext viewExpansionContext,
+      boolean exposeInternalSources,
+      Predicate<DatasetConfig> validityChecker) {
     this.authContext = authContext;
-    this.exposeSubSchemasAsTopLevelSchemas = exposeSubSchemasAsTopLevelSchemas;
+    this.viewExpansionContext = viewExpansionContext;
+    this.defaultSchema = defaultSchema;
+    this.optionManager = optionManager;
     this.exposeInternalSources = exposeInternalSources;
+    this.validityChecker = validityChecker;
   }
 
   /**
@@ -45,23 +59,29 @@ public class SchemaConfig {
   }
 
   public static class Builder {
-    final String username;
-    SchemaInfoProvider provider;
-    boolean ignoreAuthErrors;
-    boolean exposeSubSchemasAsTopLevelSchemas;
-    boolean exposeInternalSources = false;
+    private final String username;
+    private boolean ignoreAuthErrors;
+    private boolean exposeInternalSources = false;
+    private NamespaceKey defaultSchema;
+    private OptionManager optionManager;
+    private ViewExpansionContext viewExpansionContext;
+    private Predicate<DatasetConfig> validityChecker = Predicates.alwaysTrue();
 
     private Builder(final String username) {
       this.username = Preconditions.checkNotNull(username);
     }
 
-    public Builder setProvider(final SchemaInfoProvider provider) {
-      this.provider = provider;
+    public Builder setViewExpansionContext(ViewExpansionContext viewExpansionContext) {
+      this.viewExpansionContext = viewExpansionContext;
+      return this;
+    }
+    public Builder setIgnoreAuthErrors(boolean ignoreAuthErrors) {
+      this.ignoreAuthErrors = ignoreAuthErrors;
       return this;
     }
 
-    public Builder setIgnoreAuthErrors(boolean ignoreAuthErrors) {
-      this.ignoreAuthErrors = ignoreAuthErrors;
+    public Builder optionManager(OptionManager optionManager) {
+      this.optionManager = optionManager;
       return this;
     }
 
@@ -70,20 +90,31 @@ public class SchemaConfig {
       return this;
     }
 
+    public Builder defaultSchema(NamespaceKey defaultSchema) {
+      this.defaultSchema = defaultSchema;
+      return this;
+    }
+
     /**
-     * Whether to expose the nested subschemas as top level schemas by adding a short cut to subschema at top level.
-     * Useful in cases where a client can not understand more than one level of schemas such as Tableau.
-     * @param exposeSubSchemasAsTopLevelSchemas
-     * @return
+     * Predicate to apply to check if a dataset is valid.
+     *
+     * @param validityChecker predicate
+     * @return this builder
      */
-    public Builder exposeSubSchemasAsTopLevelSchemas(boolean exposeSubSchemasAsTopLevelSchemas) {
-      this.exposeSubSchemasAsTopLevelSchemas = exposeSubSchemasAsTopLevelSchemas;
+    public Builder setDatasetValidityChecker(Predicate<DatasetConfig> validityChecker) {
+      Preconditions.checkNotNull(validityChecker, "dataset validity checker must be set");
+      this.validityChecker = validityChecker;
       return this;
     }
 
     public SchemaConfig build() {
-      return new SchemaConfig(provider, new AuthorizationContext(username, ignoreAuthErrors),
-          exposeSubSchemasAsTopLevelSchemas, exposeInternalSources);
+      return new SchemaConfig(
+          new AuthorizationContext(username, ignoreAuthErrors),
+          defaultSchema,
+          optionManager,
+          viewExpansionContext,
+          exposeInternalSources,
+          validityChecker);
     }
   }
 
@@ -99,6 +130,10 @@ public class SchemaConfig {
     return authContext.getUsername();
   }
 
+  public NamespaceKey getDefaultSchema() {
+    return defaultSchema;
+  }
+
   /**
    * @return Should ignore if authorization errors are reported while {@link SchemaPlus}
    * instances interact with the underlying storage.
@@ -107,33 +142,24 @@ public class SchemaConfig {
     return authContext.getIgnoreAuthErrors();
   }
 
-  /**
-   * Whether to expose the nested subschemas as top level schemas by adding a short cut to subschema at top level.
-   * Useful in cases where a client can not understand more than one level of schemas such as Tableau.
-   * @return
-   */
-  public boolean exposeSubSchemasAsTopLevelSchemas() {
-    return exposeSubSchemasAsTopLevelSchemas;
-  }
-
   public boolean exposeInternalSources() {
     return exposeInternalSources;
   }
 
+  public OptionManager getOptions() {
+    return optionManager;
+  }
+
   public OptionValue getOption(String optionKey) {
-    return provider.getOption(optionKey);
+    return optionManager.getOption(optionKey);
   }
 
   public ViewExpansionContext getViewExpansionContext() {
-    return provider.getViewExpansionContext();
+    return viewExpansionContext;
   }
 
-  /**
-   * Interface to implement to provide required info for {@link com.dremio.exec.store.SchemaConfig}
-   */
-  public interface SchemaInfoProvider {
-    ViewExpansionContext getViewExpansionContext();
-
-    OptionValue getOption(String optionKey);
+  public Predicate<DatasetConfig> getDatasetValidityChecker() {
+    return validityChecker;
   }
+
 }

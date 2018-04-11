@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,47 @@
  */
 package com.dremio.exec.physical.impl.TopN;
 
-import org.junit.Ignore;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionMatcher;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 
-@Ignore
 public class TestTopNSchemaChanges extends BaseTestQuery {
+
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  private void attemptTestNumericTypes(String query) throws Exception {
+    TestBuilder builder = testBuilder()
+      .sqlQuery(query)
+      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .ordered()
+      .baselineColumns("kl", "vl");
+
+    for (long i = 0; i < 12; ++i) {
+      if (i % 2 == 0) {
+        builder.baselineValues(i, i);
+      } else {
+        builder.baselineValues((double) i, (double) i);
+      }
+    }
+    builder.go();
+  }
 
   @Test
   public void testNumericTypes() throws Exception {
-    final File data_dir = new File(BaseTestQuery.getTempDir("topn-schemachanges"));
-    data_dir.mkdirs();
+    final File data_dir = tempFolder.newFolder("topn-schemachanges");
 
     // left side int and strings
     BufferedWriter writer = new BufferedWriter(new FileWriter(new File(data_dir, "d1.json")));
@@ -44,54 +68,23 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
       writer.write(String.format("{ \"kl\" : %f , \"vl\": %f }\n", (float)i, (float)i));
     }
     writer.close();
-    String query = String.format("select * from dfs_test.`%s` order by kl limit 12", data_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.`%s` order by kl limit 12", data_dir.toPath().toString());
 
-    TestBuilder builder = testBuilder()
-      .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-      .ordered()
-      .baselineColumns("kl", "vl");
-
-    for (long i = 0; i< 12 ; ++i) {
-      if (i %2 == 0) {
-        builder.baselineValues(i, i);
-      } else {
-        builder.baselineValues((double)i, (double)i);
-      }
+    // First query will get a schema change error
+    try {
+      attemptTestNumericTypes(query);
+    } catch (Exception e) {
+      UserExceptionMatcher m = new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ, "SCHEMA_CHANGE ERROR");
+      @SuppressWarnings("deprecation") // deprecated methods used below: usage matches usage in AttemptManager
+        final UserException expectedException = UserException.systemError(e).build();
+      assertTrue(m.matches(expectedException));
     }
-    builder.go();
+    // Second attempt should work, as we'd have learned the schema
+    attemptTestNumericTypes(query);
   }
 
-  @Test
-  public void testNumericAndStringTypes() throws Exception {
-    final File data_dir = new File(BaseTestQuery.getTempDir("topn-schemachanges"));
-    data_dir.mkdirs();
-
-    // left side int and strings
-    BufferedWriter writer = new BufferedWriter(new FileWriter(new File(data_dir, "d1.json")));
-    for (int i = 0; i < 1000; i+=2) {
-      writer.write(String.format("{ \"kl\" : %d , \"vl\": %d }\n", i, i));
-    }
-    writer.close();
-    writer = new BufferedWriter(new FileWriter(new File(data_dir, "d2.json")));
-    for (int i = 1; i < 1000; i+=2) {
-      writer.write(String.format("{ \"kl\" : \"%s\" , \"vl\": \"%s\" }\n", i, i));
-    }
-    writer.close();
-    String query = String.format("select * from dfs_test.`%s` order by kl limit 12", data_dir.toPath().toString());
-
+  private void attemptTestNumericAndStringTypes(String query) throws Exception {
     TestBuilder builder = testBuilder()
-      .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-      .ordered()
-      .baselineColumns("kl", "vl");
-
-    for (long i = 0; i< 24 ; i+=2) {
-        builder.baselineValues(i, i);
-    }
-
-    query = String.format("select * from dfs_test.`%s` order by kl desc limit 12", data_dir.toPath().toString());
-    builder = testBuilder()
       .sqlQuery(query)
       .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
       .ordered()
@@ -112,9 +105,37 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
   }
 
   @Test
+  public void testNumericAndStringTypes() throws Exception {
+    final File data_dir = tempFolder.newFolder("topn-schemachanges");
+
+    // left side int and strings
+    BufferedWriter writer = new BufferedWriter(new FileWriter(new File(data_dir, "d1.json")));
+    for (int i = 0; i < 1000; i+=2) {
+      writer.write(String.format("{ \"kl\" : %d , \"vl\": %d }\n", i, i));
+    }
+    writer.close();
+    writer = new BufferedWriter(new FileWriter(new File(data_dir, "d2.json")));
+    for (int i = 1; i < 1000; i+=2) {
+      writer.write(String.format("{ \"kl\" : \"%s\" , \"vl\": \"%s\" }\n", i, i));
+    }
+    writer.close();
+    String query = String.format("select * from dfs_root.`%s` order by kl desc limit 12", data_dir.toPath().toString());
+    // First query will get a schema change error
+    try {
+      attemptTestNumericAndStringTypes(query);
+    } catch (Exception e) {
+      UserExceptionMatcher m = new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ, "SCHEMA_CHANGE ERROR");
+      @SuppressWarnings("deprecation") // deprecated methods used below: usage matches usage in AttemptManager
+      final UserException expectedException = UserException.systemError(e).build();
+      assertTrue(m.matches(expectedException));
+    }
+    // Second attempt should work, as we'd have learned the schema
+    attemptTestNumericAndStringTypes(query);
+  }
+
+  @Test
   public void testUnionTypes() throws Exception {
-    final File data_dir = new File(BaseTestQuery.getTempDir("topn-schemachanges"));
-    data_dir.mkdirs();
+    final File data_dir = tempFolder.newFolder("topn-schemachanges");
 
     // union of int and float and string.
     BufferedWriter writer = new BufferedWriter(new FileWriter(new File(data_dir, "d1.json")));
@@ -132,83 +153,22 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
       }
     }
     writer.close();
-    String query = String.format("select * from dfs_test.`%s` order by kl limit 8", data_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.`%s` order by kl limit 8", data_dir.toPath().toString());
 
     TestBuilder builder = testBuilder()
       .sqlQuery(query)
       .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
       .ordered()
-      .baselineColumns("kl", "vl");
-
-    builder.baselineValues(0l, 0l);
-    builder.baselineValues(1.0d, 1.0d);
-    builder.baselineValues(3l, 3l);
-    builder.baselineValues(4.0d, 4.0d);
-    builder.baselineValues(6l, 6l);
-    builder.baselineValues(7.0d, 7.0d);
-    builder.baselineValues(9l, 9l);
-    builder.baselineValues("2", "2");
+      .baselineColumns("kl", "vl")
+      .baselineValues(0l, 0l)
+      .baselineValues(1.0d, 1.0d)
+      .baselineValues(3l, 3l)
+      .baselineValues(4.0d, 4.0d)
+      .baselineValues(6l, 6l)
+      .baselineValues(7.0d, 7.0d)
+      .baselineValues(9l, 9l)
+      .baselineValues("2", "2");
     builder.go();
   }
 
-  @Test
-  @Ignore
-  public void testMissingColumn() throws Exception {
-    final File data_dir = new File(BaseTestQuery.getTempDir("topn-schemachanges"));
-    data_dir.mkdirs();
-
-    BufferedWriter writer = new BufferedWriter(new FileWriter(new File(data_dir, "d1.json")));
-    for (int i = 0; i < 100; i++) {
-      writer.write(String.format("{ \"kl1\" : %d , \"vl1\": %d }\n", i, i));
-    }
-    writer.close();
-    writer = new BufferedWriter(new FileWriter(new File(data_dir, "d2.json")));
-    for (int i = 100; i < 200; i++) {
-      writer.write(String.format("{ \"kl\" : %f , \"vl\": %f }\n", (float)i, (float)i));
-    }
-    writer.close();
-
-    writer = new BufferedWriter(new FileWriter(new File(data_dir, "d3.json")));
-    for (int i = 200; i < 300; i++) {
-      writer.write(String.format("{ \"kl2\" : \"%s\" , \"vl2\": \"%s\" }\n", i, i));
-    }
-    writer.close();
-
-    String query = String.format("select kl, vl, kl1, vl1, kl2, vl2 from dfs_test.`%s` order by kl limit 3", data_dir.toPath().toString());
-    TestBuilder builder = testBuilder()
-      .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-      .ordered()
-      .baselineColumns("kl", "vl", "kl1", "vl1", "kl2", "vl2")
-      .baselineValues(100.0d, 100.0d, null, null, null, null)
-      .baselineValues(101.0d, 101.0d, null, null, null, null)
-      .baselineValues(102.0d, 102.0d, null, null, null, null);
-    builder.go();
-
-    query = String.format("select kl, vl, kl1, vl1, kl2, vl2  from dfs_test.`%s` order by kl1 limit 3", data_dir.toPath().toString());
-    builder = testBuilder()
-      .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-      .ordered()
-      .baselineColumns("kl", "vl", "kl1", "vl1", "kl2", "vl2")
-      .baselineValues(null, null, 0l, 0l, null, null)
-      .baselineValues(null, null, 1l, 1l, null, null)
-      .baselineValues(null, null, 2l, 2l, null, null);
-    builder.go();
-
-    query = String.format("select kl, vl, kl1, vl1, kl2, vl2 from dfs_test.`%s` order by kl2 limit 3", data_dir.toPath().toString());
-    builder = testBuilder()
-      .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
-      .ordered()
-      .baselineColumns("kl", "vl", "kl1", "vl1", "kl2", "vl2")
-      .baselineValues(null, null, null, null, "200", "200")
-      .baselineValues(null, null, null, null, "201", "201")
-      .baselineValues(null, null, null, null, "202", "202");
-    builder.go();
-
-    // Since client can't handle new columns which are not in first batch, we won't test output of query.
-    // Query should run w/o any errors.
-    test(String.format("select * from dfs_test.`%s` order by kl limit 3", data_dir.toPath().toString()));
-  }
 }

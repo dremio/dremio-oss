@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,15 @@ public interface ExecConstants {
   PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Integer.MAX_VALUE, 1024*1024*1024);
   DoubleValidator SPILL_DISK_SPACE_LIMIT_PERCENTAGE = new RangeDoubleValidator("dremio.exec.spill.limit.percentage", 0.0, 100.0, 1.0);
 
+  // Whether or not to replace a group of ORs with a set operation.
+  BooleanValidator FAST_OR_ENABLE = new BooleanValidator("exec.operator.orfast", true);
+
+  // Number above which we replace a group of ORs with a set operation.
+  PositiveLongValidator FAST_OR_MIN_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.min", Integer.MAX_VALUE, 5);
+
+  // Number above which we stop replacing a group of ORs with a set operation.
+  PositiveLongValidator FAST_OR_MAX_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.max", Integer.MAX_VALUE, 1500);
+
   /** Size of JDBC batch queue (in batches) above which throttling begins. */
   String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
 
@@ -113,7 +122,7 @@ public interface ExecConstants {
 
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING = "store.parquet.enable_dictionary_encoding";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_VALIDATOR = new BooleanValidator(
-      PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING, true);
+      PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING, false);
 
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE = "store.parquet.enable_dictionary_encoding_binary_type";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE_VALIDATOR = new BooleanValidator(
@@ -193,7 +202,6 @@ public interface ExecConstants {
   BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
   BooleanValidator ACCELERATION_ENABLE_MIN_MAX = new BooleanValidator("accelerator.enable_min_max", true);
   BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
-  BooleanValidator ACCELERATION_USE_ALTERNATE_SUGGESTION_ANALYSIS = new BooleanValidator("accelerator.analysis.alternate_functions", false);
   LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   // TODO: We need to add a feature that enables storage plugins to add their own options. Currently we have to declare
@@ -337,15 +345,13 @@ public interface ExecConstants {
    * Applicable only when {@link #ENABLE_VECTORIZED_PARTITIONER} is true. This enables the bucket size calculations to
    * be based on the record size.
    */
-  BooleanValidator PARTITION_SENDER_BATCH_ADAPTIVE = new BooleanValidator("exec.partitioner.batch.adaptive", false);
+  BooleanValidator PARTITION_SENDER_BATCH_ADAPTIVE = new BooleanValidator("exec.partitioner.batch.adaptive", true);
 
   PositiveLongValidator PARTITION_SENDER_MAX_MEM = new PositiveLongValidator("exec.partitioner.mem.max", Integer.MAX_VALUE, 100*1024*1024);
   PositiveLongValidator PARTITION_SENDER_MAX_BATCH_SIZE = new PositiveLongValidator("exec.partitioner.batch.size.max", Integer.MAX_VALUE, 1024*1024);
 
   BooleanValidator DEBUG_QUERY_PROFILE = new BooleanValidator("dremio.profile.debug_columns", false);
 
-  BooleanValidator MATERIALIZATION_CACHE_ENABLED = new BooleanValidator("dremio.materialization.cache.enabled", true);
-  PositiveLongValidator MATERIALIZATION_CACHE_REFRESH_DURATION = new PositiveLongValidator("dremio.materialization.cache.refresh_seconds", Long.MAX_VALUE, 30);
   PositiveLongValidator LAYOUT_REFRESH_MAX_ATTEMPTS = new PositiveLongValidator("layout.refresh.max.attempts", Integer.MAX_VALUE, 3);
 
   BooleanValidator OLD_ASSIGNMENT_CREATOR = new BooleanValidator("exec.work.assignment.old", false);
@@ -366,12 +372,14 @@ public interface ExecConstants {
 
   BooleanValidator SORT_FILE_BLOCKS = new BooleanValidator("store.file.sort_blocks", false);
 
-  // Check for storage plugin status at time of creation of the plugin
-  BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
 
   LongValidator FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT = new LongValidator("exec.operator.flatten_output_memory_limit", 512*1024*1024);
 
   PositiveLongValidator PLANNER_IN_SUBQUERY_THRESHOLD = new PositiveLongValidator("planner.in.subquery.threshold", Character.MAX_VALUE, 20);
 
   BooleanValidator EXTERNAL_SORT_COMPRESS_SPILL_FILES = new BooleanValidator("exec.operator.sort.external.compress_spill_files", true);
+
+  PositiveLongValidator EXTERNAL_SORT_BATCHSIZE_MULTIPLIER = new PositiveLongValidator("exec.operator.sort.external.batchsize_multiplier", Character.MAX_VALUE, 2);
+
+  LongValidator VOTING_SCHEDULE = new PositiveLongValidator("vote.schedule.millis", Long.MAX_VALUE, 0);
 }

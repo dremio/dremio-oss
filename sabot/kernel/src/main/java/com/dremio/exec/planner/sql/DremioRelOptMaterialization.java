@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
+import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
 import com.dremio.exec.planner.physical.visitor.CrelUniqifier;
-import com.dremio.exec.planner.sql.MaterializationDescriptor.LayoutInfo;
+import com.dremio.exec.planner.sql.MaterializationDescriptor.ReflectionInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
 
@@ -31,27 +32,44 @@ import com.google.common.base.Preconditions;
  */
 public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptMaterialization {
   private final IncrementalUpdateSettings incrementalUpdateSettings;
-  private final LayoutInfo layoutInfo;
+  private final JoinDependencyProperties joinDependencyProperties;
+  private final ReflectionInfo layoutInfo;
   private final String materializationId;
   private final BatchSchema schema;
   private final long expirationTimestamp;
+  private final boolean snowflake;
 
   public DremioRelOptMaterialization(RelNode tableRel,
                                      RelNode queryRel,
                                      IncrementalUpdateSettings incrementalUpdateSettings,
-                                     LayoutInfo layoutInfo,
+                                     JoinDependencyProperties joinDependencyProperties,
+                                     ReflectionInfo layoutInfo,
                                      String materializationId,
                                      BatchSchema schema,
                                      long expirationTimestamp) {
+    this(tableRel, queryRel, incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, false);
+  }
+
+  public DremioRelOptMaterialization(RelNode tableRel,
+                                     RelNode queryRel,
+                                     IncrementalUpdateSettings incrementalUpdateSettings,
+                                     JoinDependencyProperties joinDependencyProperties,
+                                     ReflectionInfo layoutInfo,
+                                     String materializationId,
+                                     BatchSchema schema,
+                                     long expirationTimestamp,
+                                     boolean snowflake) {
 
     // Create a RelOptMaterialization by manually specifying the RelOptTable.
     // If the type casting has occurred, the RelOptTable will reside in the first input of the table rel.
     super(tableRel, queryRel, tableRel.getTable() != null ? tableRel.getTable() : tableRel.getInput(0).getTable(), null);
     this.incrementalUpdateSettings = Preconditions.checkNotNull(incrementalUpdateSettings);
+    this.joinDependencyProperties = joinDependencyProperties;
     this.materializationId = Preconditions.checkNotNull(materializationId);
     this.schema = schema;
     this.layoutInfo = Preconditions.checkNotNull(layoutInfo);
     this.expirationTimestamp = expirationTimestamp;
+    this.snowflake = snowflake;
   }
 
   public long getExpirationTimestamp() {
@@ -62,24 +80,63 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
     return incrementalUpdateSettings;
   }
 
+  public JoinDependencyProperties getJoinDependencyProperties() {
+    return joinDependencyProperties;
+  }
+
+  public boolean isSnowflake() {
+    return snowflake;
+  }
+
   public DremioRelOptMaterialization uniqify() {
-    return new DremioRelOptMaterialization(tableRel, CrelUniqifier.uniqifyGraph(queryRel), incrementalUpdateSettings, layoutInfo, materializationId, schema, expirationTimestamp);
+    return new DremioRelOptMaterialization(tableRel,
+      CrelUniqifier.uniqifyGraph(queryRel),
+      incrementalUpdateSettings,
+      joinDependencyProperties,
+      layoutInfo,
+      materializationId,
+      schema,
+      expirationTimestamp,
+      snowflake
+    );
   }
 
   public String getMaterializationId() {
     return materializationId;
   }
 
-  public LayoutInfo getLayoutInfo() {
+  public ReflectionInfo getLayoutInfo() {
     return layoutInfo;
   }
 
-  public String getLayoutId() {
-    return layoutInfo.getLayoutId();
+  public String getReflectionId() {
+    return layoutInfo.getReflectionId();
   }
 
   public DremioRelOptMaterialization cloneWithNewQuery(RelNode query) {
-    return new DremioRelOptMaterialization(tableRel, query, incrementalUpdateSettings, layoutInfo, materializationId, schema, expirationTimestamp);
+    return new DremioRelOptMaterialization(tableRel,
+      query,
+      incrementalUpdateSettings,
+      joinDependencyProperties,
+      layoutInfo,
+      materializationId,
+      schema,
+      expirationTimestamp,
+      snowflake
+    );
+  }
+
+  public DremioRelOptMaterialization createSnowflakeMaterialization(RelNode query) {
+    return new DremioRelOptMaterialization(tableRel,
+      query,
+      incrementalUpdateSettings,
+      joinDependencyProperties,
+      layoutInfo,
+      materializationId,
+      schema,
+      expirationTimestamp,
+      true
+    );
   }
 
   public BatchSchema getSchema() {
@@ -91,10 +148,12 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
       tableRel.accept(shuttle),
       queryRel.accept(shuttle),
       incrementalUpdateSettings,
+      joinDependencyProperties,
       layoutInfo,
       materializationId,
       schema,
-      expirationTimestamp
+      expirationTimestamp,
+      snowflake
     );
   }
 }

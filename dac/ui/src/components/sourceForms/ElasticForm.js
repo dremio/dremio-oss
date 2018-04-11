@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,6 +108,9 @@ export class ElasticForm extends Component {
                 <div style={formRow}>
                   <Checkbox {...fields.config.allowGroupByOnNormalizedFields} label={la('Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)')}/>
                 </div>
+                <div style={formRow}>
+                  <Checkbox {...fields.config.warnOnRowCountMismatch} label={la('If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query')}/>
+                </div>
                 {/* Note that the timeouts are handled on the server in Milliseconds, but they are
                     presented to users in seconds (as the default values are quite large) */}
                 <div style={formRow}>
@@ -185,6 +188,6 @@ export default connectComplexForm({
   form: 'source',
   fields: ['config.scriptsEnabled', 'config.showHiddenIndices', 'config.sslEnabled', 'config.usePainless',
     'config.useWhitelist', 'config.showIdColumn', 'config.scrollTimeoutSeconds', 'config.readTimeoutSeconds',
-    'config.scrollSize', 'config.allowGroupByOnNormalizedFields'],
+    'config.scrollSize', 'config.allowGroupByOnNormalizedFields', 'config.warnOnRowCountMismatch'],
   validate: ElasticForm.validate
 }, SECTIONS, mapStateToProps, null)(ElasticForm);

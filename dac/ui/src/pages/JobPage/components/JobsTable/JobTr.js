@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ import { Component } from 'react';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import PureRender from 'pure-render-decorator';
+import { formatMessage } from 'utils/locale';
 
 import PropTypes from 'prop-types';
 
-import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
 import jobsUtils from 'utils/jobsUtils';
 import timeUtils from 'utils/timeUtils';
@@ -28,6 +28,7 @@ import timeUtils from 'utils/timeUtils';
 import { fixedWidthSmall } from 'uiTheme/radium/typography';
 import { PALE_ORANGE } from 'uiTheme/radium/colors';
 
+import Art from 'components/Art';
 import JobStateIcon from '../JobStateIcon';
 
 const DATASET_HEIGHT = 14;
@@ -78,6 +79,13 @@ export default class JobTr extends Component {
       trStyles.push(styles.active);
     }
 
+    let flame = '';
+    let flameAlt = '';
+    if (job.get('accelerated')) {
+      flame = job.get('snowflakeAccelerated') ? 'FlameSnowflake.svg' : 'Flame.svg';
+      flameAlt = job.get('snowflakeAccelerated') ? formatMessage('Job.AcceleratedHoverSnowFlake') : formatMessage('Job.AcceleratedHover');
+    }
+
     return (
       <div
         id={job.get('id')}
@@ -100,7 +108,7 @@ export default class JobTr extends Component {
             </div>
             <div style={styles.durationStyle} className='duration'>
               {jobDuration}
-              {job.get('accelerated') && <FontIcon type='Flame' style={{ marginLeft: 3 }} />}
+              {job.get('accelerated') && <Art src={flame} alt={flameAlt} style={{paddingLeft: 5, height: 20}} title/>}
             </div>
             <div className='endTime'>{jobFinishTime}</div>
           </div>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,12 +72,8 @@ describe('SqlEditorController', () => {
 
     describe('constructor', () => {
       const initialState = {
-        sqlState: true,
         funcHelpPanel: false,
-        datasetsPanel: false,
-        dropDataset: '',
-        dropFunc: '',
-        isError: false
+        datasetsPanel: false
       };
       Object.keys(initialState).forEach((key) => {
         it(`should set initial state ${key}`, () => {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,13 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     return coordinator;
   }
 
+  public LocalClusterCoordinator() {
+    logger.info("Local Cluster Coordinator is up.");
+    for(ClusterCoordinator.Role role : ClusterCoordinator.Role.values()) {
+      serviceSets.put(role, new LocalServiceSet(role));
+    }
+  }
+
   @Override
   public void close() throws Exception {
     logger.info("Stopping Local Cluster Coordinator");
@@ -78,11 +85,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
-  public void start() throws Exception {
-    logger.info("Local Cluster Coordinator is up.");
-    for(ClusterCoordinator.Role role : ClusterCoordinator.Role.values()) {
-      serviceSets.put(role, new LocalServiceSet());
-    }
+  public void start() {
   }
 
   @Override
@@ -90,8 +93,10 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     return serviceSets.get(role);
   }
 
-  private static final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
+  private final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
     private final Map<RegistrationHandle, NodeEndpoint> endpoints = new ConcurrentHashMap<>();
+
+    private final Role role;
 
     private class Handle implements RegistrationHandle {
       private final UUID id = UUID.randomUUID();
@@ -129,9 +134,13 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       }
     }
 
+    public LocalServiceSet(Role role) {
+      this.role = role;
+    }
+
     @Override
     public RegistrationHandle register(NodeEndpoint endpoint) {
-      logger.debug("Endpoint registered {}.", endpoint);
+      logger.debug("Endpoint registered {}. {}", role, endpoint);
       final Handle h = new Handle();
       endpoints.put(h, endpoint);
       nodesRegistered(Sets.newHashSet(endpoint));
@@ -141,6 +150,11 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     @Override
     public Collection<NodeEndpoint> getAvailableEndpoints() {
       return Collections.unmodifiableCollection(endpoints.values());
+    }
+
+    @Override
+    public String toString() {
+      return role.name();
     }
 
     @Override

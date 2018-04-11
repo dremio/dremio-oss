@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -284,7 +284,7 @@ public class TestViewSupport extends TestBaseViewSupport {
           .unOrdered()
           .baselineColumns("ok", "summary")
           .baselineValues(true,
-              String.format("View '%s' replaced successfully in '%s' schema", viewName, TEMP_SCHEMA))
+              String.format("View '%s.%s' replaced successfully", TEMP_SCHEMA, viewName))
           .go();
 
       // Make sure the new view created returns the data expected.
@@ -571,7 +571,7 @@ public class TestViewSupport extends TestBaseViewSupport {
   @Test // DRILL-2423
   public void showProperMsgWhenDroppingNonExistentView() throws Exception{
     errorMsgTestHelper("DROP VIEW dfs_test.nonExistentView",
-        "Unknown view [nonExistentView] in schema [dfs_test].");
+        "Unknown view [dfs_test.nonExistentView].");
   }
 
   @Test // DRILL-2423
@@ -582,7 +582,7 @@ public class TestViewSupport extends TestBaseViewSupport {
           TEMP_SCHEMA, testTableName));
 
       errorMsgTestHelper(String.format("DROP VIEW %s.%s", TEMP_SCHEMA, testTableName),
-          "[testTableShowErrorMsg] is not a VIEW in schema [dfs_test]");
+          "[dfs_test.testTableShowErrorMsg] is not a VIEW");
     } finally {
       File tblPath = new File(getDfsTestTmpSchemaLocation(), testTableName);
       FileUtils.deleteQuietly(tblPath);

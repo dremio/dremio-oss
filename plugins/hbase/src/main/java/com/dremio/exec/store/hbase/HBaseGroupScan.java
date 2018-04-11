@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 
 /**
  * HBase group scan.
@@ -70,7 +71,7 @@ public class HBaseGroupScan extends AbstractGroupScan {
         splitWork,
         getColumns(),
         getSchema(),
-        getTableSchemaPath()
+        Iterables.getOnlyElement(getReferencedTables())
         );
   }
 

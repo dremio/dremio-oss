@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import com.dremio.exec.vector.complex.fn.BasicJsonOutput;
 import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
@@ -49,6 +50,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   private static final String LINE_FEED = String.format("%n");
 
   private final Configuration conf;
+  private final OperatorStats stats;
 
   private String location;
   private String prefix;
@@ -69,6 +71,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     final String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
 
     this.conf = new Configuration(writer.getFsConf());
+    this.stats = context.getStats();
     this.location = writer.getLocation();
     this.prefix = fragmentId;
     this.useExtendedOutput = context.getOptions().getOption(ExecConstants.JSON_EXTENDED_TYPES);
@@ -79,7 +82,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
   @Override
   public void setup() throws IOException {
-    this.fs = FileSystemWrapper.get(conf);
+    this.fs = FileSystemWrapper.get(conf, stats);
   }
 
   @Override

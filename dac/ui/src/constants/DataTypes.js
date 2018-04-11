@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,24 @@
 import moment from 'moment';
 
 export const TEXT = 'TEXT';
+export const VARCHAR = 'VARCHAR';
 export const BINARY = 'BINARY';
+export const VARBINARY = 'VARBINARY';
 export const BOOLEAN = 'BOOLEAN';
 export const FLOAT = 'FLOAT';
 export const DECIMAL = 'DECIMAL';
 export const INTEGER = 'INTEGER';
-export const BIGINT = 'BIGINT'; // can MAYBE remove BIGINT with DX-5403 Acceleration UI missing type icons due to incorrect types from BE
+export const DOUBLE = 'DOUBLE';
+export const BIGINT = 'BIGINT';
 export const MIXED = 'MIXED';
+export const UNION = 'UNION';
 export const DATE = 'DATE';
 export const TIME = 'TIME';
 export const DATETIME = 'DATETIME';
+export const TIMESTAMP = 'TIMESTAMP';
 export const LIST = 'LIST';
 export const MAP = 'MAP';
+export const STRUCT = 'STRUCT';
 export const GEO = 'GEO';
 export const JSONTYPE = 'JSON'; // todo: no icon - is this actually a thing?
 export const OTHER = 'OTHER'; // todo: merge OTHER and ANY
@@ -35,17 +41,23 @@ export const ANY = 'ANY';
 
 export const typeToIconType = {
   [TEXT]: 'TypeText',
+  [VARCHAR]: 'TypeText',
   [BINARY]: 'TypeBinary',
+  [VARBINARY]: 'TypeBinary',
   [BOOLEAN]: 'TypeBoolean',
   [FLOAT]: 'TypeFloat',
   [DECIMAL]: 'TypeDecimal',
   [INTEGER]: 'TypeInteger',
-  [BIGINT]: 'TypeInteger', // can MAYBE remove BIGINT with DX-5403 Acceleration UI missing type icons due to incorrect types from BE
+  [DOUBLE]: 'TypeInteger',
+  [BIGINT]: 'TypeInteger',
   [MIXED]: 'TypeMixed',
+  [UNION]: 'TypeMixed',
   [DATE]: 'Date',
   [TIME]: 'Time',
   [DATETIME]: 'TypeDateTime',
+  [TIMESTAMP]: 'TypeDateTime',
   [LIST]: 'TypeList',
+  [STRUCT]: 'TypeMap',
   [MAP]: 'TypeMap',
   [GEO]: 'TypeGeo',
   [OTHER]: 'TypeOther',

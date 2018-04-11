@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,10 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
 
     if (ex.getErrorType() == ErrorType.SCHEMA_CHANGE) {
       return AttemptReason.SCHEMA_CHANGE;
+    }
+
+    if (ex.getErrorType() == ErrorType.INVALID_DATASET_METADATA) {
+      return AttemptReason.INVALID_DATASET_METADATA;
     }
 
     return AttemptReason.NONE;

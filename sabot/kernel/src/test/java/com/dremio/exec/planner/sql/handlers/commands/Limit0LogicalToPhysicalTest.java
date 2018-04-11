@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import static org.junit.Assert.assertThat;
 import java.io.File;
 import java.util.List;
 
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
@@ -31,6 +30,7 @@ import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -54,8 +54,10 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValue;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.DirectProvider;
 
 /**
  * To test that Limit0 converter does not cause removal of the exchanges
@@ -102,13 +104,18 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
       OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.enable_mux_exchange", true)
     );
 
-    final QueryContext queryContext = new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance
-      ());
+    final QueryContext queryContext = new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance());
     final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
-    final SqlConverter converter = new SqlConverter(queryContext.getPlannerSettings(), queryContext
-      .getNewDefaultSchema(),
-      queryContext.getOperatorTable(), queryContext, queryContext.getMaterializationProvider(), queryContext.getFunctionRegistry(),
-      queryContext.getSession(), observer, queryContext.getStorage(), queryContext.getSubstitutionProviderFactory());
+    final SqlConverter converter = new SqlConverter(
+        queryContext.getPlannerSettings(),
+        queryContext.getOperatorTable(),
+        queryContext,
+        queryContext.getMaterializationProvider(),
+        queryContext.getFunctionRegistry(),
+        queryContext.getSession(),
+        observer,
+        queryContext.getCatalog(),
+        queryContext.getSubstitutionProviderFactory());
     final SqlNode node = converter.parse(sql);
     final SqlHandlerConfig config = new SqlHandlerConfig(queryContext, converter, observer, null);
 
@@ -140,7 +147,7 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
     PhysicalPlanReader pPlanReader = new PhysicalPlanReader(
       DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT, new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT),
       CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-      null, context);
+      DirectProvider.wrap(Mockito.mock(CatalogService.class)), context);
 
     ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan, AsyncCommand.QueueType
       .SMALL);

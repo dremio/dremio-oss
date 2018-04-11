@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 Dremio Corporation
+# Copyright (C) 2017-2018 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,7 +60,10 @@
     "FORGET",
     "PDS",
     "VDS",
-    "DATASET"
+    "DATASET",
+    "STATUS",
+    "LOAD"
+    "MATERIALIZATION"
   ]
 
   nonReservedKeywords: [
@@ -86,7 +89,9 @@
     "FORGET",
     "PDS",
     "VDS",
-    "DATASET"
+    "DATASET",
+    "STATUS",
+    "MATERIALIZATION"
   ]
 
   # List of methods for parsing custom SQL statements.
@@ -101,6 +106,8 @@
     "SqlCreateTable()",
     "SqlDropTable()",
     "SqlAccel()",
+    "SqlRefreshReflection()",
+    "SqlLoadMaterialization()"
   ]
 
   # List of methods for parsing custom literals.

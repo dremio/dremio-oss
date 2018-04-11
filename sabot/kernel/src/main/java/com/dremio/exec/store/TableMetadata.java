@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.datastore.SearchTypes;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.StoragePluginId;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
@@ -30,7 +31,7 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Predicate;
 
 /**
- * DatasetPointer interface
+ * TableMetadata interface. This is how a table is exposed to the planning environment.
  */
 public interface TableMetadata {
   NamespaceKey getName();
@@ -80,4 +81,8 @@ public interface TableMetadata {
   long getApproximateRecordCount();
 
   boolean isPruned() throws NamespaceException;
+
+  long getVersion();
+
+  DatasetConfig getDatasetConfig();
 }

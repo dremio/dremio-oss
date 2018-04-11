@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.record.TypedFieldId;
@@ -57,7 +58,6 @@ import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.sabot.op.spi.SingleInputOperator;
-import com.dremio.service.namespace.StoragePluginId;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -145,7 +145,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
 
   public VectorContainer loadDictionary(String fieldName) throws IOException, ExecutionSetupException {
     final StoragePluginId id = config.getDictionaryEncodedFields().get(fieldName).getStoragePluginId();
-    final StoragePlugin storagePlugin = config.getRegistry().getPlugin(id);
+    final StoragePlugin storagePlugin = config.getCatalogService().getSource(id);
     if (storagePlugin instanceof FileSystemPlugin) {
       final FileSystemPlugin fsPlugin = (FileSystemPlugin) storagePlugin;
       final FileSystem fs = FileSystemWrapper.get(fsPlugin.getFsConf());

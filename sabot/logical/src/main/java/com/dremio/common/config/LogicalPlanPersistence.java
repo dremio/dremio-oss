@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.common.config;
 
 import java.util.Set;
 
+import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfigBase;
@@ -42,8 +43,9 @@ public class LogicalPlanPersistence {
     mapper = new ObjectMapper();
 
     SimpleModule deserModule = new SimpleModule("LogicalExpressionDeserializationModule")
-        .addDeserializer(LogicalExpression.class, new LogicalExpression.De(conf))
-        .addDeserializer(SchemaPath.class, new SchemaPath.De());
+        .addDeserializer(LogicalExpression.class, new LogicalExpression.De())
+        .addDeserializer(SchemaPath.class, new SchemaPath.De())
+        .addDeserializer(FieldReference.class, new FieldReference.De());
 
     mapper.registerModule(new AfterburnerModule());
     mapper.registerModule(deserModule);

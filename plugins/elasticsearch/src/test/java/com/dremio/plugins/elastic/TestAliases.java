@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
+import static com.dremio.plugins.elastic.ElasticsearchType.NESTED;
+import static com.dremio.plugins.elastic.ElasticsearchType.OBJECT;
 import static com.dremio.plugins.elastic.ElasticsearchType.STRING;
 import static org.junit.Assert.assertTrue;
 
@@ -871,5 +873,25 @@ public class TestAliases extends ElasticBaseTestQuery {
             .baselineValues(12)
             .baselineValues("Oakland")
             .go();
+  }
+
+  private static final String NESTED_TYPE_MAPPING = "/json/nested-type/nested-type-mapping.json";
+  private static final String NESTED_TYPE_MAPPING2 = "/json/nested-type/nested-type-mapping2.json";
+  private static final String NESTED_TYPE_DATA = "/json/nested-type/data-1/";
+
+  @Test
+  @Ignore("need elasticsearch 5 or great to test keyword or text types")
+  public void testNestedConflictingMapping() throws Exception {
+    String schema1 = schema;
+    elastic.load(schema, table, NESTED_TYPE_MAPPING, NESTED_TYPE_DATA);
+    String schema2 = schemaName();
+
+    elastic.load(schema2, table, NESTED_TYPE_MAPPING2, NESTED_TYPE_DATA);
+
+    String alias = "alias1";
+
+    elastic.alias(alias, schema1, schema2);
+    String sql = String.format("select * from elasticsearch.%s.%s t", alias, table);
+    test(sql);
   }
 }

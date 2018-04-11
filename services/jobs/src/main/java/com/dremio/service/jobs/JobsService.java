@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.service.jobs;
 
+import java.security.AccessControlException;
 import java.util.List;
 
 import com.dremio.datastore.SearchTypes.SortOrder;
@@ -46,6 +47,27 @@ public interface JobsService extends Service {
    * @throws JobNotFoundException if job is not found
    */
   Job getJob(JobId jobId) throws JobNotFoundException;
+
+  /**
+   * Get details of the job, from the kvStore.
+   * This is useful if we don't want the details to change while we are consuming them.
+   *
+   * @param jobId job id
+   * @return details of the job for given id
+   * @throws JobNotFoundException if job is not found
+   */
+  Job getJobFromStore(JobId jobId) throws JobNotFoundException;
+
+  /**
+   * Get details of the job.
+   *
+   * @param jobId    job id
+   * @param userName username for permission check
+   * @return details of the job for given id
+   * @throws JobNotFoundException if job is not found
+   * @throws AccessControlException if user does not have access to the job
+   */
+  Job getJob(JobId jobId, String userName) throws JobNotFoundException;
 
   /**
    * Get all jobs including running jobs.

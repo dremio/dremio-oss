@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,15 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.exec.ops.QueryContext;
+
 public abstract class SimpleDirectHandler implements SqlDirectHandler<SimpleCommandResult> {
   @Override
   public Class<SimpleCommandResult> getResultType() {
     return SimpleCommandResult.class;
+  }
+
+  public interface Creator {
+    SimpleDirectHandler toDirectHandler(QueryContext context);
   }
 }

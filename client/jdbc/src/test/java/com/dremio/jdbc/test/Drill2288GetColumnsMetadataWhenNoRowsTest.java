@@ -44,7 +44,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   @Ignore
   public void testEmptyJsonFileDoesntSuppressNetSchema1() throws Exception {
     Statement stmt = getConnection().createStatement();
-    ResultSet results = stmt.executeQuery( "SELECT a, b, c, * FROM cp.`empty.json`" );
+    ResultSet results = stmt.executeQuery( "SELECT a, b, c, * FROM cp.\"empty.json\"" );
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -59,7 +59,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   @Ignore
   public void testEmptyJsonFileDoesntSuppressNetSchema2() throws Exception {
     Statement stmt = getConnection().createStatement();
-    ResultSet results = stmt.executeQuery( "SELECT a FROM cp.`empty.json`" );
+    ResultSet results = stmt.executeQuery( "SELECT a FROM cp.\"empty.json\"" );
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -80,7 +80,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsBy_TABLE_SCHEMA_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.`TABLES`"
+        stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
                            + " WHERE TABLE_SCHEMA = ''" );
 
     // Result set should still have columns even though there are no rows:
@@ -97,7 +97,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsBy_TABLE_CATALOG_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.`TABLES`"
+        stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
                            + " WHERE TABLE_CATALOG = ''" );
 
     // Result set should still have columns even though there are no rows:
@@ -116,7 +116,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
     Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery(
-            "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_NAME = ''" );
+            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME = ''" );
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -133,7 +133,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
     Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery(
-            "SELECT * FROM INFORMATION_SCHEMA.`TABLES` LIMIT 0" );
+            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" LIMIT 0" );
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
@@ -150,7 +150,7 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
     Statement stmt = getConnection().createStatement();
     ResultSet results =
         stmt.executeQuery(
-            "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE FALSE" );
+            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE FALSE" );
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();

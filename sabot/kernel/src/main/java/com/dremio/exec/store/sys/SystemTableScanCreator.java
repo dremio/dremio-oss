@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ public class SystemTableScanCreator implements ProducerOperator.Creator<SystemSu
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, SystemSubScan config) throws ExecutionSetupException {
     final SystemTable table = config.getTable();
-    final SystemStoragePlugin plugin2 = fec.getStoragePlugin(SystemStoragePlugin.ID);
+    final SystemStoragePlugin plugin2 = fec.getStoragePlugin(config.getPluginId());
     final RecordReader reader = new PojoRecordReader(table.getPojoClass(), table.getIterator(plugin2.getSabotContext(), context), config.getColumns());
     return new ScanOperator(fec.getSchemaUpdater(), config, context, Collections.singleton(reader).iterator());
   }

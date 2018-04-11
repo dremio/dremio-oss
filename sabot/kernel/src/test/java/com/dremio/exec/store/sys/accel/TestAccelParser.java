@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,28 +32,18 @@ public class TestAccelParser {
   }
 
   @Test
-  public void addAccel() throws SqlParseException{
-    parse("ALTER TABLE a.b.c CREATE ACCELERATION");
+  public void addAggReflection() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
-  public void dropAccel() throws SqlParseException{
-    parse("ALTER TABLE a.b.c DROP ACCELERATION");
-  }
-
-  @Test
-  public void addAggLayout() throws SqlParseException {
-    parse("ALTER TABLE a.b.c ADD AGGREGATE LAYOUT DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
-  }
-
-  @Test
-  public void addRawLayout() throws SqlParseException {
-    parse("ALTER TABLE a.b.c ADD RAW LAYOUT DISPLAY(x,y) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  public void addRawReflection() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CREATE RAW REFLECTION reflection USING DISPLAY(x,y) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
 
   @Test
   public void dropLayout() throws SqlParseException {
-    parse("ALTER TABLE a.b.c DROP LAYOUT '123'");
+    parse("ALTER TABLE a.b.c DROP REFLECTION \"123\"");
   }
 
   @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import { CALL_API } from 'redux-api-middleware';
 import { arrayOf } from 'normalizr';
 
-import {makeUncachebleURL} from 'ie11.js';
+import { makeUncachebleURL } from 'ie11.js';
 
 import spaceSchema from 'dyn-load/schemas/space';
 
@@ -108,8 +108,10 @@ export const REMOVE_SPACE_SUCCESS = 'REMOVE_SPACE_SUCCESS';
 export const REMOVE_SPACE_FAILURE = 'REMOVE_SPACE_FAILURE';
 
 function fetchRemoveSpace(space) {
-  const meta = { name, invalidateViewIds: ['AllSpaces'] };
+  const meta = { name, id: space.get('id'), invalidateViewIds: ['AllSpaces'] };
   const errorMessage = la('There was an error removing the space.');
+  const entityRemovePaths = [['space', space.get('id')]];
+
   return {
     [CALL_API]: {
       types: [
@@ -117,7 +119,7 @@ function fetchRemoveSpace(space) {
           type: REMOVE_SPACE_START, meta
         },
         {
-          type: REMOVE_SPACE_SUCCESS, meta: {...meta, success: true}
+          type: REMOVE_SPACE_SUCCESS, meta: {...meta, success: true, entityRemovePaths, emptyEntityCache: space.get('name')}
         },
         {
           type: REMOVE_SPACE_FAILURE,

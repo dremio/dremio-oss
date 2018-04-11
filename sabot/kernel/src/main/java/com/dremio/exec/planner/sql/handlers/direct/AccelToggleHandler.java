@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
@@ -30,18 +30,18 @@ public class AccelToggleHandler extends SimpleDirectHandler {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelToggleHandler.class);
 
-  private final SchemaPlus defaultSchema;
+  private final Catalog catalog;
   private final AccelerationManager accel;
 
-  public AccelToggleHandler(SchemaPlus defaultSchema, AccelerationManager accel) {
-    this.defaultSchema = defaultSchema;
+  public AccelToggleHandler(Catalog catalog, AccelerationManager accel) {
+    this.catalog = catalog;
     this.accel = accel;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlAccelToggle toggle = SqlNodeUtil.unwrap(sqlNode, SqlAccelToggle.class);
-    List<String> names = SchemaUtilities.verify(defaultSchema, toggle.getTblName()).getPath();
+    List<String> names = SchemaUtilities.verify(catalog, toggle.getTblName()).getPath();
     accel.toggleAcceleration(names, toggle.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE, toggle.isEnable());
     return Collections.singletonList(SimpleCommandResult.successful(toggle.isEnable() ? "Acceleration enabled." : "Acceleration disabled."));
   }

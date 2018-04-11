@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,12 @@ import static com.dremio.common.utils.Protos.listNotNull;
 import static com.dremio.common.utils.Protos.notEmpty;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ALLPARENTS;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_COLUMNS_NAMES;
-import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ID;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_OWNER;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_PARENTS;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SOURCES;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_SQL;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_UUID;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_NAME;
-import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_PATH;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_LC_SCHEMA;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_NAME;
 import static com.dremio.service.namespace.DatasetIndexKeys.UNQUOTED_SCHEMA;
@@ -49,6 +47,8 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -62,20 +62,23 @@ import io.protostuff.ByteString;
 public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceContainer> {
   @Override
   public void convert(DocumentWriter writer, byte[] key, NameSpaceContainer container) {
+    writer.write(NamespaceIndexKeys.ENTITY_TYPE, container.getType().getNumber());
+
+    final NamespaceKey nkey = new NamespaceKey(container.getFullPathList());
+    NamespaceKey lkey = nkey.asLowerCase();
+    writer.write(NamespaceIndexKeys.UNQUOTED_LC_PATH, lkey.toUnescapedString());
+
     switch (container.getType()) {
       case DATASET: {
         final DatasetConfig datasetConfig = container.getDataset();
-        writer.write(DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
 
-        final NamespaceKey nkey = new NamespaceKey(container.getFullPathList());
+        writer.write(DatasetIndexKeys.DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
 
         // add standard case searches.
         writer.write(UNQUOTED_SCHEMA, nkey.getParent().toUnescapedString());
         writer.write(UNQUOTED_NAME, nkey.getName());
 
         // add a lowercase search indices
-        NamespaceKey lkey = nkey.asLowerCase();
-        writer.write(UNQUOTED_LC_PATH, lkey.toUnescapedString());
         writer.write(UNQUOTED_LC_SCHEMA, lkey.getParent().toUnescapedString());
         writer.write(UNQUOTED_LC_NAME, lkey.getName());
 
@@ -111,6 +114,12 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
         break;
       }
 
+      case HOME: {
+        HomeConfig homeConfig = container.getHome();
+        writer.write(NamespaceIndexKeys.HOME_ID, homeConfig.getId().getId());
+        break;
+      }
+
       case SOURCE: {
         final SourceConfig sourceConfig = container.getSource();
         writer.write(NamespaceIndexKeys.SOURCE_ID, sourceConfig.getId().getId());
@@ -123,10 +132,15 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
         break;
       }
 
+      case FOLDER: {
+        final FolderConfig folderConfig = container.getFolder();
+        writer.write(NamespaceIndexKeys.FOLDER_ID, folderConfig.getId().getId());
+        break;
+      }
+
       default:
         break;
     }
-
   }
 
   private void addColumns(DocumentWriter writer, DatasetConfig datasetConfig) {

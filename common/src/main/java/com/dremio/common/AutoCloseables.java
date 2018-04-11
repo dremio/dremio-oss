@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,6 +138,16 @@ public final class AutoCloseables {
     public <T extends AutoCloseable> T add(T t){
       closeables.add(t);
       return t;
+    }
+
+    public void addAll(AutoCloseable... list) {
+      closeables.addAll(Arrays.asList(list));
+    }
+
+    public void addAll(Iterable<? extends AutoCloseable> list) {
+      for(AutoCloseable ac : list) {
+        closeables.add(ac);
+      }
     }
 
     public void commit(){

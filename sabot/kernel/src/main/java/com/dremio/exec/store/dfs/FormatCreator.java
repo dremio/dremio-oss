@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.common.util.ConstructorChecker;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.avro.AvroFormatConfig;
+import com.dremio.exec.store.easy.json.JSONFormatPlugin;
+import com.dremio.exec.store.easy.sequencefile.SequenceFileFormatConfig;
+import com.dremio.exec.store.easy.text.TextFormatPlugin;
+import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
+import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -37,10 +43,8 @@ import com.google.common.collect.Maps;
 public class FormatCreator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FormatCreator.class);
 
-  private static final ConstructorChecker FORMAT_BASED = new ConstructorChecker(String.class, SabotContext.class,
-      StoragePluginConfig.class, FormatPluginConfig.class, FileSystemPlugin.class);
-  private static final ConstructorChecker DEFAULT_BASED = new ConstructorChecker(String.class, SabotContext.class,
-      StoragePluginConfig.class, FileSystemPlugin.class);
+  private static final ConstructorChecker FORMAT_BASED = new ConstructorChecker(String.class, SabotContext.class, FormatPluginConfig.class, FileSystemPlugin.class);
+  private static final ConstructorChecker DEFAULT_BASED = new ConstructorChecker(String.class, SabotContext.class, FileSystemPlugin.class);
 
   /**
    * Returns a Map from the FormatPlugin Config class to the constructor of the format plugin that accepts it.
@@ -56,7 +60,7 @@ public class FormatCreator {
           if (!FORMAT_BASED.check(c)) {
             continue;
           }
-          Class<?> configClass = c.getParameterTypes()[3];
+          Class<?> configClass = c.getParameterTypes()[2];
           constructors.put(configClass, c);
         } catch (Exception e) {
           logger.warn(String.format("Failure while trying instantiate FormatPlugin %s.", pluginClass.getName()), e);
@@ -68,7 +72,7 @@ public class FormatCreator {
 
 
   private final SabotContext context;
-  private final FileSystemConfig storageConfig;
+  private final FileSystemConf<?, ?> storageConfig;
   private final FileSystemPlugin fsPlugin;
 
   /** format plugins initialized from the Sabot config, indexed by name */
@@ -85,9 +89,49 @@ public class FormatCreator {
   /** a Map from the FormatPlugin Config class to the constructor of the format plugin that accepts it.*/
   private final Map<Class<?>, Constructor<?>> configConstructors;
 
+  public static Map<String, FormatPluginConfig> getDefaultFormats() {
+    Map<String, FormatPluginConfig> defaultFormats = new TreeMap<>();
+    defaultFormats.put("csv", createTextFormatPlugin(false, ',', Lists.newArrayList("csv")));
+    defaultFormats.put("csvh", createTextFormatPlugin(true, ',', Lists.newArrayList("csvh")));
+    defaultFormats.put("tsv", createTextFormatPlugin(false, '\t', Lists.newArrayList("tsv")));
+    defaultFormats.put("psv", createTextFormatPlugin(false, '|', Lists.newArrayList("psv", "tbl")));
+    defaultFormats.put("txt", createTextFormatPlugin(false, '\u0000', Lists.newArrayList("txt")));
+    TextFormatConfig psva = createTextFormatPlugin(false, '|', Lists.newArrayList("psva", "tbla"));
+    psva.autoGenerateColumnNames = true;
+    defaultFormats.put("psva", psva);
+
+    defaultFormats.put("parquet", new ParquetFormatConfig());
+    defaultFormats.put("avro", new AvroFormatConfig());
+    defaultFormats.put("json", new JSONFormatPlugin.JSONFormatConfig());
+    SequenceFileFormatConfig seq = new SequenceFileFormatConfig();
+    seq.extensions = Lists.newArrayList("seq");
+    defaultFormats.put("sequencefile", seq);
+    return defaultFormats;
+  }
+
+  /**
+   * Creates a {@link TextFormatPlugin.TextFormatConfig}.
+   *
+   * Dremio populates the default values from a config file read by Jackson,
+   * so the TextFormatConfig class doesn't have a useful constructor.
+   *
+   * @return - a new TextFormatConfig
+   */
+  public static TextFormatPlugin.TextFormatConfig createTextFormatPlugin(boolean extractHeader,
+      char fieldDelimiter,
+      List<String> extensions) {
+    TextFormatPlugin.TextFormatConfig newText = new TextFormatPlugin.TextFormatConfig();
+    newText.extractHeader = extractHeader;
+    newText.fieldDelimiter = fieldDelimiter;
+    newText.extensions = extensions;
+    // Use the default values for all other fields for now
+    return newText;
+  }
+
+
   FormatCreator(
       SabotContext context,
-      FileSystemConfig storageConfig,
+      FileSystemConf<?, ?> storageConfig,
       ScanResult classpathScan,
       FileSystemPlugin fsPlugin) {
     this.context = context;
@@ -95,11 +139,12 @@ public class FormatCreator {
     this.fsPlugin = fsPlugin;
     this.pluginClasses = classpathScan.getImplementations(FormatPlugin.class);
     this.configConstructors = initConfigConstructors(pluginClasses);
-
     Map<String, FormatPlugin> pluginsByName = Maps.newHashMap();
     Map<FormatPluginConfig, FormatPlugin> pluginsByConfig = Maps.newHashMap();
     List<FormatMatcher> formatMatchers = Lists.newArrayList();
-    final Map<String, FormatPluginConfig> formats = storageConfig.getFormats();
+
+
+    final Map<String, FormatPluginConfig> formats = getDefaultFormats();
     if (formats != null && !formats.isEmpty()) {
       for (Map.Entry<String, FormatPluginConfig> e : formats.entrySet()) {
         Constructor<?> c = configConstructors.get(e.getValue().getClass());
@@ -108,7 +153,7 @@ public class FormatCreator {
           continue;
         }
         try {
-          FormatPlugin formatPlugin = (FormatPlugin) c.newInstance(e.getKey(), context, storageConfig, e.getValue(), fsPlugin);
+          FormatPlugin formatPlugin = (FormatPlugin) c.newInstance(e.getKey(), context, e.getValue(), fsPlugin);
           pluginsByName.put(e.getKey(), formatPlugin);
           pluginsByConfig.put(formatPlugin.getConfig(), formatPlugin);
           formatMatchers.add(formatPlugin.getMatcher());
@@ -124,7 +169,7 @@ public class FormatCreator {
           if (!DEFAULT_BASED.check(c)) {
             continue;
           }
-          FormatPlugin plugin = (FormatPlugin) c.newInstance(null, context, storageConfig, fsPlugin);
+          FormatPlugin plugin = (FormatPlugin) c.newInstance(null, context, fsPlugin);
           if (pluginsByName.containsKey(plugin.getName())) {
             continue;
           }
@@ -194,7 +239,7 @@ public class FormatCreator {
         .build(logger);
     }
     try {
-      return (FormatPlugin) c.newInstance(null, context, storageConfig, fpconfig, fsPlugin);
+      return (FormatPlugin) c.newInstance(null, context, fpconfig, fsPlugin);
     } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
       throw UserException.dataReadError(e)
         .message(

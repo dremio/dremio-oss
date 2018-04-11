@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,11 +95,17 @@ public class HardAffinityFragmentParallelizer implements FragmentParallelizer {
     }
     int totalAssigned = endpoints.size();
 
+    // Normalize the affinities
+    double totalAffinity = 1.0;
+    for(EndpointAffinity epAff : endpointPool.values()) {
+      totalAffinity += epAff.getAffinity();
+    }
+
     // 2.2 Assign the remaining slots to endpoints proportional to the affinity of each endpoint
     int remainingSlots = width - endpoints.size();
     while (remainingSlots > 0) {
       for(EndpointAffinity epAf : endpointPool.values()) {
-        final int moreAllocation = (int) Math.ceil(epAf.getAffinity() * remainingSlots);
+        final int moreAllocation = (int) Math.ceil( (epAf.getAffinity() / totalAffinity) * remainingSlots);
         int currentAssignments = endpoints.get(epAf.getEndpoint());
         for(int i=0;
             i < moreAllocation &&

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ public class TestDecimal extends PopUnitTestBase{
          * Also tests instances where the scale might have to truncated when scale provided < input fraction
          */
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -92,7 +92,7 @@ public class TestDecimal extends PopUnitTestBase{
 
         // Function checks for casting from Float, Double to Decimal data types
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -138,7 +138,7 @@ public class TestDecimal extends PopUnitTestBase{
 
         // Function checks arithmetic operations on Decimal18
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -190,7 +190,7 @@ public class TestDecimal extends PopUnitTestBase{
          * Also checks arithmetic on decimal38sparse
          */
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -233,7 +233,7 @@ public class TestDecimal extends PopUnitTestBase{
 
         // Function checks if sort output on complex decimal type works
         try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+             SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
              DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
             // run query.
@@ -283,7 +283,7 @@ public class TestDecimal extends PopUnitTestBase{
   public void testSimpleDecimalMathFunc() throws Exception {
 
     try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-         SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+         SabotNode bit = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
          DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       // run query.

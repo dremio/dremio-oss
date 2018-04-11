@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,17 +39,17 @@ import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.SourceName;
-import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.proto.model.source.HdfsConfig;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.dac.sources.HDFSSourceConfigurator;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.BaseTestMiniDFS;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.HDFSConf;
+import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.Binder;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
@@ -58,6 +58,8 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
@@ -104,8 +106,7 @@ public class TestHdfs extends BaseTestMiniDFS {
           .clusterMode(ClusterMode.LOCAL)
           .serveUI(true),
         DremioTest.CLASSPATH_SCAN_RESULT,
-        new DACDaemonModule(),
-        new HDFSSourceConfigurator());
+        new DACDaemonModule());
       dremioDaemon.init();
       dremioBinder = BaseTestServer.createBinder(dremioDaemon.getBindingProvider());
       JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
@@ -135,23 +136,22 @@ public class TestHdfs extends BaseTestMiniDFS {
   public void setup() throws Exception {
     {
       SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(KVStoreProvider.class)));
-      final HdfsConfig hdfsConfig = new HdfsConfig();
-      hdfsConfig.setHostname(host);
-      hdfsConfig.setPort(port);
-      SourceUI source = new SourceUI();
+      final HDFSConf hdfsConfig = new HDFSConf();
+      hdfsConfig.hostname = host;
+      hdfsConfig.port = port;
+      SourceConfig source = new SourceConfig();
       source.setName(SOURCE_NAME);
-      source.setConfig(hdfsConfig);
-      source.setId(SOURCE_ID);
+      source.setConnectionConf(hdfsConfig);
+      source.setId(new EntityId(SOURCE_ID));
       source.setDescription(SOURCE_DESC);
-      source.setVersion(null);
-      l(SourceService.class).registerSourceWithRuntime(source);
+
+      ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
     }
   }
 
   @After
   public void cleanup() throws Exception {
-    ((LocalKVStoreProvider) l(KVStoreProvider.class)).deleteEverything();
-    l(SourceService.class).unregisterSourceWithRuntime(new SourceName(SOURCE_NAME));
+    TestUtilities.clear(l(CatalogService.class), l(KVStoreProvider.class), null, null);
   }
 
   @Test

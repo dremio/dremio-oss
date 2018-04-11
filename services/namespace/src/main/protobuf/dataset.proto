@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -217,6 +217,7 @@ message AccelerationSettings {
   optional int64 refreshPeriod = 4;
   // materialization grace period
   optional int64 gracePeriod = 5;
+  optional int64 version = 6;
 }
 
 enum RefreshMethod {

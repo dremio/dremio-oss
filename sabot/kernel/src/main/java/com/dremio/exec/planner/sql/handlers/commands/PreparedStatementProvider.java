@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ public class PreparedStatementProvider {
   }
 
   /**
-   * Serialize the given {@link SerializedField} into a {@link ResultColumnMetadata}.
+   * Serialize the given {@link Field} into a {@link ResultColumnMetadata}.
    * @param field
    * @return
    */

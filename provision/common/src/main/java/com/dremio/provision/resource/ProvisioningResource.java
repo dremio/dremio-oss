@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ import com.dremio.provision.ClusterState;
 import com.dremio.provision.ClusterType;
 import com.dremio.provision.DynamicConfig;
 import com.dremio.provision.Property;
+import com.dremio.provision.PropertyType;
 import com.dremio.provision.ResizeClusterRequest;
 import com.dremio.provision.service.ProvisioningHandlingException;
 import com.dremio.provision.service.ProvisioningService;
@@ -216,6 +217,17 @@ public class ProvisioningResource {
       cluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap());
     response.setVirtualCoreCount(cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount());
     response.setQueue(cluster.getClusterConfig().getClusterSpec().getQueue());
+    // take care of the property types
+    final List<Property> properties = cluster.getClusterConfig().getSubPropertyList();
+    for (Property prop : properties) {
+      if (prop.getType() == null) {
+        if (prop.getKey().startsWith("-X")) {
+          prop.setType(PropertyType.SYSTEM_PROP);
+        } else {
+          prop.setType(PropertyType.JAVA_PROP);
+        }
+      }
+    }
     response.setSubPropertyList(cluster.getClusterConfig().getSubPropertyList());
     response.setContainers(clusterEnriched.getRunTimeInfo());
     response.setDesiredState(toDesiredState((cluster.getDesiredState() != null) ? cluster.getDesiredState() :

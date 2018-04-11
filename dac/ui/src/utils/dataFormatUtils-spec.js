@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,10 +57,6 @@ describe('#DataFormatUtils', () => {
 
     it('should return string when value is MAP', () => {
       expect(DataFormatUtils.formatValue({}, MAP, row)).to.be.equal('{}');
-    });
-
-    it('should replace initial space when value is TEXT', () => {
-      expect(DataFormatUtils.formatValue(' val', TEXT, row)).to.be.equal('\u00a0val');
     });
   });
 });

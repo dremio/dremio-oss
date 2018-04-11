@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.CardExamplePosition;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.DACSecurityContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
@@ -56,7 +58,7 @@ public class RecommenderTestBase extends BaseTestServer {
   @Before
   public void setupTest() throws Exception {
     LocalJobsService jobsService = (LocalJobsService) l(JobsService.class);
-    executor = new QueryExecutor(jobsService, null, null);
+    executor = new QueryExecutor(jobsService, l(CatalogService.class), DACSecurityContext.system());
     version = DatasetVersion.newVersion();
   }
 

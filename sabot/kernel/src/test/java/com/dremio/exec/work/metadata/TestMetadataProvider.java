@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -189,15 +189,15 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("INFORMATION_SCHEMA", "SCHEMATA", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "TABLES", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "VIEWS", iterator.next());
-    verifyTable("sys", "accelerations", iterator.next());
     verifyTable("sys", "boot", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
-    verifyTable("sys", "layouts", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
     verifyTable("sys", "queries", iterator.next());
+    verifyTable("sys", "reflections", iterator.next());
+    verifyTable("sys", "refreshes", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "version", iterator.next());
 
@@ -232,15 +232,15 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("INFORMATION_SCHEMA", "SCHEMATA", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "TABLES", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "VIEWS", iterator.next());
-    verifyTable("sys", "accelerations", iterator.next());
     verifyTable("sys", "boot", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
-    verifyTable("sys", "layouts", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
     verifyTable("sys", "queries", iterator.next());
+    verifyTable("sys", "reflections", iterator.next());
+    verifyTable("sys", "refreshes", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "version", iterator.next());
   }
@@ -254,19 +254,18 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(10, tables.size());
+    assertEquals(9, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "COLUMNS", iterator.next());
 
-    verifyTable("sys", "accelerations", iterator.next());
     verifyTable("sys", "boot", iterator.next());
-    verifyTable("sys", "layouts", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
+    verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "version", iterator.next());
   }
 
@@ -296,7 +295,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(121, columns.size());
+    assertEquals(142, columns.size());
     // too many records to verify the output.
   }
 
@@ -309,7 +308,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(9, columns.size());
+    assertEquals(11, columns.size());
 
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
@@ -319,6 +318,8 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "DATETIME_PRECISION", iterator.next());
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "INTERVAL_PRECISION", iterator.next());
 
+    verifyColumn("sys", "materializations", "data_partitions", iterator.next());
+    verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
     verifyColumn("sys", "memory", "fabric_port", iterator.next());
     verifyColumn("sys", "nodes", "user_port", iterator.next());
     verifyColumn("sys", "nodes", "fabric_port", iterator.next());

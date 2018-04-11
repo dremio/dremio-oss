@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,13 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.WritePartition;
 
 class PartitionWriteManager {
+  /**
+   * Directory names used when the partition value is null or empty. We need a special value to have a valid
+   * directory name (empty strings are not allowed) and a way to differentiate between null and empty string later on
+   * using case statements on dirX columns.
+   */
+  public static final String NULL_PARTITION = "DREMIO_DEFAULT_NULL_PARTITION__";
+  public static final String EMPTY_VALUE_PARTITION = "DREMIO_DEFAULT_EMPTY_VALUE_PARTITION__";
 
   private final NullableBitVector changeVector;
   private final NullableIntVector bucketNumber;
@@ -116,9 +123,14 @@ class PartitionWriteManager {
 
   public static String fromObj(Object obj){
     if(obj == null){
-      return "null";
+      return NULL_PARTITION;
     } else {
       String value = obj.toString().replaceAll("\\W+", "_");
+
+      if (value.isEmpty()) {
+        return EMPTY_VALUE_PARTITION;
+      }
+
       if(value.length() > 24){
         return value.substring(0, 24);
       } else {

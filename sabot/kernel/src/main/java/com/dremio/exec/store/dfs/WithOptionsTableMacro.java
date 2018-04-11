@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,9 +86,7 @@ public final class WithOptionsTableMacro implements TableMacro {
   @Override
   public TranslatableTable apply(final List<Object> arguments) {
     try {
-      SourceTableDefinition definition = plugin.getDatasetWithOptions(new NamespaceKey
-          (tableSchemaPath),
-        new TableInstance(sig, arguments), schemaConfig.getIgnoreAuthErrors(), schemaConfig.getUserName());
+      SourceTableDefinition definition = plugin.getDatasetWithOptions(new NamespaceKey (tableSchemaPath), new TableInstance(sig, arguments), schemaConfig.getIgnoreAuthErrors(), schemaConfig.getUserName());
       if(definition == null){
         throw UserException.validationError().message("Unable to read table %s using provided options.",  new NamespaceKey(tableSchemaPath).toString()).build(logger);
       }

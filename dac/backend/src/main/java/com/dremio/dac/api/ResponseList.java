@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,25 +18,38 @@ package com.dremio.dac.api;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * Generic list model for the public REST API.
  */
 public class ResponseList<T> {
   private List<T> data;
+  private List<Object> included;
 
   public ResponseList() {
     data = new ArrayList<>();
+    included = new ArrayList<>();
   }
 
   public ResponseList(List<T> data) {
     this.data = new ArrayList<>(data);
+    included = new ArrayList<>();
   }
 
   public void add(T item) {
     data.add(item);
   }
+  public void addIncluded(Object item) {
+    included.add(item);
+  }
 
   public List<T> getData() {
     return data;
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<Object> getIncluded() {
+    return included;
   }
 }

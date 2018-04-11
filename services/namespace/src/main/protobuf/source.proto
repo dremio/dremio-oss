@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,11 @@ option optimize_for = SPEED;
 option java_outer_classname = "SourceProtobuf";
 
 message SourceConfig {
+  option (extends_class) = "com.dremio.service.namespace.AbstractSourceConfig<SourceConfig>";
   optional EntityId id = 1;
-  required SourceType type = 2;
+  
+  optional LegacySourceType legacy_source_type_enum = 2 [deprecated = true];
+  
   optional string name = 3;
   optional int64 ctime = 4;
   optional string img = 5;
@@ -38,6 +41,8 @@ message SourceConfig {
   optional int64 accelerationRefreshPeriod = 12;
   // materialization grace period
   optional int64 accelerationGracePeriod = 13;
+  
+  optional string type = 14;
 }
 
 // Version notes:
@@ -71,7 +76,8 @@ enum UpdateMode {
   INLINE = 3;
 }
 
-enum SourceType {
+@Deprecated
+enum LegacySourceType {
   NAS = 0;
   HDFS = 1;
   MAPRFS = 2;
@@ -96,6 +102,7 @@ enum SourceType {
   INFORMATION_SCHEMA = 21;
   ADL = 22;
   GCS = 23;
+  INTERNAL = 24;
 }
 
 // Internally computed details about a source. Background tasks will routinely change this data

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.prepare.RelOptTableImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.hadoop.io.Writable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
+import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.planner.logical.serialization.serializers.ImmutableCollectionSerializers;
 import com.dremio.exec.planner.logical.serialization.serializers.JavaSerializers;
 import com.dremio.exec.planner.logical.serialization.serializers.RelDataTypeSerializer;
@@ -34,12 +34,9 @@ import com.dremio.exec.planner.logical.serialization.serializers.RelOptTableImpl
 import com.dremio.exec.planner.logical.serialization.serializers.RelTraitDefSerializers;
 import com.dremio.exec.planner.logical.serialization.serializers.RelTraitSerializers;
 import com.dremio.exec.planner.logical.serialization.serializers.SqlOperatorSerializer;
-import com.dremio.exec.planner.logical.serialization.serializers.StoragePluginSerializer;
 import com.dremio.exec.planner.logical.serialization.serializers.TableMetadataSerializer;
 import com.dremio.exec.planner.logical.serialization.serializers.WritableSerializer;
 import com.dremio.exec.store.RelOptNamespaceTable;
-import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.TableMetadata;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -71,7 +68,6 @@ public class RelSerializer {
     kryo.setWarnUnregisteredClasses(false);
     kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
 
-    final StoragePluginSerializer pluginSerializer = new StoragePluginSerializer(context.getRegistry());
     kryo.setDefaultSerializer(new SerializerFactory() {
       @Override
       public Serializer makeSerializer(final Kryo kryo, final Class<?> type) {
@@ -81,10 +77,6 @@ public class RelSerializer {
 
         if (RelDataType.class.isAssignableFrom(type)) {
           return RelDataTypeSerializer.of(kryo, type, getContext().getCluster().getTypeFactory());
-        }
-
-        if (StoragePlugin.class.isAssignableFrom(type)) {
-          return pluginSerializer;
         }
 
         if (Writable.class.isAssignableFrom(type)) {
@@ -99,9 +91,10 @@ public class RelSerializer {
     RelTraitDefSerializers.register(kryo);
     RelTraitSerializers.register(kryo);
     JavaSerializers.register(kryo);
-    kryo.addDefaultSerializer(RelOptTableImpl.class, new RelOptTableImplSerializer(getContext().getCatalog()));
-    kryo.addDefaultSerializer(RelOptNamespaceTable.class, new RelOptNamespaceTableSerializer(getContext().getCatalog(), getContext().getCluster()));
-    kryo.addDefaultSerializer(TableMetadata.class, new TableMetadataSerializer(getContext().getCatalog()));
+    DremioCatalogReader catalog = getContext().getCatalog();
+    kryo.addDefaultSerializer(RelOptTableImpl.class, new RelOptTableImplSerializer(catalog));
+    kryo.addDefaultSerializer(RelOptNamespaceTable.class, new RelOptNamespaceTableSerializer(catalog, context.getCluster()));
+    kryo.addDefaultSerializer(TableMetadata.class, new TableMetadataSerializer(catalog));
 
   }
 
@@ -124,9 +117,8 @@ public class RelSerializer {
     }
   }
 
-  public static Builder newBuilder(final Kryo kryo, final RelOptCluster cluster, final CalciteCatalogReader catalog,
-                                   final StoragePluginRegistry registry) {
-    return new Builder(kryo, cluster, catalog, registry);
+  public static Builder newBuilder(final Kryo kryo, final RelOptCluster cluster, final DremioCatalogReader catalog) {
+    return new Builder(kryo, cluster, catalog);
   }
 
   private static class SerializationWrapper<T> {
@@ -150,15 +142,12 @@ public class RelSerializer {
    */
   public static class SerializerContext {
     private final RelOptCluster cluster;
-    private final CalciteCatalogReader catalog;
-    private final StoragePluginRegistry registry;
+    private final DremioCatalogReader catalog;
     private final int outputBufferSize;
 
-    protected SerializerContext(final RelOptCluster cluster, final CalciteCatalogReader catalog,
-                             final StoragePluginRegistry registry, final int outputBufferSize) {
+    protected SerializerContext(final RelOptCluster cluster, final DremioCatalogReader catalog, final int outputBufferSize) {
       this.cluster = cluster;
       this.catalog = catalog;
-      this.registry = registry;
       this.outputBufferSize = outputBufferSize;
     }
 
@@ -166,12 +155,8 @@ public class RelSerializer {
       return cluster;
     }
 
-    public CalciteCatalogReader getCatalog() {
+    public DremioCatalogReader getCatalog() {
       return catalog;
-    }
-
-    public StoragePluginRegistry getRegistry() {
-      return registry;
     }
 
     public int getOutputBufferSize() {
@@ -190,16 +175,13 @@ public class RelSerializer {
     private final List<Injection> injections = Lists.newArrayList();
     private final Kryo kryo;
     private final RelOptCluster cluster;
-    private final CalciteCatalogReader catalog;
-    private final StoragePluginRegistry registry;
+    private final DremioCatalogReader catalog;
     private int outputBufferSize = MAX_BUFFER_SIZE;
 
-    protected Builder(final Kryo kryo, final RelOptCluster cluster, final CalciteCatalogReader catalog,
-                      final StoragePluginRegistry registry) {
+    protected Builder(final Kryo kryo, final RelOptCluster cluster, final DremioCatalogReader catalog) {
       this.kryo = Preconditions.checkNotNull(kryo, "kryo is required");
       this.cluster = Preconditions.checkNotNull(cluster, "cluster is required");
       this.catalog = Preconditions.checkNotNull(catalog, "catalog is required");
-      this.registry = Preconditions.checkNotNull(registry, "registry is required");
     }
 
     public <T> Builder withInjection(final Class<T> type, final T value) {
@@ -219,12 +201,11 @@ public class RelSerializer {
     public RelSerializer build() {
       // ensure that we inject passed instances
       withInjection(RelOptCluster.class, cluster);
-      withInjection(CalciteCatalogReader.class, catalog);
-      withInjection(StoragePluginRegistry.class, registry);
+      withInjection(DremioCatalogReader.class, catalog);
 
       final InjectionMapping mapping = InjectionMapping.of(injections);
       final int bufferSize = Math.min(outputBufferSize, MAX_BUFFER_SIZE);
-      final SerializerContext context = new SerializerContext(cluster, catalog, registry, bufferSize);
+      final SerializerContext context = new SerializerContext(cluster, catalog, bufferSize);
       final RelSerializer serializer = new RelSerializer(kryo, mapping, context);
       serializer.setup(kryo);
       return serializer;

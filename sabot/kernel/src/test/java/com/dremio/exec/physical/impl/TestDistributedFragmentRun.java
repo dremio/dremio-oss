@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ public class TestDistributedFragmentRun extends PopUnitTestBase{
   @Test
   public void oneBitOneExchangeOneEntryRun() throws Exception{
     try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)){
       bit1.run();
       client.connect();
@@ -60,7 +60,7 @@ public class TestDistributedFragmentRun extends PopUnitTestBase{
   @Test
   public void oneBitOneExchangeTwoEntryRun() throws Exception{
     try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
+        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)){
       bit1.run();
       client.connect();
@@ -76,37 +76,17 @@ public class TestDistributedFragmentRun extends PopUnitTestBase{
 
   }
 
-    @Test
-    @Ignore("logical plan")
-    public void oneBitOneExchangeTwoEntryRunLogical() throws Exception{
-        try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-            SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-            DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);){
-            bit1.run();
-            client.connect();
-            List<QueryDataBatch> results = client.runQuery(QueryType.LOGICAL, Files.toString(FileUtils.getResourceAsFile("/scan_screen_logical.json"), Charsets.UTF_8));
-            int count = 0;
-            for(QueryDataBatch b : results){
-                count += b.getHeader().getRowCount();
-                b.release();
-            }
-            assertEquals(100, count);
-        }
-
-
-    }
-
-    @Test
-    public void twoBitOneExchangeTwoEntryRun() throws Exception{
-      try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-          SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-          SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT);
-          DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)){
-        bit1.run();
-        bit2.run();
-        client.connect();
-        List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, Files.toString(FileUtils.getResourceAsFile("/physical_single_exchange_double_entry.json"), Charsets.UTF_8));
-        int count = 0;
+  @Test
+  public void twoBitOneExchangeTwoEntryRun() throws Exception{
+    try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
+        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+        SabotNode bit2 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)){
+      bit1.run();
+      bit2.run();
+      client.connect();
+      List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, Files.toString(FileUtils.getResourceAsFile("/physical_single_exchange_double_entry.json"), Charsets.UTF_8));
+      int count = 0;
       for(QueryDataBatch b : results){
         count += b.getHeader().getRowCount();
         b.release();

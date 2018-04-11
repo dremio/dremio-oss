@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,6 +76,37 @@ public class ValueVectorReadExpression implements LogicalExpression{
   @Override
   public int getCumulativeCost() {
     return 0; // TODO
+  }
+
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((fieldId == null) ? 0 : fieldId.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    ValueVectorReadExpression other = (ValueVectorReadExpression) obj;
+    if (fieldId == null) {
+      if (other.fieldId != null) {
+        return false;
+      }
+    } else if (!fieldId.equals(other.fieldId)) {
+      return false;
+    }
+    return true;
   }
 
   @Override

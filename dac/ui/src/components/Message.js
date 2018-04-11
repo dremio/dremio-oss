@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,16 @@ import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
+import { FormattedMessage } from 'react-intl';
 
 import FontIcon from 'components/Icon/FontIcon';
 import { fixedWidthDefault } from 'uiTheme/radium/typography';
+import Modal from 'components/Modals/Modal';
+import ModalForm from 'components/Forms/ModalForm';
+import FormBody from 'components/Forms/FormBody';
 
 import jobsUtils from 'utils/jobsUtils';
+import {haveLocKey} from 'utils/locale';
 
 export const RENDER_NO_DETAILS = Symbol('RENDER_NO_DETAILS');
 
@@ -38,7 +43,9 @@ export default class Message extends Component {
   static defaultProps = {
     messageType: 'info',
     isDismissable: true,
-    message: Immutable.Map()
+    message: Immutable.Map(),
+    inFlow: true,
+    useModalShowMore: false
   };
 
   static propTypes = {
@@ -50,9 +57,12 @@ export default class Message extends Component {
     dismissed: PropTypes.bool,
     onDismiss: PropTypes.func,
     style: PropTypes.object,
+    messageTextStyle: PropTypes.object,
     messageId: PropTypes.string,
     detailsStyle: PropTypes.object,
-    isDismissable: PropTypes.bool
+    isDismissable: PropTypes.bool,
+    inFlow: PropTypes.bool,
+    useModalShowMore: PropTypes.bool
   };
 
   constructor(props) {
@@ -81,7 +91,7 @@ export default class Message extends Component {
     this.setState({ dismissed: true });
   }
 
-  prevent(e) {
+  prevent = (e) => {
     e.preventDefault();
     e.stopPropagation();
   }
@@ -96,8 +106,10 @@ export default class Message extends Component {
     let messageText = this.props.message;
     if (messageText instanceof Immutable.Map) {
       // note: #errorMessage is legacy
-      messageText = this.renderMessageForCode() || messageText.get('message') || messageText.get('errorMessage');
+      // fall back to #code (better than empty string)
+      messageText = this.renderMessageForCode() || messageText.get('message') || messageText.get('errorMessage') || messageText.get('code');
     }
+
     return messageText;
   }
 
@@ -152,7 +164,7 @@ export default class Message extends Component {
     const separatedStyle = {paddingTop: 10, marginTop: 10, borderTop: '1px solid hsla(0, 0%, 0%, 0.2)'};
     details = details.map((e, i) => <div style={i ? separatedStyle : {}}>{e}</div>);
 
-    return <div children={details} style={[styles.details, this.props.detailsStyle]} />;
+    return <div children={details} />;
   }
 
   renderMessageForCode() { // this fcn assumes we have already checked that we have an ImmutableMap
@@ -173,8 +185,23 @@ export default class Message extends Component {
     }
     case 'DROP_FAILURE':
       return <span>{la('There was an error dropping a Reflection.')}</span>;
+    case 'COMBINED_REFLECTION_SAVE_ERROR': {
+      const totalCount = message.getIn(['details', 'totalCount']);
+      const countSuccess = totalCount - message.getIn(['details', 'reflectionSaveErrors']).size;
+      const countFail = totalCount - countSuccess;
+      return <FormattedMessage id='Message.SomeReflectionsFailed' values={{countSuccess, countFail}} />;
+    }
+    case 'COMBINED_REFLECTION_CONFIG_INVALID':
+      return <span>{la('Some Reflections had to be updated to work with the latest version of the dataset. Please review all Reflections before saving.')}</span>;
+    case 'REQUESTED_REFLECTION_MISSING':
+      return <span>{la('The requested Reflection no longer exists.')}</span>;
+    case 'REFLECTION_LOST_FIELDS':
+      return <span>{la('Review changes.')}</span>;
     default:
-      break;
+      {
+        const asLocKey = `Message.Code.${code}.Message`;
+        if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
+      }
     }
   }
 
@@ -187,22 +214,43 @@ export default class Message extends Component {
     case 'MATERIALIZATION_FAILURE':
       return RENDER_NO_DETAILS; // job link has all the needed info
     default:
-      break;
+      {
+        const asLocKey = `Message.Code.${code}.Details`;
+        if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
+      }
     }
   }
 
-  renderShowMore() {
+  renderShowMoreToggle() {
     return <span
       onTouchTap={this.showMoreToggle}
       onMouseUp={this.prevent}
-      style={styles.showMoreLink}>
+      style={{...styles.showMoreLink, marginRight: this.props.isDismissable ? 30 : 5 }}>
 
       {this.state.showMore ? la('show less') : la('show more')}
     </span>;
   }
 
+  renderShowMore(details) {
+    if (!details) return null;
+    if (!this.props.useModalShowMore) return this.state.showMore && <div style={[styles.details, this.props.detailsStyle]}>{details}</div>;
+
+    const hide = () => this.setState({showMore: false});
+
+    return <Modal
+      size='small'
+      title={this.renderErrorMessageText()}
+      isOpen={this.state.showMore}
+      hide={hide}
+    >
+      <ModalForm onSubmit={hide} confirmText={la('Close')} isNestedForm> {/* best to assume isNestedForm */}
+        <FormBody>{details}</FormBody>
+      </ModalForm>
+    </Modal>;
+  }
+
   render() {
-    const { messageType, style } = this.props;
+    const { messageType, style, messageTextStyle, inFlow } = this.props;
 
     if (this.props.dismissed || this.props.dismissed === undefined && this.state.dismissed) {
       return null;
@@ -211,20 +259,18 @@ export default class Message extends Component {
     const details = this.renderDetails();
 
     return (
-      <div className={`message ${messageType}`} style={[styles.wrap, style]}>
+      <div className={`message ${messageType}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
         <div style={[styles.base, styles[messageType]]} ref='messagePanel'>
           {this.renderIcon(messageType)}
-          <span className='message-content' style={styles.messageText} onMouseUp={this.prevent}>
+          <span className='message-content' style={{...styles.messageText, ...messageTextStyle}} onMouseUp={this.prevent}>
             {this.renderErrorMessageText()}
           </span>
-          {details && this.renderShowMore()}
-          {this.props.isDismissable
-            && <div style={styles.close}>
-              <FontIcon type='XSmall' onClick={this.onDismiss} style={styles.dismissBtn}/>
-            </div>
-          }
+          {details && this.renderShowMoreToggle()}
+          {this.props.isDismissable && <div style={styles.close}>
+            <FontIcon type='XSmall' onClick={this.onDismiss} style={styles.dismissBtn}/>
+          </div>}
         </div>
-        {this.state.showMore && details}
+        {this.renderShowMore(details)}
       </div>
     );
   }
@@ -232,6 +278,11 @@ export default class Message extends Component {
 
 const styles = {
   wrap: {
+    width: '100%'
+  },
+  notInFlow: {
+    position: 'absolute',
+    top: 0,
     width: '100%'
   },
   base: {
@@ -261,7 +312,6 @@ const styles = {
   },
   showMoreLink: {
     cursor: 'pointer',
-    marginRight: 30,
     marginLeft: 10,
     textDecoration: 'underline',
     flexShrink: 0

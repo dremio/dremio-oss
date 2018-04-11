@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.dremio.exec.store.hbase;
 import org.apache.calcite.plan.RelOptRule;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 
@@ -26,7 +27,7 @@ public class HBaseScanRule extends SourceLogicalConverter {
   public static final RelOptRule INSTANCE = new HBaseScanRule();
 
   private HBaseScanRule() {
-    super(HBaseStoragePlugin.TYPE);
+    super(HBaseConf.class.getAnnotation(SourceType.class));
 
   }
   @Override

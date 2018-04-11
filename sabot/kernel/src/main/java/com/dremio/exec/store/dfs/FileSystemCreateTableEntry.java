@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@ package com.dremio.exec.store.dfs;
 import java.io.IOException;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.store.StoragePluginRegistry;
+import com.dremio.exec.store.CatalogService;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -44,15 +45,15 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
 
   @JsonCreator
   public FileSystemCreateTableEntry(@JsonProperty("userName") String userName,
-                                    @JsonProperty("storageConfig") FileSystemConfig storageConfig,
+                                    @JsonProperty("pluginId") StoragePluginId pluginId,
                                     @JsonProperty("formatConfig") FormatPluginConfig formatConfig,
                                     @JsonProperty("location") String location,
                                     @JsonProperty("options") WriterOptions options,
-                                    @JacksonInject StoragePluginRegistry engineRegistry)
+                                    @JacksonInject CatalogService catalogService)
       throws ExecutionSetupException {
     this.userName = userName;
-    this.plugin = (FileSystemPlugin) engineRegistry.getPlugin(storageConfig);
-    this.formatPlugin = engineRegistry.getFormatPlugin(storageConfig, formatConfig);
+    this.plugin = catalogService.getSource(pluginId);
+    this.formatPlugin = plugin.getFormatPlugin(formatConfig);
     this.location = location;
     this.options = options;
   }
@@ -65,8 +66,12 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
    * @param formatPlugin Reference to the {@link FormatPlugin} for output type
    * @param location Output path
    */
-  public FileSystemCreateTableEntry(String userName, FileSystemPlugin plugin,
-      FormatPlugin formatPlugin, String location, WriterOptions options) {
+  public FileSystemCreateTableEntry(
+      String userName,
+      FileSystemPlugin plugin,
+      FormatPlugin formatPlugin,
+      String location,
+      WriterOptions options) {
     this.userName = userName;
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
@@ -74,9 +79,9 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
     this.options = options;
   }
 
-  @JsonProperty("storageConfig")
-  public FileSystemConfig getStorageConfig() {
-    return (FileSystemConfig)formatPlugin.getStorageConfig();
+  @JsonProperty("pluginId")
+  public StoragePluginId getId() {
+    return plugin.getId();
   }
 
   @JsonProperty("formatConfig")

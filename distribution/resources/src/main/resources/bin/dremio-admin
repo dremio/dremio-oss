@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2017 Dremio Corporation
+# Copyright (C) 2017-2018 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,14 +35,12 @@ fi
 
 if [ -n "$CLIENT_GC_OPTS" ]; then
   CLIENT_GC_OPTS=${CLIENT_GC_OPTS/"-Xloggc:<FILE-PATH>"/"-Xloggc:${loggc}"}
+  CLIENT_GC_OPTS=${CLIENT_GC_OPTS/"-Xlog:gc:<FILE-PATH>"/"-Xloggc:${loggc}"}
   DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${CLIENT_GC_OPTS}"
 fi
 
 DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
-if echo "$JAVA_VERSION_STRING" | grep '1.7' > /dev/null ; then
-  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxPermSize=${DREMIO_MAX_PERMGEN_MEMORY_SIZE_MB:-512}m"
-fi
-DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
+DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_CLIENT_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
 
 export DREMIO_MAINCLASS=
 

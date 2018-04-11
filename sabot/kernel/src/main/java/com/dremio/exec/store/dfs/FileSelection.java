@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -253,9 +253,13 @@ public class FileSelection {
       return null;
     }
 
-    final FileSelection fileSel = create(StatusType.EXPANDED, statuses, combined.toUri().getPath());
+    final FileSelection fileSel = createFromExpanded(statuses, combined.toUri().getPath());
     logger.debug("FileSelection.create() took {} ms ", timer.elapsed(TimeUnit.MILLISECONDS));
     return fileSel;
+  }
+
+  public static FileSelection createFromExpanded(final ImmutableList<FileStatus> statuses, final String root) {
+    return create(StatusType.EXPANDED, statuses, root);
   }
 
   /**

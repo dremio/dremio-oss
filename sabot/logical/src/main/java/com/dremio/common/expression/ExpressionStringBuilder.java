@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -151,7 +151,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   public Void visitDateConstant(DateExpression lExpr, StringBuilder sb) throws RuntimeException {
     sb.append("cast( ");
     sb.append(lExpr.getDate());
-    sb.append(" as DATE)");
+    sb.append("l as DATE)");
     return null;
   }
 
@@ -159,7 +159,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   public Void visitTimeConstant(TimeExpression lExpr, StringBuilder sb) throws RuntimeException {
     sb.append("cast( ");
     sb.append(lExpr.getTime());
-    sb.append(" as TIME)");
+    sb.append("i as TIME)");
     return null;
   }
 
@@ -167,7 +167,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
   public Void visitTimeStampConstant(TimeStampExpression lExpr, StringBuilder sb) throws RuntimeException {
     sb.append("cast( ");
     sb.append(lExpr.getTimeStamp());
-    sb.append(" as TIMESTAMP)");
+    sb.append("l as TIMESTAMP)");
     return null;
   }
 

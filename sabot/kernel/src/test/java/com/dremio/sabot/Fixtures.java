@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,12 @@ import org.apache.arrow.vector.NullableTimeStampMilliVector;
 import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
@@ -415,6 +418,8 @@ public final class Fixtures {
       return new Time((LocalTime)obj);
     }else if(obj instanceof LocalDate) {
       return new Date((LocalDate)obj);
+    }else if(obj instanceof List) {
+      return new ListCell((List<Integer>)obj);
     }
 
     throw new UnsupportedOperationException(String.format("Unable to interpret object of type %s.", obj.getClass().getSimpleName()));
@@ -527,6 +532,40 @@ public final class Fixtures {
       this.s = s;
     }
 
+  }
+
+  private static class ListCell extends ValueCell<List<Integer>> {
+
+    private ValueVector dataVector;
+
+    public ListCell(List<Integer> obj) {
+      super(obj);
+    }
+
+    @Override
+    ArrowType getType() {
+      return ArrowType.List.INSTANCE;
+    }
+
+    @Override
+    public void set(ValueVector v, int index) {
+      this.dataVector = ((ListVector)v).getDataVector();
+      if(obj != null){
+        UnionListWriter listWriter = ((ListVector)v).getWriter();
+        listWriter.setPosition(index);
+        List<Integer> list = obj;
+        listWriter.startList();
+        for (int i = 0; i < list.size(); i++) {
+          listWriter.bigInt().writeBigInt(list.get(i));
+        }
+        listWriter.endList();
+      }
+    }
+
+    @Override
+    public Field toField(String name) {
+      return new Field(name, true, getType(), ImmutableList.of(CompleteType.BIGINT.toField("$data$")));
+    }
   }
 
   private static class BigInt extends ValueCell<Long> {
@@ -654,7 +693,7 @@ public final class Fixtures {
     public void set(ValueVector v, int index) {
       if(obj != null){
         byte[] bytes = obj.getBytes();
-        ((NullableVarCharVector) v).setSafe(index, bytes, 0, bytes.length);
+        ((NullableVarCharVector) v).setSafe(index, bytes, 0, obj.getLength());
       }
     }
 

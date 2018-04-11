@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
@@ -70,7 +68,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ExecutorService executor,
       FunctionLookupContext functions,
       ContextInformation contextInformation,
-      OptionManager optionManager,
+      final OptionManager optionManager,
       NamespaceService namespaceService,
       NodeDebugContextProvider nodeDebugContextProvider,
       int targetBatchSize) throws OutOfMemoryException {
@@ -86,7 +84,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.targetBatchSize = targetBatchSize;
     this.ns = namespaceService;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
-    this.producer = new ClassProducerImpl(compiler, functions, contextInformation, manager);
+    this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager);
   }
 
   public OperatorContextImpl(

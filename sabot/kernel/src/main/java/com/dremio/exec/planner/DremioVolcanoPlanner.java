@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.runtime.Hook;
-import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
@@ -70,14 +69,12 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     }
   }
 
-  @Override
-  public RelNode findBestExp() {
-    final RelNode bestExp = super.findBestExp();
-    return substitutionProvider.processPostPlanning(bestExp);
-  }
-
   public void setCancelFlag(CancelFlag cancelFlag) {
     this.cancelFlag = cancelFlag;
+  }
+
+  public RelNode getOriginalRoot() {
+    return originalRoot;
   }
 
   @Override

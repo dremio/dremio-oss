@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -50,8 +48,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.common.utils.SqlUtils;
@@ -82,10 +78,8 @@ import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.Options;
 import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
 import com.dremio.exec.server.options.TypeValidators.StringValidator;
-import com.dremio.exec.store.StoragePluginRegistry;
-import com.dremio.exec.store.dfs.FileSystemConfig;
-import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.exec.store.easy.json.JSONFormatPlugin;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.Pointer;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobId;
@@ -103,7 +97,7 @@ import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.net.MediaType;
 
@@ -116,7 +110,7 @@ public class SupportService implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SupportService.class);
 
   public static final int TIMEOUT_IN_SECONDS = 5 * 60;
-  public static final String DREMIO_ENV_LOG_PATH = "dremio.log.path";
+  public static final String DREMIO_LOG_PATH_PROPERTY = "dremio.log.path";
 
   public static final BooleanValidator USERS_CHAT = new BooleanValidator("support.users.chat", true);
   public static final BooleanValidator USERS_UPLOAD = new BooleanValidator("support.users.upload", true);
@@ -138,14 +132,12 @@ public class SupportService implements Service {
   private static final int PRE_TIME_BUFFER_MS = 5 * 1000;
   private static final int POST_TIME_BUFFER_MS = 10 * 1000;
 
-  // Avoid constant so we can test.
-  private final String logPath = System.getProperty(DREMIO_ENV_LOG_PATH, "/var/log/dremio");
-
   private final DACConfig config;
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final Provider<SabotContext> executionContextProvider;
   private final Provider<JobsService> jobsService;
   private final Provider<UserService> userService;
+  private final Provider<CatalogService> catalogServiceProvider;
   private Path supportPath;
   private KVStore<String, ClusterIdentity> store;
 
@@ -156,12 +148,14 @@ public class SupportService implements Service {
       Provider<KVStoreProvider> kvStoreProvider,
       Provider<JobsService> jobsService,
       Provider<UserService> userService,
-      Provider<SabotContext> executionContextProvider
+      Provider<SabotContext> executionContextProvider,
+      Provider<CatalogService> catalogServiceProvider
       ) {
     this.kvStoreProvider = kvStoreProvider;
     this.executionContextProvider = executionContextProvider;
     this.jobsService = jobsService;
     this.userService = userService;
+    this.catalogServiceProvider = catalogServiceProvider;
     this.config = config;
   }
 
@@ -206,10 +200,10 @@ public class SupportService implements Service {
     }
 
     this.identity = identity;
-    supportPath = new File(executionContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH)).toPath();
-    Files.createDirectories(supportPath);
-
-    startStoragePlugins(executionContextProvider.get().getStorage());
+    FileSystemPlugin supportPlugin = catalogServiceProvider.get().getSource(LOCAL_STORAGE_PLUGIN);
+    Preconditions.checkNotNull(supportPlugin);
+    final String supportPathURI = supportPlugin.getConfig().getPath().toString();
+    supportPath = new File(supportPathURI).toPath();
   }
 
   /**
@@ -445,36 +439,14 @@ public class SupportService implements Service {
 
   }
 
-  /**
-   * Add a logs based pdfs storage plugin
-   * Add a local based support staging plugin.
-   *
-   * @throws IOException
-   * @throws ExecutionSetupException
-   */
-  private void startStoragePlugins(StoragePluginRegistry registry) throws IOException, ExecutionSetupException {
-    // register a PDFS storage plugin for storing the job results
-    Map<String, String> options = Collections.emptyMap();
-    Map<String, FormatPluginConfig> formatPlugins = ImmutableMap.of("json", (FormatPluginConfig) new JSONFormatPlugin.JSONFormatConfig());
-
-    // if the logpath is relative, do that.
-    String logPath = this.logPath;
-    if(!logPath.startsWith("/")){
-      logPath = System.getProperty("user.dir") + logPath;
-    }
-
-    FileSystemConfig config = new FileSystemConfig("pdfs:///", logPath, options, formatPlugins, false, SchemaMutability.NONE);
-    registry.createOrUpdate(LOGS_STORAGE_PLUGIN, config, null, true);
-    registry.createOrUpdate(LOCAL_STORAGE_PLUGIN, new FileSystemConfig("file:///", supportPath.toString(), options, formatPlugins, false, SchemaMutability.SYSTEM_TABLE), null, true);
-  }
-
   private ClusterInfo getClusterInfo(){
     SoftwareVersion version = new SoftwareVersion().setVersion(DremioVersionInfo.getVersion());
 
     List<Source> sources = new ArrayList<>();
     final NamespaceService ns = executionContextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     for(SourceConfig source : ns.getSources()){
-      sources.add(new Source().setName(source.getName()).setType(source.getType().name()));
+      String type = source.getType() == null ? source.getLegacySourceTypeEnum().name() : source.getType();
+      sources.add(new Source().setName(source.getName()).setType(type));
     }
     List<Node> nodes = new ArrayList<>();
     for(NodeEndpoint ep : executionContextProvider.get().getExecutors()){

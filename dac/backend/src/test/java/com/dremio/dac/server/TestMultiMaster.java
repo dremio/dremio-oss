@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,13 +60,18 @@ import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.system.ServerStatus;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
+import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.exec.MasterElectionService;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
@@ -75,6 +80,7 @@ import com.dremio.service.coordinator.zk.KillZkSession;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.core.JsonParser;
@@ -154,8 +160,7 @@ public class TestMultiMaster extends BaseClientUtils {
                 }
               });
             };
-          },
-          new NASSourceConfigurator()
+          }
         );
 
         masterDremioDaemon2 = DACDaemon.newDremioDaemon(
@@ -186,8 +191,7 @@ public class TestMultiMaster extends BaseClientUtils {
                 }
               });
             };
-          },
-          new NASSourceConfigurator()
+          }
           );
 
       // remote node
@@ -206,6 +210,7 @@ public class TestMultiMaster extends BaseClientUtils {
           .with(DremioConfig.CLIENT_PORT_INT, 21532)
           .zk("localhost:" + zkServer.getPort()),
         DremioTest.CLASSPATH_SCAN_RESULT);
+
     }
   }
 
@@ -230,6 +235,7 @@ public class TestMultiMaster extends BaseClientUtils {
   private static Client newClient() {
     JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     ObjectMapper objectMapper = JSONUtil.prettyMapper();
+    JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT);
     objectMapper.registerModule(
       new SimpleModule()
         .addDeserializer(JobDataFragment.class,
@@ -393,16 +399,21 @@ public class TestMultiMaster extends BaseClientUtils {
         mp.lookup(InitializerRegistry.class),
         mp.lookup(KVStoreProvider.class),
         ns,
-        mp.lookup(JobsService.class)
-        );
+        mp.lookup(JobsService.class),
+        mp.lookup(CatalogService.class));
+
+
+    TestUtilities.addClasspathSourceIf(mp.lookup(SabotContext.class).getCatalogService());
 
     SampleDataPopulator populator = new SampleDataPopulator(
       mp.lookup(SabotContext.class),
-      new SourceService(mp.lookup(SabotContext.class).getStorage(),
+      new SourceService(
           ns,
-          mp.lookup(SourceToStoragePluginConfig.class),
           datasetVersionMutator,
-          null),
+          mp.lookup(SabotContext.class).getCatalogService(),
+          mp.lookup(ReflectionServiceHelper.class),
+          new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT),
+          new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null)),
         datasetVersionMutator,
       mp.lookup(UserService.class),
       ns,
@@ -498,16 +509,20 @@ public class TestMultiMaster extends BaseClientUtils {
         mp.lookup(InitializerRegistry.class),
         mp.lookup(KVStoreProvider.class),
         ns,
-        mp.lookup(JobsService.class)
-        );
+        mp.lookup(JobsService.class),
+        mp.lookup(CatalogService.class));
+
+    TestUtilities.addClasspathSourceIf(mp.lookup(CatalogService.class));
 
     SampleDataPopulator populator = new SampleDataPopulator(
       mp.lookup(SabotContext.class),
-      new SourceService(mp.lookup(SabotContext.class).getStorage(),
+      new SourceService(
           ns,
-          mp.lookup(SourceToStoragePluginConfig.class),
           datasetVersionMutator,
-          null),
+          mp.lookup(SabotContext.class).getCatalogService(),
+          mp.lookup(ReflectionServiceHelper.class),
+          new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT),
+          new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null)),
         datasetVersionMutator,
       mp.lookup(UserService.class),
       ns,

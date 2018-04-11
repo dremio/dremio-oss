@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,15 @@
 package com.dremio.common.concurrent;
 
 import java.util.concurrent.locks.Lock;
+
+import com.dremio.common.util.Closeable;
+
 import java.util.concurrent.TimeUnit;
 
 /**
  * Simple wrapper class that allows Locks to be released via an try-with-resources block.
  */
-public class AutoCloseableLock implements AutoCloseable {
+public class AutoCloseableLock implements Closeable {
 
   private final Lock lock;
 

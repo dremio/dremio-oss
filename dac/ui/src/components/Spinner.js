@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ class Spinner extends Component {
   static propTypes = {
     iconStyle: PropTypes.object,
     containerStyle: PropTypes.object,
-    message: PropTypes.string,
+    message: PropTypes.node,
     style: PropTypes.object
   }
 
@@ -38,7 +38,7 @@ class Spinner extends Component {
     return (
       <div style={[styles.base, this.props.style]}>
         <FontIcon
-          type='Loader fa-spin'
+          type='Loader spinner'
           theme={{Icon: iconStyle, Container: containerStyle}}
         />
         {this.props.message && <span style={styles.message}>{this.props.message}</span>}

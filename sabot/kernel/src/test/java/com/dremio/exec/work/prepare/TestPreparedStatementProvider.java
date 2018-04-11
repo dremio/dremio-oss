@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,14 @@ import java.util.List;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.ColumnSearchability;
 import com.dremio.exec.proto.UserProtos.ColumnUpdatability;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
 import com.dremio.exec.proto.UserProtos.PreparedStatement;
+import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
 import com.dremio.exec.proto.UserProtos.ResultColumnMetadata;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
@@ -129,6 +132,28 @@ public class TestPreparedStatementProvider extends BaseTestQuery {
   @Test
   public void invalidQueryValidationError() throws Exception {
     createPrepareStmt("SELECT * sdflkgdh", true, ErrorType.VALIDATION);
+  }
+
+  @Test
+  public void invalidPrepareHandle() throws Exception {
+    final ServerPreparedStatementState state = ServerPreparedStatementState.newBuilder()
+        .setHandle(-23) // Handles start from 0 in the sever. This is relying on server implementation detail. May need to find a better way to test it.
+        .setSqlQuery("SELECT sales_city, count(*) as cnt FROM cp.`region.json` " +
+            "GROUP BY sales_city ORDER BY sales_city DESC LIMIT 2")
+        .setPrepareId(QueryId.newBuilder().build())
+        .build();
+    PreparedStatement preparedStatement =
+        PreparedStatement.newBuilder()
+            .setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(state.toByteString()).build())
+            .build();
+
+    testBuilder()
+        .unOrdered()
+        .preparedStatement(preparedStatement.getServerHandle())
+        .baselineColumns("sales_city", "cnt")
+        .baselineValues("Yakima", 1L)
+        .baselineValues("Woodland Hills", 1L)
+        .go();
   }
 
   /* Helper method which creates a prepared statement for given query. */

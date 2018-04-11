@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,100 +13,118 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const mapStateToIcon = status => ({
-  NEW: 'Ellipsis',
-  RUNNING: 'Loader fa-spin',
-  DONE: 'OKSolid',
-  FAILED: 'ErrorSolid',
-  DELETED: 'Warning-Solid', // deleted and un-replaced layout is probably bad
+import deepEqual from 'deep-equal';
+import uuid from 'uuid';
+import {getUniqueName} from 'utils/pathUtils';
 
-  // Acceleration#state:
-  OUT_OF_DATE: 'Warning-Solid',
+export const createReflectionFormValues = (opts, siblingNames = []) => {
 
-  // synthetic:
-  DISABLED: 'Disabled',
-  EXPIRED: 'Warning-Solid',
-  FAILED_FINAL: 'ErrorSolid',
-  FAILED_NONFINAL: 'Warning-Solid'
-}[status] || 'Warning-Solid');
+  const reflection = {
+    id: uuid.v4(), // need to supply a temp uuid so errors can be tracked
+    tag: '',
+    type: '',
+    name: '',
+    enabled: true,
+    distributionFields: [],
+    partitionFields: [],
+    sortFields: [],
+    partitionDistributionStrategy: 'CONSOLIDATED',
+    shouldDelete: false
+  };
 
-export const mapStateToText = status => ({
-  NEW: la('New'),
-  RUNNING: la('In progress'),
-  DONE: la('Ready'),
-  FAILED: la('Error'),
-  DELETED: la('Deleted'),
-
-  // Acceleration#state:
-  OUT_OF_DATE: la('Outdated'),
-
-  // synthetic:
-  DISABLED: la('Disabled'),
-  EXPIRED: la('Expired'),
-  FAILED_FINAL: la('Multiple attempts to build Reflection failed, will not reattempt.'),
-  FAILED_NONFINAL: la('Attempt to build Reflection failed, will reattempt.')
-}[status] || la('Unknown: ') + status);
-
-export function summarizeState(acceleration) {
-  if (acceleration.errorList && acceleration.errorList.length) {
-    return 'FAILED';
+  if (opts.type === 'RAW') {
+    reflection.displayFields = [];
+  } else {
+    reflection.dimensionFields = [];
+    reflection.measureFields = [];
   }
 
-  if (acceleration.state === 'OUT_OF_DATE') { // todo: eventually replace Acceleration#state with other flags
-    return 'OUT_OF_DATE';
+  if (!opts.name) {
+    reflection.name = siblingNames && getUniqueName(opts.type === 'RAW' ? la('Raw Reflection') : la('Aggregation Reflection'), proposedName => {
+      return !siblingNames.includes(proposedName);
+    });
   }
 
-  // generating suggestions
-  if (acceleration.state === 'NEW') { // todo: eventually replace Acceleration#state with a #isGeneratingSuggestions bool
-    return 'NEW';
+  // only copy values from opts if the key exists in our reduced reflection representation
+  for (const key in reflection) {
+    if (key in opts) {
+      reflection[key] = opts[key];
+    }
   }
 
-  let eitherEnabled = false;
+  return reflection;
+};
 
-  const layouts = [];
+export const areReflectionFormValuesUnconfigured = reflectionFormValues => {
+  const unconfiguredReflection = createReflectionFormValues({
+    type: reflectionFormValues.type,
 
-  if (acceleration.aggregationLayouts.enabled) {
-    eitherEnabled = true;
-    layouts.push(...acceleration.aggregationLayouts.layoutList);
+    // we consider the reflection id, tag, and name inconsequential
+    id: reflectionFormValues.id,
+    tag: reflectionFormValues.tag,
+    name: reflectionFormValues.name,
+    enabled: reflectionFormValues.enabled
+  });
+
+  return deepEqual(reflectionFormValues, unconfiguredReflection);
+};
+
+
+export const areReflectionFormValuesBasic = (reflectionFormValues, dataset) => {
+  reflectionFormValues = {...reflectionFormValues};
+
+  const basicCopy = createReflectionFormValues({
+    // these don't matter for basic v advanced mode:
+    type: reflectionFormValues.type,
+    id: reflectionFormValues.id,
+    tag: reflectionFormValues.tag,
+    name: reflectionFormValues.name,
+    enabled: reflectionFormValues.enabled
+  });
+
+  if (reflectionFormValues.type === 'RAW') {
+    reflectionFormValues.displayFields.sort(fieldSorter);
+    basicCopy.displayFields = dataset.fields.map(({name}) => ({name})).sort(fieldSorter);
+  } else {
+    reflectionFormValues = {
+      ...reflectionFormValues,
+      // these don't matter for basic v advanced mode:
+      dimensionFields: basicCopy.dimensionFields, // ignoring granularity right now as even advanced does nothing with it (sync system is careful to preserve)
+      measureFields: basicCopy.measureFields
+    };
   }
-  if (acceleration.rawLayouts.enabled) {
-    eitherEnabled = true;
-    layouts.push(...acceleration.rawLayouts.layoutList);
+
+  return deepEqual(reflectionFormValues, basicCopy);
+};
+
+export const fieldSorter = (a, b) => {
+  if (a.name < b.name) {
+    return -1;
+  }
+  if (a.name > b.name) {
+    return 1;
+  }
+  return 0;
+};
+
+export const forceChangesForDatasetChange = (reflection, dataset) => {
+  if (reflection.status.config !== 'INVALID') return {reflection};
+
+  const lostFields = {};
+  reflection = {...reflection};
+  const validFields = new Set(dataset.fields.map(f => f.name));
+
+  for (const feildList of 'sortFields partitionFields distributionFields displayFields dimensionFields measureFields'.split(' ')) {
+    if (!reflection[feildList]) continue;
+    reflection[feildList] = reflection[feildList].filter((field) => {
+      if (validFields.has(field.name)) return true;
+      lostFields[feildList] = lostFields[feildList] || [];
+      lostFields[feildList].push(field);
+      return false;
+    });
   }
 
-  if (!eitherEnabled) return 'DISABLED';
+  // future: handle change field to invalid type (as-is; left to validation system to force a fix)
 
-  const states = new Set(layouts.map(syntheticLayoutState));
-
-  for (const state of [
-    'FAILED_FINAL',
-    'FAILED_NONFINAL',
-    'EXPIRED',
-    'RUNNING',
-    'NEW'
-  ]) {
-    if (states.has(state)) return state;
-  }
-
-  return 'DONE';
-}
-
-export function syntheticLayoutState(layout) {
-  if (layout.state === 'FAILED') return 'FAILED_FINAL';
-  if (layout.latestMaterializationState === 'FAILED' && layout.state === 'ACTIVE') return 'FAILED_NONFINAL';
-  if (layout.latestMaterializationState === 'DONE' && !layout.hasValidMaterialization) return 'EXPIRED';
-  // todo: future: show a "RUNNING but it is a reattempt"
-  return layout.latestMaterializationState;
-}
-
-export function summarizeByteSize(acceleration) {
-  const layouts = [...acceleration.aggregationLayouts.layoutList, ...acceleration.rawLayouts.layoutList];
-
-  let currentByteSize = 0;
-  let totalByteSize = 0;
-  for (const layout of layouts) {
-    currentByteSize += layout.currentByteSize || 0;
-    totalByteSize += layout.totalByteSize;
-  }
-  return {currentByteSize, totalByteSize};
-}
+  return {reflection, lostFields};
+};

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -235,7 +235,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
             format("SELECT * FROM TABLE(%s.`%s`(type => 'arrow'))", TEMP_SCHEMA, dropTableStoreTblName))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, "Table [newTable] dropped")
+        .baselineValues(true, "Table [dfs_test.newTable] dropped")
         .go();
 
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), ctasStoreTblName));

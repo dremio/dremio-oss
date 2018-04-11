@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,10 +58,10 @@ import com.dremio.dac.proto.model.dataset.TransformSorts;
 import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.TrimType;
-import com.dremio.dac.proto.model.source.NASConfig;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.JobState;
 import com.google.common.collect.Lists;
 
@@ -443,8 +443,8 @@ public class TestServerWithInitialData extends BaseTestServer {
    */
   @Test
   public void infoSchema() throws Exception {
-    final NASConfig nas = new NASConfig();
-    nas.setPath(new File("src/test/resources").getAbsolutePath());
+    final NASConf nas = new NASConf();
+    nas.path = new File("src/test/resources").getAbsolutePath();
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);

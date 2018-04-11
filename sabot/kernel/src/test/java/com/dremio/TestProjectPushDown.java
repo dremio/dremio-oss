@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,27 +29,24 @@ public class TestProjectPushDown extends PlanTestBase {
       .getLogger(TestProjectPushDown.class);
 
   @Test
-  @Ignore
   public void testGroupBy() throws Exception {
-    String expectedColNames = " \"columns\" : [ \"`marital_status`\" ]";
+    String expectedColNames = expectedColumnsString("marital_status");
     testPhysicalPlan(
         "select marital_status, COUNT(1) as cnt from cp.`employee.json` group by marital_status",
         expectedColNames);
   }
 
   @Test
-  @Ignore
   public void testOrderBy() throws Exception {
-    String expectedColNames = "\"columns\" : [ \"`employee_id`\", \"`full_name`\", \"`first_name`\", \"`last_name`\" ]";
+    String expectedColNames = expectedColumnsString("employee_id", "full_name", "first_name", "last_name");
     testPhysicalPlan("select employee_id , full_name, first_name , last_name "
         + "from cp.`employee.json` order by first_name, last_name",
         expectedColNames);
   }
 
   @Test
-  @Ignore
   public void testExprInSelect() throws Exception {
-    String expectedColNames = "\"columns\" : [ \"`employee_id`\", \"`full_name`\", \"`first_name`\", \"`last_name`\" ]";
+    String expectedColNames = expectedColumnsString("employee_id", "full_name", "first_name", "last_name");
     testPhysicalPlan(
         "select employee_id + 100, full_name, first_name , last_name "
             + "from cp.`employee.json` order by first_name, last_name",
@@ -57,9 +54,8 @@ public class TestProjectPushDown extends PlanTestBase {
   }
 
   @Test
-  @Ignore
   public void testExprInWhere() throws Exception {
-    String expectedColNames = "\"columns\" : [ \"`employee_id`\", \"`full_name`\", \"`first_name`\", \"`last_name`\" ]";
+    String expectedColNames = expectedColumnsString("employee_id", "full_name", "first_name", "last_name");
     testPhysicalPlan(
         "select employee_id + 100, full_name, first_name , last_name "
             + "from cp.`employee.json` where employee_id + 500 < 1000 ",

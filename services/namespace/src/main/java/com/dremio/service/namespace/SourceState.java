@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
 
 /**
  * State of the source.
@@ -100,10 +101,23 @@ public class SourceState {
 
     @Override
     public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+
+      if(o == null || !(o instanceof Message)) {
+        return false;
+      }
+
       Message that = (Message) o;
 
       return Objects.equals(this.level, that.level) &&
         Objects.equals(this.message, that.message);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("level", level).add("msg", message).toString();
     }
 
     @Override
@@ -112,27 +126,70 @@ public class SourceState {
     }
   }
 
-  private static SourceState getSourceState(SourceState.SourceStatus status, String... msgs) {
+  private static SourceState getSourceState(SourceState.SourceStatus status, MessageLevel level, String... msgs) {
     List<Message> messageList = new ArrayList<>();
     for (String msg : msgs) {
-      messageList.add(new Message(MessageLevel.WARN, msg));
+      messageList.add(new Message(level, msg));
     }
     return new SourceState(status, messageList);
   }
 
   public static SourceState warnState(String... e) {
-    return getSourceState(SourceStatus.warn, e);
+    return getSourceState(SourceStatus.warn, MessageLevel.WARN, e);
   }
 
   public static SourceState goodState(String... e){
-    return getSourceState(SourceStatus.good, e);
+    return getSourceState(SourceStatus.good, MessageLevel.INFO, e);
   }
 
   public static SourceState badState(String... e) {
-    return getSourceState(SourceStatus.bad, e);
+    return getSourceState(SourceStatus.bad, MessageLevel.ERROR, e);
   }
 
   public static SourceState badState(Exception e) {
-    return getSourceState(SourceStatus.bad, e.getMessage());
+    return getSourceState(SourceStatus.bad, MessageLevel.ERROR, e.getMessage());
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    switch(status) {
+    case bad:
+      sb.append("Unavailable");
+      break;
+    case good:
+      sb.append("Healthy");
+      break;
+    case warn:
+      sb.append("Unhealthy");
+      break;
+    default:
+      throw new IllegalStateException(status.name());
+    }
+
+    if (messages != null) {
+      for (Message m : messages) {
+        if (messages.size() > 1) {
+          sb.append("\n\t");
+          switch (m.level) {
+          case ERROR:
+            sb.append("Error: ");
+            break;
+          case INFO:
+            sb.append("Info: ");
+            break;
+          case WARN:
+            sb.append("Warning: ");
+            break;
+          default:
+            throw new IllegalStateException(m.level.name());
+          }
+        } else {
+          sb.append(": ");
+        }
+        sb.append(m.message);
+      }
+    }
+    return sb.toString();
   }
 }

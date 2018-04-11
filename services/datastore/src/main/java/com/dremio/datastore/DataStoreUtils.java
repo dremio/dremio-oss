@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.GlobFilter;
 /**
  * Utilities for datastore and other applications
  */
-public class DataStoreUtils {
+public final class DataStoreUtils {
 
   public static KVStoreInfo toInfo(StoreBuilderConfig builderConfig) {
     return new KVStoreInfo()
@@ -45,12 +45,14 @@ public class DataStoreUtils {
     return storeBuilderConfig;
   }
 
-
   public static GlobFilter getGlobFilter(String suffix) {
     try {
       return new GlobFilter(format("*%s", suffix));
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
+  }
+
+  private DataStoreUtils() {
   }
 }

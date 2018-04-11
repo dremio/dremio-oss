@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,21 +41,22 @@ import com.dremio.common.util.FileUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.homefiles.HomeFileConfig;
+import com.dremio.dac.homefiles.HomeFileConf;
+import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.dac.homefiles.HomeFileTool;
-//import com.dremio.dac.proto.model.acceleration.AccelerationId;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.TestHomeFiles;
 import com.dremio.dac.server.test.SampleDataPopulator;
-import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.service.accelerator.AccelerationService;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
@@ -107,6 +108,7 @@ public class TestBackupManager extends BaseTestServer {
     getCurrentDremioDaemon().init();
     initClient();
     setBinder(createBinder(getCurrentDremioDaemon().getBindingProvider()));
+    TestUtilities.addClasspathSourceIf(l(CatalogService.class));
     setPopulator(new SampleDataPopulator(
       l(SabotContext.class),
       newSourceService(),
@@ -127,7 +129,7 @@ public class TestBackupManager extends BaseTestServer {
     dacConfig = dacConfig.httpPort(httpPort);
 
     LocalKVStoreProvider localKVStoreProvider = (LocalKVStoreProvider) l(KVStoreProvider.class);
-    HomeFileConfig homeFileStore = l(HomeFileConfig.class);
+    HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
 
     // take backup 1
     CheckPoint cp1 = checkPoint();
@@ -141,7 +143,7 @@ public class TestBackupManager extends BaseTestServer {
     File tmpFile = TEMP_FOLDER.newFile();
     Files.write(FileUtils.getResourceAsString("/datasets/text/comma.txt"), tmpFile, UTF_8);
     Path textFile = new Path(tmpFile.getAbsolutePath());
-    TestHomeFiles.uploadFile(l(HomeFileConfig.class), textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
+    TestHomeFiles.uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 
     TestHomeFiles.runQuery("comma", 4, 3, null);
     CheckPoint cp2 = checkPoint();
@@ -216,8 +218,6 @@ public class TestBackupManager extends BaseTestServer {
     NamespaceService namespaceService = newNamespaceService();
     UserService userService = l(UserService.class);
     JobsService jobsService = l(JobsService.class);
-    DatasetVersionMutator datasetService = newDatasetVersionMutator();
-    AccelerationService accelerationService = l(AccelerationService.class);
 
     checkPoint.sources = namespaceService.getSources();
     checkPoint.spaces = namespaceService.getSpaces();
@@ -252,7 +252,7 @@ public class TestBackupManager extends BaseTestServer {
     private List<Job> jobs;
     private List<Acceleration> accelerations;
 
-    private void checkEquals(CheckPoint o) throws Exception {
+    private void checkEquals(CheckPoint o) {
       assertTrue(CollectionUtils.isEqualCollection(sources, o.sources));
       assertTrue(CollectionUtils.isEqualCollection(spaces, o.spaces));
       assertTrue(CollectionUtils.isEqualCollection(homes, o.homes));

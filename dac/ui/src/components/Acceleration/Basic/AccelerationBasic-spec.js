@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,12 @@ import Immutable from 'immutable';
 
 import {AccelerationBasic} from './AccelerationBasic';
 
+const context = {
+  context: {
+    reflectionSaveErrors: Immutable.fromJS({})
+  }
+};
+
 describe('AccelerationBasic', () => {
   let minimalProps;
   let commonProps;
@@ -25,62 +31,53 @@ describe('AccelerationBasic', () => {
   beforeEach(() => {
     minimalProps = {
       location: {},
-      acceleration: Immutable.fromJS({
-        version: 1,
-        aggregationLayouts: {
-          // WARNING: this might not be exactly accurate - but it's enough for the test
-          layoutList: [{id:'a', details: {measureFieldList: ['cm1'], dimensionFieldList: ['cd1']}}],
-          enabled: true
-        },
-        rawLayouts: {
-          // WARNING: this might not be exactly accurate - but it's enough for the test
-          layoutList: [{id:'b', details: {displayFieldList: ['cm1']}}],
-          enabled: true
-        },
-        columnsDimensions: [{column: 'cd1'}],
-        columnsMeasures: [{column: 'cm1'}]
-      })
+      dataset: Immutable.fromJS({
+        id: '1',
+        path: ['path', 'name']
+      }),
+      reflections: Immutable.fromJS({
+        a: {id: 'a', type: 'AGGREGATION', measureFields: ['cm1'], dimensionFields: ['cd1']},
+        b: {id: 'b', type: 'RAW', displayFields: ['cm1']}
+      }),
+      fields: {
+        rawReflections: [],
+        aggregationReflections: []
+      }
     };
     commonProps = {
-      ...minimalProps,
-      fullPath: '',
-      fields: {
-        rawLayouts: {
-          enabled: true
-        }
-      }
+      ...minimalProps
     };
   });
 
   it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccelerationBasic {...minimalProps}/>);
+    const wrapper = shallow(<AccelerationBasic {...minimalProps}/>, context);
     expect(wrapper).to.have.length(1);
   });
 
   it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AccelerationBasic {...commonProps}/>);
+    const wrapper = shallow(<AccelerationBasic {...commonProps}/>, context);
     expect(wrapper).to.have.length(1);
   });
 
   describe('#getHighlightedSection()', () => {
     it('none', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps}/>).instance();
+      const instance = shallow(<AccelerationBasic {...commonProps}/>, context).instance();
       expect(instance.getHighlightedSection()).to.be.equal(null);
     });
 
     it('AGGREGATION', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'a'}}}/>).instance();
+      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'a'}}}/>, context).instance();
       expect(instance.getHighlightedSection()).to.be.equal('AGGREGATION');
     });
 
     it('RAW', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'b'}}}/>).instance();
+      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'b'}}}/>, context).instance();
       expect(instance.getHighlightedSection()).to.be.equal('RAW');
     });
 
     it('missing', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'n/a'}}}/>).instance();
-      expect(instance.getHighlightedSection()).to.be.equal(null);
+      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'n/a'}}}/>, context).instance();
+      expect(instance.getHighlightedSection()).to.be.equal(undefined);
     });
   });
 });

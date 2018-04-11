@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,6 +92,7 @@ import com.dremio.exec.work.AttemptId;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
+import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.ContextInformationImpl;
 import com.dremio.sabot.exec.context.OpProfileDef;
@@ -333,7 +334,7 @@ public class BaseTestOperator extends ExecTest {
     }
 
     public ClassProducer newClassProducer(BufferManager bufferManager) {
-      return new ClassProducerImpl(compiler, functionLookup, contextInformation, bufferManager);
+      return new ClassProducerImpl(new CompilationOptions(options), compiler, functionLookup, contextInformation, bufferManager);
     }
 
 
@@ -516,7 +517,7 @@ public class BaseTestOperator extends ExecTest {
 
       final VectorAccessible output = op.setup(generator.getOutput());
       int count;
-      while((count = generator.next(batchSize)) != 0){
+      while(op.getState() != State.DONE && (count = generator.next(batchSize)) != 0){
         assertState(op, State.CAN_CONSUME);
         op.consumeData(count);
         while(op.getState() == State.CAN_PRODUCE){

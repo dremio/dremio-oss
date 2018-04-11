@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,8 @@ export default class ExploreTable extends PureComponent {
     location: PropTypes.object,
     height: PropTypes.number,
     isGrayed: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    shouldRenderInvisibles: PropTypes.bool // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
   };
 
   static getCellStyle(column) {
@@ -291,6 +292,7 @@ export default class ExploreTable extends PureComponent {
         tableData={this.props.tableData}
         isDumbTable={this.props.isDumbTable}
         location={this.props.location}
+        shouldRenderInvisibles={this.props.shouldRenderInvisibles}
       />
     );
   }

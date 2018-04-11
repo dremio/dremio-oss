@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,12 +28,11 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogServiceImpl;
-import com.dremio.exec.store.StoragePluginRegistry;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
@@ -55,6 +54,8 @@ import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
@@ -88,26 +89,34 @@ public class SabotNode implements AutoCloseable {
 
   private ShutdownThread shutdownHook;
 
-  @VisibleForTesting
   public SabotNode(
       final SabotConfig config,
       final ClusterCoordinator clusterCoordinator) throws Exception {
-    this(config, clusterCoordinator, ClassPathScanner.fromPrescan(config));
+    this(config, clusterCoordinator, ClassPathScanner.fromPrescan(config), true);
   }
 
-  public SabotNode(final SabotConfig config,
+  @VisibleForTesting
+  public SabotNode(
+      final SabotConfig config,
       final ClusterCoordinator clusterCoordinator,
-      final ScanResult classpathScan) throws Exception {
-    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan);
+      final ScanResult classpathScan,
+      boolean allRoles) throws Exception {
+    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles);
   }
 
-  protected void init(SingletonRegistry registry, SabotConfig config, ClusterCoordinator clusterCoordinator, ScanResult classpathScan) throws Exception{
+  protected void init(
+      SingletonRegistry registry,
+      SabotConfig config,
+      ClusterCoordinator clusterCoordinator,
+      ScanResult classpathScan,
+      boolean allRoles) throws Exception {
     final boolean allowPortHunting = true;
     final boolean useIP = false;
-    final DremioConfig dremioConfig = DremioConfig.create(null, config);
+    DremioConfig dremioConfig = DremioConfig.create(null, config);
+    dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
 
     // eagerly created.
-    final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(config, classpathScan));
+    final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(dremioConfig, classpathScan));
 
     // bind default providers.
     registry.bind(MaterializationDescriptorProvider.class, MaterializationDescriptorProvider.EMPTY);
@@ -155,6 +164,8 @@ public class SabotNode implements AutoCloseable {
         ));
 
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
+    registry.bind(DatasetListingService.class, new DatasetListingServiceImpl(
+        registry.provider(NamespaceService.Factory.class)));
 
     registry.bind(AccelerationManager.class, AccelerationManager.NO_OP);
 
@@ -173,9 +184,11 @@ public class SabotNode implements AutoCloseable {
         registry.provider(AccelerationManager.class),
         registry.provider(AccelerationListManager.class),
         registry.provider(NamespaceService.Factory.class),
+        registry.provider(DatasetListingService.class),
         registry.provider(UserService.class),
         registry.provider(CatalogService.class),
-        null
+        null,
+        allRoles
         ));
 
     // Note: corePoolSize param below should be more than 1 to show any multithreading issues
@@ -186,11 +199,9 @@ public class SabotNode implements AutoCloseable {
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
-        registry.provider(KVStoreProvider.class),
-        registry.getBindingCreator(),
-        true,
-        true,
-        registry.provider(SystemTablePluginConfigProvider.class)));
+        registry.provider(SystemTablePluginConfigProvider.class),
+        registry.provider(FabricService.class)
+        ));
 
     registry.bindSelf(new ContextInformationFactory());
     registry.bindSelf(
@@ -199,7 +210,7 @@ public class SabotNode implements AutoCloseable {
             registry.provider(NodeEndpoint.class),
             registry.provider(SabotContext.class),
             registry.provider(FabricService.class),
-            registry.provider(StoragePluginRegistry.class),
+            registry.provider(CatalogService.class),
             registry.provider(ContextInformationFactory.class),
             registry.getBindingCreator()));
 
@@ -348,7 +359,7 @@ public class SabotNode implements AutoCloseable {
     logger.debug("Starting new SabotNode.");
     SabotNode bit;
     try {
-      bit = new SabotNode(config, clusterCoordinator, classpathScan);
+      bit = new SabotNode(config, clusterCoordinator, classpathScan, true);
     } catch (final Exception ex) {
       throw new NodeStartupException("Failure while initializing values in SabotNode.", ex);
     }

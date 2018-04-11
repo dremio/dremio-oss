@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,13 +52,11 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
-import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.collect.Lists;
@@ -215,13 +213,6 @@ public class DatasetsUtil {
     physicalDatasetConfig.setName(datasetConfig.getName());
     physicalDatasetConfig.setVersion(datasetConfig.getVersion());
     physicalDatasetConfig.setId(datasetConfig.getId().getId());
-    final AccelerationSettings settings = physicalDataset.getAccelerationSettings();
-    physicalDatasetConfig.setAccelerationSettings(new AccelerationSettingsDescriptor()
-        .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
-        .setAccelerationGracePeriod(settings.getGracePeriod())
-        .setMethod(settings.getMethod())
-        .setRefreshField(settings.getRefreshField())
-    );
     return physicalDatasetConfig;
   }
 
@@ -319,6 +310,24 @@ public class DatasetsUtil {
 
       default:
         throw new UnsupportedOperationException(String.format("The dataset type %s is not supported", datasetType.toString()));
+    }
+
+    return fields;
+  }
+
+  public static List<org.apache.arrow.vector.types.pojo.Field> getArrowFieldsFromDatasetConfig(DatasetConfig datasetConfig) {
+    List<org.apache.arrow.vector.types.pojo.Field> fields = Lists.newArrayList();
+    final ByteString schemaBytes = DatasetHelper.getSchemaBytes(datasetConfig);
+    if (schemaBytes == null) {
+      return null;
+    }
+
+    final BatchSchema batchSchema = BatchSchema.deserialize(schemaBytes);
+    for (int i = 0; i < batchSchema.getFieldCount(); i++) {
+      final org.apache.arrow.vector.types.pojo.Field field = batchSchema.getColumn(i);
+      if (!NamespaceTable.SYSTEM_COLUMNS.contains(field.getName())) {
+        fields.add(field);
+      }
     }
 
     return fields;

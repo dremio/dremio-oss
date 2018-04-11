@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 package com.dremio.exec.store.ischema.tables;
 
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.listing.DatasetListingService;
 
 /**
  * Base class for tables in INFORMATION_SCHEMA.  Defines the table (fields and
@@ -39,6 +39,19 @@ abstract class BaseInfoSchemaTable<RECORD> {
     return clazz;
   }
 
-  public abstract Iterable<RECORD> asIterable(String catalogName, NamespaceService service, SearchQuery query);
+  /**
+   * Return the information schema table as an {@link Iterable} of records, for the given username and search.
+   *
+   * @param catalogName catalog name
+   * @param username username
+   * @param service dataset listing service
+   * @param query search query
+   * @return records in the table, as an iterable
+   */
+  public abstract Iterable<RECORD> asIterable(
+      String catalogName,
+      String username,
+      DatasetListingService service,
+      SearchQuery query);
 
 }

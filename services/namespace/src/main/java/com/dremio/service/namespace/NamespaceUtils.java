@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,6 +119,9 @@ public final class NamespaceUtils {
    * @param newConfig new dataset config thats about to be saved in namespace
    */
   public static void copyFromOldConfig(DatasetConfig oldConfig, DatasetConfig newConfig) {
+    if(oldConfig == null) {
+      return;
+    }
     newConfig.setId(oldConfig.getId());
     newConfig.setVersion(oldConfig.getVersion());
     newConfig.setCreatedAt(oldConfig.getCreatedAt());
@@ -131,8 +134,6 @@ public final class NamespaceUtils {
       if (newConfig.getPhysicalDataset() == null) {
         newConfig.setPhysicalDataset(new PhysicalDataset());
       }
-
-      newConfig.getPhysicalDataset().setAccelerationSettings(oldConfig.getPhysicalDataset().getAccelerationSettings());
     }
   }
 }

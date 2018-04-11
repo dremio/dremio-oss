@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import { Cell } from 'fixed-data-table-2';
 import Immutable from 'immutable';
 import shallowEqual from 'fbjs/lib/shallowEqual';
 import { pick } from 'lodash/object';
-import { MAP, TEXT, LIST } from 'constants/DataTypes';
+import { LIST, MAP, TEXT } from 'constants/DataTypes';
 import { DATE_TYPES, NUMBER_TYPES } from 'constants/columnTypeGroups';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
@@ -49,6 +49,7 @@ export default class ExploreTableCell extends Component {
     onCellTextSelect: PropTypes.func,
     selectItemsOfList: PropTypes.func,
     location: PropTypes.object,
+    shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
 
     // Cell props
     width: PropTypes.number,
@@ -218,7 +219,7 @@ export default class ExploreTableCell extends Component {
   }
 
   render() {
-    const { rowIndex, data, columnType, style, width, height } = this.props;
+    const { rowIndex, data, columnType, style, width, height, shouldRenderInvisibles } = this.props;
     const row = data.get(rowIndex);
     const showEllipsis = this.showEllipsis();
     const cellValue = this.getCellValue();
@@ -231,12 +232,15 @@ export default class ExploreTableCell extends Component {
     // position is absolute by default. We need set "relative" for align
     const extraCellStyle = isNumericCell ? { position: 'relative' } : {};
 
+    const className = 'explore-cell ' + (showEllipsis ? 'explore-cell-overflow' : '') +
+      (shouldRenderInvisibles ? ' explore-call-show-invisible' : '');
+
     return (
       <Cell
         width={width}
         height={height}
         style={{ ...style, ...extraWrapStyle }}
-        className={'explore-cell ' + (showEllipsis ? 'explore-cell-overflow' : '')}
+        className={className}
         ref='cellContent'
         onMouseDown={this.onMouseDown}
       >
@@ -246,7 +250,7 @@ export default class ExploreTableCell extends Component {
               onMouseEnter={this.onMouseEnter}
               style={{...emptyStyle, ...removedStyle, ...extraCellStyle }}
               className='cell-wrap' data-columnname={this.props.columnName}>
-              {dataFormatUtils.formatValue(cellValue, this.getCellType() || columnType, row)}
+              {dataFormatUtils.formatValue(cellValue, this.getCellType() || columnType, row, shouldRenderInvisibles)}
             </span>
           </div>
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
+@SuppressWarnings("unused") // sub-classes of ElasticFunction are registered in OPERATOR_MAP using reflection
 public final class ElasticFunctions {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticFunctions.class);

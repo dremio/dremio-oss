@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.StoragePluginId;
 
 public interface ElasticsearchPrel extends Prel {
   BatchSchema getSchema(FunctionLookupContext context);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.service.namespace;
 
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 import io.protostuff.ByteString;
 
@@ -40,4 +41,14 @@ public final class DatasetHelper {
     }
     return recordSchema;
   }
+
+  /**
+   * @return true if the dataset type is PHYSICAL_*
+   */
+  public static boolean isPhysicalDataset(DatasetType t) {
+    return t == DatasetType.PHYSICAL_DATASET ||
+      t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE ||
+      t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
+  }
+
 }

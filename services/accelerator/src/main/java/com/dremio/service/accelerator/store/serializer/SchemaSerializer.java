@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import io.protostuff.Schema;
 /**
  * Generic protostuff schema serializer
  */
-abstract class SchemaSerializer<T extends Message<T>> extends Serializer<T> {
+public abstract class SchemaSerializer<T extends Message<T>> extends Serializer<T> {
   private final Serializer<T> serializer;
 
   public SchemaSerializer(final Schema<T> schema) {

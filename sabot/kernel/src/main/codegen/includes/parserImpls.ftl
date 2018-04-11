@@ -1,6 +1,6 @@
 <#--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -316,4 +316,41 @@ SqlNode SqlDropTable() :
     }
 }
 
+/**
+ * Parses a $REFRESH REFLECTION statement
+ *   $REFRESH REFLECTION reflectionId AS materializationId
+ */
+SqlNode SqlRefreshReflection() :
+{
+    SqlParserPos pos;
+    SqlNode reflectionId;
+    SqlNode materializationId;
+}
+{
+    <REFRESH> { pos = getPos(); }
+    <REFLECTION>
+    { reflectionId = StringLiteral(); }
+    <AS>
+    { materializationId = StringLiteral(); }
+    {
+        return new SqlRefreshReflection(pos, reflectionId, materializationId);
+    }
+}
 
+/**
+ * Parses a LOAD MATERIALIZATION statement
+ *   $LOAD MATERIALIZATION METADATA materializationId
+ */
+SqlNode SqlLoadMaterialization() :
+{
+    SqlParserPos pos;
+    SqlNode materializationId;
+}
+{
+    <LOAD> { pos = getPos(); }
+    <MATERIALIZATION> <METADATA>
+    { materializationId = StringLiteral(); }
+    {
+        return new SqlLoadMaterialization(pos, materializationId);
+    }
+}

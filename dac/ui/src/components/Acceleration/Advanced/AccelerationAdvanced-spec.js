@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,31 +25,23 @@ describe('AccelerationAdvanced', () => {
   beforeEach(() => {
     minimalProps = {
       location: {},
-      acceleration: Immutable.Map(),
+      dataset: Immutable.Map(),
+      reflections: Immutable.Map(),
       updateFormDirtyState: sinon.spy(),
+      fields: {},
       values: {
-        aggregationLayouts: {
-          enabled: false,
-          layoutList: [
-            {
-              details: {
-                fakeFieldList: [],
-                booly: true
-              }
-            }
-          ]
-        },
-        rawLayouts: {
-          enabled: false,
-          layoutList: [
-            {
-              details: {
-                fakeFieldList: [],
-                booly: true
-              }
-            }
-          ]
-        }
+        aggregationReflections: [
+          {
+            fakeFieldList: [],
+            booly: true
+          }
+        ],
+        rawReflections: [
+          {
+            fakeFieldList: [],
+            booly: true
+          }
+        ]
       }
     };
     commonProps = {
@@ -76,7 +68,7 @@ describe('AccelerationAdvanced', () => {
         ...commonProps,
         location: {state:{layoutId:'foo'}},
         acceleration: Immutable.fromJS({
-          aggregationLayouts: {layoutList: [{id: {id: 'foo'}}]}
+          aggregationReflections: [{id: {id: 'foo'}}]
         })
       };
       const wrapper = shallow(<AccelerationAdvanced {...props}/>);
@@ -88,67 +80,67 @@ describe('AccelerationAdvanced', () => {
   describe('#areAdvancedReflectionsFieldsEqual', () => {
     let wrapper;
     let instance;
-    let aggregationLayouts;
-    let rawLayouts;
+    let aggregationReflections;
+    let rawReflections;
     beforeEach(() => {
-      aggregationLayouts = Immutable.fromJS(commonProps.values.aggregationLayouts);
-      rawLayouts = Immutable.fromJS(commonProps.values.rawLayouts);
+      aggregationReflections = Immutable.fromJS(commonProps.values.aggregationReflections);
+      rawReflections = Immutable.fromJS(commonProps.values.rawReflections);
       wrapper = shallow(<AccelerationAdvanced {...commonProps}/>);
       instance = wrapper.instance();
     });
 
-    it('should return true when aggregationLayouts and rawLayouts are equal', () => {
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts);
+    it('should return true when aggregationReflections and rawReflections are equal', () => {
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections);
 
       expect(result).to.be.true;
     });
 
-    it('should return false when aggregationLayouts has been changed', () => {
-      const changedAggregationLayouts = aggregationLayouts
-        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+    it('should return false when aggregationReflections has been changed', () => {
+      const changedAggregationReflections = aggregationReflections
+        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
 
       expect(result).to.be.false;
     });
 
-    it('should return false when rawLayouts has been changed', () => {
-      const changedRawLayouts = rawLayouts
-        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+    it('should return false when rawReflections has been changed', () => {
+      const changedRawLayouts = rawReflections
+        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
 
       expect(result).to.be.false;
     });
 
-    it('should return false if initialLayoutLists don\'t have layoutList from next layout list', () => {
-      const changedRawLayouts = rawLayouts.set('layoutList', Immutable.fromJS([
-        { details: { fakeFieldList: [] } },
-        { details: { anotherFieldList: [] } }
-      ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+    it('should return false if initialReflections don\'t have layoutList from next layout list', () => {
+      const changedRawLayouts = Immutable.fromJS([
+        { fakeFieldList: [] },
+        { anotherFieldList: [] }
+      ]);
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
 
       expect(result).to.be.false;
     });
 
     it('should return true if aggregation field has changed and then has returned to initial state', () => {
-      const changedAggregationLayouts = aggregationLayouts
-        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+      const changedAggregationReflections = aggregationReflections
+        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
 
       expect(result).to.be.false;
 
-      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts);
+      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections);
 
       expect(initResult).to.be.true;
     });
 
     it('should return true if raw field has changed and then has returned to initial state', () => {
-      const changedRawLayouts = rawLayouts
-        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+      const changedRawLayouts = rawReflections
+        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
 
       expect(result).to.be.false;
 
-      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, rawLayouts);
+      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections);
 
       expect(initResult).to.be.true;
     });
@@ -157,134 +149,105 @@ describe('AccelerationAdvanced', () => {
       const props = {
         ...commonProps,
         values: {
-          aggregationLayouts: Immutable.fromJS({
-            enabled: false,
-            layoutList: [
-              {
-                details: {
-                  fakeFieldList: [{ name: 'foo' }, { name: 'bar' }],
-                  booly: true
-                }
-              }
-            ]
-          }),
-          rawLayouts: Immutable.fromJS({
-            enabled: false,
-            layoutList: [
-              {
-                details: {
-                  fakeFieldList: [],
-                  booly: true
-                }
-              }
-            ]
-          })
+          aggregationReflections: Immutable.fromJS([
+            {
+              fakeFieldList: [{ name: 'foo' }, { name: 'bar' }],
+              booly: true
+            }
+          ]),
+          rawReflections: Immutable.fromJS([
+            {
+              fakeFieldList: [],
+              booly: true
+            }
+          ])
         }
       };
       wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      const changedAggregationLayouts = aggregationLayouts
-        .setIn(['layoutList', 0, 'details', 'fakeFieldList'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
-      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+      const changedAggregationReflections = aggregationReflections
+        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
+      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
 
       expect(result).to.be.true;
     });
 
-    it('should return true if we get sortFieldList with values in the same order', () => {
+    it('should return true if we get sortFields with values in the same order', () => {
       const props = {
         ...commonProps,
         values: {
-          aggregationLayouts: Immutable.fromJS({
-            enabled: false,
-            layoutList: [
-              {
-                details: {
-                  fakeFieldList: [],
-                  sortFieldList: [{ name: 'foo' }, { name: 'bar' }],
-                  booly: true
-                }
-              }
-            ]
-          }),
-          rawLayouts: Immutable.fromJS({
-            enabled: false,
-            layoutList: [
-              {
-                details: {
-                  fakeFieldList: [],
-                  sortFieldList: [],
-                  booly: true
-                }
-              }
-            ]
-          })
+          aggregationReflections: Immutable.fromJS([
+            {
+              fakeFieldList: [],
+              sortFields: [{ name: 'foo' }, { name: 'bar' }],
+              booly: true
+            }
+          ]),
+          rawReflections: Immutable.fromJS([
+            {
+              fakeFieldList: [],
+              sortFields: [],
+              booly: true
+
+            }
+          ])
         }
       };
       wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      const changedAggregationLayouts = aggregationLayouts
-        .setIn(['layoutList', 0, 'details', 'sortFieldList'], Immutable.fromJS([ { name: 'foo' }, { name: 'bar' } ]));
-      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+      const changedAggregationReflections = aggregationReflections
+        .setIn([0, 'sortFields'], Immutable.fromJS([ { name: 'foo' }, { name: 'bar' } ]));
+      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
 
       expect(result).to.be.true;
     });
 
-    it('should return false if we get sortFieldList with values in a different order', () => {
+    it('should return false if we get sortFields with values in a different order', () => {
       const props = {
         ...commonProps,
         values: {
-          aggregationLayouts: Immutable.fromJS({
-            enabled: false,
-            layoutList: [
-              {
-                details: {
-                  fakeFieldList: [],
-                  sortFieldList: [{ name: 'foo' }, { name: 'bar' }],
-                  booly: true
-                }
-              }
-            ]
-          }),
-          rawLayouts: Immutable.fromJS({
-            enabled: false,
-            layoutList: [
-              {
-                details: {
-                  fakeFieldList: [],
-                  sortFieldList: [],
-                  booly: true
-                }
-              }
-            ]
-          })
+          aggregationReflections: Immutable.fromJS([
+            {
+              fakeFieldList: [],
+              sortFields: [{ name: 'foo' }, { name: 'bar' }],
+              booly: true
+            }
+          ]),
+          rawReflections: Immutable.fromJS([
+            {
+              fakeFieldList: [],
+              sortFields: [],
+              booly: true
+            }
+          ])
         }
       };
       wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      const changedAggregationLayouts = aggregationLayouts
-        .setIn(['layoutList', 0, 'details', 'sortFieldList'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
-      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationLayouts, rawLayouts);
+      const changedAggregationReflections = aggregationReflections
+        .setIn([0, 'sortFields'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
+      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
 
       expect(result).to.be.false;
     });
 
     it('should return false if enabled value is different from initial state', () => {
-      const changedAggregationLayouts = aggregationLayouts.set('enabled', true);
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedAggregationLayouts);
+      const changedAggregationReflections = aggregationReflections.setIn([0, 'enabled'], true);
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedAggregationReflections);
 
       expect(result).to.be.false;
 
-      const changedRawLayouts = rawLayouts.set('enabled', true);
-      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+      const changedRawLayouts = rawReflections.setIn([0, 'enabled'], true);
+      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
 
       expect(anotherResult).to.be.false;
     });
 
-    it('should return false if non-array details value is different from initial state', () => {
-      const changedAggregationLayouts = aggregationLayouts.setIn(['layoutList', 0, 'details', 'booly'], false);
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedAggregationLayouts);
+    it('should return false if non-array value is different from initial state', () => {
+      const changedAggregationReflections = aggregationReflections.setIn([0, 'booly'], false);
+      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedAggregationReflections);
 
       expect(result).to.be.false;
 
-      const changedRawLayouts = rawLayouts.setIn(['layoutList', 0, 'details', 'booly'], false);
-      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationLayouts, changedRawLayouts);
+      const changedRawLayouts = rawReflections.setIn([0, 'booly'], false);
+      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
 
       expect(anotherResult).to.be.false;
     });

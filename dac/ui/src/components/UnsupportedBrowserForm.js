@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ export default class UnsupportedBrowserForm extends Component {
   renderWarning() {
     return (
       <span style={{ display: 'flex', alignItems: 'center' }}>
-        <FontIcon type='Warning-Solid' theme={styles.theme} />
+        <FontIcon type='WarningSolid' theme={styles.theme} />
         <span>
           {la('Dremio works best in the latest versions of Chrome, Safari, Firefox, Edge, and Internet\u00A0Explorer.')}
         </span>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +33,6 @@ import java.util.Vector;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.common.utils.SqlUtils;
 
 public class ITTestShadedJar {
 
@@ -83,9 +81,6 @@ public class ITTestShadedJar {
   @Test
   public void testIdentifierQuoting() throws Exception {
     String expQuote = "\"";
-    if ("true".equalsIgnoreCase(System.getProperty(SqlUtils.LEGACY_USE_BACKTICKS))) {
-      expQuote = "`";
-    }
     try (Connection c = createConnection()) {
       assertEquals(expQuote, c.getMetaData().getIdentifierQuoteString());
     }
@@ -108,7 +103,7 @@ public class ITTestShadedJar {
       Driver driver = (Driver) clazz.newInstance();
       try (Connection c = driver.connect(jdbcURL, null)) {
         String path = Paths.get("").toAbsolutePath().toString() + "/src/test/resources/types.json";
-        printQuery(c, "select * from dfs.`" + path + "`");
+        printQuery(c, "select * from dfs.\"" + path + "\"");
       }
     } catch (Exception ex) {
       throw ex;

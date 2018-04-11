@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+    Copyright (C) 2017-2018 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg"  x="0px" y="0px"
+	 width="19px" height="21px" viewBox="5 1 19 21" enable-background="new 5 1 19 21" xml:space="preserve">
+<g>
+	<rect fill="none" width="24" height="24"/>
+
+		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="-270.4229" y1="389.3252" x2="-270.4229" y2="388.3252" gradientTransform="matrix(13 0 0 -20 3527 7788.5)">
+		<stop  offset="0" style="stop-color:#FFCB0A"/>
+		<stop  offset="1" style="stop-color:#FF7609"/>
+	</linearGradient>
+	<path fill="url(#SVGID_1_)" d="M10.707,22c0.073-2.171,1.719-2.867,4.67-4.708c2.572-1.604,3.946-5.672,0.819-8.935
+		c0.005,2.082-0.153,3.98-1.712,5.121C16.951,7.523,11.777,6.045,11.705,2c-4.064,2.611,0,7.904-2.46,8.935
+		C9.247,9.67,9.361,8.276,8.497,7.532c-0.713,3.677-7.058,5.464-0.677,10.86c0.749-4.812,4.349-2.887,3.993-6.805
+		C13.363,15.789,8.264,16.631,10.707,22"/>
+
+		<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="-256.3125" y1="359.5625" x2="-256.3125" y2="360.5625" gradientTransform="matrix(8 0 0 -8 2069.5 2885.5)">
+		<stop  offset="0" style="stop-color:#3023AE"/>
+		<stop  offset="0" style="stop-color:#5375FD"/>
+		<stop  offset="1" style="stop-color:#51ECDB"/>
+	</linearGradient>
+	<polygon fill="url(#SVGID_2_)" points="21.529,5.803 20.055,5 21.529,4.197 22.727,4.5 23,3.539 22.1,3.311 22.341,2.461
+		21.322,2.204 21.001,3.336 19.527,4.138 19.527,2.532 20.404,1.704 19.659,1 19,1.622 18.341,1 17.596,1.704 18.473,2.532
+		18.473,4.138 16.999,3.336 16.678,2.204 15.659,2.461 15.9,3.311 15,3.539 15.273,4.5 16.473,4.197 17.945,5 16.473,5.803
+		15.273,5.5 15,6.461 15.9,6.689 15.659,7.539 16.678,7.796 16.999,6.664 18.473,5.862 18.473,7.468 17.596,8.296 18.341,9
+		19,8.378 19.659,9 20.404,8.296 19.527,7.468 19.527,5.862 21.001,6.664 21.322,7.796 22.341,7.539 22.1,6.689 23,6.461
+		22.727,5.5 	"/>
+</g>
+</svg>

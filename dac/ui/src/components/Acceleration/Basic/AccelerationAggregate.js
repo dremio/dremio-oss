@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,13 @@ import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { overlay } from 'uiTheme/radium/overlay';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import { Toggle } from 'components/Fields';
 import AggregateForm from 'components/Aggregate/AggregateForm';
-import { splitFullPath } from 'utils/pathUtils';
+import Spinner from 'components/Spinner';
+import Button from 'components/Buttons/Button';
 import { commonStyles } from '../commonStyles';
 import LayoutInfo from '../LayoutInfo';
 
@@ -35,78 +37,83 @@ export default class AccelerationAggregate extends Component {
     return AggregateForm.validate(values);
   }
   static propTypes = {
-    acceleration: PropTypes.instanceOf(Immutable.Map),
-    fullPath: PropTypes.string,
+    dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
+    reflection: PropTypes.instanceOf(Immutable.Map), // option (e.g. brand new)
     location: PropTypes.object,
     fields: PropTypes.object.isRequired,
     style: PropTypes.object,
-    shouldHighlight: PropTypes.bool
+    shouldHighlight: PropTypes.bool,
+    errorMessage: PropTypes.node,
+    loadingRecommendations: PropTypes.bool,
+    skipRecommendations: PropTypes.func
   };
 
   static defaultProps = {
-    acceleration: Immutable.Map(),
     fields: {}
   };
 
-  mapToDataset(props) {
-    return Immutable.fromJS({
-      displayFullPath: props.fullPath && splitFullPath(props.fullPath)
-    });
-  }
-
-  mapSchemaToColumns(acceleration) {
-    const datasetSchema = acceleration.getIn(['context', 'datasetSchema', 'fieldList']) || Immutable.List();
-
-    return datasetSchema.map((item, index) => {
+  mapSchemaToColumns() {
+    return this.props.dataset.get('fields').map((item, index) => {
       return Immutable.fromJS({
-        type: item.get('type'),
+        type: item.getIn(['type', 'name']),
         name: item.get('name'),
         index
       });
     });
   }
 
+  renderForm() {
+    const { location, fields, dataset, loadingRecommendations, skipRecommendations } = this.props;
+    const columns = this.mapSchemaToColumns();
+
+    if (loadingRecommendations) {
+      return <div style={overlay} className='view-state-wrapper-overlay'>
+        <div>
+          <Spinner message={<span style={{display: 'flex', alignItems: 'center'}}>
+            {la('Determining Automatic Aggregation Reflections…')}
+            <Button style={{marginLeft: '1em'}} disableSubmit onClick={skipRecommendations} type='CUSTOM' text={la('Skip')} />
+          </span>} />
+        </div>
+      </div>;
+    } else {
+      return <AggregateForm
+        dataset={Immutable.fromJS({displayFullPath: dataset.get('path')})} // fake just enough of the legacy DS model
+        style={styles.aggregateForm}
+        fields={fields}
+        columns={columns}
+        location={location}
+        canSelectMeasure={false}
+        canUseFieldAsBothDimensionAndMeasure
+      />;
+    }
+  }
+
   render() {
-    const { location, fields, acceleration, style } = this.props;
-    const dataset = this.mapToDataset(this.props);
-    const { enabled } = fields.aggregationLayouts || {};
+    const { fields, style, reflection, errorMessage } = this.props;
+    const { enabled } = fields.aggregationReflections[0];
 
-    const firstLayout = acceleration.getIn('aggregationLayouts.layoutList.0'.split('.'));
-
-    const columns = this.mapSchemaToColumns(acceleration);
     const toggleLabel = (
       <h3 style={commonStyles.toggleLabel}>
         <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
-        {la('Aggregation Reflections (Automatic)')}
+        {la('Aggregation Reflections')}
       </h3>
     );
     return (
-      <div style={[style, styles.wrap]}>
+      <div style={[style, styles.wrap]} data-qa='aggregation-basic'>
         <div style={{
           ...commonStyles.header,
-          ...(this.props.shouldHighlight ? commonStyles.highlight : {})
+          ...(this.props.shouldHighlight ? commonStyles.highlight : {}),
+          borderWidth: 0
         }} data-qa='aggregation-queries-toggle'>
           <Toggle {...enabled} label={toggleLabel} style={commonStyles.toggle}/>
           <LayoutInfo
-            layout={firstLayout}
-            showValidity
+            layout={reflection}
             style={{float: 'right'}} />
         </div>
-        <div style={commonStyles.formText}>
-          {la(`
-            This provides extreme performance improvements for BI queries by creating
-            “invisible cubes”.
-          `)}
+        <div style={{position: 'relative'}}>
+          {errorMessage}
         </div>
-        <AggregateForm
-          style={styles.aggregateForm}
-          fields={fields}
-          columns={columns}
-          dataset={dataset}
-          location={location}
-          canSelectMeasure={false}
-          canUseFieldAsBothDimensionAndMeasure={false}
-        />
+        {this.renderForm()}
       </div>
     );
   }
@@ -117,10 +124,12 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    position: 'relative'
   },
   aggregateForm: {
     flexFlow: 'column nowrap',
-    flexGrow: 1
+    flexGrow: 1,
+    padding: '10px 10px 0'
   }
 };

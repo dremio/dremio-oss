@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import static com.dremio.provision.yarn.DacDaemonYarnApplication.KEYTAB_FILE_NAM
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.MAX_APP_RESTART_RETRIES;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_BUNDLED_JAR_NAME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_CLUSTER_ID;
+import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_CPU;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_RUNNABLE_NAME;
 
@@ -44,6 +45,7 @@ import org.slf4j.Logger;
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.Property;
+import com.dremio.provision.PropertyType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -135,6 +137,12 @@ public class YarnController {
       logger.error("Exception while trying to fill out HADOOP_USER_NAME with current user", e);
     }
 
+    for (Property prop : propertyList) {
+      // add if it is env var
+      if (PropertyType.ENV_VAR.equals(prop.getType())) {
+        envVars.put(prop.getKey(), prop.getValue());
+      }
+    }
     String[] yarnClasspath = yarnConfiguration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
       YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
     final TwillPreparer preparer = twillRunner.prepare(dacDaemonApp)
@@ -192,6 +200,7 @@ public class YarnController {
     basicJVMOptions.put("logback.configurationFile", "logback.xml");
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
     basicJVMOptions.put("services.coordinator.enabled", "false");
+    basicJVMOptions.put(DremioConfig.EXECUTOR_CPU, yarnConfiguration.get(YARN_CPU));
 
     final String kerberosPrincipal = dremioConfig.getString(DremioConfig.KERBEROS_PRINCIPAL);
     if (!Strings.isNullOrEmpty(kerberosPrincipal)) {
@@ -202,10 +211,16 @@ public class YarnController {
     }
 
     systemOptions.put("-XX:MaxDirectMemorySize", directMemory + "m");
-    systemOptions.put("-XX:MaxPermSize", "512m");
 
     for (Property prop : propertyList) {
-      if (prop.getKey().startsWith("-X")) {
+      // don't add if it is env var
+      if (PropertyType.ENV_VAR.equals(prop.getType())) {
+        continue;
+      }
+      // if prop type is null (old property) and it starts with -X - it is a system prop
+      // if prop type is SYSTEM_PROP - it is a system prop
+      if ((prop.getType() == null && prop.getKey().startsWith("-X"))
+        || PropertyType.SYSTEM_PROP.equals(prop.getType())) {
         systemOptions.put(prop.getKey(), prop.getValue());
       } else {
         basicJVMOptions.put(prop.getKey(), prop.getValue());

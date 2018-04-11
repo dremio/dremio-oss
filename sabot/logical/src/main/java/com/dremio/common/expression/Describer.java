@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.IntervalUnit;
 import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeVisitor;
 import org.apache.arrow.vector.types.pojo.ArrowType.Binary;
@@ -75,6 +76,11 @@ public class Describer {
     return sb.toString();
   }
 
+  public static String describeInternal(ArrowType type){
+    Types.MinorType mtype = Types.getMinorTypeForArrowType(type);
+    return mtype.name().toLowerCase();
+  }
+
   public static String describeWithLineBreaks(Iterable<Field> fields){
     StringBuilder sb = new StringBuilder();
     for(Field f : fields){
@@ -93,12 +99,12 @@ public class Describer {
     return field.getType().accept(new FieldDescriber(field, includeName));
   }
 
-  private static final class FieldDescriber extends AbstractArrowTypeVisitor<String> {
+  public static final class FieldDescriber extends AbstractArrowTypeVisitor<String> {
 
     private final Field field;
     private final boolean includeName;
 
-    private FieldDescriber(Field field, boolean includeName){
+    public FieldDescriber(Field field, boolean includeName){
       this.field = field;
       this.includeName = includeName;
     }

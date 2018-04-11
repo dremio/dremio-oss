@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,14 @@
  */
 package com.dremio.exec.impersonation.hive;
 
+import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -25,15 +33,13 @@ import org.apache.hadoop.hive.shims.ShimLoader;
 
 import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.impersonation.BaseTestImpersonation;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.hive.HiveStoragePluginConfig;
-
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 
 public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   protected static final String hivePluginName = "hive";
@@ -83,8 +89,13 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
     MetaStoreUtils.startMetaStore(port, ShimLoader.getHadoopThriftAuthBridge(), hiveConf);
   }
 
-  protected static HiveStoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
-    HiveStoragePluginConfig pluginConfig = new HiveStoragePluginConfig(hiveConfig);
+  public static HiveStoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
+    HiveStoragePluginConfig pluginConfig = new HiveStoragePluginConfig();
+    pluginConfig.hostname = "dummy";
+    pluginConfig.properties = new ArrayList<>();
+    for(Entry<String, String> e : hiveConfig.entrySet()) {
+      pluginConfig.properties.add(new Property(e.getKey(), e.getValue()));
+    }
     return pluginConfig;
   }
 
@@ -101,7 +112,13 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   }
 
   protected static void addHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
-    getSabotContext().getStorage().createOrUpdate(hivePluginName, createHiveStoragePlugin(hiveConfig), true);
+    SourceConfig sc = new SourceConfig();
+    sc.setName(hivePluginName);
+    HiveStoragePluginConfig conf = createHiveStoragePlugin(hiveConfig);
+    sc.setType(conf.getType());
+    sc.setConfig(conf.toBytesString());
+    sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(sc);
   }
 
   protected void showTablesHelper(final String db, List<String> expectedTables) throws Exception {

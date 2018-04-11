@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,17 @@ package com.dremio.service.accelerator;
 
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
+import com.dremio.service.reflection.proto.JoinDependencyProperties;
 
 import io.protostuff.ByteString;
 
 /**
- * Helper methods for serilizing/deserializing {@link com.dremio.service.accelerator.proto.AccelerationDetails}
+ * Helper methods for serializing/deserializing {@link com.dremio.service.accelerator.proto.AccelerationDetails}
  */
 public class AccelerationDetailsUtils {
 
   private static final ProtostuffSerializer<AccelerationDetails> SERIALIZER = new ProtostuffSerializer<>(AccelerationDetails.getSchema());
+  private static final ProtostuffSerializer<JoinDependencyProperties> JOIN_DEPENDENCY_PROPERTIES_SERIALIZER = new ProtostuffSerializer<>(JoinDependencyProperties.getSchema());
 
   public static byte[] serialize(AccelerationDetails details) {
     if (details == null) {
@@ -46,5 +48,13 @@ public class AccelerationDetailsUtils {
       return null;
     }
     return SERIALIZER.revert(bytes.toByteArray());
+  }
+
+  public static byte[] serializeJoinDependencyProperties(JoinDependencyProperties properties) {
+    return JOIN_DEPENDENCY_PROPERTIES_SERIALIZER.convert(properties);
+  }
+
+  public static JoinDependencyProperties deserializeJoinDependencyProperties(ByteString bytes) {
+    return JOIN_DEPENDENCY_PROPERTIES_SERIALIZER.revert(bytes.toByteArray());
   }
 }

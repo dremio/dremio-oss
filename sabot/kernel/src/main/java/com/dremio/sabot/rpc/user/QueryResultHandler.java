@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,13 @@ import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.BaseRpcOutcomeListener;
+import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.rpc.RpcBus;
 import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 
@@ -116,20 +117,18 @@ public class QueryResultHandler {
     try {
       if (isFailureResult) {
         // Failure case--pass on via submissionFailed(...).
-
-        resultsListener.submissionFailed(new UserRemoteException(queryResult.getError(0)));
+        resultsListener.submissionFailed(UserRemoteException.create(queryResult.getError(0)));
         // Note: Listener is removed in finally below.
       } else if (isTerminalResult) {
         // A successful completion/canceled case--pass on via resultArrived
-
-        try {
-          resultsListener.queryCompleted(queryState);
-        } catch ( Exception e ) {
-          resultsListener.submissionFailed(UserException.systemError(e).build(logger));
-        }
+        resultsListener.queryCompleted(queryState);
       } else {
         logger.warn("queryState {} was ignored", queryState);
       }
+    } catch(Throwable t) {
+      // Need to notify...
+      resultsListener.submissionFailed(UserException.systemError(t).build(logger));
+      Throwables.propagateIfPossible(t);
     } finally {
       if ( isTerminalResult ) {
         // TODO:  What exactly are we checking for?  How should we really check

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,6 @@ import com.dremio.dac.server.socket.SocketMessage.Payload;
 import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.service.accelerator.AccelerationService;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.ExternalStatusListener;
 import com.dremio.service.jobs.Job;
@@ -66,13 +65,10 @@ public class SocketServlet extends WebSocketServlet {
   private final ObjectReader reader;
   private final ObjectWriter writer;
   private final JobsService jobsService;
-  private final AccelerationService accelerationService;
   private final TokenManager tokenManager;
 
-  public SocketServlet(JobsService jobsService, final AccelerationService accelerationService,
-                       final TokenManager tokenManager) {
+  public SocketServlet(JobsService jobsService, final TokenManager tokenManager) {
     this.jobsService = jobsService;
-    this.accelerationService = Preconditions.checkNotNull(accelerationService, "acceleration service is required");
     this.tokenManager = Preconditions.checkNotNull(tokenManager, "token manager is required");
     this.reader = JSONUtil.mapper().readerFor(SocketMessage.class);
     this.writer = JSONUtil.mapper().writerFor(SocketMessage.class);
@@ -231,7 +227,8 @@ public class SocketServlet extends WebSocketServlet {
 
     @Override
     public void profileUpdated(Job job) {
-
+      final JobProgressUpdate update = new JobProgressUpdate(job);
+      socket.send(update);
     }
 
     @Override

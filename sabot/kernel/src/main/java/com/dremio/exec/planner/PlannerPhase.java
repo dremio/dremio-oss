@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,7 @@
 package com.dremio.exec.planner;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -107,19 +103,13 @@ import com.dremio.exec.planner.physical.UnionAllPrule;
 import com.dremio.exec.planner.physical.ValuesPrule;
 import com.dremio.exec.planner.physical.WindowPrule;
 import com.dremio.exec.planner.physical.WriterPrule;
-import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePluginInstanceRulesFactory;
-import com.dremio.exec.store.StoragePluginTypeRulesFactory;
-import com.dremio.service.namespace.StoragePluginId;
-import com.dremio.service.namespace.StoragePluginType;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 
 public enum PlannerPhase {
 
   WINDOW_REWRITE("Window Function Rewrites") {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
+    public RuleSet getRules(OptimizerRulesContext context) {
       return RuleSets.ofList(
           CALC_REDUCE_EXPRESSIONS_CALCITE_RULE,
           ProjectToWindowRule.PROJECT
@@ -129,9 +119,8 @@ public enum PlannerPhase {
 
   JDBC_PUSHDOWN("JDBC Pushdown") {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
-      return PlannerPhase.mergedRuleSets(
-          RuleSets.ofList(AggregateReduceFunctionsRule.INSTANCE),
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(AggregateReduceFunctionsRule.INSTANCE);
           // Query 13 of TPCH pushdown fails:  There is a join condition with an expression (not like '%%somestring%%').
           // This join condition is turned into Filter(InputRef $X)-Project(expression(InputRef $Y not like '%%somestring%%').
           // Since Oracle does not support boolean expressions in select list, we do not allow a project with boolean
@@ -142,13 +131,12 @@ public enum PlannerPhase {
           // two rules can interfere with subsequent planning phases, especially WINDOW_REWRITE.
           // JOIN_CONDITION_PUSH_CALCITE_RULE,
           // PushFilterPastProjectRule.CALCITE_INSTANCE,
-          getStorageRules(context, plugins, this));
     }
   },
 
   FLATTEN_PUSHDOWN("Flatten Function Pushdown") {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
+    public RuleSet getRules(OptimizerRulesContext context) {
       return RuleSets.ofList(
           PushFiltersProjectPastFlattenRule.INSTANCE,
           PushProjectPastFlattenRule.INSTANCE,
@@ -164,30 +152,26 @@ public enum PlannerPhase {
 
   JOIN_PLANNING("LOPT Join Planning") {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
-      return PlannerPhase.mergedRuleSets(
-          RuleSets.ofList(
-              JOIN_TO_MULTIJOIN_RULE,
-              LOPT_OPTIMIZE_JOIN_RULE),
-              //ProjectRemoveRule.INSTANCE),
-          getStorageRules(context, plugins, this)
-          );
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(
+          JOIN_TO_MULTIJOIN_RULE,
+          LOPT_OPTIMIZE_JOIN_RULE
+          //ProjectRemoveRule.INSTANCE)
+      );
     }
   },
 
   REDUCE_EXPRESSIONS("Reduce Expressions") {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
+    public RuleSet getRules(OptimizerRulesContext context) {
       return PlannerPhase.getEnabledReduceExpressionsRules(context);
     }
   },
 
   LOGICAL("Logical Planning", true) {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
-      RuleSet ruleSet = PlannerPhase.mergedRuleSets(
-          getStorageRules(context, plugins, this),
-          LOGICAL_RULE_SET);
+    public RuleSet getRules(OptimizerRulesContext context) {
+      RuleSet ruleSet = LOGICAL_RULE_SET;
 
 
       if(!context.getPlannerSettings().isFilterFlattenTransposeEnabled()){
@@ -196,14 +180,17 @@ public enum PlannerPhase {
 
       return PlannerPhase.mergedRuleSets(ruleSet, RuleSets.ofList(FilterFlattenTransposeRule.INSTANCE));
     }
+
+    @Override
+    public boolean forceVerbose() {
+      return true;
+    }
   },
 
   PHYSICAL("Physical Planning") {
     @Override
-    public RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins) {
-      return PlannerPhase.mergedRuleSets(
-          PlannerPhase.getPhysicalRules(context),
-          getStorageRules(context, plugins, this));
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return PlannerPhase.getPhysicalRules(context);
     }
   };
 
@@ -221,60 +208,10 @@ public enum PlannerPhase {
     this.useMaterializations = useMaterializations;
   }
 
-  public abstract RuleSet getRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins);
+  public abstract RuleSet getRules(OptimizerRulesContext context);
 
-  /**
-   * Collect all rules for StoragePlugins.
-   *
-   * Collects the following:
-   *   - One set of rules for each storage plugin type.
-   *   - One set of rules for each storage plugin instance.
-   *   - One set of rules for old storage plugins (per instance) (deprecated)
-   *   - One set of rules for old abstract storage plugins (per instance) (deprecated)
-   *
-   * Note: This includes handling of both the new and old StoragePlugin interfaces. Once all
-   * plugins are migrated, this will only do the first two retrievals.
-   *
-   * @param context
-   * @param plugins
-   * @param phase
-   * @return
-   */
-  private static RuleSet getStorageRules(OptimizerRulesContext context, Collection<StoragePlugin> plugins,
-      PlannerPhase phase) {
-    final ImmutableSet.Builder<RelOptRule> rules = ImmutableSet.builder();
-    Map<StoragePluginType, Class<?>> typeRulesFactories = new HashMap<>();
-
-
-    // add instance level rules.
-    for(StoragePlugin plugin : plugins){
-      StoragePluginId pluginId = plugin.getId();
-      Class<?> typeRules = pluginId.getType().getRulesFactoryClass();
-      if(typeRules != null){
-        typeRulesFactories.put(pluginId.getType(), typeRules);
-      }
-      try {
-        if(plugin.getRulesFactoryClass() != null){
-          StoragePluginInstanceRulesFactory factory = plugin.getRulesFactoryClass().newInstance();
-          rules.addAll(factory.getRules(context, phase, pluginId));
-        }
-      } catch (InstantiationException | IllegalAccessException e) {
-        throw Throwables.propagate(e);
-      }
-    }
-
-    // add type level rules
-    for(Entry<StoragePluginType, Class<?>> entry : typeRulesFactories.entrySet()){
-      try {
-        StoragePluginTypeRulesFactory factory = (StoragePluginTypeRulesFactory) entry.getValue().newInstance();
-        rules.addAll(factory.getRules(context, phase, entry.getKey()));
-      } catch (InstantiationException | IllegalAccessException e) {
-        throw Throwables.propagate(e);
-      }
-    }
-
-    ImmutableSet<RelOptRule> rulesSet = rules.build();
-    return RuleSets.ofList(rulesSet);
+  public boolean forceVerbose() {
+    return false;
   }
 
   // START ---------------------------------------------
@@ -285,13 +222,13 @@ public enum PlannerPhase {
   /**
    * Singleton rule that reduces constants inside a {@link LogicalFilter}.
    */
-  static final ReduceExpressionsRule FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE =
+  public static final ReduceExpressionsRule FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE =
     new FilterReduceExpressionsRule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
    * Singleton rule that reduces constants inside a {@link LogicalProject}.
    */
-  static final ReduceExpressionsRule PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE =
+  public static final ReduceExpressionsRule PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE =
     new ProjectReduceExpressionsRule(LogicalProject.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
@@ -387,7 +324,7 @@ public enum PlannerPhase {
   // END ---------------------------------------------
 
   static final RelOptRule JOIN_TO_MULTIJOIN_RULE = new JoinToMultiJoinRule(JoinRel.class);
-  static final RelOptRule LOPT_OPTIMIZE_JOIN_RULE = new LoptOptimizeJoinRule(DremioRelFactories.LOGICAL_BUILDER);
+  static final RelOptRule LOPT_OPTIMIZE_JOIN_RULE = new LoptOptimizeJoinRule(DremioRelFactories.LOGICAL_BUILDER, false);
 
   final static RelOptRule PUSH_PROJECT_PAST_FILTER_INSTANCE = new ProjectFilterTransposeRule(
     ProjectRel.class,
@@ -543,12 +480,10 @@ public enum PlannerPhase {
     return RuleSets.ofList(ImmutableSet.copyOf(ruleList));
   }
 
-  static RuleSet mergedRuleSets(RuleSet... ruleSets) {
+  public static RuleSet mergedRuleSets(RuleSet... ruleSets) {
     final ImmutableSet.Builder<RelOptRule> relOptRuleSetBuilder = ImmutableSet.builder();
     for (final RuleSet ruleSet : ruleSets) {
-      for (final RelOptRule relOptRule : ruleSet) {
-        relOptRuleSetBuilder.add(relOptRule);
-      }
+      relOptRuleSetBuilder.addAll(ruleSet);
     }
     return RuleSets.ofList(relOptRuleSetBuilder.build());
   }

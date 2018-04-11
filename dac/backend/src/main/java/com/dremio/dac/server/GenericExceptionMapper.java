@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.service.users.UserNotFoundException;
 
@@ -92,74 +93,70 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
           .build();
     }
 
-    if (throwable instanceof NewDatasetQueryException) {
+    if (throwable instanceof InvalidQueryException) {
       logger.debug("Initial attempt to preview new query failed {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      NewDatasetQueryException exception = (NewDatasetQueryException) throwable;
+      InvalidQueryException exception = (InvalidQueryException) throwable;
       return Response.status(BAD_REQUEST)
-        .entity(new ApiErrorModel("NEW_DATASET_QUERY_EXCEPTION", exception.getMessage(), stackTrace, exception.getDetails()))
+        .entity(new ApiErrorModel<>(ApiErrorModel.ErrorType.INVALID_QUERY, exception.getMessage(), stackTrace, exception.getDetails()))
         .type(APPLICATION_JSON_TYPE)
         .build();
     }
 
+    if (throwable instanceof NewDatasetQueryException) {
+      logger.debug("Initial attempt to preview new query failed {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+      NewDatasetQueryException exception = (NewDatasetQueryException) throwable;
+      return newResponse(
+          BAD_REQUEST,
+          new ApiErrorModel<>(ApiErrorModel.ErrorType.NEW_DATASET_QUERY_EXCEPTION, exception.getMessage(), stackTrace, exception.getDetails()));
+    }
+
     if (throwable instanceof UserNotFoundException) {
-      logger.info("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      return Response.status(NOT_FOUND)
-          .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
+      logger.debug("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+      return newGenericErrorMessage(NOT_FOUND, throwable, stackTrace);
     }
 
     if (throwable instanceof AccessControlException) {
-      logger.info("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      return Response.status(FORBIDDEN)
-          .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
+      logger.debug("Permission denied for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+      return newGenericErrorMessage(FORBIDDEN, throwable, stackTrace);
     }
 
     if (throwable instanceof IllegalArgumentException) { // TODO: Move to ClientErrorException
        // bad input => 400
       logger.debug("Bad input for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      return Response.status(BAD_REQUEST)
-          .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
+      return newGenericErrorMessage(BAD_REQUEST, throwable, stackTrace);
     }
 
     if (throwable instanceof ConcurrentModificationException) {
       logger.debug("Conflict for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-      return Response.status(CONFLICT)
-          .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
+      return newGenericErrorMessage(CONFLICT, throwable, stackTrace);
     }
 
     if (throwable instanceof ClientErrorException) {
       ClientErrorException e = (ClientErrorException) throwable;
       // bad input => 400
      logger.debug("Bad input for " + request.getMethod() + " " + uriInfo.getRequestUri() + " : " + e, e);
-     return Response.status(BAD_REQUEST)
-         .entity(new ValidationErrorMessage(e.getMessage(), e.getMessages(), stackTrace))
-         .type(APPLICATION_JSON_TYPE)
-         .build();
+     return newResponse(BAD_REQUEST, new ValidationErrorMessage(e.getMessage(), e.getMessages(), stackTrace));
     }  // or ServerErrorException
 
     if (throwable instanceof DACUnauthorizedException) {
       logger.debug("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-
-      return Response.status(UNAUTHORIZED)
-          .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
-          .type(APPLICATION_JSON_TYPE)
-          .build();
+      return newGenericErrorMessage(UNAUTHORIZED, throwable, stackTrace);
     }
 
     // bug! => 500
     logger.error("Unexpected exception when processing {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
-    return Response.status(INTERNAL_SERVER_ERROR)
-        .entity(new GenericErrorMessage(throwable.getMessage(), stackTrace))
+    return newGenericErrorMessage(INTERNAL_SERVER_ERROR, throwable, stackTrace);
+  }
+
+  private static Response newGenericErrorMessage(Response.Status status, Throwable cause, String[] stackTrace) {
+    return newResponse(status, new GenericErrorMessage(cause.getMessage(), stackTrace));
+  }
+
+  private static Response newResponse(Response.Status status, Object entity) {
+    return Response.status(status)
+        .entity(entity)
         .type(APPLICATION_JSON_TYPE)
         .build();
-
   }
 
   private String getParamExceptionErrorMessage(ParamException pe) {

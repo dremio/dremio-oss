@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,11 @@
 package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
-import java.util.Set;
-
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.common.store.StoragePluginConfig;
-import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.StoragePluginOptimizerRule;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
@@ -51,10 +46,7 @@ public interface FormatPlugin {
 
   public AbstractWriter getWriter(PhysicalOperator child, String userName, String location, FileSystemPlugin plugin, WriterOptions options) throws IOException;
 
-  public Set<StoragePluginOptimizerRule> getOptimizerRules(OptimizerRulesContext optimizerRulesContext);
-
   public FormatPluginConfig getConfig();
-  public StoragePluginConfig getStorageConfig();
   public String getName();
   public FileSystemDatasetAccessor getDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey);
 }

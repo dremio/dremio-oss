@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { injectIntl, FormattedMessage } from 'react-intl';
+import { FormattedMessage, injectIntl } from 'react-intl';
 import Art from 'components/Art';
 import jobsUtils from 'utils/jobsUtils';
 import ReflectionList from './ReflectionList';
@@ -29,16 +29,24 @@ class AccelerationContent extends PureComponent {
   };
 
   render() {
-    const byRelationship = jobsUtils.getReflectionsByRelationship(this.props.jobDetails);
+    const { jobDetails } = this.props;
+    const byRelationship = jobsUtils.getReflectionsByRelationship(jobDetails);
     const allNotChosen = [...(byRelationship.MATCHED || []), ...(byRelationship.CONSIDERED || [])];
 
-    const accelerated = this.props.jobDetails.get('accelerated');
+    const accelerated = jobDetails.get('accelerated');
+    let flame = '', flameAlt = '', flameDesc = '';
+    if (accelerated) {
+      flame = jobDetails.get('snowflakeAccelerated') ? 'FlameSnowflake.svg' : 'Flame.svg';
+      flameAlt = jobDetails.get('snowflakeAccelerated') ? 'Job.AcceleratedHoverSnowFlake' : 'Job.AcceleratedHover';
+      flameDesc = jobDetails.get('snowflakeAccelerated') ? 'Job.AcceleratedSnowflake' : 'Job.Accelerated';
+    }
+
     const summaryRow = <div className='detail-row'>
       <h4><FormattedMessage id='Job.Summary'/></h4>
       <div style={{display: 'flex', alignItems: 'center'}}>
-        <Art src={accelerated ? 'Flame.svg' : 'FlameDisabled.svg'} alt='' style={{height: 20, marginRight: 5}} />
+        <Art src={accelerated ? flame : 'FlameDisabled.svg'} alt={flameAlt} style={{height: 20, marginRight: 5}} />
         <div>
-          <FormattedMessage id={accelerated ? 'Job.Accelerated' : 'Job.NotAccelerated'} />
+          <FormattedMessage id={accelerated ? flameDesc : 'Job.NotAccelerated'} />
           {' '}
           {this.props.jobDetails.get('acceleration') && !Object.keys(byRelationship).length
             && <FormattedMessage id='Job.NoReflections'/>}

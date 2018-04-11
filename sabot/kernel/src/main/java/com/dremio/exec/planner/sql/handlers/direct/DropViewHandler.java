@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,64 +18,51 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
+import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.SchemaUtilities;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.parser.SqlDropView;
-import com.dremio.exec.store.AbstractSchema;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
+import com.dremio.service.namespace.NamespaceKey;
 
 /** Handler for Drop View [If Exists] DDL command. */
 public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropViewHandler.class);
 
-  private final SchemaPlus defaultSchema;
-  private final boolean systemUser;
+  private final Catalog catalog;
 
-  public DropViewHandler(SchemaPlus defaultSchema, boolean systemUser) {
-    super();
-    this.defaultSchema = defaultSchema;
-    this.systemUser = systemUser;
+  public DropViewHandler(Catalog catalog) {
+    this.catalog = catalog;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlDropView dropView = SqlNodeUtil.unwrap(sqlNode, SqlDropView.class);
-    final String viewName = dropView.getName();
-    final AbstractSchema schemaInstance =
-        SchemaUtilities.resolveToMutableSchemaInstance(defaultSchema, dropView.getSchemaPath(), systemUser, MutationType.VIEW);
+    NamespaceKey path = catalog.resolveSingle(dropView.getPath());
 
-    final String schemaPath = schemaInstance.getFullSchemaName();
-
-    final Table viewToDrop = SqlHandlerUtil.getTableFromSchema(schemaInstance, viewName);
-    if (dropView.checkViewExistence()) {
-      if (viewToDrop == null || viewToDrop.getJdbcTableType() != Schema.TableType.VIEW){
-        return Collections.singletonList(new SimpleCommandResult(true,
-            String.format("View [%s] not found in schema [%s].", viewName, schemaPath)));
-      }
-    } else {
-      if (viewToDrop != null && viewToDrop.getJdbcTableType() != Schema.TableType.VIEW) {
+    DremioTable table = catalog.getTableNoResolve(path);
+    if (!dropView.checkViewExistence()) {
+      if(table == null) {
         throw UserException.validationError()
-            .message("[%s] is not a VIEW in schema [%s]", viewName, schemaPath)
-            .build(logger);
-      } else if (viewToDrop == null) {
+          .message("Unknown view [%s].", path)
+          .build(logger);
+      } else if(table.getJdbcTableType() != TableType.VIEW) {
         throw UserException.validationError()
-            .message("Unknown view [%s] in schema [%s].", viewName, schemaPath)
+            .message("[%s] is not a VIEW", table.getPath())
             .build(logger);
       }
+    } else if(table == null) {
+      return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
+    } else if(table.getJdbcTableType() != TableType.VIEW) {
+      return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
     }
 
-    schemaInstance.dropView(viewName);
-    return Collections.singletonList(SimpleCommandResult.successful("View [%s] deleted successfully from schema [%s].", viewName, schemaPath));
-
+    catalog.dropView(path);
+    return Collections.singletonList(SimpleCommandResult.successful("View [%s] deleted successfully.", path));
   }
-
 
   @Override
   public Class<SimpleCommandResult> getResultType() {

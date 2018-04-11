@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import java.util.Date;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.work.protector.FragmentsStateListener;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.dremio.common.CatastrophicFailure;
@@ -129,9 +128,8 @@ public class AttemptManager implements Runnable {
     final OptionProvider options,
     final CoordToExecTunnelCreator tunnelCreator,
     final Cache<Long, PreparedPlan> plans,
-    final QueryContext queryContext,
-    final FragmentsStateListener fragmentsStateListener
-    ) {
+    final QueryContext queryContext
+  ) {
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
     this.queryIdString = QueryIdHelper.getQueryId(queryId);
@@ -144,8 +142,7 @@ public class AttemptManager implements Runnable {
     this.queryContext = queryContext;
     this.observers = AttemptObservers.of(observer);
     this.queryManager = new QueryManager(queryId, this.queryContext, new CompletionListenerImpl(), prepareId,
-      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), this.queryContext.getSchemaTreeProvider(),
-      fragmentsStateListener);
+      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), this.queryContext.getCatalog());
 
     final OptionManager optionManager = this.queryContext.getOptions();
     if(options != null){
@@ -619,13 +616,13 @@ public class AttemptManager implements Runnable {
             return;
           case STARTING:
             recordNewState(newState);
-            observers.execStarted(queryManager.getQueryProfile(queryRequest.getDescription(), newState, null));
             return;
         }
         break;
       case STARTING:
         if (newState == QueryState.RUNNING) {
           recordNewState(QueryState.RUNNING);
+          observers.execStarted(queryManager.getQueryProfile(queryRequest.getDescription(), newState, null));
           return;
         }
 
@@ -797,4 +794,5 @@ public class AttemptManager implements Runnable {
     }
 
   }
+
 }

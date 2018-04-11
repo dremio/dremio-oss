@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -87,6 +88,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void planText(String text, long millisTaken) {
     observer.planText(text, millisTaken);
+  }
+
+  @Override
+  public void finalPrel(Prel prel) {
+    observer.finalPrel(prel);
   }
 
   @Override
@@ -167,5 +173,10 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void leafFragmentScheduling(long millisTaken) {
     observer.leafFragmentScheduling(millisTaken);
+  }
+
+  @Override
+  public void recordExtraInfo(String name, byte[] bytes) {
+    observer.recordExtraInfo(name, bytes);
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ export class AccelerationModal extends Component {
 
   render() {
     const {isOpen, hide, location} = this.props;
-    const { accelerationId } = location.state || {};
+    const { datasetId } = location.state || {};
 
     return (
       <Modal
@@ -43,7 +43,7 @@ export class AccelerationModal extends Component {
           updateFormDirtyState={this.props.updateFormDirtyState}
           onCancel={hide}
           onDone={hide}
-          accelerationId={accelerationId}
+          datasetId={datasetId}
          />
       </Modal>
     );

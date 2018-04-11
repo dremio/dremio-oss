@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 Dremio Corporation
+# Copyright (C) 2017-2018 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,15 +21,23 @@
 #
 [Unit]
 Description=Dremio Daemon Server
-After=syslog.target network.target
+Documentation=https://docs.dremio.com
+Wants=network-online.target
+After=network-online.target
 
 [Service]
-Type=forking
 User=dremio
-PIDFile=/opt/dremio/run/dremio.pid
+Group=dremio
 
-ExecStart=/opt/dremio/bin/dremio --config /opt/dremio/conf start
-ExecStop=/opt/dremio/bin/dremio --config /opt/dremio/conf stop
+RuntimeDirectory=dremio
+Environment=DREMIO_HOME=/opt/dremio
+Environment=DREMIO_CONF_DIR=/opt/dremio/conf
+Environment=DREMIO_PID_DIR=/opt/dremio/run
+
+PIDFile=${DREMIO_PID_DIR}/dremio.pid
+
+ExecStart=/opt/dremio/bin/dremio start-fg
+ExecStop=/opt/dremio/bin/dremio stop
 RestartForceExitStatus=3
 
 [Install]

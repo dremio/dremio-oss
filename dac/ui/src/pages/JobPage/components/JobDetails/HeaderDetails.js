@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,9 @@ class HeaderDetails extends Component {
       return null;
     }
 
+    const flame = jobDetails.get('snowflakeAccelerated') ? 'FlameSnowflake.svg' : 'Flame.svg';
+    const flameAlt = jobDetails.get('snowflakeAccelerated') ? 'Job.AcceleratedHoverSnowFlake' : 'Job.AcceleratedHover';
+
     return (
       <header className='details-header' style={[styles.detailsHeader, style]}>
         <div style={styles.stateHolder}>
@@ -151,7 +154,7 @@ class HeaderDetails extends Component {
           </div>
           {jobDetails.get('accelerated')
             &&
-            <Art src='Flame.svg' alt={intl.formatMessage({id: 'Dataset.Accelerated'})} style={styles.flameIcon} />}
+            <Art src={flame} alt={intl.formatMessage({id: flameAlt})} style={styles.flameIcon} title/>}
         </div>
         <div style={[styles.rightPart]}>
           {this.getButton()}
@@ -202,7 +205,7 @@ const styles = {
     marginTop: -4
   },
   flameIcon: {
-    width: 13,
+    width: 20,
     height: 20,
     marginLeft: 5,
     marginTop: -2

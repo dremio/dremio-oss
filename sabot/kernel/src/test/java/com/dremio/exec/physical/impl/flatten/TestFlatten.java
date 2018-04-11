@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -291,8 +291,8 @@ public class TestFlatten extends PlanTestBase {
     builder.go();
   }
 
-  @Ignore("DX-4216")
   @Test
+  @Ignore("DX-10548")
   public void drill1653() throws Exception{
     String query = "select * from (select sum(t.flat.`value`) as sm from (select id, flatten(kvgen(m)) as flat from cp.`/flatten/missing-map.json`)t) where sm = 10 ";
     testPlanSubstrPatterns(query, new String[] {"columns=[`m`]"}, null);
@@ -327,7 +327,6 @@ public class TestFlatten extends PlanTestBase {
         "on transaction_info.max_event_time = event_info.event.event_time;");
   }
 
-  @Ignore("DX-4216")
   @Test
   public void testKVGenFlatten1() throws Exception {
     String query = "select flatten(kvgen(f1)) as monkey, x from cp.`/store/json/test_flatten_mapify.json`";
@@ -353,23 +352,20 @@ public class TestFlatten extends PlanTestBase {
     test(query);
   }
 
-  @Ignore("DX-4216")
   @Test
   public void testKVGen() throws Exception {
     test("select kvgen(x) from cp.`/jsoninput/input5.json`");
   }
 
-  @Ignore("DX-4216")
   @Test
   public void testFlattenKVGenFlatten() throws Exception {
     String query = "select `integer`, `float`, x, flatten(kvgen(flatten(z))) from cp.`/jsoninput/input2.json`";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `float`, `x`, `z`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`z`, `integer`, `float`, `x`]"}, null);
     // currently does not fail, but produces incorrect results, requires second re-write rule to split up expressions
     // with complex outputs
     test(query);
   }
 
-  @Ignore("DX-4216")
   @Test
   public void testKVGenFlatten2() throws Exception {
     // currently runs
@@ -379,7 +375,6 @@ public class TestFlatten extends PlanTestBase {
     }
   }
 
-  @Ignore("DX-4216")
   @Test
   public void testFilterFlattenedRecords() throws Exception {
     String query = "select t2.key from (select t.monkey.`value` as val, t.monkey.key as key from (select flatten(kvgen(f1)) as monkey, x " +
@@ -461,7 +456,6 @@ public class TestFlatten extends PlanTestBase {
     test(query);
   }
 
-  @Ignore("DX-4216")
   @Test
   public void testDrill_1770() throws Exception {
     String query = "select flatten(sub.fk.`value`) from (select flatten(kvgen(map)) fk from cp.`/store/json/nested_repeated_map.json`) sub";

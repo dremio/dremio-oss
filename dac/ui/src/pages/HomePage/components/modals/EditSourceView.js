@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,15 @@ import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import mergeWith from 'lodash/mergeWith';
 
-import { createSource, removeSource, loadSource } from 'actions/resources/sources';
+import { createSource, loadSource, removeSource } from 'actions/resources/sources';
+import sourcesMapper from 'utils/mappers/sourcesMapper';
 import sourceForms from 'components/sourceForms';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import Message from 'components/Message';
+import { showConfirmationDialog } from 'actions/confirmation';
 
-import EditSourceViewMixin,
-  { mapStateToProps } from 'dyn-load/pages/HomePage/components/modals/EditSourceViewMixin';
+import EditSourceViewMixin, { mapStateToProps } from 'dyn-load/pages/HomePage/components/modals/EditSourceViewMixin';
 
 import { styles as addSourceStyles } from './AddSourceModal/AddSourceModal';
 
@@ -47,7 +48,8 @@ export class EditSourceView extends Component {
     viewState: PropTypes.instanceOf(Immutable.Map),
     source: PropTypes.instanceOf(Immutable.Map),
     initialFormValues: PropTypes.object,
-    updateFormDirtyState: PropTypes.func
+    updateFormDirtyState: PropTypes.func,
+    showConfirmationDialog: PropTypes.func
   };
 
   static contextTypes = {
@@ -60,15 +62,46 @@ export class EditSourceView extends Component {
     this.props.loadSource(sourceName, VIEW_ID);
   }
 
+  reallySubmitEdit = (form, sourceType) => {
+    return ApiUtils.attachFormSubmitHandlers(
+      this.props.createSource(form, sourceType)
+    ).then(() => {
+      this.context.router.replace('/sources/list');
+    });
+  }
+
+  checkIsMetadataImpacting = (sourceModel) => {
+    return ApiUtils.fetch('sources/isMetadataImpacting', {
+      method: 'POST',
+      body: JSON.stringify(sourceModel),
+      headers: {'Content-Type': 'application/json'}
+    }, 2)
+    .then((response) => response.json());
+  }
+
   submitEdit = (form) => {
     const { sourceType } = this.props;
 
     this.mutateFormValues(form);
 
-    return ApiUtils.attachFormSubmitHandlers(
-      this.props.createSource(form, sourceType)
-    ).then(() => {
-      this.context.router.replace('/sources/list');
+    return new Promise((resolve, reject) => {
+      const sourceModel = sourcesMapper.newSource(sourceType, form);
+      this.checkIsMetadataImpacting(sourceModel)
+      .then((data) => {
+        if (data && data.isMetadataImpacting) {
+          this.props.showConfirmationDialog({
+            title: la('Warning'),
+            text: la('You made a metadata impacting change.  This change will cause Dremio to clear permissions, formats and reflections on all datasets in this source.'),
+            confirmText: la('Confirm'),
+            confirm: () => {
+              this.reallySubmitEdit(form, sourceType).then(resolve).catch(reject);
+            },
+            cancel: reject
+          });
+        } else {
+          this.reallySubmitEdit(form, sourceType).then(resolve).catch(reject);
+        }
+      }).catch(reject);
     });
   }
 
@@ -119,7 +152,8 @@ const styles = {
 export default connect(mapStateToProps, {
   loadSource,
   createSource,
-  removeSource
+  removeSource,
+  showConfirmationDialog
 })(EditSourceView);
 
 function arrayAsPrimitiveMerger(objValue, srcValue) {

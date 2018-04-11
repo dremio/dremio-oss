@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import com.dremio.dac.service.admin.CommitInfo;
 import com.dremio.dac.service.admin.VersionInfo;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.server.options.OptionManager;
-import com.dremio.service.accelerator.AccelerationOptions;
+import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 
@@ -108,7 +108,7 @@ class IndexServlet implements Servlet {
         options.getOption(SupportService.SUPPORT_EMAIL_ADDR),
         options.getOption(SupportService.SUPPORT_EMAIL_SUBJECT),
         options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED),
-        options.getOption(AccelerationOptions.ENABLE_SUBHOUR_POLICIES),
+        options.getOption(ReflectionOptions.ENABLE_SUBHOUR_POLICIES),
         options.getOption(UIOptions.ALLOW_LOWER_PROVISIONING_SETTINGS),
         options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE));
 

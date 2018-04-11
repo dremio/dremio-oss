@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
   public ParquetFormatDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin,
                                       NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey,
                                       ParquetFormatPlugin formatPlugin) {
-    super(fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, formatPlugin, oldConfig);
+    super(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, formatPlugin, oldConfig);
     this.oldConfig = oldConfig;
   }
 

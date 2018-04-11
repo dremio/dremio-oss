@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,19 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.tools.ValidationException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.sql.SchemaUtilities;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.Property;
@@ -36,8 +37,8 @@ import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 
@@ -56,7 +57,7 @@ public class UserSession {
   private boolean supportComplexTypes = false;
   private UserCredentials credentials;
   private Map<String, String> properties = Maps.newHashMap();
-  private List<String> defaultSchemaPath;
+  private NamespaceKey defaultSchemaPath;
   private OptionManager sessionOptions;
   private RpcEndpointInfos clientInfos;
   private boolean useLegacyCatalogName = false;
@@ -84,7 +85,12 @@ public class UserSession {
     }
 
     public Builder withDefaultSchema(List<String> defaultSchemaPath){
-      userSession.defaultSchemaPath = defaultSchemaPath;
+      if(defaultSchemaPath == null) {
+        userSession.defaultSchemaPath = null;
+        return this;
+      }
+
+      userSession.defaultSchemaPath = new NamespaceKey(defaultSchemaPath);
       return this;
     }
 
@@ -235,7 +241,11 @@ public class UserSession {
   }
 
   public String getDefaultSchemaName() {
-    return getProp(SCHEMA);
+    final String schema = properties.get(SCHEMA);
+    if(schema != null) {
+      return schema;
+    }
+    return defaultSchemaPath == null ? "" : defaultSchemaPath.toString();
   }
 
   public void incrementQueryCount() {
@@ -257,55 +267,48 @@ public class UserSession {
    * @param currentDefaultSchema Current default schema.
    * @throws ValidationException If the given default schema path is invalid in current schema tree.
    */
-  public void setDefaultSchemaPath(String newDefaultSchemaPath, SchemaPlus currentDefaultSchema)
+  public void setDefaultSchemaPath(List<String> newDefaultSchemaPath, Catalog catalog)
       throws ValidationException {
-    final List<String> newDefaultPathAsList = SqlUtils.parseSchemaPath(newDefaultSchemaPath);
-
-    SchemaPlus newDefault = null;
 
     // First try to find the given schema relative to the current default schema.
-    // TODO validate if schema exists
-//    newDefault = SchemaUtilities.findSchema(currentDefaultSchema, newDefaultPathAsList);
-
-    if (newDefault == null) {
-      // If we fail to find the schema relative to current default schema, consider the given new default schema path as
-      // absolute schema path.
-      newDefault = SchemaUtilities.findSchema(currentDefaultSchema, newDefaultPathAsList);
+    if(this.defaultSchemaPath != null) {
+      List<String> resolved = new ArrayList<>();
+      resolved.addAll(defaultSchemaPath.getPathComponents());
+      resolved.addAll(newDefaultSchemaPath);
+      NamespaceKey key = new NamespaceKey(resolved);
+      if(catalog.containerExists(key)) {
+        this.defaultSchemaPath = key;
+        setProp(SCHEMA, null);
+        return;
+      }
     }
 
-    if (newDefault == null) {
-      SchemaUtilities.throwSchemaNotFoundException(currentDefaultSchema, newDefaultSchemaPath);
+    NamespaceKey path = new NamespaceKey(newDefaultSchemaPath);
+    if(catalog.containerExists(path)) {
+      this.defaultSchemaPath = path;
+      setProp(SCHEMA, null);
+      return;
     }
 
-    setProp(SCHEMA, SchemaUtilities.getSchemaPath(newDefault));
+    throw UserException.validationError()
+      .message("Unable to find schema [%s]. Either it doesn't exist or you don't have permission to access it.", path)
+      .build(logger);
+
   }
 
   /**
    * @return Get current default schema path.
    */
-  public String getDefaultSchemaPath() {
-    return getProp(SCHEMA);
-  }
+  public NamespaceKey getDefaultSchemaPath() {
 
-  /**
-   * Get default schema from current default schema path and given schema tree.
-   * @param rootSchema
-   * @return A {@link org.apache.calcite.schema.SchemaPlus} object.
-   */
-  public SchemaPlus getDefaultSchema(SchemaPlus rootSchema) {
-
-    final String propertyBasedSchemaPath = getProp(SCHEMA);
-
-    if (Strings.isNullOrEmpty(propertyBasedSchemaPath)) {
-      // if we don't have a property, check for a injected session setting.
-      if(defaultSchemaPath != null && !defaultSchemaPath.isEmpty()){
-        return SchemaUtilities.findSchema(rootSchema, defaultSchemaPath);
-      }
-      return null;
+    final String schema = properties.get(SCHEMA);
+    if(schema != null) {
+      return new NamespaceKey(SqlUtils.parseSchemaPath(schema));
     }
 
-    return SchemaUtilities.findSchema(rootSchema, propertyBasedSchemaPath);
+    return defaultSchemaPath;
   }
+
 
   private String getProp(String key) {
     return properties.get(key) != null ? properties.get(key) : "";

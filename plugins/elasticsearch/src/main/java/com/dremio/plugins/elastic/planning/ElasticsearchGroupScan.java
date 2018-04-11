@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 
 /**
  * Elasticsearch group scan.
@@ -69,7 +70,7 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
         spec,
         splitWork,
         getColumns(),
-        getTableSchemaPath(),
+        Iterables.getOnlyElement(getReferencedTables()),
         getSchema(),
         getDataset().getReadDefinition().getExtendedProperty()
         );

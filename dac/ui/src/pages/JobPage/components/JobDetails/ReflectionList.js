@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 import { Link } from 'react-router';
-import Art from 'components/Art';
 import EllipsedText from 'components/EllipsedText';
+import ReflectionIcon from 'components/Acceleration/ReflectionIcon';
 import jobsUtils from 'utils/jobsUtils';
 
 import './ReflectionList.css';
@@ -53,19 +53,18 @@ export default class ReflectionList extends PureComponent {
         desc = this.props.intl.formatMessage({ id: 'Reflection.DidNotCoverQuery' });
       }
 
+      const showLink = this.context.loggedInUser.admin && (reflection.type === 'RAW' || reflection.type === 'AGGREGATION');
+
       return <li>
         <div>
-          <Art src={reflection.type === 'RAW' ? 'RawMode.svg' : 'Aggregate.svg'}
-            style={{height: 24, marginRight: 5}}
-            alt={this.props.intl.formatMessage({ id: reflection.type === 'RAW' ? 'Reflection.Raw' : 'Reflection.Aggregation' })}
-            title />
+          <ReflectionIcon reflection={reflection} style={{marginRight: 5}} />
           <div>
             <EllipsedText text={name}>
-              {this.context.loggedInUser.admin && <Link to={{
+              {showLink && <Link to={{
                 ...this.context.location,
                 state: {
                   modal: 'AccelerationModal',
-                  accelerationId: dataset.id, // BE reuses the IDs
+                  datasetId: dataset.id,
                   layoutId: reflection.id
                 }
               }}>{name}</Link>}

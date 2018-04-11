@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ export class ViewStateWrapper extends Component {
         message={message}
         messageType={messageType}
         isDismissable={this.props.messageIsDismissable}
-        style={!hideChildrenWhenFailed ? styles.messageOverChildren : undefined}
+        inFlow={hideChildrenWhenFailed}
       />;
     }
   }
@@ -153,10 +153,5 @@ const styles = {
   base: {
     height: '100%',
     position: 'relative'
-  },
-  messageOverChildren: {
-    position: 'absolute',
-    top: 0,
-    width: '100%'
   }
 };

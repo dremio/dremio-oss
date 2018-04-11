@@ -1,6 +1,6 @@
 <#--
 
-    Copyright (C) 2017 Dremio Corporation
+    Copyright (C) 2017-2018 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -58,6 +58,26 @@
         <p>Query was NOT accelerated</p>
       </#if>
       <#if model.profile.hasAccelerationProfile() && model.profile.getAccelerationProfile().getLayoutProfilesCount() != 0>
+        <#if model.accelerationDetails??>
+        <ul>
+          <#assign layoutList = model.getDatasetGroupedLayoutList()>
+          <#list layoutList as k, v>
+            <#assign dsName = k.getDataset().getName()>
+            <#assign dsPath = k.toParentPath()>
+            <li>${dsName} (${dsPath})</li>
+            <ul>
+              <#list v as layout>
+                <#if layout.name?? && layout.name?trim?has_content >
+                  <#assign layoutName = layout.name>
+                <#else>
+                  <#assign layoutName = layout.layoutId>
+                </#if>
+                <li>${layoutName} (<#if layout.displayColumnsList?has_content>raw<#else>agg</#if>): considered<#if layout.numSubstitutions != 0>, matched<#if layout.numUsed != 0>, chosen<#else>, not chosen</#if><#else>, not matched</#if>.</li>
+              </#list>
+            </ul>
+          </#list>
+        </ul>
+        <#else>
         <ul>
           <#list model.profile.getAccelerationProfile().getLayoutProfilesList() as layout>
             <#if layout.name?? && layout.name?trim?has_content >
@@ -65,9 +85,19 @@
             <#else>
               <#assign layoutName = layout.layoutId>
             </#if>
-            <li>${layoutName} (<#if layout.displayColumnsList?has_content>raw<#else>agg</#if>): considered<#if layout.numSubstitutions != 0>, matched<#if layout.numUsed != 0>, chosen<#else>, not chosen</#if><#else>, not matched</#if>.</li>
+            <#if layout.type??>
+              <#assign reflectionType = layout.type?lower_case>
+            <#else>
+              <#if layout.displayColumnsList?has_content>
+                <#assign reflectionType = raw>
+              <#else>
+                <#assign reflectionType = agg>
+              </#if>
+            </#if>
+            <li>${layoutName} (${reflectionType}): considered<#if layout.numSubstitutions != 0>, matched<#if layout.numUsed != 0>, chosen<#else>, not chosen</#if><#else>, not matched</#if>.</li>
           </#list>
         </ul>
+        </#if>
       </#if>
 
       <#if model.profile.hasAccelerationProfile()>
@@ -113,6 +143,10 @@
           Expiration:   ${layout.materializationExpirationTimestamp?number_to_datetime?iso_utc}<br>
           <#if model.accelerationDetails?? && model.accelerationDetails.hasRelationship(layout.layoutId) >
           Dataset: ${model.accelerationDetails.getReflectionDatasetPath(layout.layoutId)}<br>
+          Age: ${(model.getPerdiodFromStart(model.accelerationDetails.getRefreshChainStartTime(layout.layoutId)))}<br>
+          </#if>
+          <#if layout.snowflake?has_content && layout.snowflake>
+          Snowflake: yes<br>
           </#if>
           <#if layout.dimensionsList?has_content >
           Dimensions:

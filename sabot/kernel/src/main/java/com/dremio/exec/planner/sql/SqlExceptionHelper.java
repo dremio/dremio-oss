@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Dremio Corporation
+ * Copyright (C) 2017-2018 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,12 @@ public class SqlExceptionHelper {
   public static final String QUERY_PARSING_ERROR = "Failure parsing the query.";
   public static final String INNER_QUERY_PARSING_ERROR = "Failure parsing a view your query is dependent upon.";
 
+  public static final String SQL_QUERY_CONTEXT = "SQL Query";
+  public static final String START_LINE_CONTEXT = "startLine";
+  public static final String END_LINE_CONTEXT = "endLine";
+  public static final String START_COLUMN_CONTEXT = "startColumn";
+  public static final String END_COLUMN_CONTEXT = "endColumn";
+
   public static UserException.Builder validationError(String query, ValidationException ex) {
     Throwable cause = ex;
     if (ex.getCause() != null) {
@@ -43,19 +49,49 @@ public class SqlExceptionHelper {
       cause = ex.getCause();
     }
     UserException.Builder b = UserException.validationError(cause)
-      .addContext("Sql Query", query);
+      .addContext(SQL_QUERY_CONTEXT, query);
 
     // CalciteContextException alters the error message including the start/end positions
     // we need to extract the original error message and add the remaining information as context
     if (cause instanceof CalciteContextException && cause.getCause() != null) {
       CalciteContextException cce = (CalciteContextException) cause;
       b.message(cce.getCause().getMessage())
-              .addContext("startLine", cce.getPosLine())
-              .addContext("startColumn", cce.getPosColumn())
-              .addContext("endLine", cce.getEndPosLine())
-              .addContext("endColumn", cce.getEndPosColumn());
+              .addContext(START_LINE_CONTEXT, cce.getPosLine())
+              .addContext(START_COLUMN_CONTEXT, cce.getPosColumn())
+              .addContext(END_LINE_CONTEXT, cce.getEndPosLine())
+              .addContext(END_COLUMN_CONTEXT, cce.getEndPosColumn());
     }
     return b;
+  }
+
+  public static UserException.Builder planError(String query, Exception ex) {
+    UserException.Builder b = UserException.planError(ex)
+      .addContext(SQL_QUERY_CONTEXT, query);
+
+    // CalciteContextException alters the error message including the start/end positions
+    // we need to extract the original error message and add the remaining information as context
+    if (ex instanceof CalciteContextException) {
+      CalciteContextException cce = (CalciteContextException) ex;
+      b.message(cce.getMessage())
+              .addContext(START_LINE_CONTEXT, cce.getPosLine())
+              .addContext(START_COLUMN_CONTEXT, cce.getPosColumn())
+              .addContext(END_LINE_CONTEXT, cce.getEndPosLine())
+              .addContext(END_COLUMN_CONTEXT, cce.getEndPosColumn());
+    }
+    return b;
+  }
+
+  private static UserException.Builder addParseContext(UserException.Builder builder, String query, SqlParserPos pos){
+    // Calcite convention is to return column and line numbers as 1-based inclusive positions.
+    return builder.addContext(SQL_QUERY_CONTEXT, query)
+        .addContext(START_LINE_CONTEXT, pos.getLineNum())
+        .addContext(START_COLUMN_CONTEXT, pos.getColumnNum())
+        .addContext(END_LINE_CONTEXT, pos.getEndLineNum())
+        .addContext(END_COLUMN_CONTEXT, pos.getEndColumnNum());
+  }
+
+  public static UserException.Builder parseError(String message, String query, SqlParserPos pos) {
+    return addParseContext(UserException.parseError().message(message), query, pos);
   }
 
   public static UserException.Builder parseError(String query, SqlParseException ex) {
@@ -63,15 +99,10 @@ public class SqlExceptionHelper {
     if (pos == null) {
       return UserException
           .parseError(ex)
-          .addContext("SQL Query", query);
+          .addContext(SQL_QUERY_CONTEXT, query);
     } else {
-      return UserException
-          .parseError(ex)
-          .addContext("SQL Query", query)
-          .addContext("startLine", pos.getLineNum())
-          .addContext("startColumn", pos.getColumnNum())
-          .addContext("endLine", pos.getEndLineNum())
-          .addContext("endColumn", pos.getEndColumnNum());
+      // Calcite convention is to return column and line numbers as 1-based inclusive positions.
+      return addParseContext(UserException.parseError(ex), query, pos);
     }
   }
 
@@ -83,18 +114,16 @@ public class SqlExceptionHelper {
       throw validationError(sql, (ValidationException) e).build(logger);
     } else if (e instanceof AccessControlException){
     throw UserException.permissionError(e)
-        .addContext("Sql Query", sql)
+        .addContext(SQL_QUERY_CONTEXT, sql)
         .build(logger);
     } else if (e instanceof SqlUnsupportedException){
     throw UserException.unsupportedError(e)
-        .addContext("Sql Query", sql)
+        .addContext(SQL_QUERY_CONTEXT, sql)
         .build(logger);
     } else if (e instanceof IOException || e instanceof RelConversionException){
       return new QueryInputException("Failure handling SQL.", e);
     } else if (coerceToPlan){
-      throw UserException.planError(e)
-      .addContext("Sql Query", sql)
-      .build(logger);
+      throw planError(sql, e).build(logger);
     }
     return e;
   }
