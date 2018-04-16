@@ -183,7 +183,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
               ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
           currentCompositeBuildIdx = PlatformDependent.getInt(memStart);
-          currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | PlatformDependent.getShort(memStart + 4);
+          currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
         }
 
       }
@@ -214,7 +214,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
         currentProbeIndex++;
       } else {
         // read the rest of the index including offset in batch.
-        currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | PlatformDependent.getShort(memStart + 4);
+        currentCompositeBuildIdx = currentCompositeBuildIdx << SHIFT_SIZE | Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
       }
     }
 

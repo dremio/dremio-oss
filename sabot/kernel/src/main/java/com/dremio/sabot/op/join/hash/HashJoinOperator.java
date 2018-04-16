@@ -376,7 +376,7 @@ public class HashJoinOperator implements DualInputOperator {
          * is empty insert there
          */
       hashTableBatch = linkBatch;
-      hashTableOffset = PlatformDependent.getShort(startIndexMemStart + 4);
+      hashTableOffset = Short.toUnsignedInt(PlatformDependent.getShort(startIndexMemStart + 4));
 
       final ArrowBuf firstLink = buildInfoList.get(hashTableBatch).getLinks();
       final long firstLinkMemStart = firstLink.memoryAddress() + hashTableOffset * BUILD_RECORD_LINK_SIZE;
@@ -390,13 +390,13 @@ public class HashJoinOperator implements DualInputOperator {
           /* Insert the current value as the first link and
            * make the current first link as its next
            */
-        final short firstLinkOffset = PlatformDependent.getShort(firstLinkMemStart + 4);
+        final int firstLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(firstLinkMemStart + 4));
 
         final ArrowBuf nextLink = buildInfoList.get(buildBatch).getLinks();
         final long nextLinkMemStart = nextLink.memoryAddress() + incomingRecordIndex * BUILD_RECORD_LINK_SIZE;
 
         PlatformDependent.putInt(nextLinkMemStart, firstLinkBatch);
-        PlatformDependent.putShort(nextLinkMemStart + 4, firstLinkOffset);
+        PlatformDependent.putShort(nextLinkMemStart + 4, (short) firstLinkOffset);
 
         // As the existing (batch, offset) pair is moved out of firstLink into nextLink,
         // now put the new (batch, offset) in the firstLink

@@ -67,7 +67,7 @@ public abstract class FieldBufferCopier {
       final long srcAddr = sourceBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE){
-        PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(srcAddr + ((char) PlatformDependent.getShort(addr)) * SIZE));
+        PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
     }
 
@@ -99,7 +99,7 @@ public abstract class FieldBufferCopier {
       final long srcAddr = sourceBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE){
-        PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + ((char) PlatformDependent.getShort(addr)) * SIZE));
+        PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
     }
 
@@ -129,7 +129,7 @@ public abstract class FieldBufferCopier {
       final long srcAddr = sourceBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE){
-        final int offset = ((char) PlatformDependent.getShort(addr)) * SIZE;
+        final int offset = Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + offset));
         PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(srcAddr + + offset + 8));
       }
@@ -175,7 +175,7 @@ public abstract class FieldBufferCopier {
 
       for(; sv2 < maxSv2; sv2 += STEP_SIZE, dstOffsetAddr += 4){
         // copy from recordIndex to last available position in target
-        final int recordIndex = (char) PlatformDependent.getShort(sv2);
+        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2));
         // retrieve start offset and length of value we want to copy
         final long startAndEnd = PlatformDependent.getLong(srcOffsetAddr + recordIndex * 4);
         final int firstOffset = (int) startAndEnd;
@@ -228,7 +228,7 @@ public abstract class FieldBufferCopier {
       final long maxAddr = offsetAddr + count * STEP_SIZE;
       int targetIndex = 0;
       for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
-        final int recordIndex = (char) PlatformDependent.getShort(offsetAddr);
+        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
         final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
         final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
         final long addr = dstAddr + (targetIndex >>> 3);
@@ -259,7 +259,7 @@ public abstract class FieldBufferCopier {
       final long max = offsetAddr + count * STEP_SIZE;
       int target = 0;
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE) {
-        int index = (char) PlatformDependent.getShort(addr);
+        int index = Short.toUnsignedInt(PlatformDependent.getShort(addr));
         transfer.copyValueSafe(index, target);
         target++;
       }

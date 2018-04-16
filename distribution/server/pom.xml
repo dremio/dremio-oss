@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>2.0.0-201804102150500749-ee1ef6c</version>
+    <version>2.0.1-201804132205050000-10b1de0</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -30,9 +30,8 @@
   <name>Distribution - Server Packaging</name>
 
   <properties>
-    <dremio.finalVersion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}rc-${parsedVersion.qualifier}</dremio.finalVersion>
     <dremio.distribution.name>dremio-oss</dremio.distribution.name>
-    <dremio.distribution.directory>${project.build.directory}/${dremio.distribution.name}-${dremio.finalVersion}/${dremio.distribution.name}-${dremio.finalVersion}</dremio.distribution.directory>
+    <dremio.distribution.directory>${project.build.directory}/${dremio.distribution.name}-${project.version}/${dremio.distribution.name}-${project.version}</dremio.distribution.directory>
     <dremio.distribution.resources.directory>${project.build.directory}/distribution-resources</dremio.distribution.resources.directory>
   </properties>
 
@@ -248,7 +247,7 @@
                 <descriptorRef>server-tarball</descriptorRef>
               </descriptorRefs>
               <appendAssemblyId>false</appendAssemblyId>
-              <finalName>${dremio.distribution.name}-${dremio.finalVersion}</finalName>
+              <finalName>${dremio.distribution.name}-${project.version}</finalName>
               <tarLongFileMode>gnu</tarLongFileMode>
             </configuration>
           </execution>
@@ -260,17 +259,6 @@
             <version>${project.version}</version>
           </dependency>
         </dependencies>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>parse-version</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
@@ -292,7 +280,6 @@
                 </goals>
                 <configuration>
                   <versionProperty>dremio.rpm.version</versionProperty>
-                  <projversion>${dremio.finalVersion}</projversion>
                 </configuration>
               </execution>
               <execution>

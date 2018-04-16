@@ -82,7 +82,7 @@ public class DremioDaemon {
 
     final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
-    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true, false, true)) {
+    try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true)) {
       storeProvider.start();
 
       final KVStore<String, ClusterIdentity> supportStore = storeProvider.getStore(SupportStoreCreator.class);

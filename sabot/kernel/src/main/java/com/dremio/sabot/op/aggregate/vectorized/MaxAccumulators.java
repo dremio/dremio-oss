@@ -142,7 +142,7 @@ public class MaxAccumulators {
 
   public static class DoubleMaxAccumulator extends BaseSingleAccumulator {
 
-    private static final long INIT = Double.doubleToLongBits(Double.MIN_VALUE);
+    private static final long INIT = Double.doubleToRawLongBits(-Double.MAX_VALUE);
     private static final int WIDTH = 8;
 
     public DoubleMaxAccumulator(FieldVector input, FieldVector output) {
@@ -172,7 +172,7 @@ public class MaxAccumulators {
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
         final int bitVal = (PlatformDependent.getByte(incomaxgBit + ((incomaxgIndex >>> 3))) >>> (incomaxgIndex & 7)) & 1;
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
-        PlatformDependent.putLong(maxAddr, Double.doubleToLongBits(max(Double.longBitsToDouble(PlatformDependent.getLong(maxAddr)), newVal, bitVal)));
+        PlatformDependent.putLong(maxAddr, Double.doubleToRawLongBits(max(Double.longBitsToDouble(PlatformDependent.getLong(maxAddr)), newVal, bitVal)));
         PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }

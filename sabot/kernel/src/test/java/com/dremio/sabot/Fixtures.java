@@ -636,7 +636,7 @@ public final class Fixtures {
       }
 
       if ((f1 + f2) / 2 != 0) {
-        return Math.abs(f1 - f2) / ((f1 + f2) / 2) < 1.0E-6;
+        return Math.abs(f1 - f2) / Math.abs((f1 + f2) / 2) < 1.0E-6;
       } else {
         return !(f1 != 0);
       }
@@ -671,7 +671,7 @@ public final class Fixtures {
       }
 
       if ((f1 + f2) / 2 != 0) {
-        return Math.abs(f1 - f2) / ((f1 + f2) / 2) < 1.0E-12;
+        return Math.abs(f1 - f2) / Math.abs((f1 + f2) / 2) < 1.0E-12;
       } else {
         return !(f1 != 0);
       }

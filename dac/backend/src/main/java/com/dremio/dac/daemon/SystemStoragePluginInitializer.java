@@ -72,7 +72,8 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     final URI scratchPath = config.getURI(DremioConfig.SCRATCH_PATH_STRING);
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
-    final URI logsPath = new URI("pdfs://" + logPath.toUri().getPath());
+    // Do not construct URI simply by concatenating, as it might not be encoded properly
+    final URI logsPath = new URI("pdfs", "///" + logPath.toUri().getPath(), null);
     final URI supportURI = supportPath.toUri();
 
     SourceConfig home = new SourceConfig();

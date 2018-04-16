@@ -70,7 +70,7 @@ public class FieldBufferCopier6 {
       long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
-        final int batchOffset = PlatformDependent.getShort(addr + 4);
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(src));
       }
@@ -106,7 +106,7 @@ public class FieldBufferCopier6 {
       long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
-        final int batchOffset = PlatformDependent.getShort(addr + 4);
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(src));
       }
@@ -140,7 +140,7 @@ public class FieldBufferCopier6 {
       long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
-        final int batchOffset = PlatformDependent.getShort(addr + 4);
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(src));
         PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(src + 8));
@@ -187,7 +187,7 @@ public class FieldBufferCopier6 {
 
       for(; srcAddr < maxSrcAddr; srcAddr += BUILD_RECORD_LINK_SIZE, dstOffsetAddr += 4){
         final int batchIndex = PlatformDependent.getInt(srcAddr);
-        final int batchOffset = PlatformDependent.getShort(srcAddr+ 4);
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(srcAddr+ 4));
 
         final long startAndEnd = PlatformDependent.getLong(srcOffsetAddrs[batchIndex] + batchOffset * 4);
         final int firstOffset = (int) startAndEnd;
@@ -244,7 +244,7 @@ public class FieldBufferCopier6 {
       int targetIndex = 0;
       for(; offsetAddr < maxAddr; offsetAddr += BUILD_RECORD_LINK_SIZE, targetIndex++){
         final int batchIndex = PlatformDependent.getInt(offsetAddr);
-        final int batchOffset = PlatformDependent.getShort(offsetAddr + 4);
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr + 4));
         final int byteValue = PlatformDependent.getByte(srcAddr[batchIndex] + (batchOffset >>> 3));
         final int bitVal = ((byteValue >>> (batchOffset & 7)) & 1) << (targetIndex & 7);
         final long addr = dstAddr + (targetIndex >>> 3);
@@ -279,7 +279,7 @@ public class FieldBufferCopier6 {
       int target = 0;
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
-        final int batchOffset = PlatformDependent.getShort(addr + 4);
+        final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         transfer[batchIndex].copyValueSafe(batchOffset, target);
         target++;
       }

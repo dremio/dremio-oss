@@ -152,8 +152,8 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
         th("gb",    "sum", "cnt", "sum0", "min", "max"),
-        tr("group1",     -5D, 2L, -5D, -10f, 5f),
-        tr("group2",     -3D, 2L, -10D, -13f, 10f),
+        tr("group1",     -5.0D, 2L, -5.0D, -10.0f, 5.0f),
+        tr("group2",     -3.0D, 2L, -3.0D, -13.0f, 10.0f),
         tr("group3",     Fixtures.NULL_DOUBLE, 0L, 0D, Fixtures.NULL_FLOAT, Fixtures.NULL_FLOAT)
         );
 
@@ -178,13 +178,54 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
         th("gb",    "sum", "cnt", "sum0", "min", "max"),
-        tr("group1",     -5D, 2L, -5D, -10D, 5D),
+        tr("group1",     0.0, 2L, 0.0, -5D, 5D),
         tr("group2",     -3D, 2L, -3D, -13D, 10D),
         tr("group3",     Fixtures.NULL_DOUBLE, 0L, 0D, Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE)
         );
 
     validateSingle(conf, VectorizedHashAggOperator.class, DATA, expected);
   }
+
+  @Test
+  public void doubleWork1() throws Exception {
+    HashAggregate conf = new HashAggregate(null,
+      Arrays.asList(n("gb")),
+      Arrays.asList(
+        n("sum(d1)", "sum-d1"),
+        n("count(d1)", "cnt-d1"),
+        n("$sum0(d1)", "sum0-d1"),
+        n("min(d1)", "min-d1"),
+        n("max(d1)", "max-d1"),
+        n("sum(d2)", "sum-d2"),
+        n("count(d2)", "cnt-d2"),
+        n("$sum0(d2)", "sum0-d2"),
+        n("min(d2)", "min-d2"),
+        n("max(d2)", "max-d2")
+      ),
+      true,
+      1f);
+
+    final Table expected = t(
+      th("gb",    "sum-d1", "cnt-d1", "sum0-d1", "min-d1", "max-d1", "sum-d2", "cnt-d2", "sum0-d2", "min-d2", "max-d2"),
+      tr("group1", 0.0, 2L, 0.0, 0.0,  0.0, -1.0, 2L, -1.0, -1.0, 0.0),
+      tr("group2", -966.25, 2L, -966.25, -966.25, 0.0, -1873.67, 2L, -1873.67, -1023.42, -850.25),
+      tr("group3", Fixtures.NULL_DOUBLE, 0L, 0.0D, Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE,
+        Fixtures.NULL_DOUBLE, 0L, 0.0D, Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE));
+
+    validateSingle(conf, VectorizedHashAggOperator.class, DATA_DOUBLE, expected);
+  }
+
+  private static final Table DATA_DOUBLE = t(
+    th("gb",    "d1",    "d2"),
+    tr("group1", 0.0,     -1.0),
+    tr("group2", -966.25, -850.25),
+    tr("group1", 0.0,     0.0),
+    tr("group2", 0.0,     -1023.42),
+    tr("group1", Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE),
+    tr("group2", Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE),
+    tr("group3", Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE),
+    tr("group3", Fixtures.NULL_DOUBLE, Fixtures.NULL_DOUBLE)
+  );
 
   @Test
   public void count1() throws Exception {

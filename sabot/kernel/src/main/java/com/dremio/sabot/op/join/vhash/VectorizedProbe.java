@@ -206,7 +206,7 @@ public class VectorizedProbe implements AutoCloseable {
               ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
           currentBuildBatchIndex = PlatformDependent.getInt(memStart);
-          currentBuildRecordIndex = PlatformDependent.getShort(memStart + 4) & HashTable.BATCH_MASK;
+          currentBuildRecordIndex = Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
         }
       }
 
@@ -237,7 +237,7 @@ public class VectorizedProbe implements AutoCloseable {
         currentProbeIndex++;
       } else {
         // read the rest of the index including offset in batch.
-        currentBuildRecordIndex = PlatformDependent.getShort(memStart + 4) & HashTable.BATCH_MASK;
+        currentBuildRecordIndex = Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
       }
 
     }
