@@ -13,11 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.exec.planner.sql.handlers;
+import { put, takeEvery } from 'redux-saga/effects';
+import { LOAD_NEXT_ROWS_SUCCESS } from '@app/actions/explore/dataset/data';
+import { focusSqlEditor } from '@app/actions/explore/view';
+import { LOAD_EXPLORE_ENTITIES_SUCCESS } from '@app/actions/explore/dataset/get';
 
-/**
- * Marker interface for classes that are derived from Dremio's JdbcConvention.
- * This is not enforced at compile-time by this class (because referencing JdbcConvention from
- * this package would introduce a dependency on the JDBC Plugin layer in the planner layer).
- */
-public interface JdbcConventionIndicator {}
+function *handleLoadComplete(action) {
+  yield put(focusSqlEditor()); // an action to focus a sql editor
+}
+
+export function* focusSagas() {
+  yield [
+    //focus a sql editor after data is loaded on preview/run
+    takeEvery([LOAD_EXPLORE_ENTITIES_SUCCESS, LOAD_NEXT_ROWS_SUCCESS], handleLoadComplete)
+  ];
+}
+
+export default focusSagas;

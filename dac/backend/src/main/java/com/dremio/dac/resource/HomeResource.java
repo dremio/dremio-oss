@@ -92,6 +92,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -155,13 +156,13 @@ public class HomeResource {
       DatasetName datasetName,
       String sql,
       VirtualDatasetUI datasetConfig,
-      int jobCount, int descendants) {
-    return Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount, descendants);
+      int jobCount) {
+    return Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount);
   }
 
-  protected File newFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount, Integer descendants,
+  protected File newFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
       boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType) throws Exception {
-    return File.newInstance(id, filePath, fileFormat, jobCount, descendants, isStaged, isHomeFile, isQueryable);
+    return File.newInstance(id, filePath, fileFormat, jobCount, isStaged, isHomeFile, isQueryable);
   }
 
   protected Folder newFolder(FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents) throws NamespaceNotFoundException {
@@ -173,14 +174,14 @@ public class HomeResource {
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, namespaceService, children, HOME);
+    return NamespaceTree.newInstance(datasetService, children, HOME);
   }
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public Home getHome(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents) throws NamespaceException, HomeNotFoundException, DatasetNotFoundException {
     try {
-      long dsCount = namespaceService.getAllDatasetsCount(homePath.toNamespaceKey());
+      long dsCount = namespaceService.getDatasetCount(homePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
       final HomeConfig homeConfig = namespaceService.getHome(homePath.toNamespaceKey()).setExtendedConfig(new ExtendedConfig().setDatasetCount(dsCount));
       Home home = newHome(homePath, homeConfig);
       if (includeContents) {
@@ -206,8 +207,7 @@ public class HomeResource {
       datasetPath.getDataset(),
       vds.getSql(),
       vds,
-      datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-      datasetService.getDescendantsCount(datasetPath.toNamespaceKey())
+      datasetService.getJobsCount(datasetPath.toNamespaceKey())
     );
   }
 
@@ -244,7 +244,7 @@ public class HomeResource {
       throw new DACException("Error writing to file at " + filePath, ioe);
     }
     final File file = newFile(filePath.toUrlPath(),
-        filePath, FileFormat.getForFile(config), 0, 0, true, true, true,
+        filePath, FileFormat.getForFile(config), 0, true, true, true,
         DatasetType.PHYSICAL_DATASET_HOME_FILE
     );
     return file;
@@ -285,7 +285,7 @@ public class HomeResource {
       filePath,
       fileFormat,
       datasetService.getJobsCount(filePath.toNamespaceKey()),
-      datasetService.getDescendantsCount(filePath.toNamespaceKey()), false, true, false,
+      false, true, false,
       DatasetType.PHYSICAL_DATASET_HOME_FILE
     );
   }
@@ -323,7 +323,7 @@ public class HomeResource {
         filePath,
         FileFormat.getForFile(fileConfig),
         datasetService.getJobsCount(filePath.toNamespaceKey()),
-        datasetService.getDescendantsCount(filePath.toNamespaceKey()), false, true,
+        false, true,
         fileConfig.getType() != FileType.UNKNOWN,
         DatasetType.PHYSICAL_DATASET_HOME_FILE
       );
@@ -361,7 +361,7 @@ public class HomeResource {
       newFilePath,
       FileFormat.getForFile(fileConfig),
       datasetService.getJobsCount(filePath.toNamespaceKey()),
-      datasetService.getDescendantsCount(filePath.toNamespaceKey()), false, true, false,
+      false, true, false,
       DatasetType.PHYSICAL_DATASET_HOME_FILE
     );
   }
@@ -421,12 +421,9 @@ public class HomeResource {
     FolderPath folderPath = FolderPath.fromURLPath(homeName, path);
     try {
       final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
-      final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(folderPath.toNamespaceKey());
-      final ExtendedConfig extendedConfig = new ExtendedConfig().setDatasetCount((long)datasetPaths.size())
-        .setJobCount(datasetService.getJobsCount(datasetPaths));
-      folderConfig.setExtendedConfig(extendedConfig);
-
-      NamespaceTree contents = includeContents ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey())) : null;
+      final NamespaceTree contents = includeContents
+          ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()))
+          : null;
       return newFolder(folderPath, folderConfig, contents);
     } catch (NamespaceNotFoundException nfe) {
       throw new FolderNotFoundException(folderPath, nfe);

@@ -18,12 +18,12 @@ package com.dremio.exec.store.ischema.tables;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordDataType;
 import com.dremio.exec.store.RecordReader;
@@ -82,7 +82,7 @@ public enum InfoSchemaTable {
 
   public BatchSchema getSchema() {
     RecordDataType dataType = new PojoDataType(definition.getRecordClass());
-    RelDataType type = dataType.getRowType(new JavaTypeFactoryImpl());
+    RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
     return BatchSchema.fromCalciteRowType(type);
   }
 

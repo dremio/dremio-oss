@@ -37,6 +37,7 @@ import com.dremio.common.expression.LogicalExpressionBase;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.expr.fn.impl.HashHelper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
 import io.netty.buffer.ArrowBuf;
@@ -89,7 +90,7 @@ public class InExpression extends LogicalExpressionBase {
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    throw new UnsupportedOperationException();
+    return ImmutableList.<LogicalExpression>builder().add(eval).addAll(constants).build().iterator();
   }
 
   public JClass getListType(JCodeModel model) {

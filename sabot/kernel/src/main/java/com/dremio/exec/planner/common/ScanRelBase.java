@@ -171,6 +171,10 @@ public abstract class ScanRelBase extends TableScan {
     return getTableMetadata().getSchema();
   }
 
+  public BatchSchema getProjectedSchema() {
+    return getBatchSchema().maskAndReorder(projectedColumns);
+  }
+
   protected double getFilterReduction(){
     return 1.0d;
   }

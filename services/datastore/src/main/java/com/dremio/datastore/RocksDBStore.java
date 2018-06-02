@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
+
 import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
@@ -37,9 +39,12 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 
+import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
+import com.dremio.datastore.MetricUtils.MetricSetBuilder;
+import com.dremio.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -67,6 +72,60 @@ import com.google.common.primitives.UnsignedBytes;
  * close out the RocksDB database through the close() method.
  */
 class RocksDBStore implements ByteStore {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RocksDBStore.class);
+
+  private static final String METRICS_PREFIX = "kvstore.stores";
+  private static final String[] METRIC_PROPERTIES = {
+    // number of immutable memtables that have not yet been flushed
+    "rocksdb.num-immutable-mem-table",
+    // number of immutable memtables that have already been flushed
+    "rocksdb.num-immutable-mem-table-flushed",
+    // 1 if a memtable flush is pending; otherwise, returns 0
+    "rocksdb.mem-table-flush-pending",
+    // number of currently running flushes
+    "rocksdb.num-running-flushes",
+    // 1 if at least one compaction is pending; otherwise, returns 0
+    "rocksdb.compaction-pending",
+    // number of currently running compactions
+    "rocksdb.num-running-compactions",
+    // accumulated number of background errors
+    "rocksdb.background-errors",
+    // approximate size of active memtable (bytes)
+    "rocksdb.cur-size-active-mem-table",
+    // approximate size of active and unflushed immutable memtables (bytes)
+    "rocksdb.cur-size-all-mem-tables",
+    // approximate size of active, unflushed immutable, and pinned immutable memtables (bytes).
+    "rocksdb.size-all-mem-tables",
+    // total number of entries in the active memtable
+    "rocksdb.num-entries-active-mem-table",
+    // total number of entries in the unflushed immutable memtables
+    "rocksdb.num-entries-imm-mem-tables",
+    // total number of delete entries in the active memtable
+    "rocksdb.num-deletes-active-mem-table",
+    // total number of delete entries in the unflushed immutable memtables
+    "rocksdb.num-deletes-imm-mem-tables",
+    // estimated number of total keys in the active and unflushed immutable memtables and storage
+    "rocksdb.estimate-num-keys",
+    // estimated memory used for reading SST tables, excluding memory used in block cache (e.g., filter and index blocks)
+    "rocksdb.estimate-table-readers-mem",
+    // number of unreleased snapshots of the database
+    "rocksdb.num-snapshots",
+    // number of live versions. More live versions often mean more SST files are held from being deleted,
+    // by iterators or unfinished compactions
+    "rocksdb.num-live-versions",
+    // an estimate of the amount of live data in bytes
+    "rocksdb.estimate-live-data-size",
+    // total size (bytes) of all SST files
+    // WARNING: may slow down online queries if there are too many files
+    "rocksdb.total-sst-files-size",
+    // estimated total number of bytes compaction needs to rewrite to get all levels down to under target size.
+    // Not valid for other compactions than level based
+    "rocksdb.estimate-pending-compaction-bytes",
+    // current actual delayed write rate. 0 means no delay
+    "rocksdb.actual-delayed-write-rate",
+    // 1 if write has been stopped
+    "rocksdb.is-write-stopped"
+  };
 
   private ColumnFamilyHandle handle;
   private final AutoCloseableLock[] sharedLocks;
@@ -99,6 +158,26 @@ class RocksDBStore implements ByteStore {
       sharedLocks[i] = new AutoCloseableLock(core.readLock());
       exclusiveLocks[i] = new AutoCloseableLock(core.writeLock());
     }
+
+    if (COLLECT_METRICS) {
+      registerMetrics();
+    }
+  }
+
+  private void registerMetrics() {
+    final MetricSetBuilder builder = new MetricSetBuilder(MetricRegistry.name(METRICS_PREFIX, name));
+    for (String property : METRIC_PROPERTIES) {
+      builder.gauge(property, () -> {
+        try {
+          return db.getLongProperty(handle, property);
+        } catch (RocksDBException e) {
+          // throwing an exception would cause Dropwizard's metrics reporter to not report the remaining metrics
+          logger.warn("failed to retrieve property '{}", property, e);
+          return null;
+        }
+      });
+    }
+    Metrics.getInstance().registerAll(builder.build());
   }
 
   private void compact() throws RocksDBException {
@@ -253,6 +332,10 @@ class RocksDBStore implements ByteStore {
 
   @Override
   public void close() throws IOException {
+    if (COLLECT_METRICS) {
+      MetricUtils.removeAllMetricsThatStartWith(MetricRegistry.name(METRICS_PREFIX, name));
+    }
+
     // Attempt to acquire all exclusive locks to limit concurrent writes occurring.
     ArrayList<AutoCloseableLock> acquiredLocks = new ArrayList<>(exclusiveLocks.length);
     for (int i = 0; i < exclusiveLocks.length; i++) {

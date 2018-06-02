@@ -64,7 +64,7 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
       return FluentIterable.of(admin.listTableNames()).transform(new Function<TableName, SourceTableDefinition>(){
         @Override
         public SourceTableDefinition apply(TableName input) {
-          final NamespaceKey key = new NamespaceKey(ImmutableList.<String>of(name, input.getNamespaceAsString(), input.getNameAsString()));
+          final NamespaceKey key = new NamespaceKey(ImmutableList.<String>of(name, input.getNamespaceAsString(), input.getQualifierAsString()));
           return new HBaseTableBuilder(key, null, connection, storeConfig.isSizeCalcEnabled, context);
         }});
     }
@@ -111,7 +111,11 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
 
   @Override
   public boolean datasetExists(NamespaceKey key) {
-    if( !(key.size() == 3 || key.size() == 2) ) {
+    if (!(key.size() == 3 || key.size() == 2)) {
+      return false;
+    }
+    if (key.getLeaf().indexOf((TableName.NAMESPACE_DELIM)) != -1) {
+      // ensure the table name does not have ":"
       return false;
     }
 

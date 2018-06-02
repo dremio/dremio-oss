@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.File;
@@ -34,10 +35,15 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Statistics;
+import org.rocksdb.StatsLevel;
 import org.rocksdb.Status;
+import org.rocksdb.TickerType;
 
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
+import com.dremio.datastore.MetricUtils.MetricSetBuilder;
+import com.dremio.metrics.Metrics;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -52,6 +58,9 @@ import com.google.common.collect.Lists;
  * Manages the underlying byte storage supporting a kvstore.
  */
 class ByteStoreManager implements AutoCloseable {
+
+  private static final String METRICS_PREFIX = "kvstore.db";
+
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ByteStoreManager.class);
 
   private static final int STRIPE_COUNT = 16;
@@ -145,6 +154,9 @@ class ByteStoreManager implements AutoCloseable {
     List<ColumnFamilyHandle> familyHandles = new ArrayList<>();
     try (final DBOptions dboptions = new DBOptions()) {
       dboptions.setCreateIfMissing(true);
+      if (COLLECT_METRICS) {
+        registerMetrics(dboptions);
+      }
       db = openDB(dboptions, path, Lists.transform(families, func), familyHandles);
     }
     // create an output list to be populated when we open the db.
@@ -162,6 +174,25 @@ class ByteStoreManager implements AutoCloseable {
         maps.put(name, store);
       }
     }
+  }
+
+  private void registerMetrics(DBOptions dbOptions) {
+    // calling DBOptions.statisticsPtr() will create a Statistics object that will collect various stats from RocksDB and
+    // will introduce a 5-10% overhead
+    final Statistics statistics = new Statistics();
+    statistics.setStatsLevel(StatsLevel.ALL);
+    dbOptions.setStatistics(statistics);
+    final MetricSetBuilder builder = new MetricSetBuilder(METRICS_PREFIX);
+    // for now, let's add all ticker stats as gauge metrics
+    for (TickerType tickerType : TickerType.values()) {
+      if (tickerType == TickerType.TICKER_ENUM_MAX) {
+        continue;
+      }
+
+      builder.gauge(tickerType.name(), () -> statistics.getTickerCount(tickerType));
+    }
+    Metrics.getInstance().registerAll(builder.build());
+    // Note that Statistics also contains various histogram metrics, but those cannot be easily tracked through our metrics
   }
 
   public RocksDB openDB(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
@@ -212,6 +243,10 @@ class ByteStoreManager implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
+    if (COLLECT_METRICS) {
+      MetricUtils.removeAllMetricsThatStartWith(METRICS_PREFIX);
+    }
+
     maps.invalidateAll();
     closeException.suppressingClose(defaultHandle);
     closeException.suppressingClose(db);

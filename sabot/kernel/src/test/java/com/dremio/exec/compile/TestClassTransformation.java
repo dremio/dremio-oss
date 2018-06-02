@@ -16,6 +16,7 @@
 package com.dremio.exec.compile;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 
@@ -34,6 +35,7 @@ import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SessionOptionManager;
+import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 
@@ -122,7 +124,10 @@ public class TestClassTransformation extends BaseTestQuery {
   }
 
   private <T, X extends T> CodeGenerator<T> newCodeGenerator(Class<T> iface, Class<X> impl) {
+    CompilationOptions compilationOptions = mock(CompilationOptions.class);
+    when(compilationOptions.getNewMethodThreshold()).thenReturn(100);
     FunctionContext mockFunctionContext = mock(FunctionContext.class);
+    when(mockFunctionContext.getCompilationOptions()).thenReturn(compilationOptions);
 
     final TemplateClassDefinition<T> template = new TemplateClassDefinition<>(iface, impl);
     CodeGenerator<T> cg = CodeGenerator.get(template, getSabotContext().getCompiler(), mockFunctionContext);

@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -24,7 +23,6 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
@@ -51,7 +49,7 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlValidatorImpl.FlattenOpCounter;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryFlattener;
-import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
@@ -65,8 +63,6 @@ import com.google.common.collect.ImmutableList;
  */
 public class SqlConverter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlConverter.class);
-
-  public static final RelDataTypeSystem TYPE_SYSTEM = RelDataTypeSystemImpl.REL_DATATYPE_SYSTEM;
 
   private final JavaTypeFactory typeFactory;
   private final ParserConfig parserConfig;
@@ -108,7 +104,7 @@ public class SqlConverter {
     this.session = Preconditions.checkNotNull(session, "user session is required");
     this.parserConfig = ParserConfig.newInstance(session, settings);
     this.isInnerQuery = false;
-    this.typeFactory = new JavaTypeFactoryImpl(TYPE_SYSTEM);
+    this.typeFactory = JavaTypeFactoryImpl.INSTANCE;
     this.catalogReader = new DremioCatalogReader(catalog, typeFactory);
     this.opTab = new ChainedSqlOperatorTable(ImmutableList.<SqlOperatorTable>of(operatorTable, this.catalogReader));
     this.costFactory = (settings.useDefaultCosting()) ? null : new DremioCost.Factory();
@@ -243,11 +239,12 @@ public class SqlConverter {
     final long inSubQueryThreshold =  o.getOption(ExecConstants.FAST_OR_ENABLE) ? o.getOption(ExecConstants.FAST_OR_MAX_THRESHOLD) : settings.getOptions().getOption(ExecConstants.PLANNER_IN_SUBQUERY_THRESHOLD);
     final SqlToRelConverter.Config config = SqlToRelConverter.configBuilder()
       .withInSubQueryThreshold((int) inSubQueryThreshold)
-      .withTrimUnusedFields(false)
+      .withTrimUnusedFields(true)
       .withConvertTableAccess(false)
       .withExpand(expand)
       .build();
-    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, ConvertletTable.INSTANCE, config);
+    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator,
+        new ConvertletTable(functionContext.getContextInformation()), config);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.
     final RelRoot rel = sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, false /* top */);
     final RelNode rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);

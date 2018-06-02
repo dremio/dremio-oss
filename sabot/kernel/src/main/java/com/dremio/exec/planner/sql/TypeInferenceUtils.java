@@ -225,7 +225,7 @@ public class TypeInferenceUtils {
       final BaseFunctionHolder func = resolveFunctionHolder(opBinding, functions);
       final RelDataType returnType = getReturnType(opBinding, func);
       return returnType.getSqlTypeName() == SqlTypeName.VARBINARY
-          ? createCalciteTypeWithNullability(factory, SqlTypeName.ANY, returnType.isNullable())
+          ? createCalciteTypeWithNullability(factory, SqlTypeName.ANY, returnType.isNullable(), null)
               : returnType;
     }
 
@@ -252,7 +252,7 @@ public class TypeInferenceUtils {
         return nullableAnyType;
       }
 
-      return createCalciteTypeWithNullability(factory, sqlTypeName, true);
+      return createCalciteTypeWithNullability(factory, sqlTypeName, true, returnType.getPrecision());
     }
   }
 
@@ -389,10 +389,7 @@ public class TypeInferenceUtils {
       // We need to check only the first argument because
       // the second one is used to represent encoding type
       final boolean isNullable = opBinding.getOperandType(0).isNullable();
-      return createCalciteTypeWithNullability(
-          factory,
-          sqlTypeName,
-          isNullable);
+      return createCalciteTypeWithNullability(factory, sqlTypeName, isNullable, null);
     }
   }
 
@@ -406,13 +403,11 @@ public class TypeInferenceUtils {
 
       for(int i = 0; i < opBinding.getOperandCount(); ++i) {
         if(opBinding.getOperandType(i).isNullable()) {
-          return createCalciteTypeWithNullability(
-              factory, sqlTypeName, true);
+          return createCalciteTypeWithNullability(factory, sqlTypeName, true, null);
         }
       }
 
-      return createCalciteTypeWithNullability(
-          factory, sqlTypeName, false);
+      return createCalciteTypeWithNullability(factory, sqlTypeName, false, null);
     }
   }
 
@@ -424,8 +419,7 @@ public class TypeInferenceUtils {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
       final SqlTypeName type = SqlTypeName.VARBINARY;
 
-      return createCalciteTypeWithNullability(
-          factory, type, opBinding.getOperandType(0).isNullable());
+      return createCalciteTypeWithNullability(factory, type, opBinding.getOperandType(0).isNullable(), null);
     }
   }
 
@@ -499,13 +493,20 @@ public class TypeInferenceUtils {
    * @param typeFactory RelDataTypeFactory used to create the RelDataType
    * @param sqlTypeName the given SqlTypeName
    * @param isNullable  the nullability of the created RelDataType
+   * @param precision precision, null if the type does not support precision, or to fallback to default precision
    * @return RelDataType Type of call
    */
   public static RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,
                                                              SqlTypeName sqlTypeName,
-                                                             boolean isNullable) {
+                                                             boolean isNullable,
+                                                             Integer precision) {
     RelDataType type;
     switch (sqlTypeName) {
+      case TIMESTAMP:
+        type = precision == null
+            ? typeFactory.createSqlType(sqlTypeName)
+            : typeFactory.createSqlType(sqlTypeName, precision);
+          break;
       case INTERVAL_YEAR:
       case INTERVAL_YEAR_MONTH:
       case INTERVAL_MONTH:

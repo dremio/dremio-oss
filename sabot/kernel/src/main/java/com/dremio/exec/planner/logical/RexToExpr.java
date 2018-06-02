@@ -82,7 +82,11 @@ public class RexToExpr {
    * Converts a tree of {@link RexNode} operators into a scalar expression in Dremio syntax.
    */
   public static LogicalExpression toExpr(ParseContext context, RelDataType rowType, RexBuilder rexBuilder, RexNode expr) {
-    final Visitor visitor = new Visitor(context, rowType, rexBuilder);
+    return toExpr(context, rowType, rexBuilder, expr, true);
+  }
+
+  public static LogicalExpression toExpr(ParseContext context, RelDataType rowType, RexBuilder rexBuilder, RexNode expr, boolean throwUserException) {
+    final Visitor visitor = new Visitor(context, rowType, rexBuilder, throwUserException);
     return expr.accept(visitor);
   }
 
@@ -158,10 +162,12 @@ public class RexToExpr {
     private final ParseContext context;
     private final RelDataType rowType;
     private final RexBuilder rexBuilder;
+    private final boolean throwUserException;
 
-    Visitor(ParseContext context, RelDataType rowType, RexBuilder rexBuilder) {
+    Visitor(ParseContext context, RelDataType rowType, RexBuilder rexBuilder, boolean throwUserException) {
       super(true);
       this.context = context;
+      this.throwUserException = throwUserException;
       this.rowType = rowType;
       this.rexBuilder = rexBuilder;
     }
@@ -300,10 +306,14 @@ public class RexToExpr {
 
     }
     private LogicalExpression doUnknown(RexNode o){
-      // raise an error
-      throw UserException.planError().message(UNSUPPORTED_REX_NODE_ERROR +
-              "RexNode Class: %s, RexNode Digest: %s", o.getClass().getName(), o.toString()).build(logger);
+      final String message = String.format(UNSUPPORTED_REX_NODE_ERROR + "RexNode Class: %s, RexNode Digest: %s", o.getClass().getName(), o.toString());
+      if(throwUserException) {
+        throw UserException.planError().message(message).build(logger);
+      } else {
+        throw new IllegalStateException(message);
+      }
     }
+
     @Override
     public LogicalExpression visitLocalRef(RexLocalRef localRef) {
       return doUnknown(localRef);
@@ -588,14 +598,15 @@ public class RexToExpr {
         case ("HOUR"):
         case ("MINUTE"):
         case ("SECOND"):
-        case ("MICROSECOND"):
           String functionPostfix = timeUnitStr.substring(0, 1).toUpperCase() + timeUnitStr.substring(1).toLowerCase();
           String functionName = funcName + functionPostfix;
           return FunctionCallFactory.createExpression(functionName, args.subList(1, 3));
+        // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+        // case ("NANOSECOND"):
         default:
           throw UserException.unsupportedError()
               .message(funcName.toUpperCase() + " function supports the following " +
-                  "time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MICROSECOND")
+                  "time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND; and not " + timeUnitStr)
               .build(logger);
       }
     }

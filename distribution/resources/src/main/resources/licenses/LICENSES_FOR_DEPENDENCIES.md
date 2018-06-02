@@ -26,6 +26,7 @@
 |Apache Hadoop Azure support                                 |2.8.0               |Apache 2.0          |
 |Apache Hadoop Client                                        |2.8.0               |Apache 2.0          |
 |Apache Hadoop Common                                        |2.8.0               |Apache 2.0          |
+|Apache Hadoop Common Native Libraries                       |2.8.0               |Apache 2.0          |
 |Apache Hadoop HDFS                                          |2.8.0               |Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |2.8.0               |Apache 2.0          |
 |Apache HBase - Annotations                                  |1.1.3               |Apache 2.0          |
@@ -34,13 +35,13 @@
 |Apache HBase - Protocol                                     |1.1.3               |Apache 2.0          |
 |Apache HBase - Server                                       |1.1.3               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.4               |Apache 2.0          |
-|Apache Parquet Column                                       |1.8.1-fast-201712141648170019-ab0622b|Apache 2.0          |
-|Apache Parquet Common                                       |1.8.1-fast-201712141648170019-ab0622b|Apache 2.0          |
-|Apache Parquet Encodings                                    |1.8.1-fast-201712141648170019-ab0622b|Apache 2.0          |
+|Apache Parquet Column                                       |1.8.1-fast-201804192325500953-3da9318|Apache 2.0          |
+|Apache Parquet Common                                       |1.8.1-fast-201804192325500953-3da9318|Apache 2.0          |
+|Apache Parquet Encodings                                    |1.8.1-fast-201804192325500953-3da9318|Apache 2.0          |
 |Apache Parquet Format (Incubating)                          |2.3.0-incubating-201701192040120487-851e12d|Apache 2.0          |
-|Apache Parquet Generator                                    |1.8.1-fast-201712141648170019-ab0622b|Apache 2.0          |
-|Apache Parquet Hadoop                                       |1.8.1-fast-201712141648170019-ab0622b|Apache 2.0          |
-|Apache Parquet Jackson                                      |1.8.1-fast-201712141648170019-ab0622b|Apache 2.0          |
+|Apache Parquet Generator                                    |1.8.1-fast-201804192325500953-3da9318|Apache 2.0          |
+|Apache Parquet Hadoop                                       |1.8.1-fast-201804192325500953-3da9318|Apache 2.0          |
+|Apache Parquet Jackson                                      |1.8.1-fast-201804192325500953-3da9318|Apache 2.0          |
 |Apache POI                                                  |3.14                |Apache 2.0          |
 |Apache POI                                                  |3.14                |Apache 2.0          |
 |Apache POI                                                  |3.14                |Apache 2.0          |
@@ -58,9 +59,9 @@
 |ApacheDS Protocol Kerberos Codec                            |2.0.0-M15           |Apache 2.0          |
 |API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
-|Arrow Format                                                |0.8.0-201803292058100752-a14b263-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.8.0-201803292058100752-a14b263-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.8.0-201803292058100752-a14b263-dremio|Apache 2.0          |
+|Arrow Format                                                |0.8.0-201804280314010062-9a17ead-dremio203|Apache 2.0          |
+|Arrow Memory                                                |0.8.0-201804280314010062-9a17ead-dremio203|Apache 2.0          |
+|Arrow Vectors                                               |0.8.0-201804280314010062-9a17ead-dremio203|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -83,8 +84,8 @@
 |Bouncy Castle Provider                                      |1.52                |MIT                 |
 |bowser                                                      |1.8.0               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
-|Calcite Core                                                |1.12.0-201803052252550527-b5c76e0|Apache 2.0          |
-|Calcite Linq4j                                              |1.12.0-201803052252550527-b5c76e0|Apache 2.0          |
+|Calcite Core                                                |1.12.0-201805182217160137-2c2a0a8|Apache 2.0          |
+|Calcite Linq4j                                              |1.12.0-201805182217160137-2c2a0a8|Apache 2.0          |
 |chain-function                                              |1.0.0               |MIT                 |
 |change-emitter                                              |0.1.6               |MIT                 |
 |ClassMate                                                   |1.1.0               |Apache 2.0          |
@@ -109,6 +110,7 @@
 |Commons Compress                                            |1.4.1               |Apache 2.0          |
 |Commons Configuration                                       |1.6                 |Apache 2.0          |
 |Commons Daemon                                              |1.0.13              |Apache 2.0          |
+|Commons DBCP                                                |1.4                 |Apache 2.0          |
 |Commons IO                                                  |2.4                 |Apache 2.0          |
 |Commons Lang                                                |2.6                 |Apache 2.0          |
 |Commons Math                                                |2.2                 |Apache 2.0          |
@@ -302,7 +304,7 @@
 |jsplumb                                                     |2.1.4               |MIT                 |
 |JSR166e                                                     |1.1.0               |CC0 1.0 Universal   |
 |JUL to SLF4J bridge                                         |1.7.10              |MIT                 |
-|JVM Integration for Metrics                                 |3.0.1               |Apache 2.0          |
+|JVM Integration for Metrics                                 |4.0.2               |Apache 2.0          |
 |kafka                                                       |0.8.0               |Apache 2.0          |
 |keycode                                                     |2.1.9               |MIT                 |
 |Koloboke Collections API                                    |1.0.0               |Apache 2.0          |
@@ -360,8 +362,9 @@
 |MariaDB                                                     |1.6.2               |LGPL v2.1           |
 |material-ui                                                 |0.16.4              |MIT                 |
 |Metrics Annotations                                         |2.2.0               |Apache 2.0          |
-|Metrics Core                                                |3.0.1               |Apache 2.0          |
+|Metrics Core                                                |4.0.2               |Apache 2.0          |
 |Metrics Core Library                                        |2.2.0               |Apache 2.0          |
+|Metrics Integration with JMX                                |4.0.2               |Apache 2.0          |
 |Microsoft Azure Storage Client SDK                          |2.2.0               |Apache 2.0          |
 |MIME streaming extension                                    |1.9.6               |GPL v2 w/ CPE       |
 |MinLog                                                      |1.3.0               |BSD 3-clause        |

@@ -45,6 +45,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
@@ -67,8 +68,7 @@ public class UnifiedParquetReader implements RecordReader {
   private final OperatorContext context;
   private final ParquetMetadata footer;
   private final ParquetDatasetSplitXAttr readEntry;
-  private final boolean autoCorrectCorruptDates;
-  private final boolean readInt96AsTimeStamp;
+  private final SchemaDerivationHelper schemaHelper;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
   private final List<SchemaPath> realFields;
@@ -76,8 +76,6 @@ public class UnifiedParquetReader implements RecordReader {
   private final GlobalDictionaries dictionaries;
   private final CodecFactory codecFactory;
   private final ParquetReaderFactory readerFactory;
-  // This is NOT a duplicate of realFields, there could be additional fields in columnsInGroupScan
-  private final List<SchemaPath> columnsInGroupScan;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final List<FilterCondition> filterConditions;
 
@@ -92,7 +90,6 @@ public class UnifiedParquetReader implements RecordReader {
       OperatorContext context,
       ParquetReaderFactory readerFactory,
       List<SchemaPath> realFields,
-      List<SchemaPath> columnsInGroupScan,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<FilterCondition> filterConditions,
       ParquetDatasetSplitXAttr readEntry,
@@ -100,27 +97,24 @@ public class UnifiedParquetReader implements RecordReader {
       ParquetMetadata footer,
       GlobalDictionaries dictionaries,
       CodecFactory codecFactory,
-      boolean autoCorrectCorruptDates,
-      boolean readInt96AsTimeStamp,
+      SchemaDerivationHelper schemaHelper,
       boolean vectorize,
       boolean enableDetailedTracing) {
     super();
     this.context = context;
     this.readerFactory = readerFactory;
-    this.columnsInGroupScan = columnsInGroupScan;
     this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.filterConditions = filterConditions;
     this.fs = fs;
     this.footer = footer;
     this.readEntry = readEntry;
-    this.autoCorrectCorruptDates = autoCorrectCorruptDates;
-    this.readInt96AsTimeStamp = readInt96AsTimeStamp;
     this.vectorize = vectorize;
     this.realFields = realFields;
     this.dictionaries = dictionaries;
     this.codecFactory = codecFactory;
     this.enableDetailedTracing = enableDetailedTracing;
     this.useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
+    this.schemaHelper = schemaHelper;
   }
 
   @Override
@@ -266,7 +260,7 @@ public class UnifiedParquetReader implements RecordReader {
         (parquetField.asPrimitiveType().getOriginalType() != OriginalType.DECIMAL
         && parquetField.isPrimitive()
           && (parquetField.asPrimitiveType().getPrimitiveTypeName() != PrimitiveType.PrimitiveTypeName.INT96 ||
-          readInt96AsTimeStamp))) {
+          schemaHelper.readInt96AsTimeStamp()))) {
         vectorizableTypes.add(parquetField);
       } else {
         nonVectorizableTypes.add(parquetField);
@@ -350,9 +344,6 @@ public class UnifiedParquetReader implements RecordReader {
     DEPRECATED_VECTORIZED {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
-        final ParquetMetadata footer = unifiedReader.getFooter();
-        final DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer,
-          unifiedReader.columnsInGroupScan, unifiedReader.autoCorrectCorruptDates);
         List<RecordReader> returnList = new ArrayList<>();
           returnList.add(unifiedReader.addFilterIfNecessary(
             new DeprecatedParquetVectorizedReader(
@@ -361,10 +352,9 @@ public class UnifiedParquetReader implements RecordReader {
               CodecFactory.createDirectCodecFactory(
                 unifiedReader.fs.getConf(),
                 new ParquetDirectByteBufferAllocator(unifiedReader.context.getAllocator()), 0),
-              footer,
+              unifiedReader.getFooter(),
               unifiedReader.realFields,
-              containsCorruptDates,
-              unifiedReader.readInt96AsTimeStamp,
+              unifiedReader.schemaHelper,
               unifiedReader.globalDictionaryFieldInfoMap,
               unifiedReader.dictionaries
             )
@@ -375,20 +365,16 @@ public class UnifiedParquetReader implements RecordReader {
     ROWWISE {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
-        final ParquetMetadata footer = unifiedReader.getFooter();
-        final DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer,
-          unifiedReader.columnsInGroupScan, unifiedReader.autoCorrectCorruptDates);
         List<RecordReader> returnList = new ArrayList<>();
         returnList.add(unifiedReader.addFilterIfNecessary(
           new ParquetRowiseReader(
             unifiedReader.context,
-            footer,
+            unifiedReader.getFooter(),
             unifiedReader.readEntry.getRowGroupIndex(),
             unifiedReader.readEntry.getPath(),
             unifiedReader.realFields,
             unifiedReader.fs,
-            containsCorruptDates,
-            unifiedReader.readInt96AsTimeStamp,
+            unifiedReader.schemaHelper,
             unifiedReader.useSingleStream
           )
         ));
@@ -398,10 +384,6 @@ public class UnifiedParquetReader implements RecordReader {
     VECTORIZED {
       @Override
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
-        final ParquetMetadata footer = unifiedReader.getFooter();
-        final DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(footer,
-          unifiedReader.columnsInGroupScan, unifiedReader.autoCorrectCorruptDates);
-
         boolean isVectorizableFilterOn = unifiedReader.isConditionSet(unifiedReader.vectorizableReaderColumns,
           unifiedReader.nonVectorizableReaderColumns);
         final SimpleIntVector deltas;
@@ -415,33 +397,31 @@ public class UnifiedParquetReader implements RecordReader {
         if (!unifiedReader.vectorizableReaderColumns.isEmpty() || unifiedReader.nonVectorizableReaderColumns.isEmpty()) {
           returnList.add(
               unifiedReader.readerFactory.newReader(
-              unifiedReader.context,
-              unifiedReader.vectorizableReaderColumns,
-              unifiedReader.fs,
-              unifiedReader.readEntry.getPath(),
-              unifiedReader.codecFactory,
-              unifiedReader.filterConditions,
-              containsCorruptDates,
-              unifiedReader.readInt96AsTimeStamp,
-              unifiedReader.enableDetailedTracing,
-              footer,
-              unifiedReader.readEntry.getRowGroupIndex(),
-              deltas,
-              unifiedReader.useSingleStream
-            )
+                  unifiedReader.context,
+                  unifiedReader.vectorizableReaderColumns,
+                  unifiedReader.fs,
+                  unifiedReader.readEntry.getPath(),
+                  unifiedReader.codecFactory,
+                  unifiedReader.filterConditions,
+                  unifiedReader.enableDetailedTracing,
+                  unifiedReader.getFooter(),
+                  unifiedReader.readEntry.getRowGroupIndex(),
+                  deltas,
+                  unifiedReader.schemaHelper,
+                  unifiedReader.useSingleStream
+              )
           );
         }
         if (!unifiedReader.nonVectorizableReaderColumns.isEmpty()) {
           returnList.add(
             new ParquetRowiseReader(
               unifiedReader.context,
-              footer,
+              unifiedReader.getFooter(),
               unifiedReader.readEntry.getRowGroupIndex(),
               unifiedReader.readEntry.getPath(),
               unifiedReader.nonVectorizableReaderColumns,
               unifiedReader.fs,
-              containsCorruptDates,
-              unifiedReader.readInt96AsTimeStamp,
+              unifiedReader.schemaHelper,
               deltas,
               unifiedReader.useSingleStream
             )

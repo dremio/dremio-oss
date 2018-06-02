@@ -20,14 +20,14 @@ import static java.lang.String.format;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -47,6 +47,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapred.FileAlreadyExistsException;
 import org.apache.hadoop.security.AccessControlException;
@@ -109,13 +110,12 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   private FileSystem underlyingFS;
 
   /**
-   * Set current context that will be shared by all PDFS instances
+   * Set global configuration that will be shared by all PDFS instances
    *
-   * @param context
-   *          the SabotContext instance to use
-   * @throws IOException
+   * @param config
+   *          the configuration to use
    */
-  public static synchronized void configure(PDFSConfig config) throws IOException {
+  public static synchronized void configure(PDFSConfig config) {
     PseudoDistributedFileSystem.globalConfig = Preconditions.checkNotNull(config);
   }
 
@@ -622,16 +622,45 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
 
   @Override
   public FileStatus[] listStatus(Path f) throws FileNotFoundException, IOException {
-    Path absolutePath = toAbsolutePath(f);
+    final RemoteIterator<FileStatus> remoteIterator = listStatusIterator(f);
+
+    // Note: RemoteIterator has no relation to java.util.Iterator so frequently used
+    // helper functions can't be called on them.
+    final List<FileStatus> statuses = Lists.newArrayList();
+    while (remoteIterator.hasNext()) {
+      statuses.add(remoteIterator.next());
+    }
+
+    return statuses.toArray(new FileStatus[0]);
+  }
+
+  @Override
+  public RemoteIterator<FileStatus> listStatusIterator(Path f) throws FileNotFoundException, IOException {
+    final Path absolutePath = toAbsolutePath(f);
     checkPath(absolutePath);
 
     if (isRemoteFile(absolutePath)) {
-      return new FileStatus[] { getFileStatus(absolutePath) };
+      return new RemoteIterator<FileStatus>() {
+        private boolean hasNext = true;
+        @Override
+        public boolean hasNext() throws IOException {
+          return hasNext;
+        }
+
+        @Override
+        public FileStatus next() throws IOException {
+          if (!hasNext) {
+            throw new NoSuchElementException();
+          }
+
+          hasNext = false;
+          return getFileStatus(absolutePath);
+        }
+      };
     }
 
-    return new ListStatusTask(absolutePath).get();
+    return new ListStatusIteratorTask(absolutePath).get();
   }
-
 
   @Override
   public void setWorkingDirectory(Path newDir) {
@@ -657,7 +686,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
 
     if (isRemoteFile(absolutePath)) {
-      // Attemping to create a subdirectory for a file
+      // Attempting to create a subdirectory for a file
       throw new IOException("Cannot create a directory under file " + f);
     }
 
@@ -766,6 +795,32 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
   }
 
+  /**
+   * Checks if a status for a file appears more than once.
+   * @param newStatus The new status for a file.
+   * @param oldStatuses Map of paths to previous file statuses.
+   * @return True if the file has already appeared. False otherwise.
+   */
+  private static boolean checkDuplicateFileStatus(FileStatus newStatus, Map<String, FileStatus> oldStatuses) {
+    final FileStatus previousStatus = oldStatuses.put(newStatus.getPath().getName(), newStatus);
+    if (previousStatus != null) {
+      // merge conflict
+      if (previousStatus.isDirectory() != newStatus.isDirectory()) {
+        // Trying to merge a file and a directory but it's not supposed to happen
+        throw new IllegalStateException("Attempting to merge a file and a directory");
+      }
+
+      if (previousStatus.isFile()) {
+        // Trying to merge two files from different endpoints. Should not be possible either
+        throw new IllegalStateException("Attempting to merge two files for the same remote endpoint");
+      }
+
+      // TODO: DX-11234 Identify the correct behavior when multiple nodes have the same directory.
+      return true;
+    }
+    return false;
+  }
+
   private abstract class PDFSDistributedTask<V> {
     protected Iterable<Future<V>> map() throws IOException {
       Iterable<NodeEndpoint> endpoints = endpointProvider.get();
@@ -808,82 +863,109 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
   }
 
-
-  private class ListStatusTask extends PDFSDistributedTask<FileStatus[]> {
-    public ListStatusTask(Path path) {
+  private class ListStatusIteratorTask extends PDFSDistributedTask<RemoteIterator<FileStatus>> {
+    public ListStatusIteratorTask(Path path) {
       super(path);
     }
 
     @Override
-    protected Callable<FileStatus[]> newMapTask(final String address) throws IOException {
-      return new Callable<FileStatus[]>() {
+    protected Callable<RemoteIterator<FileStatus>> newMapTask(final String address) throws IOException {
+      return new Callable<RemoteIterator<FileStatus>>() {
         @Override
-        public FileStatus[] call() throws Exception {
+        public RemoteIterator<FileStatus> call() throws Exception {
           // Only directories should be listed with a fork/join task
           final FileSystem fs = getDelegateFileSystem(address);
           FileStatus status = fs.getFileStatus(path);
           if (status.isFile()) {
             throw new FileNotFoundException("Directory not found: " + path);
           }
-          FileStatus[] remoteStatuses = fs.listStatus(path);
+          final RemoteIterator<FileStatus> remoteStatusIter = fs.listStatusIterator(path);
+          return new RemoteIterator<FileStatus>() {
+            @Override
+            public boolean hasNext() throws IOException {
+              return remoteStatusIter.hasNext();
+            }
 
-          FileStatus[] statuses = new FileStatus[remoteStatuses.length];
-          for (int i = 0; i < statuses.length; i++) {
-            statuses[i] = fixFileStatus(address, remoteStatuses[i]);
-          }
-
-          return statuses;
+            @Override
+            public FileStatus next() throws IOException {
+              return fixFileStatus(address, remoteStatusIter.next());
+            }
+          };
         }
       };
     }
 
     @Override
-    protected FileStatus[] reduce(Iterable<Future<FileStatus[]>> futures) throws IOException {
-      SortedMap<String, FileStatus> statuses = new TreeMap<>(Collator.getInstance(Locale.ROOT));
+    protected RemoteIterator<FileStatus> reduce(final Iterable<Future<RemoteIterator<FileStatus>>> futures) throws IOException {
+      return new RemoteIterator<FileStatus>() {
+        private final Iterator<Future<RemoteIterator<FileStatus>>> statusIteratorIterator = futures.iterator();
+        private RemoteIterator<FileStatus> currentRemoteIterator = null;
+        private final Map<String, FileStatus> previousStatuses = new HashMap<>();
+        private FileStatus nextAvailableStatus = null;
 
-      boolean found = false;
-      for(Future<FileStatus[]> f: futures) {
-        FileStatus[] subResult;
-        try {
-          subResult = f.get();
-        } catch(ExecutionException e) {
-          if (e.getCause() instanceof FileNotFoundException) {
-            // ignore
-            continue;
+        @Override
+        public boolean hasNext() throws IOException {
+          // We have a status that was consumed by calling hasNext() without yet calling
+          // next(). Just return true since the user hasn't actually iterated.
+          if (nextAvailableStatus != null) {
+            return true;
           }
-          Throwables.propagateIfPossible(e.getCause(), IOException.class);
-          throw new RuntimeException(e);
-        } catch(InterruptedException e) {
-          throw new RuntimeException(e);
-        }
 
-        // Indicate that at least this directory at least exist on one remote
-        found = true;
+          // Loop until we get a RemoteIterator with data.
+          while (true) {
+            while (currentRemoteIterator == null
+              || !currentRemoteIterator.hasNext()) {
 
-        for(FileStatus status: subResult) {
-          FileStatus previous = statuses.put(status.getPath().getName(), status);
-          if (previous != null) {
-            // merge conflict
-            if (previous.isDirectory() != status.isDirectory()) {
-              // Trying to merge a file and a directory but it's not supposed to happen
-              throw new IllegalStateException("Attempting to merge a file and a directory");
+              // If there are no more Futures, stop.
+              if (!statusIteratorIterator.hasNext()) {
+                if (currentRemoteIterator == null) {
+                  // We did not get any valid futures which means the directory did
+                  // not exist on any nodes.
+                  throw new FileNotFoundException("Path not found: " + path);
+                }
+                return false;
+              } else {
+                try {
+                  // Evaluate the next future (results from a different node).
+                  currentRemoteIterator = statusIteratorIterator.next().get();
+                } catch (ExecutionException e) {
+                  if (e.getCause() instanceof FileNotFoundException) {
+                    // ignore
+                    continue;
+                  }
+                  Throwables.propagateIfPossible(e.getCause(), IOException.class);
+                  throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
+              }
+            }
+            // We got a new status from a RemoteIterator. Check if it's a duplicate.
+            nextAvailableStatus = currentRemoteIterator.next();
+
+            if (!checkDuplicateFileStatus(nextAvailableStatus, previousStatuses)) {
+              // Not a duplicate.
+              return true;
             }
 
-            if (previous.isFile()) {
-              // Trying to merge two files from different endpoints. Should not be possible either
-              throw new IllegalStateException("Attempting to merge two files for the same remote endpoint");
-            }
-
-            // What to do for merging directories together?
+            // Was a duplicate. Go back to the inner loop to find another status.
+            // Also reset nextAvailableStatus to null to invalidate it.
+            nextAvailableStatus = null;
           }
         }
-      }
 
-      if (!found) {
-        throw new FileNotFoundException("Path not found: " + path);
-      }
+        @Override
+        public FileStatus next() throws IOException {
+          if (hasNext()) {
+            // Reset nextAvailableStatus so that hasNext knows to search for a new one.
+            final FileStatus status = nextAvailableStatus;
+            nextAvailableStatus = null;
+            return status;
+          }
 
-      return statuses.values().toArray(new FileStatus[0]);
+          throw new NoSuchElementException();
+        }
+      };
     }
   }
 

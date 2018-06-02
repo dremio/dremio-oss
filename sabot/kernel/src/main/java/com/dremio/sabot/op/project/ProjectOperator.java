@@ -113,7 +113,7 @@ public class ProjectOperator implements SingleInputOperator {
         outgoing.addOrGet(expr.getCompleteType().toField(namedExpression.getRef()));
         // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
         ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) expr).getHolder()).setReference(namedExpression.getRef());
-        cg.addExpr(expr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE);
+        cg.addExpr(expr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
         break;
       }
 
@@ -135,7 +135,7 @@ public class ProjectOperator implements SingleInputOperator {
         final TypedFieldId fid = outgoing.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
         final boolean useSetSafe = !(vector instanceof FixedWidthVector);
         final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
-        final HoldingContainer hc = cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE);
+        final HoldingContainer hc = cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
 
         // We cannot do multiple transfers from the same vector. However we still need to instantiate the output vector.
         if (expr instanceof ValueVectorReadExpression) {

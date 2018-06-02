@@ -83,7 +83,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
 
   @Test
   public void testIsDate2() throws Exception {
-    DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD");
+    DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
     testBuilder()
         .sqlQuery("select case when isdate(date1) then cast(date1 as date) else null end res1 from " + dateValues)
         .unOrdered()
@@ -100,7 +100,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
 
   @Test
   public void testUnixTimeStampForDate() throws Exception {
-    DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
+    DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
     date = formatter.parseLocalDateTime("2009-03-20 11:30:01");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
     testBuilder()
@@ -141,7 +141,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
 
   @Test
   public void testUnixTimeStampForDateWithPattern() throws Exception {
-    DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH:MI:SS.FFF");
+    DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH:MI:SS.FFF");
     date = formatter.parseLocalDateTime("2009-03-20 11:30:01.0");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
 
@@ -152,7 +152,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
         .baselineValues(unixTimeStamp)
         .build().run();
 
-    formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD");
+    formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
     date = formatter.parseLocalDateTime("2009-03-20");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
 

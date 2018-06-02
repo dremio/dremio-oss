@@ -18,6 +18,10 @@ package com.dremio.exec.planner.logical;
 import org.apache.calcite.rel.rules.PushProjector;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+
+import com.google.common.collect.ImmutableSet;
 
 public final class Conditions {
 
@@ -47,4 +51,15 @@ public final class Conditions {
       return false;
     }
   };
+
+  /**
+   * Avoid decomposing any expression where we might change the short circuit behavior, similar to
+   * the preserve case above, just covers and & or as additional potential short circuit operators.
+   */
+  public static PushProjector.ExprCondition SHORT_CIRCUIT_AND_ITEM = new PushProjector.OperatorExprCondition(ImmutableSet.<SqlOperator>of(
+      SqlStdOperatorTable.CASE,
+      SqlStdOperatorTable.ITEM,
+      SqlStdOperatorTable.AND,
+      SqlStdOperatorTable.OR
+      ));
 }

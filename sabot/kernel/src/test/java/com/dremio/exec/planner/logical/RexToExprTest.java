@@ -24,14 +24,13 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.DremioRexBuilder;
-import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.google.common.collect.ImmutableList;
 
 public class RexToExprTest {
@@ -43,7 +42,7 @@ public class RexToExprTest {
   public void testUnsupportedRexNode() {
     try {
       // Create the data type factory.
-      RelDataTypeFactory relFactory = new SqlTypeFactoryImpl(RelDataTypeSystemImpl.REL_DATATYPE_SYSTEM);
+      RelDataTypeFactory relFactory = SqlTypeFactoryImpl.INSTANCE;
       // Create the rex builder
       RexBuilder rex = new DremioRexBuilder(relFactory);
       RelDataType anyType = relFactory.createSqlType(SqlTypeName.ANY);

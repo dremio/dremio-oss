@@ -36,10 +36,27 @@ public class TestParquetPartitionPruning extends PlanTestBase {
       .go();
   }
 
+  @Test // DX-9408
+  public void pruningBasedOnCurrentTimeStamp() throws Exception {
+    final String query = "SELECT ts FROM cp.`parquet/singlets.parquet` WHERE ts > CURRENT_TIMESTAMP";
+
+    testPlanMatchingPatterns(query, new String[]{"Empty"}, "Filter");
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("ts")
+        .expectsEmptyResultSet()
+        .go();
+  }
+
   @Test // DX-9034
   public void pruningEverythingAcrossUnion() throws Exception {
     String sql = "select ts from cp.`parquet/singlets.parquet` where ts = TIMESTAMP '1908-10-05 05:13:14.000'" +
         "UNION ALL select ts from cp.`parquet/singlets.parquet` where ts = TIMESTAMP '1908-10-05 05:13:14.000'";
+
+    testPlanMatchingPatterns(sql, new String[]{"Empty"}, "Filter");
+
     testBuilder()
         .sqlQuery(sql)
         .unOrdered()

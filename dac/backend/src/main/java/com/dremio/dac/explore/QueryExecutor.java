@@ -24,8 +24,6 @@ import java.util.List;
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 
-import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +34,7 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.job.proto.JobState;
@@ -136,7 +135,7 @@ public class QueryExecutor {
   public List<String> getColumnList(final String username, DatasetPath path) {
     Catalog catalog = catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
     DremioTable table = catalog.getTable(path.toNamespaceKey());
-    return table.getRowType(new SqlTypeFactoryImpl(RelDataTypeSystem.DEFAULT)).getFieldNames();
+    return table.getRowType(SqlTypeFactoryImpl.INSTANCE).getFieldNames();
   }
 
   // TODO, this should be moved to dataset resource and be paginated.

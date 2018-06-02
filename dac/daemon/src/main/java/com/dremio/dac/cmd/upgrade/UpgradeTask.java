@@ -26,8 +26,9 @@ public abstract class UpgradeTask {
   protected static final Version VERSION_111 = new Version("1.1.1", 1, 1, 1, 0, "");
   protected static final Version VERSION_120 = new Version("1.2.0", 1, 2, 0, 0, "");
   protected static final Version VERSION_130 = new Version("1.3.0", 1, 3, 0, 0, "");
-  protected static final Version VERSION_140 = new Version("1.4.0", 1, 4, 0, 0, "");
   protected static final Version VERSION_150 = new Version("1.5.0", 1, 5, 0, 0, "");
+  protected static final Version VERSION_203 = new Version("2.0.3", 2, 0, 3, 0, "");
+  protected static final Version VERSION_205 = new Version("2.0.5", 2, 0, 5, 0, "");
 
   private final String name;
   private final Version minVersion; // task cannot be run if KVStore version is below min

@@ -120,4 +120,23 @@ public class TestHBaseQueries extends BaseHBaseTest {
       .go();
   }
 
+  @Test
+  public void queryNonDefaultNamespace() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM hbase." +
+            HBaseTestsSuite.TEST_TABLE_NON_DEFAULT_NAMESPACE.getNamespaceAsString() + "." +
+            HBaseTestsSuite.TEST_TABLE_NON_DEFAULT_NAMESPACE.getQualifierAsString())
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(8L)
+        .go();
+  }
+
+  @Test
+  public void queryNonDefaultNamespace2() throws Exception {
+    runHBaseSQLVerifyCount("SELECT * FROM hbase." +
+            HBaseTestsSuite.TEST_TABLE_NON_DEFAULT_NAMESPACE.getNamespaceAsString() + "." +
+            HBaseTestsSuite.TEST_TABLE_NON_DEFAULT_NAMESPACE.getQualifierAsString(),
+        8);
+  }
 }

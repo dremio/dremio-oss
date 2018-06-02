@@ -16,15 +16,15 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.google.common.collect.ImmutableList;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
@@ -59,7 +59,7 @@ public class TestValuesRel {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     // Mock cluster - Handle getter for type factory.
-    typeFactory = new JavaTypeFactoryImpl();
+    typeFactory = JavaTypeFactoryImpl.INSTANCE;
     when(cluster.getTypeFactory()).thenReturn(typeFactory);
   }
 
@@ -69,7 +69,7 @@ public class TestValuesRel {
     final int INListLength = 20;
 
     // Build RowType & Tuples
-    RelDataTypeField relDataType = new RelDataTypeFieldImpl("ROW_VALUE", 0, new BasicSqlType(RelDataTypeSystemImpl.DEFAULT, SqlTypeName.ANY));
+    RelDataTypeField relDataType = new RelDataTypeFieldImpl("ROW_VALUE", 0, new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.ANY));
     RelDataType rowType = new RelRecordType(StructKind.FULLY_QUALIFIED, Arrays.asList(relDataType));
     ImmutableList.Builder<ImmutableList<RexLiteral>> tuples = new ImmutableList.Builder<>();
     for (int i = 0; i < INListLength; i++) {
@@ -95,7 +95,7 @@ public class TestValuesRel {
     final int INListLength = 20;
 
     // Build RowType & Tuples
-    RelDataTypeField relDataType = new RelDataTypeFieldImpl("ROW_VALUE", 0, new BasicSqlType(RelDataTypeSystemImpl.DEFAULT, SqlTypeName.ANY));
+    RelDataTypeField relDataType = new RelDataTypeFieldImpl("ROW_VALUE", 0, new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.ANY));
     RelDataType rowType = new RelRecordType(StructKind.FULLY_QUALIFIED, Arrays.asList(relDataType));
     ImmutableList.Builder<ImmutableList<RexLiteral>> tuples = new ImmutableList.Builder<>();
     for (int i = 0; i < INListLength; ++i) {

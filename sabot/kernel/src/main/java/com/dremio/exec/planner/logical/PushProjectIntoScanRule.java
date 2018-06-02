@@ -51,7 +51,7 @@ public class PushProjectIntoScanRule extends RelOptRule {
       return;
     }
 
-    final RelNode newScan = scan.cloneWithProject(columnInfo.columns);
+    ScanCrel newScan = scan.cloneWithProject(columnInfo.columns);
 
     List<RexNode> newProjects = Lists.newArrayList();
     for (RexNode n : proj.getChildExps()) {
@@ -68,6 +68,11 @@ public class PushProjectIntoScanRule extends RelOptRule {
         && newScan.getRowType().getFullTypeString().equals(newProj.getRowType().getFullTypeString())) {
         call.transformTo(newScan);
     } else {
+      if(newScan.getProjectedColumns().equals(scan.getProjectedColumns())) {
+        // no point in doing a pushdown that doesn't change anything.
+        return;
+      }
+
       call.transformTo(newProj);
     }
   }

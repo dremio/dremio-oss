@@ -28,5 +28,5 @@ public interface TaskDescriptor {
 
   long getSleepDuration();
 
-  long getBlockedDuration();
+  long getTotalBlockedDuration();
 }

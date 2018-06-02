@@ -18,6 +18,7 @@ package com.dremio.plugins.elastic;
 
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -160,27 +161,40 @@ public class ElasticActions {
     }
   }
 
-  public static class Search extends ElasticAction2<byte[]> {
+  public static class SearchBytes extends Search<byte[]> {
+
+    public SearchBytes() {
+      super(byte[].class);
+    }
+  }
+
+  public static class SearchInputStream extends Search<InputStream> {
+    public SearchInputStream() {
+      super(InputStream.class);
+    }
+  }
+
+  public static abstract class Search<T> extends ElasticAction2<T> {
     private String query;
     private String resource;
     private Map<String,String> parameters = new HashMap<>();
 
 
-    public Search() {
-      super("start search", byte[].class);
+    public Search(Class<T> clazz) {
+      super("start search", clazz);
     }
 
-    public Search setQuery(String query){
+    public Search<T> setQuery(String query){
       this.query = query;
       return this;
     }
 
-    public Search setResource(String resource){
+    public Search<T> setResource(String resource){
       this.resource = resource;
       return this;
     }
 
-    public Search setParameter(String key, String value) {
+    public Search<T> setParameter(String key, String value) {
       parameters.put(key, value);
       return this;
     }

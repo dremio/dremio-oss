@@ -107,6 +107,18 @@ public class TestCaseNullableTypes extends BaseTestQuery {
         .go();
   }
 
+
+  @Test
+  public void caseNullableTimestampEquality() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT (res1 = CAST('2016-11-17 14:43:23' AS TIMESTAMP)) res2" +
+            " FROM (SELECT (CASE WHEN (false) THEN null ELSE CAST('2016-11-17 14:43:23' AS TIMESTAMP) END) res1 FROM (values(1)))")
+        .unOrdered()
+        .baselineColumns("res2")
+        .baselineValues(true)
+        .go();
+  }
+
   @Test
   public void testNestedCaseNullableTypes() throws Exception {
     testBuilder()
@@ -129,7 +141,7 @@ public class TestCaseNullableTypes extends BaseTestQuery {
 
   @Test //DRILL-5048
   public void testCaseNullableTimestamp() throws Exception {
-    LocalDateTime date = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")
+    LocalDateTime date = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")
       .parseLocalDateTime("2016-11-17 14:43:23");
 
     testBuilder()

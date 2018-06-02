@@ -31,4 +31,8 @@ public class SharedResourcesContextImpl implements SharedResourcesContext {
     return manager.isAvailable();
   }
 
+  @Override
+  public SharedResourceType getFirstBlockedResource(String groupName) {
+    return manager.getFirstBlockedResource(groupName);
+  }
 }

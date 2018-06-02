@@ -158,16 +158,8 @@ export default class MainInfo extends Component {
 
   getRow(item) {
     //@TODO API for folders not correct, need to change
-    const [name, datasets, jobs, descendant, action] = this.getTableColumns();
-    const isFolder = item.get('entityType') === 'folder';
-    const datasetCount = isFolder
-      ? item.getIn(['extendedConfig', 'datasetCount'])
-      : item.get('datasetCount');
-    const jobsCount = item.get('jobCount') || item.getIn(['extendedConfig', 'jobCount']) || 0;
-    const descendantsCount = isFolder ? item.getIn(['extendedConfig', 'descendants']) : item.get('descendants');
-    const descendantsNode = isFolder
-      ? item.getIn(['extendedConfig', 'descendants'])
-      : this.getDescendantLink(item);
+    const [name, jobs, action] = this.getTableColumns();
+    const jobsCount = item.get('jobCount') || item.getIn(['extendedConfig', 'jobCount']) || la('—');
     return {
       rowClassName: item.get('name'),
       data: {
@@ -175,17 +167,9 @@ export default class MainInfo extends Component {
           node: () => <MainInfoItemName item={item}/>,
           value: item.get('name')
         },
-        [datasets.key]: {
-          node: () => datasetCount || datasetCount === 0 ? datasetCount : '—',
-          value: datasetCount === undefined ? -1 : datasetCount
-        },
         [jobs.key]: {
           node: () => <Link to={item.getIn(['links', 'jobs'])}>{jobsCount}</Link>,
           value: jobsCount
-        },
-        [descendant.key]: {
-          node: () => descendantsNode || descendantsNode === 0 ? descendantsNode : '—',
-          value: descendantsCount === undefined ? -1 : descendantsCount
         },
         // todo: fileType vs entityType?
         [action.key]: {
@@ -199,9 +183,7 @@ export default class MainInfo extends Component {
     const { intl } = this.props;
     return [
       { key: 'name', title: intl.formatMessage({id: 'Common.Name'}), flexGrow: 1 },
-      { key: 'datasets', title: intl.formatMessage({id: 'Dataset.Datasets'}), style: tableStyles.datasetsColumn },
       { key: 'jobs', title: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 50 },
-      { key: 'descendants', title: intl.formatMessage({id: 'Dataset.Descendants'}), style: tableStyles.digitColumn },
       {
         key: 'action',
         title: intl.formatMessage({id: 'Common.Action'}),

@@ -35,8 +35,8 @@ import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.fragment.PlanningSet;
-import com.dremio.exec.planner.logical.JdbcRel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.proto.JoinInfo;
@@ -462,9 +462,9 @@ public class QueryMetadata {
 
       @Override
       public RelNode visit(RelNode other) {
-        if (other instanceof JdbcRel) {
-          JdbcRel jdbcRel = (JdbcRel)other;
-          jdbcRel.getJdbcSubTree().accept(this);
+        if (other instanceof ContainerRel) {
+          ContainerRel containerRel = (ContainerRel)other;
+          containerRel.getSubTree().accept(this);
         }
         return super.visit(other);
       }

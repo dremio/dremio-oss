@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import static com.dremio.exec.planner.sql.SqlConverter.TYPE_SYSTEM;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -27,7 +26,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -52,6 +50,7 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.OptionValue;
@@ -72,7 +71,7 @@ import com.google.common.collect.Lists;
 public class TestSimpleLimitExchangeRemover {
 
   private static final RelTraitSet traits = RelTraitSet.createEmpty().plus(Prel.PHYSICAL);
-  private static final RelDataTypeFactory typeFactory = new JavaTypeFactoryImpl(TYPE_SYSTEM);
+  private static final RelDataTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
   private static final RexBuilder rexBuilder = new RexBuilder(typeFactory);
 
   private OptionManager optionManager;

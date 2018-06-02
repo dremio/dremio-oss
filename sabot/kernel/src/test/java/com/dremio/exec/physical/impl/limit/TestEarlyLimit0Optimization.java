@@ -120,7 +120,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
 
   @Test
   public void simpleSelect() throws Exception {
-    DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD");
+    DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
     testBuilder()
         .sqlQuery(String.format("SELECT * FROM %s", viewName))
         .ordered()

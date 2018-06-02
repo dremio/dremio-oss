@@ -36,9 +36,12 @@ import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
+import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
 import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
 import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
+import org.apache.calcite.rel.rules.ProjectRemoveRule;
+import org.apache.calcite.rel.rules.ProjectSetOpTransposeRule;
 import org.apache.calcite.rel.rules.ProjectToWindowRule;
 import org.apache.calcite.rel.rules.ProjectWindowTransposeRule;
 import org.apache.calcite.rel.rules.ReduceExpressionsRule;
@@ -52,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.AggregateRule;
 import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.DremioRelFactories;
@@ -120,7 +124,7 @@ public enum PlannerPhase {
   JDBC_PUSHDOWN("JDBC Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      return RuleSets.ofList(AggregateReduceFunctionsRule.INSTANCE);
+      return RuleSets.ofList(AggregateReduceFunctionsRule.NO_REDUCE_SUM);
           // Query 13 of TPCH pushdown fails:  There is a join condition with an expression (not like '%%somestring%%').
           // This join condition is turned into Filter(InputRef $X)-Project(expression(InputRef $Y not like '%%somestring%%').
           // Since Oracle does not support boolean expressions in select list, we do not allow a project with boolean
@@ -131,6 +135,16 @@ public enum PlannerPhase {
           // two rules can interfere with subsequent planning phases, especially WINDOW_REWRITE.
           // JOIN_CONDITION_PUSH_CALCITE_RULE,
           // PushFilterPastProjectRule.CALCITE_INSTANCE,
+    }
+  },
+
+
+  // fake for reporting purposes.
+  FIELD_TRIMMING("Field Trimming") {
+
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      throw new UnsupportedOperationException();
     }
   },
 
@@ -147,6 +161,40 @@ public enum PlannerPhase {
           PushFilterPastProjectRule.INSTANCE,
           PushProjectPastJoinRule.LOGICAL_INSTANCE
       );
+    }
+  },
+
+  PRE_LOGICAL("Pre-Logical Filter Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(
+          PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
+
+          // Add support for WHERE style joins.
+          FILTER_INTO_JOIN_CALCITE_RULE,
+          JOIN_CONDITION_PUSH_CALCITE_RULE,
+          JOIN_PUSH_EXPRESSIONS_RULE,
+          // End support for WHERE style joins.
+
+          FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
+          FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
+          FILTER_MERGE_CALCITE_RULE,
+
+          PushProjectPastJoinRule.CALCITE_INSTANCE,
+          ProjectWindowTransposeRule.INSTANCE,
+          ProjectSetOpTransposeRule.INSTANCE,
+          MergeProjectRule.CALCITE_INSTANCE
+
+          // This can't run here because even though it is heuristic, it causes acceleration matches to fail.
+          // PushProjectIntoScanRule.INSTANCE
+          );
+    }
+  },
+
+  POST_SUBSTITUTION("Post-substitution normalization") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return PRE_LOGICAL.getRules(context);
     }
   },
 
@@ -171,14 +219,30 @@ public enum PlannerPhase {
   LOGICAL("Logical Planning", true) {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      RuleSet ruleSet = LOGICAL_RULE_SET;
 
-
-      if(!context.getPlannerSettings().isFilterFlattenTransposeEnabled()){
-        return ruleSet;
+      List<RelOptRule> moreRules = new ArrayList<>();
+      if(context.getPlannerSettings().isTransitiveJoinEnabled()) {
+        moreRules.add(new JoinPushTransitivePredicatesRule(JoinRel.class, DremioRelFactories.LOGICAL_BUILDER));
       }
 
-      return PlannerPhase.mergedRuleSets(ruleSet, RuleSets.ofList(FilterFlattenTransposeRule.INSTANCE));
+      if(context.getPlannerSettings().isTransposeProjectFilterLogicalEnabled()) {
+        moreRules.add(PUSH_PROJECT_PAST_FILTER_CALCITE_RULE);
+      }
+
+      if(context.getPlannerSettings().isFilterFlattenTransposeEnabled()){
+        moreRules.add(FilterFlattenTransposeRule.INSTANCE);
+      }
+
+      if(context.getPlannerSettings().isProjectLogicalCleanupEnabled()) {
+        moreRules.add(MergeProjectRule.CALCITE_INSTANCE);
+        moreRules.add(ProjectRemoveRule.INSTANCE);
+
+      }
+      if(moreRules.isEmpty()) {
+        return LOGICAL_RULE_SET;
+      }
+
+      return PlannerPhase.mergedRuleSets(LOGICAL_RULE_SET, RuleSets.ofList(moreRules));
     }
 
     @Override
@@ -240,7 +304,8 @@ public enum PlannerPhase {
   /**
    * Planner rule that combines two {@link Filter}s.
    */
-  static final FilterMergeCrule FILTER_MERGE_CALCITE_RULE = new FilterMergeCrule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  static final FilterMergeCrule FILTER_MERGE_CALCITE_RULE = new FilterMergeCrule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  static final FilterMergeCrule FILTER_MERGE_DRULE = new FilterMergeCrule(FilterRel.class, DremioRelFactories.LOGICAL_BUILDER);
 
   /**
    * Planner rule that pushes a {@link Filter} past a
@@ -299,13 +364,14 @@ public enum PlannerPhase {
     new ProjectFilterTransposeRule(LogicalProject.class, LogicalFilter.class,
       DremioRelFactories.CALCITE_LOGICAL_BUILDER, Conditions.PRESERVE_ITEM_CASE);
 
+
   /**
    * Planner rule that pushes a {@link org.apache.calcite.rel.core.Filter}
    * past a {@link org.apache.calcite.rel.core.Aggregate}.
    */
-  static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE =
-    new FilterAggregateTransposeRule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      LogicalAggregate.class);
+  static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE = new FilterAggregateTransposeRule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER, LogicalAggregate.class);
+
+  static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_DRULE = new FilterAggregateTransposeRule(FilterRel.class, DremioRelFactories.LOGICAL_BUILDER, AggregateRel.class);
 
   /*
    * Planner rules that pushes a {@link LogicalFilter} past a {@link LogicalProject}.
@@ -329,8 +395,7 @@ public enum PlannerPhase {
   final static RelOptRule PUSH_PROJECT_PAST_FILTER_INSTANCE = new ProjectFilterTransposeRule(
     ProjectRel.class,
     FilterRel.class,
-    DremioRelFactories.LOGICAL_PROPAGATE_BUILDER,
-    Conditions.PRESERVE_ITEM_CASE);
+    DremioRelFactories.LOGICAL_PROPAGATE_BUILDER, Conditions.PRESERVE_ITEM_CASE);
 
   /**
    * Get the list of enabled reduce expression (logical) rules. These rules are enabled using session/system options.
@@ -365,11 +430,21 @@ public enum PlannerPhase {
   // These logical rules don't require any context, so singleton instances can be used.
   static final RuleSet LOGICAL_RULE_SET = RuleSets.ofList(ImmutableSet.<RelOptRule>builder()
     .add(
-      // Add support for Distinct Union (by using Union-All followed by Distinct)
+      /*
+       * Aggregate optimization rules
+       */
       UnionToDistinctRule.INSTANCE,
-
+      AggregateRemoveRule.INSTANCE,
       AggregateReduceFunctionsRule.INSTANCE,
       AggregateExpandDistinctAggregatesRule.JOIN,
+
+      /*
+       * Filter push-down related rules.
+       * Do these as part of Drel, not Crel optimization (to avoid interplay with project crel rules).
+       *
+       * Note that these are unlikely to make any changes unless
+       */
+      PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
 
       // Add support for WHERE style joins.
       FILTER_INTO_JOIN_CALCITE_RULE,
@@ -377,30 +452,27 @@ public enum PlannerPhase {
       JOIN_PUSH_EXPRESSIONS_RULE,
       // End support for WHERE style joins.
 
-
-      /*
-       Filter push-down related rules
-       */
+      FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
       FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
       FILTER_MERGE_CALCITE_RULE,
-      PushProjectPastJoinRule.CALCITE_INSTANCE,
-      PushFilterPastProjectRule.CALCITE_INSTANCE,
-      // Due to infinite loop in planning (DRILL-3257), temporarily disable this rule
-      // FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
-      AggregateRemoveRule.INSTANCE,
-      //ProjectRemoveRule.INSTANCE,
+
+      /*
+       * Project pushdown rules.
+       */
+      PushProjectIntoScanRule.INSTANCE,
+      MergeProjectRule.LOGICAL_INSTANCE,
+
+
+      // Disabled as it causes infinite loops with MergeProjectRule, ProjectFilterTranspose (with Expression preservation) and FilterProjectTranspose
+      // PushProjectPastJoinRule.CALCITE_INSTANCE,
+
+      // Not used.
       //SortRemoveRule.INSTANCE,
 
       /*
-       Projection push-down related rules
+       * Trait Conversion Rules
        */
-      PUSH_PROJECT_PAST_FILTER_CALCITE_RULE,
-      // Due to infinite loop in planning (DRILL-3257), temporarily disable this rule
-      //ProjectSetOpTransposeRule.INSTANCE,
-      ProjectWindowTransposeRule.INSTANCE,
-      PushProjectIntoScanRule.INSTANCE,
-      ProjectRule.INSTANCE,
-      MergeProjectRule.CALCITE_INSTANCE,
+      ExpandConversionRule.INSTANCE,
 
       /*
        Rewrite flatten rules
@@ -408,9 +480,9 @@ public enum PlannerPhase {
       RewriteProjectToFlattenRule.INSTANCE,
 
       /*
-       Convert to Drel
+       * Crel => Drel
        */
-      ExpandConversionRule.INSTANCE,
+      ProjectRule.INSTANCE,
       FilterRule.INSTANCE,
       WindowRule.INSTANCE,
       AggregateRule.INSTANCE,
@@ -420,8 +492,8 @@ public enum PlannerPhase {
       JoinRule.INSTANCE,
       UnionAllRule.INSTANCE,
       ValuesRule.INSTANCE,
-
       FlattenRule.INSTANCE
+
       ).build());
 
   static final RuleSet getPhysicalRules(OptimizerRulesContext optimizerRulesContext) {

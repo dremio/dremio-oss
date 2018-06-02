@@ -86,6 +86,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
     super(context, projectedColumns);
     this.connection = connection;
     hbaseTableName = TableName.valueOf(
+        Preconditions.checkNotNull(subScanSpec, "HBase reader needs a sub-scan spec").getNamespace(),
         Preconditions.checkNotNull(subScanSpec, "HBase reader needs a sub-scan spec").getTableName());
     hbaseScan = new Scan(
         subScanSpec.getStartRow() == null ? HConstants.EMPTY_START_ROW : subScanSpec.getStartRow(),

@@ -47,6 +47,7 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector;
 
@@ -130,7 +131,10 @@ public class ExpressionTest extends ExecTest {
       assertEquals(0, error.getErrorCount());
     }
 
+    CompilationOptions compilationOptions = mock(CompilationOptions.class);
+    when(compilationOptions.getNewMethodThreshold()).thenReturn(100);
     FunctionContext mockFunctionContext = mock(FunctionContext.class);
+    when(mockFunctionContext.getCompilationOptions()).thenReturn(compilationOptions);
     final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null, mockFunctionContext).getRoot();
     cg.addExpr(new ValueVectorWriteExpression(new TypedFieldId(materializedExpr.getCompleteType(), -1), materializedExpr));
     return cg.getCodeGenerator().generateAndGet();

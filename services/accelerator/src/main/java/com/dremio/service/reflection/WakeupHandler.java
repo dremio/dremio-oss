@@ -40,7 +40,7 @@ public class WakeupHandler {
   }
 
   public void handle(String reason) {
-    logger.debug("waking up manager, reason: {}", reason);
+    logger.trace("waking up manager, reason: {}", reason);
     if (!wakeup.compareAndSet(false, true)) {
       return; // wakeup event already queued for handling, nothing more to do
     }

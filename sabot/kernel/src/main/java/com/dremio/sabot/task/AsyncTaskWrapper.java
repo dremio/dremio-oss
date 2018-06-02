@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import com.dremio.exec.proto.CoordExecRPC.FragmentPriority;
 import com.dremio.sabot.task.TaskManager.TaskHandle;
 import com.dremio.sabot.threads.AvailabilityCallback;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
@@ -31,6 +32,19 @@ public class AsyncTaskWrapper implements Task {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncTaskWrapper.class);
 
+  enum WatchType {
+    NONE,
+    SLEEP,
+    BLOCKED_ON_UPSTREAM,
+    BLOCKED_ON_DOWNSTREAM,
+    BLOCKED_ON_SHARED_RESOURCE;
+
+    private static final int Size = values().length;
+  }
+
+  private Stopwatch[] watches = new Stopwatch[WatchType.Size];
+  private WatchType runningWatch = WatchType.NONE;
+
   private final class TaskDescriptorImpl implements TaskDescriptor {
     private volatile TaskHandle<AsyncTaskWrapper> taskHandle = null;
 
@@ -41,12 +55,13 @@ public class AsyncTaskWrapper implements Task {
 
     @Override
     public long getSleepDuration() {
-      return sleepWatch.elapsed(TimeUnit.MILLISECONDS);
+      return getDuration(WatchType.SLEEP);
     }
 
     @Override
-    public long getBlockedDuration() {
-      return blockedWatch.elapsed(TimeUnit.MILLISECONDS);
+    public long getTotalBlockedDuration() {
+      return getDuration(WatchType.BLOCKED_ON_DOWNSTREAM) +
+        getDuration(WatchType.BLOCKED_ON_UPSTREAM) + getDuration(WatchType.BLOCKED_ON_SHARED_RESOURCE);
     }
 
     private void setTaskHandle(TaskHandle<AsyncTaskWrapper> taskHandle) {
@@ -62,9 +77,7 @@ public class AsyncTaskWrapper implements Task {
   private final FragmentPriority priority;
   private final AsyncTask asyncTask;
   private final AutoCloseable cleaner;
-
-  private final Stopwatch sleepWatch = Stopwatch.createUnstarted();
-  private final Stopwatch blockedWatch = Stopwatch.createUnstarted();
+  private SharedResourceType blockedOnResource;
 
   private final TaskDescriptorImpl taskDescriptor = new TaskDescriptorImpl();
 
@@ -78,8 +91,10 @@ public class AsyncTaskWrapper implements Task {
     asyncTask.setTaskDescriptor(taskDescriptor);
 
     this.cleaner = cleaner;
-
-    sleepStarted();
+    for (int i = 0; i < WatchType.Size; i++) {
+      watches[i] = Stopwatch.createUnstarted();
+    }
+    stateStarted();
   }
 
   public FragmentPriority getPriority() {
@@ -87,15 +102,11 @@ public class AsyncTaskWrapper implements Task {
   }
 
   public void run() {
-    sleepEnded();
+    stateEnded();
     try {
       asyncTask.run();
     } finally {
-      if (getState() == State.BLOCKED) {
-        blockedStarted();
-      } else if (getState() == State.RUNNABLE) {
-        sleepStarted();
-      }
+      stateStarted();
     }
   }
 
@@ -114,10 +125,10 @@ public class AsyncTaskWrapper implements Task {
   }
 
   private void unblocked() {
-    Preconditions.checkState(getState() == State.BLOCKED);
+    Preconditions.checkState(isBlocked());
+    stateEnded();
     asyncTask.refreshState();
-    blockedEnded();
-    sleepStarted();
+    stateStarted();
   }
 
   @Override
@@ -125,42 +136,88 @@ public class AsyncTaskWrapper implements Task {
     return asyncTask.getState();
   }
 
-  private void sleepStarted() {
+  boolean isBlocked() {
+    switch (getState()) {
+      case BLOCKED_ON_UPSTREAM:
+      case BLOCKED_ON_DOWNSTREAM:
+      case BLOCKED_ON_SHARED_RESOURCE:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private long getDuration(WatchType type) {
+    return watches[type.ordinal()].elapsed(TimeUnit.MILLISECONDS);
+  }
+
+  private WatchType getWatchTypeForState(State state) {
+    switch (state) {
+      case RUNNABLE:
+        return WatchType.SLEEP;
+      case BLOCKED_ON_UPSTREAM:
+        return WatchType.BLOCKED_ON_UPSTREAM;
+      case BLOCKED_ON_DOWNSTREAM:
+        return WatchType.BLOCKED_ON_DOWNSTREAM;
+      case BLOCKED_ON_SHARED_RESOURCE:
+        return WatchType.BLOCKED_ON_SHARED_RESOURCE;
+      default:
+        return WatchType.NONE;
+    }
+  }
+
+  private void stateStarted() {
     try {
-      Preconditions.checkState(getState() == State.RUNNABLE);
-      Preconditions.checkState(!blockedWatch.isRunning());
-      sleepWatch.start();
+      Preconditions.checkState(runningWatch == WatchType.NONE);
+      WatchType wtype = getWatchTypeForState(getState());
+      if (wtype != WatchType.NONE) {
+        watches[wtype.ordinal()].start();
+        runningWatch = wtype;
+      }
+      if (getState() == State.BLOCKED_ON_SHARED_RESOURCE) {
+        // remember the resource that the task is blocked on.
+        blockedOnResource = asyncTask.getFirstBlockedResource();
+        if (blockedOnResource == null) {
+          blockedOnResource = SharedResourceType.UNKNOWN;
+        }
+      }
     } catch (IllegalStateException e) {
       // we don't want to cause a task to be dropped from execution if we are not tracking this stat correctly
-      logger.warn("sleepStarted() called in the wrong order.", e);
+      logger.warn("stateStarted() called in the wrong order : state " + getState().name() + " runningWatch " + runningWatch.name(), e);
     }
   }
 
-  private void sleepEnded() {
+  private void stateEnded() {
     try {
-      sleepWatch.stop();
-      asyncTask.updateSleepDuration(sleepWatch.elapsed(TimeUnit.MILLISECONDS));
-    } catch (IllegalStateException e) {
-      logger.warn("sleepEnded() called in the wrong order.", e);
-    }
-  }
+      Preconditions.checkState(runningWatch != WatchType.NONE);
+      long elapsed = 0;
 
-  private void blockedStarted() {
-    try {
-      Preconditions.checkState(getState() == State.BLOCKED);
-      Preconditions.checkState(!sleepWatch.isRunning());
-      blockedWatch.start();
-    } catch (IllegalStateException e) {
-      logger.warn("blockedStarted() called in the wrong order.", e);
-    }
-  }
+      WatchType wtype = getWatchTypeForState(getState());
+      if (wtype != WatchType.NONE) {
+        watches[wtype.ordinal()].stop();
+        runningWatch = WatchType.NONE;
+        elapsed = getDuration(wtype);
+      }
 
-  private void blockedEnded() {
-    try {
-      blockedWatch.stop();
-      asyncTask.updateBlockedDuration(blockedWatch.elapsed(TimeUnit.MILLISECONDS));
+      switch (getState()) {
+        case RUNNABLE:
+          asyncTask.updateSleepDuration(elapsed);
+          break;
+        case BLOCKED_ON_DOWNSTREAM:
+          asyncTask.updateBlockedOnDownstreamDuration(elapsed);
+          break;
+        case BLOCKED_ON_UPSTREAM:
+          asyncTask.updateBlockedOnUpstreamDuration(elapsed);
+          break;
+        case BLOCKED_ON_SHARED_RESOURCE:
+          watches[wtype.ordinal()].reset(); // differential counter, not cumulative.
+          asyncTask.addBlockedOnSharedResourceDuration(blockedOnResource, elapsed);
+          blockedOnResource = null;
+          break;
+      }
     } catch (IllegalStateException e) {
-      logger.warn("blockedEnded() called in the wrong order.", e);
+      // we don't want to cause a task to be dropped from execution if we are not tracking this stat correctly
+      logger.warn("stateEnded() called in the wrong order : state " + getState().name() + " runningWatch " + runningWatch.name(), e);
     }
   }
 

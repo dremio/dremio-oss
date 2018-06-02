@@ -31,7 +31,9 @@ import org.joda.time.Period;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -40,10 +42,14 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.util.TSI;
+import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class TestFunctionsQuery extends BaseTestQuery {
+
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
 
   // enable decimal data type
   @BeforeClass
@@ -958,11 +964,27 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .go();
   }
 
+  @Test // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+  public void timestampAddMicroSecond() throws Exception {
+    exception.expect(new UserExceptionMatcher(ErrorType.UNSUPPORTED_OPERATION,
+        "TIMESTAMPADD function supports the following time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND"));
+
+    test("select timestampadd(MICROSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))");
+  }
+
+  @Test // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+  public void timestampAddNanoSecond() throws Exception {
+      exception.expect(new UserExceptionMatcher(ErrorType.PARSE, "Failure parsing the query."));
+
+    test("select timestampadd(NANOSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))");
+  }
+
   @Test
   public void testTimestampAddTimestamp() throws Exception {
     String queryTemplate = "select timestampadd(%s, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))";
     Map<TSI, LocalDateTime> results = ImmutableMap.<TSI, LocalDateTime>builder()
-        .put(TSI.MICROSECOND, formatTimeStampMilli.parseLocalDateTime("2015-03-30 20:49:59.002"))
+        // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+        // .put(TSI.MICROSECOND, formatTimeStampMilli.parseLocalDateTime("2015-03-30 20:49:59.002"))
         .put(TSI.SECOND, formatTimeStampMilli.parseLocalDateTime("2015-03-30 20:50:01.000"))
         .put(TSI.MINUTE, formatTimeStampMilli.parseLocalDateTime("2015-03-30 20:51:59.000"))
         .put(TSI.HOUR, formatTimeStampMilli.parseLocalDateTime("2015-03-30 22:49:59.000"))
@@ -1012,7 +1034,8 @@ public class TestFunctionsQuery extends BaseTestQuery {
     final MajorType dateType = Types.required(MinorType.DATE);
 
     Map<TSI, List<Object>> results = ImmutableMap.<TSI, List<Object>>builder()
-        .put(TSI.MICROSECOND, ImmutableList.<Object>of(formatTimeStampMilli.parseLocalDateTime("2015-03-30 00:00:00.002"), timeStampType))
+        // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+        // .put(TSI.MICROSECOND, ImmutableList.<Object>of(formatTimeStampMilli.parseLocalDateTime("2015-03-30 00:00:00.002"), timeStampType))
         .put(TSI.SECOND, ImmutableList.<Object>of(formatTimeStampMilli.parseLocalDateTime("2015-03-30 00:00:02.000"), timeStampType))
         .put(TSI.MINUTE, ImmutableList.<Object>of(formatTimeStampMilli.parseLocalDateTime("2015-03-30 00:02:00.000"), timeStampType))
         .put(TSI.HOUR, ImmutableList.<Object>of(formatTimeStampMilli.parseLocalDateTime("2015-03-30 02:00:00.000"), timeStampType))

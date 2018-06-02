@@ -35,9 +35,12 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.ReflectiveConvertletTable;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
-import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
 
+import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentDateConvertlet;
+import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeConvertlet;
+import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeStampConvertlet;
+import com.dremio.sabot.exec.context.ContextInformation;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -64,9 +67,7 @@ public class ConvertletTable extends ReflectiveConvertletTable {
   };
 
 
-  public static SqlRexConvertletTable INSTANCE = new ConvertletTable();
-
-  private ConvertletTable() {
+  public ConvertletTable(ContextInformation contextInformation) {
     super();
 
     registerOp(SqlStdOperatorTable.TIMESTAMP_ADD, DEFAULT_CONVERTLET);
@@ -108,6 +109,14 @@ public class ConvertletTable extends ReflectiveConvertletTable {
         }
       }
     });
+
+    // these convertlets replace "current_date", "current_time" (or "localtime") and "current_timestamp"
+    // (or "localtimestamp") functions in the query to literals
+    registerOp(SqlStdOperatorTable.CURRENT_DATE, new CurrentDateConvertlet(contextInformation));
+    registerOp(SqlStdOperatorTable.CURRENT_TIME, new CurrentTimeConvertlet(contextInformation));
+    registerOp(SqlStdOperatorTable.LOCALTIME, new CurrentTimeConvertlet(contextInformation));
+    registerOp(SqlStdOperatorTable.CURRENT_TIMESTAMP, new CurrentTimeStampConvertlet(contextInformation));
+    registerOp(SqlStdOperatorTable.LOCALTIMESTAMP, new CurrentTimeStampConvertlet(contextInformation));
   }
 
   /*

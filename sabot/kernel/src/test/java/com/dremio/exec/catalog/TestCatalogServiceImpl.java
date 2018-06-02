@@ -86,6 +86,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -201,7 +202,7 @@ public class TestCatalogServiceImpl {
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has no datasets under mockUpKey
-    List<NamespaceKey> datasets = namespaceService.getAllDatasets(mockUpKey);
+    List<NamespaceKey> datasets = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(0, datasets.size());
 
     assertNoDatasetsAfterSourceDeletion();
@@ -213,7 +214,7 @@ public class TestCatalogServiceImpl {
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin
-    List<NamespaceKey> actualDatasetKeys = namespaceService.getAllDatasets(mockUpKey);
+    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(mockDatasets, actualDatasetKeys);
@@ -228,7 +229,7 @@ public class TestCatalogServiceImpl {
     doMockDatasets(mockUpPlugin, mockDatasets);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
-    List<NamespaceKey> actualDatasetKeys = namespaceService.getAllDatasets(mockUpKey);
+    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
     List<SourceTableDefinition> testDatasets = Lists.newArrayList(mockDatasets);
@@ -241,7 +242,7 @@ public class TestCatalogServiceImpl {
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
-    actualDatasetKeys = namespaceService.getAllDatasets(mockUpKey);
+    actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(9, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
@@ -268,7 +269,7 @@ public class TestCatalogServiceImpl {
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
-    List<NamespaceKey> actualDatasetKeys = namespaceService.getAllDatasets(mockUpKey);
+    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
@@ -291,7 +292,7 @@ public class TestCatalogServiceImpl {
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
-    actualDatasetKeys = namespaceService.getAllDatasets(mockUpKey);
+    actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(7, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
@@ -308,7 +309,7 @@ public class TestCatalogServiceImpl {
     doMockDatasets(mockUpPlugin, mockDatasets);
     catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogService.UpdateType.NAMES);
 
-    assertEquals(5, namespaceService.getAllDatasets(mockUpKey).size());
+    assertEquals(5, Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey)).size());
 
     List<SourceTableDefinition> testDatasets = Lists.newArrayList(mockDatasets);
     testDatasets.add(newDataset(MOCK_UP + ".fld1.ds13"));
@@ -320,7 +321,7 @@ public class TestCatalogServiceImpl {
     catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogService.UpdateType.NAMES);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
-    List<NamespaceKey> actualDatasetKeys = namespaceService.getAllDatasets(mockUpKey);
+    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(10, actualDatasetKeys.size());
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
     assertFoldersExist(Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21",
@@ -446,7 +447,7 @@ public class TestCatalogServiceImpl {
     final SourceConfig sourceConfig = namespaceService.getSource(mockUpKey);
     namespaceService.deleteSource(mockUpKey, sourceConfig.getVersion());
 
-    assertEquals(0, namespaceService.getAllDatasets(mockUpKey).size());
+    assertEquals(0, Iterables.size(namespaceService.getAllDatasets(mockUpKey)));
   }
 
   private static final String MOCK_UP = "mockup";

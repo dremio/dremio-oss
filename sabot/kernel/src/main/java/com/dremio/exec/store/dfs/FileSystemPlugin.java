@@ -118,6 +118,15 @@ public class FileSystemPlugin implements StoragePlugin {
 
   private static final int PERMISSION_CHECK_TASK_BATCH_SIZE = 10;
 
+  /**
+   * HDFS options to enable and use HDFS short-circuit reads. Once MapR profile Hadoop dependency version is upgraded
+   * to 2.8.x, use below constants defined in hadoop code:
+   * org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.Read.ShortCircuit.KEY
+   * org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_DOMAIN_SOCKET_PATH_KEY
+   */
+  private static final String HDFS_READ_SHORTCIRCUIT_KEY = "dfs.client.read.shortcircuit";
+  private static final String HDFS_DFS_DOMAIN_SOCKET_PATH_KEY = "dfs.domain.socket.path";
+
   private final String name;
   private final LogicalPlanPersistence lpPersistance;
   private final FileSystemConf<?, ?> config;
@@ -398,6 +407,11 @@ public class FileSystemPlugin implements StoragePlugin {
 
   @Override
   public void start() throws IOException {
+    // Manage specific HDFS configuration
+    if (config instanceof HDFSConf) {
+      applyHDFSConf((HDFSConf) config);
+    }
+
     if (config.getProperties() != null) {
       for (Property prop : config.getProperties()) {
         fsConf.set(prop.name, prop.value);
@@ -434,6 +448,25 @@ public class FileSystemPlugin implements StoragePlugin {
     dropFileMatchers = matchers.subList(0, matchers.size());
 
     createIfNecessary();
+  }
+
+  private void applyHDFSConf(HDFSConf hdfsConf) {
+    HDFSConf.ShortCircuitFlag shortCircuitFlag = hdfsConf.getShortCircuitFlag();
+    if (shortCircuitFlag == null ||shortCircuitFlag ==  HDFSConf.ShortCircuitFlag.SYSTEM) {
+      return;
+    }
+
+    switch (hdfsConf.getShortCircuitFlag()) {
+    case SYSTEM:
+      break;
+    case DISABLED:
+      fsConf.setBoolean(HDFS_READ_SHORTCIRCUIT_KEY, false);
+      break;
+    case ENABLED:
+      fsConf.setBoolean(HDFS_READ_SHORTCIRCUIT_KEY, true);
+      fsConf.set(HDFS_DFS_DOMAIN_SOCKET_PATH_KEY,
+          Optional.fromNullable(hdfsConf.getShortCircuitSocketPath()).or(""));
+    }
   }
 
   /**

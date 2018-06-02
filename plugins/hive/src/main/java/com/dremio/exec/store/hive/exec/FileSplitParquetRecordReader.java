@@ -33,10 +33,14 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.FilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
+import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.driver.SchemaChangeMutator;
@@ -61,6 +65,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final JobConf jobConf;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
+  private final BatchSchema outputSchema;
   private final ParquetReaderFactory readerFactory;
 
   private List<UnifiedParquetReader> innerReaders;
@@ -77,6 +82,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final ParquetMetadata footer,
       final JobConf jobConf,
       final boolean vectorize,
+      final BatchSchema outputSchema,
       final boolean enableDetailedTracing
   ) {
     this.oContext = oContext;
@@ -89,6 +95,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.readerFactory = readerFactory;
     this.vectorize = vectorize;
     this.enableDetailedTracing = enableDetailedTracing;
+    this.outputSchema = outputSchema;
   }
 
   @Override
@@ -114,11 +121,16 @@ public class FileSplitParquetRecordReader implements RecordReader {
         split.setStart(0l);
         split.setLength((long) Integer.MAX_VALUE);
 
+        final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+            .readInt96AsTimeStamp(true)
+            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, groupScanColumns, true))
+            .noSchemaLearning(outputSchema)
+            .build();
+
         final UnifiedParquetReader innerReader = new UnifiedParquetReader(
             oContext,
             readerFactory,
             columnsToRead,
-            groupScanColumns,
             null,
             conditions,
             split,
@@ -126,8 +138,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             footer,
             null,
             CodecFactory.createDirectCodecFactory(jobConf, new ParquetDirectByteBufferAllocator(oContext.getAllocator()), 0),
-            /* autoCorrectDates = */ true,
-            /* readInt96AsTimeStamp = */ true,
+            schemaHelper,
             vectorize,
             enableDetailedTracing
         );

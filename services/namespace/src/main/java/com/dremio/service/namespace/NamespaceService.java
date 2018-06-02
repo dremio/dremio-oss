@@ -118,11 +118,23 @@ public interface NamespaceService {
   List<NameSpaceContainer> list(NamespaceKey folderPath) throws NamespaceException;
 
   //// LIST or COUNT datasets under folder/space/home/source
-  List<NamespaceKey> getAllDatasets(final NamespaceKey parent) throws NamespaceException;
-
-  List<FolderConfig> getAllFolders(final NamespaceKey parent) throws NamespaceException;
+  //// Note: use sparingly!
+  Iterable<NamespaceKey> getAllDatasets(final NamespaceKey parent) throws NamespaceException;
 
   int getAllDatasetsCount(NamespaceKey path) throws NamespaceException;
+
+  /**
+   * Get the list of datasets under the given path with bounds to stop searching.
+   *
+   * @param root path to container of search start
+   * @param searchTimeLimitMillis Time (wall clock) limit for searching. Count stops when this limit is reached and
+   *                              returns the count so far
+   * @param countLimitToStopSearch Limit to stop searching. If we reach this number of datasets in count, stop
+   *                               searching and return.
+   * @return
+   */
+  BoundedDatasetCount getDatasetCount(NamespaceKey root, long searchTimeLimitMillis, int countLimitToStopSearch)
+      throws NamespaceException;
 
   //// DELETE
   void deleteSource(NamespaceKey sourcePath, long version) throws NamespaceException;

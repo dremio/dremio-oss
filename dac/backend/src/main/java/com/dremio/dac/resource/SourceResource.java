@@ -62,6 +62,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -135,8 +136,10 @@ public class SourceResource {
         throw new SourceNotFoundException(sourcePath.getSourceName().getName());
       }
 
+      final BoundedDatasetCount datasetCount = namespaceService.get().getDatasetCount(new NamespaceKey(config.getName()), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
       final SourceUI source = newSource(config)
-          .setNumberOfDatasets(namespaceService.get().getAllDatasetsCount(new NamespaceKey(config.getName())));
+          .setNumberOfDatasets(datasetCount.getCount());
+      source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
 
       source.setState(sourceState);
 

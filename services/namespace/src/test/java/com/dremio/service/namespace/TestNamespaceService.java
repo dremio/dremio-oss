@@ -65,6 +65,7 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.flatbuffers.FlatBufferBuilder;
 
@@ -458,11 +459,11 @@ public class TestNamespaceService {
       addDS(ns, "a.foo.bar1.bar3.ds5");
       addDS(ns, "a.foo.bar1.bar3.ds6");
 
-      assertEquals(7, ns.getAllDatasets(new NamespaceKey(asList("a"))).size());
-      assertEquals(6, ns.getAllDatasets(new NamespaceKey(asList("a", "foo"))).size());
-      assertEquals(3, ns.getAllDatasets(new NamespaceKey(asList("a", "foo", "bar1"))).size());
-      assertEquals(1, ns.getAllDatasets(new NamespaceKey(asList("a", "foo", "bar2"))).size());
-      assertEquals(2, ns.getAllDatasets(new NamespaceKey(asList("a", "foo", "bar1", "bar3"))).size());
+      assertEquals(7, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("a")))));
+      assertEquals(6, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("a", "foo")))));
+      assertEquals(3, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("a", "foo", "bar1")))));
+      assertEquals(1, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("a", "foo", "bar2")))));
+      assertEquals(2, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("a", "foo", "bar1", "bar3")))));
     }
   }
 
@@ -486,11 +487,11 @@ public class TestNamespaceService {
       addDS(ns, "@a.foo.bar1.bar3.ds5");
       addDS(ns, "@a.foo.bar1.bar3.ds6");
 
-      assertEquals(7, ns.getAllDatasets(new NamespaceKey(asList("@a"))).size());
-      assertEquals(6, ns.getAllDatasets(new NamespaceKey(asList("@a", "foo"))).size());
-      assertEquals(3, ns.getAllDatasets(new NamespaceKey(asList("@a", "foo", "bar1"))).size());
-      assertEquals(1, ns.getAllDatasets(new NamespaceKey(asList("@a", "foo", "bar2"))).size());
-      assertEquals(2, ns.getAllDatasets(new NamespaceKey(asList("@a", "foo", "bar1", "bar3"))).size());
+      assertEquals(7, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("@a")))));
+      assertEquals(6, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("@a", "foo")))));
+      assertEquals(1, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("@a", "foo", "bar2")))));
+      assertEquals(3, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("@a", "foo", "bar1")))));
+      assertEquals(2, Iterables.size(ns.getAllDatasets(new NamespaceKey(asList("@a", "foo", "bar1", "bar3")))));
     }
   }
 

@@ -55,28 +55,6 @@ describe('MainInfo', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#getRow', function() {
-
-    it('should return descendants from extendedConfig when entityType is Folder', function() {
-      const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
-      sinon.stub(instance, 'getButtonsDataCell').returns('action');
-      const item = Immutable.fromJS({
-        descendants: 0,
-        entityType: 'folder',
-        links: {
-          query: 'queryLink',
-          jobs: 'jobsLink'
-        },
-        jobCount: 1,
-        extendedConfig: {
-          descendants: 2,
-          datasetCount: 0
-        }
-      });
-      expect(instance.getRow(item).data.descendants.node()).to.be.equal(2);
-    });
-  });
-
   describe('#getFolderActions', () => {
 
     it('should show setting button for folder-as-dataset', () => {

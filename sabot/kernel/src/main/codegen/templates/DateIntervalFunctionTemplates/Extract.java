@@ -50,7 +50,8 @@ public class ${className} {
     @Workspace org.joda.time.MutableDateTime dateTime;
 
     public void setup() {
-      dateTime = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
+      dateTime = new org.joda.time.MutableDateTime(
+          org.joda.time.chrono.DayOfWeekFromSundayChronology.getISOInstanceInUTC());
     }
 
     public void eval() {
@@ -103,7 +104,8 @@ public class ${className} {
 
     public void setup() {
       <#if toUnit == "Epoch">
-      dateTime = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
+      dateTime = new org.joda.time.MutableDateTime(
+          org.joda.time.chrono.DayOfWeekFromSundayChronology.getISOInstanceInUTC());
       </#if>
     }
 

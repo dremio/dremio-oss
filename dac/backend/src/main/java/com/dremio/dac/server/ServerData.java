@@ -83,8 +83,9 @@ public class ServerData {
     private final Boolean lowerProvisioningSettingsEnabled;
 
     private final String tdsMimeType;
+    private final String whiteLabelUrl;
 
-    public ClientSettings(String supportEmailTo, String supportEmailSubjectForJobs, Boolean outsideCommunicationDisabled, Boolean subhourAccelerationPoliciesEnabled, Boolean lowerProvisioningSettingsEnabled, String tdsMimeType) {
+    public ClientSettings(String supportEmailTo, String supportEmailSubjectForJobs, Boolean outsideCommunicationDisabled, Boolean subhourAccelerationPoliciesEnabled, Boolean lowerProvisioningSettingsEnabled, String tdsMimeType, String whiteLabelUrl) {
       super();
       this.supportEmailTo = supportEmailTo;
       this.supportEmailSubjectForJobs = supportEmailSubjectForJobs;
@@ -92,6 +93,7 @@ public class ServerData {
       this.subhourAccelerationPoliciesEnabled = subhourAccelerationPoliciesEnabled;
       this.lowerProvisioningSettingsEnabled = lowerProvisioningSettingsEnabled;
       this.tdsMimeType = tdsMimeType;
+      this.whiteLabelUrl = whiteLabelUrl;
     }
 
     public String getSupportEmailTo() {
@@ -116,6 +118,10 @@ public class ServerData {
 
     public String getTdsMimeType() {
       return tdsMimeType;
+    }
+
+    public String getWhiteLabelUrl() {
+      return whiteLabelUrl;
     }
   }
 }

@@ -114,6 +114,8 @@ import com.google.common.collect.Maps;
 public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> extends RelOptRule {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PruneScanRuleBase.class);
 
+  private static final long MIN_TO_LOG_INFO_MS = 5000;
+
   public static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
   final private OptimizerRulesContext optimizerContext;
   final protected SourceType pluginType;
@@ -433,6 +435,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
 
   public void doOnMatch(RelOptRuleCall call, Filter filterRel, Project projectRel, T scanRel) {
     Stopwatch totalPruningTime = Stopwatch.createStarted();
+    boolean longRun = true;
     try {
       final PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
 
@@ -487,13 +490,17 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       c.analyze(condition);
       RexNode pruneCondition = c.getFinalCondition();
 
+      final long elapsed = miscTimer.elapsed(TimeUnit.MILLISECONDS);
       logger.debug("Total elapsed time to build and analyze filter tree: {} ms",
-      miscTimer.elapsed(TimeUnit.MILLISECONDS));
+      elapsed);
       miscTimer.reset();
 
+      longRun = elapsed > MIN_TO_LOG_INFO_MS;
       if (pruneCondition == null) {
-        logger.info("No conditions were found eligible for partition pruning." +
-          "Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+        if(longRun) {
+          logger.info("No conditions were found eligible for partition pruning." +
+            "Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+        }
         return;
       }
 
@@ -562,7 +569,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         }
       }else if(finalNewSplits.isEmpty()) {
         // no splits left, replace with an empty rel.
-        inputRel = new EmptyRel(scanRel.getCluster(), scanRel.getTraitSet(), scanRel.getRowType(), scanRel.getBatchSchema());
+        inputRel = new EmptyRel(scanRel.getCluster(), scanRel.getTraitSet(), scanRel.getRowType(), scanRel.getProjectedSchema());
       } else {
         // some splits but less than original.
         inputRel = scanRel.applyDatasetPointer(dataset.value.prune(finalNewSplits));
@@ -589,7 +596,11 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     } catch (Exception e) {
       logger.warn("Exception while using the pruned partitions.", e);
     } finally {
-      logger.info("Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+      if(longRun) {
+        logger.info("Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+      } else {
+        logger.debug("Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+      }
     }
   }
 

@@ -103,8 +103,8 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
     .ordered()
     .sqlQuery("select c, d from cp.`parquet/data.snappy.parquet` where d = '2015-07-18 13:52:51'")
     .baselineColumns("c", "d")
-    .baselineValues(DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD").parseLocalDateTime("2011-04-11"),
-        DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS").parseLocalDateTime("2015-07-18 13:52:51"))
+    .baselineValues(DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").parseLocalDateTime("2011-04-11"),
+        DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS").parseLocalDateTime("2015-07-18 13:52:51"))
     .build()
     .run();
   }
@@ -119,7 +119,7 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
         "where varchar_field = 'c'")
       .baselineColumns("varchar_field", "timestamp_field")
       .baselineValues("c",
-        DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").parseLocalDateTime("1969-12-31 08:03:00.000"))
+        DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").parseLocalDateTime("1969-12-31 08:03:00.000"))
       .build()
       .run();
   }

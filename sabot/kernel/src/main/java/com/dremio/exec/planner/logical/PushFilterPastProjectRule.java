@@ -43,9 +43,14 @@ import com.google.common.collect.Lists;
 public class PushFilterPastProjectRule extends RelOptRule {
 
   public final static RelOptRule INSTANCE = new PushFilterPastProjectRule(
-      FilterRel.class, ProjectRel.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
+      FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
   public final static RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
-      LogicalFilter.class, LogicalProject.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+      LogicalFilter.class, LogicalProject.class, RelNode.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+
+  public final static RelOptRule CALCITE_NO_CHILD_CHECK = new PushFilterPastProjectRule(
+      LogicalFilter.class, LogicalProject.class, null, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+
+  private final boolean checkChild;
 
   private RexCall findItemOrFlatten(
       final RexNode node,
@@ -93,17 +98,25 @@ public class PushFilterPastProjectRule extends RelOptRule {
    * @param projectClass
    * @param relBuilderFactory
    */
-  protected PushFilterPastProjectRule(Class<? extends Filter> filterClass,
-                                           Class<? extends Project> projectClass,
-                                           RelBuilderFactory relBuilderFactory) {
-    super(
-        operand(filterClass, operand(projectClass, operand(RelNode.class, any()))), relBuilderFactory, "PushFilterPastProjectRule");
+  protected PushFilterPastProjectRule(
+      Class<? extends Filter> filterClass,
+      Class<? extends Project> projectClass,
+      Class<? extends RelNode> childClass,
+      RelBuilderFactory relBuilderFactory) {
+    super(childClass == null ?
+        operand(filterClass, operand(projectClass, any())) :
+        operand(filterClass, operand(projectClass, operand(childClass, any()))),
+        relBuilderFactory, "PushFilterPastProjectRule");
+    this.checkChild = childClass != null;
   }
 
   //~ Methods ----------------------------------------------------------------
 
   @Override
   public boolean matches(RelOptRuleCall call) {
+    if(!checkChild) {
+      return true;
+    }
     // Make sure that we do not push filter past project onto things that it can't go past (filter/aggregate).
     // Also, do not push filter past project if there is yet another project.  Just make the projects merge first.
     return !(call.rel(2) instanceof Project || call.rel(2) instanceof Aggregate || call.rel(2) instanceof Values);

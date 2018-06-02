@@ -67,7 +67,6 @@ import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.hive.proto.HiveReaderProto.PartitionProp;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.SerializedInputSplit;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -77,6 +76,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionValue;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -158,25 +158,29 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     // Get the configured default val
     defaultPartitionValue = hiveConf.get(ConfVars.DEFAULTPARTITIONNAME.varname);
 
-    final Properties tableProperties = addProperties(job, new Properties(), tableAttr.getTablePropertyList());
+    final Properties tableProperties = addProperties(job, new Properties(),
+        HiveReaderProtoUtil.getTableProperties(tableAttr));
 
     List<String> selectedColumnNames;
     List<TypeInfo> selectedColumnTypes = new ArrayList<>();
 
     try {
-      final SerDe tableSerDe = createSerDe(job, tableAttr.getSerializationLib(), tableProperties);
+      final SerDe tableSerDe = createSerDe(job, HiveReaderProtoUtil.getTableSerializationLib(tableAttr).get(),
+          tableProperties);
       final StructObjectInspector tableOI = getStructOI(tableSerDe);
 
       boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
       if(isPartitioned){
         final Properties partitionProperties = new Properties();
         // First add table properties and then add partition properties. Partition properties override table properties.
-        addProperties(job, partitionProperties, tableAttr.getTablePropertyList());
+        addProperties(job, partitionProperties, HiveReaderProtoUtil.getTableProperties(tableAttr));
         addProperties(job, partitionProperties,
-            tableAttr.getPartitionProperties(splitAttr.getPartitionId()).getPartitionPropertyList());
+            HiveReaderProtoUtil.getPartitionProperties(tableAttr, splitAttr.getPartitionId()));
 
-        partitionSerDe = createSerDe(job,
-          tableAttr.getPartitionProperties(splitAttr.getPartitionId()).getSerializationLib(), partitionProperties);
+        partitionSerDe =
+            createSerDe(job,
+                HiveReaderProtoUtil.getPartitionSerializationLib(tableAttr, splitAttr.getPartitionId()).get(),
+                partitionProperties);
         partitionOI = getStructOI(partitionSerDe);
 
         finalOI = (StructObjectInspector)ObjectInspectorConverters.getConvertedOI(partitionOI, tableOI);
@@ -352,25 +356,30 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   }
 
   public static Class<? extends InputFormat<?, ?>> getInputFormatClass(final JobConf job, HiveTableXattr tableXattr, HiveSplitXattr xattr) throws Exception {
-    if(xattr != null){
-      PartitionProp partitionProp = tableXattr.getPartitionPropertiesList().get(xattr.getPartitionId());
-      if(partitionProp.hasInputFormat()){
-        return (Class<? extends InputFormat<?, ?>>) Class.forName(partitionProp.getInputFormat());
+    if (xattr != null) {
+      final Optional<String> inputFormat =
+          HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, xattr.getPartitionId());
+      if (inputFormat.isPresent()) {
+        return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
       }
 
-      if(partitionProp.hasStorageHandler()){
-        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, partitionProp.getStorageHandler());
+      final Optional<String> storageHandlerName =
+          HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, xattr.getPartitionId());
+      if (storageHandlerName.isPresent()) {
+        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, storageHandlerName.get());
         return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
       }
     }
 
-    if(tableXattr != null){
-      if(tableXattr.hasInputFormat()){
-        return (Class<? extends InputFormat<?, ?>>) Class.forName(tableXattr.getInputFormat());
+    if (tableXattr != null) {
+      final Optional<String> inputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
+      if (inputFormat.isPresent()) {
+        return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
       }
 
-      if(tableXattr.hasStorageHandler()){
-        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, tableXattr.getStorageHandler());
+      final Optional<String> storageHandlerName = HiveReaderProtoUtil.getTableStorageHandler(tableXattr);
+      if (storageHandlerName.isPresent()) {
+        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, storageHandlerName.get());
         return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
       }
     }

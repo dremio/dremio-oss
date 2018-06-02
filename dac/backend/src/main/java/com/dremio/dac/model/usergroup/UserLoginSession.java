@@ -29,7 +29,7 @@ public class UserLoginSession {
   private final String lastName;
   private final long expires;
   private final String email;
-  private final String userHash;
+  private final String userId;
   private final boolean admin;
   private final Long userCreatedAt;
   private final String clusterId;
@@ -45,7 +45,7 @@ public class UserLoginSession {
                           @JsonProperty("lastName") String lastName,
                           @JsonProperty("expires") long expires,
                           @JsonProperty("email") String email,
-                          @JsonProperty("userHash") String userHash,
+                          @JsonProperty("userId") String userId,
                           @JsonProperty("admin") boolean admin,
                           @JsonProperty("userCreateTime") Long userCreatedAt,
                           @JsonProperty("clusterId") String clusterId,
@@ -59,7 +59,7 @@ public class UserLoginSession {
     this.firstName = firstName;
     this.lastName = lastName;
     this.expires = expires;
-    this.userHash = userHash;
+    this.userId = userId;
     this.admin = admin;
     this.email = email;
     this.userCreatedAt = userCreatedAt;
@@ -98,8 +98,8 @@ public class UserLoginSession {
     return email;
   }
 
-  public String getUserHash() {
-    return userHash;
+  public String getUserId() {
+    return userId;
   }
 
   public boolean isAdmin() {

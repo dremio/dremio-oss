@@ -20,12 +20,12 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.Slf4jReporter;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.codahale.metrics.jvm.BufferPoolMetricSet;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
@@ -37,13 +37,13 @@ import com.google.common.collect.ImmutableMap;
  * Dremio main metrics class
  */
 public final class Metrics {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metrics.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metrics.class);
 
   public static final String METRICS_JMX_OUTPUT_ENABLED = "dremio.metrics.jmx.enabled";
   public static final String METRICS_LOG_OUTPUT_ENABLED = "dremio.metrics.log.enabled";
   public static final String METRICS_LOG_OUTPUT_INTERVAL = "dremio.metrics.log.interval";
 
-  static final SabotConfig config = SabotConfig.create();
+  private static final SabotConfig config = SabotConfig.create();
 
   private Metrics() {
   }

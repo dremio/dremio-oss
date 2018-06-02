@@ -63,7 +63,7 @@ public class G${type}ToChar implements SimpleFunction {
         right.buffer.getBytes(right.start, buf, 0, right.end - right.start);
         String input = new String(buf, com.google.common.base.Charsets.UTF_8);
         try {
-          format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(input).withZoneUTC();
+          format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(input).withZoneUTC();
         } catch (IllegalArgumentException ex) {
           throw errCtx.error()
               .message("Invalid date format string '%s'", input)

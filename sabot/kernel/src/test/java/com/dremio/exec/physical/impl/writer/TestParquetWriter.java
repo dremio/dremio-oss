@@ -561,7 +561,8 @@ public class TestParquetWriter extends BaseTestQuery {
           .unOrdered()
           .sqlQuery(String.format("SELECT * FROM dfs_test.`%s`", newTblName))
           .baselineColumns("id", "name", "bday")
-          .baselineValues(1, "Sheri Nowmer", DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD").parseLocalDateTime("1961-08-26"))
+          .baselineValues(1, "Sheri Nowmer",
+              DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").parseLocalDateTime("1961-08-26"))
           .go();
     } finally {
       deleteTableIfExists(newTblName);

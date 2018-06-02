@@ -26,7 +26,9 @@ public interface Task {
    */
   enum State {
     RUNNABLE,
-    BLOCKED,
+    BLOCKED_ON_UPSTREAM,
+    BLOCKED_ON_DOWNSTREAM,
+    BLOCKED_ON_SHARED_RESOURCE,
     DONE
   }
 

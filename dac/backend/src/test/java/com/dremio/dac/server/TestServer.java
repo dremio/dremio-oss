@@ -513,10 +513,10 @@ public class TestServer extends BaseTestServer {
     final NamespaceService ns = newNamespaceService();
     getPopulator().populateTestUsers();
     addSpace(ns, "space1");
-    addFolder(ns, "@"+DEFAULT_USERNAME+".f1");
+    addFolder(ns, "@" + DEFAULT_USERNAME + ".f1");
     addFolder(ns, "space1.f2");
 
-    DatasetPath datasetPath1 = new DatasetPath("@"+DEFAULT_USERNAME+".f1.ds1");
+    DatasetPath datasetPath1 = new DatasetPath("@" + DEFAULT_USERNAME + ".f1.ds1");
     DatasetPath datasetPath2 = new DatasetPath("space1.f2.ds2");
     DatasetPath datasetPath3 = new DatasetPath("space1.ds3");
 
@@ -527,44 +527,41 @@ public class TestServer extends BaseTestServer {
 
     doc("run jobs");
     l(JobsService.class).submitJob(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromConfig(ds1))
-        .setQueryType(QueryType.UI_RUN)
-        .setDatasetPath(datasetPath1.toNamespaceKey())
-        .setDatasetVersion(ds1.getDatasetVersion())
-        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+      .setSqlQuery(getQueryFromConfig(ds1))
+      .setQueryType(QueryType.UI_RUN)
+      .setDatasetPath(datasetPath1.toNamespaceKey())
+      .setDatasetVersion(ds1.getDatasetVersion())
+      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
     l(JobsService.class).submitJob(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromConfig(ds2))
-        .setQueryType(QueryType.UI_RUN)
-        .setDatasetPath(datasetPath2.toNamespaceKey())
-        .setDatasetVersion(ds2.getDatasetVersion())
-        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+      .setSqlQuery(getQueryFromConfig(ds2))
+      .setQueryType(QueryType.UI_RUN)
+      .setDatasetPath(datasetPath2.toNamespaceKey())
+      .setDatasetVersion(ds2.getDatasetVersion())
+      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
     l(JobsService.class).submitJob(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromConfig(ds3))
-        .setQueryType(QueryType.UI_RUN)
-        .setDatasetPath(datasetPath3.toNamespaceKey())
-        .setDatasetVersion(ds3.getDatasetVersion())
-        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+      .setSqlQuery(getQueryFromConfig(ds3))
+      .setQueryType(QueryType.UI_RUN)
+      .setDatasetPath(datasetPath3.toNamespaceKey())
+      .setDatasetVersion(ds3.getDatasetVersion())
+      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
     l(JobsService.class).submitJob(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromConfig(ds2))
-        .setQueryType(QueryType.UI_RUN)
-        .setDatasetPath(datasetPath2.toNamespaceKey())
-        .setDatasetVersion(ds2.getDatasetVersion())
-        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+      .setSqlQuery(getQueryFromConfig(ds2))
+      .setQueryType(QueryType.UI_RUN)
+      .setDatasetPath(datasetPath2.toNamespaceKey())
+      .setDatasetVersion(ds2.getDatasetVersion())
+      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
 
     doc("get home");
-    Home home = expectSuccess(getBuilder(getAPIv2().path("home/@"+DEFAULT_USERNAME)).buildGet(), Home.class);
+    Home home = expectSuccess(getBuilder(getAPIv2().path("home/@" + DEFAULT_USERNAME)).buildGet(), Home.class);
     assertEquals(1, (long) home.getHomeConfig().getExtendedConfig().getDatasetCount());
 
     doc("home contents");
     NamespaceTree nst = home.getContents();
     assertEquals(1, nst.getFolders().size());
-    assertEquals(1, (long) nst.getFolders().get(0).getExtendedConfig().getDatasetCount());
-    assertEquals(1, (long) nst.getFolders().get(0).getExtendedConfig().getJobCount());
 
     doc("list all spaces");
     final Spaces spaces = expectSuccess(getBuilder(getAPIv2().path("spaces")).buildGet(), Spaces.class);
     assertEquals(1, spaces.getSpaces().size());
-    assertEquals(2, spaces.getSpaces().get(0).getDatasetCount());
 
     doc("get space");
     final Space space1 = expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildGet(), Space.class);
@@ -573,14 +570,10 @@ public class TestServer extends BaseTestServer {
     doc("get folder");
     Folder folder2 = expectSuccess(getBuilder(getAPIv2().path("space/space1/folder/f2")).buildGet(), Folder.class);
     assertEquals("f2", folder2.getName());
-    assertEquals(1, (long)folder2.getExtendedConfig().getDatasetCount());
-    assertEquals(2, (long)folder2.getExtendedConfig().getJobCount());
 
     doc("list inside space");
     NamespaceTree lists1f1 = expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildGet(), Space.class).getContents();
     assertEquals(1, lists1f1.getFolders().size());
-    assertEquals(1, (long)lists1f1.getFolders().get(0).getExtendedConfig().getDatasetCount());
-    assertEquals(2, (long)lists1f1.getFolders().get(0).getExtendedConfig().getJobCount());
   }
 
   @Test

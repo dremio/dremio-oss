@@ -102,7 +102,7 @@ import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
 import com.dremio.plugins.elastic.ElasticActions.Result;
-import com.dremio.plugins.elastic.ElasticActions.Search;
+import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticTestActions.AliasActionDef;
 import com.dremio.plugins.elastic.ElasticTestActions.Bulk;
@@ -1140,7 +1140,7 @@ public class ElasticsearchCluster implements Closeable {
 
   public SearchResults search(String schema, String table, QueryBuilder queryBuilder) throws IOException {
 
-    byte[] response = connection.execute(new Search()
+    byte[] response = connection.execute(new SearchBytes()
         .setQuery(String.format("{\"query\": %s }", queryBuilder.buildAsBytes().toUtf8()))
         .setResource(String.format("%s/%s", schema, table))
         .setParameter("size", "1000")

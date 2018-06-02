@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 import java.util.BitSet;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -31,11 +30,12 @@ import org.junit.Test;
 
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.logical.partition.FindPartitionConditions;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 
 public class FilterSplitTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterSplitTest.class);
 
-  final JavaTypeFactory t = new JavaTypeFactoryImpl();
+  final JavaTypeFactory t = JavaTypeFactoryImpl.INSTANCE;
   final RexBuilder builder = new DremioRexBuilder(t);
   final RelDataType intType = t.createSqlType(SqlTypeName.INTEGER);
   final RelDataType sType = t.createSqlType(SqlTypeName.VARCHAR, 20);

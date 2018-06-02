@@ -62,6 +62,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -98,30 +99,26 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   boolean noColumnsFound = false; // true if none of the columns in the projection list is found in the schema
 
   // See DRILL-4203
-  private final ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates;
-  private final boolean readInt96AsTimeStamp;
+  private SchemaDerivationHelper schemaHelper;
   private VectorizedBasedFilter vectorizedBasedFilter;
   private final boolean useSingleStream;
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
-                             List<SchemaPath> columns, FileSystem fileSystem,
-                             ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates, boolean readInt96AsTimeStamp,
+                             List<SchemaPath> columns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              SimpleIntVector deltas, boolean useSingleStream) {
     super(context, columns, deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
     this.rowGroupIndex = rowGroupIndex;
     this.path = path;
-    this.containsCorruptedDates = containsCorruptedDates;
-    this.readInt96AsTimeStamp = readInt96AsTimeStamp;
+    this.schemaHelper = schemaHelper;
     this.useSingleStream = useSingleStream;
   }
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
-                             List<SchemaPath> columns, FileSystem fileSystem,
-                             ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates, boolean readInt96AsTimeStamp,
+                             List<SchemaPath> columns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              boolean useSingleStream) {
-    this(context, footer, rowGroupIndex, path, columns, fileSystem, containsCorruptedDates, readInt96AsTimeStamp, null, useSingleStream);
+    this(context, footer, rowGroupIndex, path, columns, fileSystem, schemaHelper, null, useSingleStream);
   }
 
   /**
@@ -289,7 +286,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         writer = new VectorContainerWriter(output);
         // Discard the columns not found in the schema when create ParquetRecordMaterializer, since they have been added to output already.
         final Collection<SchemaPath> columns = columnsNotFound == null || columnsNotFound.size() == 0 ? getColumns(): CollectionUtils.subtract(getColumns(), columnsNotFound);
-        recordMaterializer = new ParquetRecordMaterializer(output, writer, projection, columns, context.getOptions(), arrowSchema, containsCorruptedDates, readInt96AsTimeStamp);
+        recordMaterializer = new ParquetRecordMaterializer(output, writer, projection, columns, context.getOptions(), arrowSchema, schemaHelper);
         if (!schemaOnly) {
           if (deltas != null) {
             recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer, new UnboundRecordFilter() {

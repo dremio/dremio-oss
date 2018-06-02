@@ -28,6 +28,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ConvertletTable;
 import com.dremio.exec.planner.sql.parser.CompoundIdentifierConverter;
 import com.dremio.exec.planner.sql.parser.impl.ParserImpl;
+import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.test.DremioAssert;
 
 public class TestSqlBracketlessSyntax {
@@ -42,7 +43,27 @@ public class TestSqlBracketlessSyntax {
             .setParserFactory(ParserImpl.FACTORY)
             .build())
         .defaultSchema(CalciteSchema.createRootSchema(false /* addMetadata */, false /* cache */).plus())
-        .convertletTable(ConvertletTable.INSTANCE)
+        .convertletTable(new ConvertletTable(new ContextInformation() {
+          @Override
+          public String getQueryUser() {
+            return null;
+          }
+
+          @Override
+          public String getCurrentDefaultSchema() {
+            return null;
+          }
+
+          @Override
+          public long getQueryStartTime() {
+            return 0;
+          }
+
+          @Override
+          public int getRootFragmentTimeZone() {
+            return 0;
+          }
+        }))
         .build();
     Planner planner = Frameworks.getPlanner(config);
 

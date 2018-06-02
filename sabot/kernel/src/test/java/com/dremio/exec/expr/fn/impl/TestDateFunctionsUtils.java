@@ -18,7 +18,6 @@ package com.dremio.exec.expr.fn.impl;
 import static com.dremio.exec.expr.fn.impl.DateFunctionsUtils.formatDate;
 import static com.dremio.exec.expr.fn.impl.DateFunctionsUtils.formatTime;
 import static com.dremio.exec.expr.fn.impl.DateFunctionsUtils.formatTimeStamp;
-import static com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString;
 import static org.junit.Assert.assertEquals;
 
 import java.text.DateFormat;
@@ -33,29 +32,29 @@ public class TestDateFunctionsUtils {
 
   @Test
   public void stringToTime() {
-    assertEquals(0, formatTime("2016-10-26", getFormatterForFormatString("YYYY-MM-DD")));
-    assertEquals(calculateTime("1970-01-01 12:11:23"), formatTime("2016-10-26 12:11:23", getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")));
-    assertEquals(calculateTime("1970-01-01 12:11:23"), formatTime("12:11:23", getFormatterForFormatString("HH24:MI:SS")));
+    assertEquals(0, formatTime("2016-10-26", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD")));
+    assertEquals(calculateTime("1970-01-01 12:11:23"), formatTime("2016-10-26 12:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")));
+    assertEquals(calculateTime("1970-01-01 12:11:23"), formatTime("12:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS")));
 
-    assertEquals(calculateTime("1970-01-01 10:53:00"), formatTime("15:53:00+0500", getFormatterForFormatString("HH24:MI:SSTZO")));
-    assertEquals(calculateTime("1970-01-01 15:53:00"), formatTime("15:53:00", getFormatterForFormatString("HH24:MI:SS")));
+    assertEquals(calculateTime("1970-01-01 10:53:00"), formatTime("15:53:00+0500", DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SSTZO")));
+    assertEquals(calculateTime("1970-01-01 15:53:00"), formatTime("15:53:00", DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS")));
   }
 
   @Test
   public void stringToDate() {
-    assertEquals(calculateTime("2016-10-26 00:00:00"), formatDate("2016-10-26 12:11:23", getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")));
-    assertEquals(calculateTime("2016-10-26 00:00:00"), formatDate("2016-10-26", getFormatterForFormatString("YYYY-MM-DD")));
-    assertEquals(0L, formatDate("12:11:23", getFormatterForFormatString("HH:MI:SS")));
-    assertEquals(0L, formatDate("23:11:23", getFormatterForFormatString("HH24:MI:SS")));
-    assertEquals(calculateTime("1970-01-02 00:00:00"), formatDate("23:11:23-02:00", getFormatterForFormatString("HH24:MI:SSTZO")));
+    assertEquals(calculateTime("2016-10-26 00:00:00"), formatDate("2016-10-26 12:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")));
+    assertEquals(calculateTime("2016-10-26 00:00:00"), formatDate("2016-10-26", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD")));
+    assertEquals(0L, formatDate("12:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("HH:MI:SS")));
+    assertEquals(0L, formatDate("23:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS")));
+    assertEquals(calculateTime("1970-01-02 00:00:00"), formatDate("23:11:23-02:00", DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SSTZO")));
   }
 
   @Test
   public void stringToTimestamp() {
-    assertEquals(calculateTime("2016-10-26 00:00:00"), formatTimeStamp("2016-10-26", getFormatterForFormatString("YYYY-MM-DD")));
+    assertEquals(calculateTime("2016-10-26 00:00:00"), formatTimeStamp("2016-10-26", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD")));
     //works: YYYY-MM-dd hh:mm:ss y-MM-dd HH:mm:ss
-    assertEquals(calculateTime("2016-10-26 12:11:23"), formatTimeStamp("2016-10-26 12:11:23", getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")));
-    assertEquals(calculateTime("1970-01-01 12:11:23"), formatTimeStamp("12:11:23", getFormatterForFormatString("HH24:MI:SS")));
+    assertEquals(calculateTime("2016-10-26 12:11:23"), formatTimeStamp("2016-10-26 12:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS")));
+    assertEquals(calculateTime("1970-01-01 12:11:23"), formatTimeStamp("12:11:23", DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS")));
   }
 
   @Test
@@ -63,7 +62,7 @@ public class TestDateFunctionsUtils {
     DateTimeZone defaultTZ = DateTimeZone.getDefault();
     try {
       DateTimeZone.setDefault(DateTimeZone.forID("America/Los_Angeles"));
-      assertEquals(1236478747000L, formatTimeStamp("2009-03-08 02:19:07", getFormatterForFormatString("YYYY-MM-DD HH:MI:SS")));
+      assertEquals(1236478747000L, formatTimeStamp("2009-03-08 02:19:07", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS")));
     } finally {
       DateTimeZone.setDefault(defaultTZ);
     }
@@ -73,9 +72,9 @@ public class TestDateFunctionsUtils {
   public void stringToTimestampChangeTZOffset() {
     DateTimeZone defaultTZ = DateTimeZone.getDefault();
     try {
-      assertEquals(calculateTime("2008-09-15 10:53:00"), formatTimeStamp("2008-09-15T15:53:00+0500", getFormatterForFormatString("YYYY-MM-DD\"T\"HH24:MI:SSTZO")));
-      assertEquals(calculateTime("2011-01-01 04:00:00"), formatTimeStamp("2010-12-31T23:00:00-0500", getFormatterForFormatString("YYYY-MM-DD\"T\"HH24:MI:SSTZO")));
-      assertEquals(calculateTime("2010-12-31 23:00:00"), formatTimeStamp("2010-12-31T23:00:00", getFormatterForFormatString("YYYY-MM-DD\"T\"HH24:MI:SS")));
+      assertEquals(calculateTime("2008-09-15 10:53:00"), formatTimeStamp("2008-09-15T15:53:00+0500", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD\"T\"HH24:MI:SSTZO")));
+      assertEquals(calculateTime("2011-01-01 04:00:00"), formatTimeStamp("2010-12-31T23:00:00-0500", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD\"T\"HH24:MI:SSTZO")));
+      assertEquals(calculateTime("2010-12-31 23:00:00"), formatTimeStamp("2010-12-31T23:00:00", DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD\"T\"HH24:MI:SS")));
     } finally {
       DateTimeZone.setDefault(defaultTZ);
     }

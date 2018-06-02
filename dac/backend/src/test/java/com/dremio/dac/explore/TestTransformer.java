@@ -46,7 +46,6 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
@@ -132,6 +131,7 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.planner.sql.ParserConfig;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.QueryType;
@@ -874,7 +874,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     final SqlNode sqlNode = parser.parseStmt();
 
 
-    final JavaTypeFactory typeFactory = new JavaTypeFactoryImpl();
+    final JavaTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
     final RelDataType rowType = new RelRecordType(Arrays.<RelDataTypeField>asList(
         new RelDataTypeFieldImpl("foo", 0, typeFactory.createSqlType(SqlTypeName.INTEGER)),
         new RelDataTypeFieldImpl("b", 0, typeFactory.createSqlType(SqlTypeName.INTEGER))

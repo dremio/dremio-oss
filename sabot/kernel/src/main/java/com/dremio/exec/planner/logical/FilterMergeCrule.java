@@ -18,7 +18,6 @@ package com.dremio.exec.planner.logical;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
@@ -31,8 +30,8 @@ import org.apache.calcite.tools.RelBuilderFactory;
  */
 public class FilterMergeCrule extends RelOptRule {
 
-  public FilterMergeCrule(RelBuilderFactory relBuilderFactory) {
-    super(operand(LogicalFilter.class, operand(LogicalFilter.class, any())), relBuilderFactory, null);
+  public FilterMergeCrule(Class<? extends Filter> clazz, RelBuilderFactory relBuilderFactory) {
+    super(operand(clazz, operand(clazz, any())), relBuilderFactory, null);
   }
 
   public void onMatch(RelOptRuleCall call) {

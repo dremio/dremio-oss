@@ -34,7 +34,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.dac.api.CatalogItem;
 import com.dremio.dac.api.Source;
 import com.dremio.dac.model.folder.Folder;
-import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.PhysicalDataset;
@@ -79,7 +78,6 @@ import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -232,8 +230,7 @@ public class SourceService {
         path.toUrlPath(),
         path,
         getDefaultFileFormat(source, path),
-        0, // files should not have any jobs or descendants, no need to check
-        0,
+        0, // files should not have any jobs, no need to check
         false,
         false,
         false
@@ -253,8 +250,8 @@ public class SourceService {
   }
 
   protected void addTableToNamespaceTree(NamespaceTree ns, PhysicalDatasetResourcePath path, PhysicalDatasetName name,
-      PhysicalDatasetConfig datasetConfig, int jobsCount, int descendants) throws NamespaceNotFoundException {
-    ns.addPhysicalDataset(new PhysicalDataset(path, name, datasetConfig, jobsCount, descendants));
+      PhysicalDatasetConfig datasetConfig, int jobsCount) throws NamespaceNotFoundException {
+    ns.addPhysicalDataset(new PhysicalDataset(path, name, datasetConfig, jobsCount));
   }
 
   private void addToNamespaceTree(NamespaceTree ns, List<SchemaEntity> entities, SourceName source, String prefix)
@@ -269,11 +266,6 @@ public class SourceService {
           folderConfig.setFullPathList(path.toPathList());
           folderConfig.setName(path.getFolderName().getName());
           folderConfig.setVersion(0L);
-          final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(new FolderPath(folderConfig.getFullPathList()).toNamespaceKey());
-          final ExtendedConfig extendedConfig = new ExtendedConfig()
-            .setDatasetCount((long) datasetPaths.size())
-            .setJobCount(datasetService.getJobsCount(datasetPaths));
-          folderConfig.setExtendedConfig(extendedConfig);
           addFolderToNamespaceTree(ns, path, folderConfig);
         }
         break;
@@ -290,8 +282,7 @@ public class SourceService {
               new PhysicalDatasetResourcePath(source, path),
               new PhysicalDatasetName(path.getFileName().getName()),
               datasetConfig,
-              datasetService.getJobsCount(path.toNamespaceKey()),
-              datasetService.getDescendantsCount(path.toNamespaceKey()));
+              datasetService.getJobsCount(path.toNamespaceKey()));
         }
         break;
 
@@ -323,15 +314,6 @@ public class SourceService {
           folderConfig.setVersion(physicalDatasetConfig.getVersion());
           fileConfig.setVersion(physicalDatasetConfig.getVersion());
 
-          // For physical dataset from folder set descendants, job count and datasets count.
-          // job count is count of all datasets inside this folder + jobs directyly on this folder
-          final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(new FolderPath(folderConfig.getFullPathList()).toNamespaceKey());
-          final ExtendedConfig extendedConfig = new ExtendedConfig()
-            .setDatasetCount((long) datasetPaths.size())
-            .setJobCount(datasetService.getJobsCount(datasetPaths) + datasetService.getJobsCount(folderPath.toNamespaceKey()));
-          extendedConfig.setDescendants((long)datasetService.getDescendantsCount(folderPath.toNamespaceKey()));
-          folderConfig.setExtendedConfig(extendedConfig);
-
           addFolderTableToNamespaceTree(ns, folderPath, folderConfig, FileFormat.getForFolder(fileConfig), fileConfig.getType() != FileType.UNKNOWN);
         }
         break;
@@ -356,7 +338,7 @@ public class SourceService {
     fileConfig.setOwner(owner);
     fileConfig.setVersion(physicalDatasetConfig.getVersion());
     final File file = File.newInstance(physicalDatasetConfig.getId(), filePath, FileFormat.getForFile(fileConfig),
-      datasetService.getJobsCount(filePath.toNamespaceKey()), datasetService.getDescendantsCount(filePath.toNamespaceKey()),
+      datasetService.getJobsCount(filePath.toNamespaceKey()),
       false, false, fileConfig.getType() != FileType.UNKNOWN
     );
     return file;
@@ -417,12 +399,6 @@ public class SourceService {
       folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
     }
 
-    final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(folderPath.toNamespaceKey());
-    final ExtendedConfig extendedConfig = new ExtendedConfig()
-      .setDatasetCount((long) datasetPaths.size())
-      .setJobCount(datasetService.getJobsCount(datasetPaths));
-
-    folderConfig.setExtendedConfig(extendedConfig);
     // TODO: why do we need to look up the dataset again in isPhysicalDataset?
     NamespaceTree contents = includeContents ? listFolder(sourceName, folderPath, userName) : null;
     return newFolder(folderPath, folderConfig, contents, isPhysicalDataset(sourceName, folderPath), isFileSystemPlugin);
@@ -435,7 +411,7 @@ public class SourceService {
     return folder;
   }
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, namespaceService, children, SOURCE);
+    return NamespaceTree.newInstance(datasetService, children, SOURCE);
   }
 
   public NamespaceTree listFolder(SourceName sourceName, SourceFolderPath folderPath, String userName)
@@ -544,15 +520,13 @@ public class SourceService {
   // Physical datasets may be missing
   public PhysicalDataset getPhysicalDataset(SourceName sourceName, PhysicalDatasetPath physicalDatasetPath) throws NamespaceException {
     final int jobsCount =  datasetService.getJobsCount(physicalDatasetPath.toNamespaceKey());
-    final int descendants = datasetService.getDescendantsCount(physicalDatasetPath.toNamespaceKey());
     try {
       final DatasetConfig datasetConfig = namespaceService.getDataset(physicalDatasetPath.toNamespaceKey());
       return newPhysicalDataset(
         new PhysicalDatasetResourcePath(physicalDatasetPath.getSourceName(), physicalDatasetPath),
         physicalDatasetPath.getDatasetName(),
         toPhysicalDatasetConfig(datasetConfig),
-        jobsCount,
-        descendants);
+        jobsCount);
     } catch (NamespaceNotFoundException nse) {
       return newPhysicalDataset(
         new PhysicalDatasetResourcePath(physicalDatasetPath.getSourceName(), physicalDatasetPath),
@@ -562,19 +536,17 @@ public class SourceService {
           .setType(DatasetType.PHYSICAL_DATASET)
           .setVersion(0L)
           .setFullPathList(physicalDatasetPath.toPathList()),
-        jobsCount,
-        descendants);
+        jobsCount);
     }
   }
 
   protected PhysicalDataset newPhysicalDataset(PhysicalDatasetResourcePath resourcePath,
-      PhysicalDatasetName datasetName, PhysicalDatasetConfig datasetConfig, Integer jobsCount, Integer descendants) throws NamespaceNotFoundException {
+      PhysicalDatasetName datasetName, PhysicalDatasetConfig datasetConfig, Integer jobsCount) throws NamespaceNotFoundException {
     return new PhysicalDataset(
         resourcePath,
         datasetName,
         datasetConfig,
-        jobsCount,
-        descendants);
+        jobsCount);
   }
 
   public boolean isPhysicalDataset(SourceName sourceName, SourceFolderPath folderPath) {

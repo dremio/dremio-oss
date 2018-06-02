@@ -24,6 +24,9 @@ describe('NewQueryButton', () => {
   let minimalProps;
   let commonProps;
   let context;
+  const clickEvent = {
+    preventDefault: () => {}
+  };
   beforeEach(() => {
     minimalProps = {
       location: {pathname: '/foo'},
@@ -55,19 +58,19 @@ describe('NewQueryButton', () => {
 
   describe('#handleClick', () => {
     it('should navigate to newQuery if not already there', () => {
-      instance.handleClick();
+      instance.handleClick(clickEvent);
       expect(context.router.push).to.be.calledWith('/new_query?context=%22%40test_user%22');
     });
 
     it('should not confirm if already at New Query and there is no sql', () => {
       wrapper.setProps({location: {pathname: '/new_query'}, currentSql: ' '});
-      instance.handleClick();
+      instance.handleClick(clickEvent);
       expect(context.router.push).to.not.be.called;
       expect(commonProps.showConfirmationDialog).to.not.be.called;
       expect(commonProps.resetNewQuery).to.be.called;
 
       wrapper.setProps({currentSql: undefined});
-      instance.handleClick();
+      instance.handleClick(clickEvent);
       expect(context.router.push).to.not.be.called;
       expect(commonProps.showConfirmationDialog).to.not.be.called;
       expect(commonProps.resetNewQuery).to.be.called;
@@ -75,7 +78,7 @@ describe('NewQueryButton', () => {
 
     it('should confirm then reset if at New Query and there is sql', () => {
       wrapper.setProps({location: {pathname: '/new_query'}, currentSql: 'some sql'});
-      instance.handleClick();
+      instance.handleClick(clickEvent);
       expect(context.router.push).to.not.be.called;
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(commonProps.resetNewQuery).to.not.be.called;

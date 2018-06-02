@@ -155,6 +155,21 @@ public class HomeFileTool {
     }
   }
 
+  /**
+   * Delete the contents in given user home.
+   * @param userHome
+   * @return Whether successful or not.
+   * @throws IOException
+   */
+  public boolean deleteHomeAndContents(String userHome) throws IOException {
+    final Path homePath = new Path(config.getInnerUploads(), userHome);
+    if (fs.exists(homePath)) {
+      return fs.delete(homePath, true);
+    }
+
+    return true;
+  }
+
   @VisibleForTesting
   public void clearUploads() throws IOException {
     fs.delete(config.getInnerUploads(), true);

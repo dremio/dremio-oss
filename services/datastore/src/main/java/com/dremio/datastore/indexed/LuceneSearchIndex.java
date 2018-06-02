@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore.indexed;
 
+import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,8 +41,11 @@ import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 
+import com.codahale.metrics.MetricRegistry;
 import com.dremio.datastore.IndexedStore;
+import com.dremio.datastore.MetricUtils;
 import com.dremio.datastore.WarningTimer;
+import com.dremio.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -51,6 +56,8 @@ import com.google.common.collect.ImmutableList;
  */
 public class LuceneSearchIndex implements AutoCloseable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LuceneSearchIndex.class);
+
+  private static final String METRIC_PREFIX = "kvstore.lucene";
 
   //delay between end of a commit and next commit
   private static final long COMMIT_FREQUENCY = Integer.getInteger("dremio.lucene.commit_frequency", 60_000);
@@ -169,6 +176,17 @@ public class LuceneSearchIndex implements AutoCloseable {
     } catch(IOException ex){
       throw Throwables.propagate(ex);
     }
+
+    if (COLLECT_METRICS) {
+      registerMetrics();
+    }
+  }
+
+  private void registerMetrics() {
+    Metrics.getInstance().registerAll(new MetricUtils.MetricSetBuilder(MetricRegistry.name(METRIC_PREFIX, name))
+      .gauge("live-records", () -> (long) getLiveRecords())
+      .gauge("deleted-records", () -> (long) getDeletedRecords())
+      .build());
   }
 
   private void checkIfChanged() {
@@ -319,6 +337,10 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   @Override
   public void close() throws IOException {
+    if (COLLECT_METRICS) {
+      MetricUtils.removeAllMetricsThatStartWith(MetricRegistry.name(METRIC_PREFIX, name));
+    }
+
     committerThread.close();
 
     // commit will fail if writer is closed

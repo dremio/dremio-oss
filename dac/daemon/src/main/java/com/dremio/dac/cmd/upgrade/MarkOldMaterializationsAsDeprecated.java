@@ -35,16 +35,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 /**
- * Marks materializations created before 1.5 as deprecated.
+ * Marks materializations created before 2.0 as deprecated.
  */
 public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
 
   public MarkOldMaterializationsAsDeprecated() {
-    super("Mark materializations created before 1.5 as deprecated", VERSION_106, VERSION_150);
+    super("Mark materializations created before 2.0 as deprecated", VERSION_106, VERSION_150);
   }
 
   @Override
-  public void upgrade(UpgradeContext context) throws Exception {
+  public void upgrade(UpgradeContext context) {
     final com.dremio.service.accelerator.store.MaterializationStore oldStore
         = new com.dremio.service.accelerator.store.MaterializationStore(context.getKVStoreProvider());
     final MaterializationStore newStore = new MaterializationStore(context.getKVStoreProvider());
@@ -61,75 +61,29 @@ public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
         continue;
       }
 
-      if (oldLayout.getLayoutId() == null ||
-          Strings.isNullOrEmpty(oldLayout.getLayoutId().getId())) {
+      if (oldLayout.getLayoutId() == null || Strings.isNullOrEmpty(oldLayout.getLayoutId().getId())) {
         System.out.println("  Layout id for materialized layout is null/empty, skipping");
         continue;
       }
 
-      if (oldLayout.getMaterializationList() == null ||
-          oldLayout.getMaterializationList().isEmpty()) {
+      if (oldLayout.getMaterializationList() == null || oldLayout.getMaterializationList().isEmpty()) {
         System.out.printf("  Materialization list for materialized layout [%s] is null/empty, skipping\n",
-            oldLayout.getLayoutId());
+          oldLayout.getLayoutId());
         continue;
       }
 
-      long seriesId = 0; // since all of these belong to the same reflection/layout
-      for (final com.dremio.service.accelerator.proto.Materialization oldMaterialization :
-          oldLayout.getMaterializationList()) {
-
-        if (oldMaterialization == null ||
-            oldMaterialization.getId() == null ||
-            Strings.isNullOrEmpty(oldMaterialization.getId().getId())) {
-          System.out.printf("  Materialization id is null/empty (list size [%d]), layout [%s], skipping\n",
-              oldLayout.getMaterializationList().size(), oldLayout.getLayoutId());
-          continue;
-        }
-        final MaterializationId materializationId = new MaterializationId(oldMaterialization.getId().getId());
-
-        if (oldMaterialization.getLayoutId() == null ||
-            Strings.isNullOrEmpty(oldMaterialization.getLayoutId().getId())) {
-          // although we know the layout id from outer loop, skip to avoid trouble
-          System.out.printf("  Layout id is null/empty, materialization [%s], layout [%s] (size [%d]), skipping\n",
-              oldMaterialization.getId(), oldLayout.getLayoutId(), oldLayout.getMaterializationList().size());
-          continue;
-        }
-        // "layout" is now "reflection"
-        final ReflectionId reflectionId = new ReflectionId(oldMaterialization.getLayoutId().getId());
-
-        final Materialization newMaterialization = new Materialization()
-            .setId(materializationId)
-            .setReflectionId(reflectionId)
-            .setState(MaterializationState.DEPRECATED)
-            .setSeriesId(seriesId)
-            .setReflectionGoalVersion(0L)
-            .setSeriesOrdinal(0);
-
-        final RefreshId refreshId = new RefreshId(UUID.randomUUID().toString());
-        final String path = StringUtils.join(Iterables.skip(
-            ReflectionUtils.getMaterializationPath(newMaterialization), 1), "/");
-
-        final Refresh newRefresh = new Refresh()
-            .setId(refreshId)
-            .setReflectionId(reflectionId)
-            .setSeriesId(seriesId)
-            .setSeriesOrdinal(0)
-            .setPath(path);
-
-        System.out.printf("  Marking materialization with id [%s] (for reflection [%s], series [%d]) as deprecated\n",
-            materializationId, reflectionId, seriesId);
-        newStore.save(newMaterialization);
-        newStore.save(newRefresh);
-
-        seriesId++;
-        numDeprecated++;
+      try {
+        numDeprecated += deprecateMaterializedLayout(newStore, oldLayout);
+      } catch (Exception e) {
+        System.out.printf("  Failed to handle materialized layout [%s], skipping%n    %s%n",
+          oldLayout.getLayoutId().getId(), e.getMessage());
       }
 
       oldLayoutsToDelete.add(oldLayout.getLayoutId());
     }
 
     System.out.printf("  Deprecated %d materializations. These will be deleted after configured grace period\n",
-        numDeprecated);
+      numDeprecated);
 
     // delete all old layouts
     for (LayoutId layoutId : oldLayoutsToDelete) {
@@ -137,5 +91,60 @@ public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
     }
 
     System.out.printf("  Removed %d from the old materialization store\n", oldLayoutsToDelete.size());
+  }
+
+  private int deprecateMaterializedLayout(MaterializationStore newStore, MaterializedLayout oldLayout) {
+    long seriesId = 0; // since all of these belong to the same reflection/layout
+    int numDeprecated = 0;
+    for (final com.dremio.service.accelerator.proto.Materialization oldMaterialization :
+      oldLayout.getMaterializationList()) {
+
+      if (oldMaterialization == null ||
+          oldMaterialization.getId() == null ||
+          Strings.isNullOrEmpty(oldMaterialization.getId().getId())) {
+        System.out.printf("  Materialization id is null/empty (list size [%d]), layout [%s], skipping\n",
+          oldLayout.getMaterializationList().size(), oldLayout.getLayoutId());
+        continue;
+      }
+      final MaterializationId materializationId = new MaterializationId(oldMaterialization.getId().getId());
+
+      if (oldMaterialization.getLayoutId() == null || Strings.isNullOrEmpty(oldMaterialization.getLayoutId().getId())) {
+        // although we know the layout id from outer loop, skip to avoid trouble
+        System.out.printf("  Layout id is null/empty, materialization [%s], layout [%s] (size [%d]), skipping\n",
+          oldMaterialization.getId(), oldLayout.getLayoutId(), oldLayout.getMaterializationList().size());
+        continue;
+      }
+      // "layout" is now "reflection"
+      final ReflectionId reflectionId = new ReflectionId(oldMaterialization.getLayoutId().getId());
+
+      final Materialization newMaterialization = new Materialization()
+        .setId(materializationId)
+        .setReflectionId(reflectionId)
+        .setState(MaterializationState.DEPRECATED)
+        .setSeriesId(seriesId)
+        .setReflectionGoalVersion(0L)
+        .setSeriesOrdinal(0);
+
+      final RefreshId refreshId = new RefreshId(UUID.randomUUID().toString());
+      final String path = StringUtils.join(Iterables.skip(
+        ReflectionUtils.getMaterializationPath(newMaterialization), 1), "/");
+
+      final Refresh newRefresh = new Refresh()
+        .setId(refreshId)
+        .setReflectionId(reflectionId)
+        .setSeriesId(seriesId)
+        .setSeriesOrdinal(0)
+        .setPath(path);
+
+      System.out.printf("  Marking materialization with id [%s] (for reflection [%s], series [%d]) as deprecated\n",
+        materializationId, reflectionId, seriesId);
+      newStore.save(newMaterialization);
+      newStore.save(newRefresh);
+
+      seriesId++;
+      numDeprecated++;
+    }
+
+    return numDeprecated;
   }
 }

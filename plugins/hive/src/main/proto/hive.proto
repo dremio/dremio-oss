@@ -20,10 +20,17 @@ option java_outer_classname = "HiveReaderProto";
 option optimize_for = SPEED;
 option java_generate_equals_and_hash = true;
 
+// Note to developers: updates to this file may require changes to HiveReaderProtoUtil
+
 enum ReaderType {
   UNKNOWN = 0;
   BASIC = 1;
   NATIVE_PARQUET = 2;
+}
+
+enum PropertyCollectionType {
+  LIST = 0;
+  DICTIONARY = 1;
 }
 
 message HiveTableXattr {
@@ -31,10 +38,23 @@ message HiveTableXattr {
   optional string input_format = 2;
   optional string storage_handler = 3;
   optional string serialization_lib = 4;
+
   optional ReaderType reader_type = 5;
   repeated PartitionProp partition_properties = 6; // cached properties for all partitions of this table to avoid duplication
   optional int32 table_hash = 7; // used to check if table definition has changed
   optional int32 partition_hash = 8; // used to check if paritions have changed (added/deleted/modified)
+
+  optional PropertyCollectionType property_collection_type = 9 [default = LIST];
+
+  repeated Prop property_dictionary = 10;
+  repeated string input_format_dictionary = 11;
+  repeated string storage_handler_dictionary = 12;
+  repeated string serialization_lib_dictionary = 13;
+
+  repeated int32 table_property_subscript = 14; // lookup these values in property_dictionary
+  optional int32 table_input_format_subscript = 15; // lookup this value in input_format_dictionary
+  optional int32 table_storage_handler_subscript = 16; // lookup this value in storage_handler_dictionary
+  optional int32 table_serialization_lib_subscript = 17; // lookup this value in serialization_lib_dictionary
 }
 
 message HiveSplitXattr {
@@ -51,11 +71,16 @@ message SerializedInputSplit {
   optional bytes input_split = 2;
 }
 
-message PartitionProp {   // Per partition properies which are common for all splits in a partition
+message PartitionProp {   // Per partition properties which are common for all splits in a partition
   repeated Prop partition_property = 1;
   optional string input_format = 2;
   optional string storage_handler = 3;
   optional string serialization_lib = 4;
+
+  repeated int32 property_subscript = 5; // lookup these values in property_dictionary
+  optional int32 input_format_subscript = 6; // lookup this value in input_format_dictionary
+  optional int32 storage_handler_subscript = 7; // lookup this value in storage_handler_dictionary
+  optional int32 serialization_lib_subscript = 8; // lookup this value in serialization_lib_dictionary
 }
 
 message Prop {

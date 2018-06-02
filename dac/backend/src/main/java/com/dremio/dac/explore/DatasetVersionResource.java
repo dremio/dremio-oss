@@ -209,8 +209,7 @@ public class DatasetVersionResource {
         new DatasetName(config.getName()),
         config.getSql(),
         config,
-        datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-        datasetService.getDescendantsCount(datasetPath.toNamespaceKey())
+        datasetService.getJobsCount(datasetPath.toNamespaceKey())
     );
   }
 

@@ -77,7 +77,8 @@ public class HBaseGroupScan extends AbstractGroupScan {
 
   private HBaseSubScanSpec toSubScan(DatasetSplit split) {
     KeyRange range = KeyRange.fromSplit(split).intersection(spec.getKeyRange());
-    return new HBaseSubScanSpec(spec.getTableName().getNamespaceAsString(), spec.getTableName().getNameAsString(), range.getStart(), range.getStop(), spec.getSerializedFilter());
+    return new HBaseSubScanSpec(spec.getTableName().getNamespaceAsString(), spec.getTableName().getQualifierAsString(),
+        range.getStart(), range.getStop(), spec.getSerializedFilter());
   }
 
   @Override

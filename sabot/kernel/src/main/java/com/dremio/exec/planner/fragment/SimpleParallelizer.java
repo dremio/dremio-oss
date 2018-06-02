@@ -184,25 +184,6 @@ public class SimpleParallelizer implements ParallelizationParameters {
   }
 
   /**
-   * Create multiple physical plans from original query planning, it will allow execute them eventually independently
-   * @param options
-   * @param foremanNode
-   * @param queryId
-   * @param activeEndpoints
-   * @param reader
-   * @param rootFragment
-   * @param session
-   * @param queryContextInfo
-   * @return
-   * @throws ExecutionSetupException
-   */
-  public List<QueryWorkUnit> getSplitFragments(OptionList options, NodeEndpoint foremanNode, QueryId queryId,
-      Collection<NodeEndpoint> activeEndpoints, PhysicalPlanReader reader, Fragment rootFragment,
-      UserSession session, QueryContextInformation queryContextInfo) throws ExecutionSetupException {
-    // no op
-    throw new UnsupportedOperationException("Use children classes");
-  }
-  /**
    * Helper method to reuse the code for QueryWorkUnit(s) generation
    * @param activeEndpoints
    * @param rootFragment

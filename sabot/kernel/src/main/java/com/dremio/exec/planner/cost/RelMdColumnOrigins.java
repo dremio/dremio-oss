@@ -81,7 +81,7 @@ public class RelMdColumnOrigins extends org.apache.calcite.rel.metadata.RelMdCol
   }
 
   public Set<RelColumnOrigin> getColumnOrigins(JdbcRelBase jdbc, RelMetadataQuery mq, int iOutputColumn) {
-    return mq.getColumnOrigins(jdbc.getJdbcSubTree(), iOutputColumn);
+    return mq.getColumnOrigins(jdbc.getSubTree(), iOutputColumn);
   }
 
   public Set<RelColumnOrigin> getColumnOrigins(ExchangePrel exchangePrel, RelMetadataQuery mq, int iOutputColumn) {

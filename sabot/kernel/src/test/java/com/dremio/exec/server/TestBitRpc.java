@@ -28,6 +28,7 @@ import com.dremio.sabot.threads.SendingAccountor;
 import com.dremio.sabot.threads.SendingMonitor;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 public class TestBitRpc extends ExecTest {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestBitRpc.class);
@@ -37,7 +38,7 @@ public class TestBitRpc extends ExecTest {
     SharedResourceManager resourceManager = SharedResourceManager.newBuilder()
       .addGroup("test")
       .build();
-    SharedResource resource = resourceManager.getGroup("test").createResource("test-backpressure");
+    SharedResource resource = resourceManager.getGroup("test").createResource("test-backpressure", SharedResourceType.TEST);
 
     SendingMonitor sendingMonitor = new SendingMonitor(resource, new SendingAccountor());
     RpcOutcomeListener<Ack> wrappedListener = sendingMonitor.wrap(Mockito.mock(RpcOutcomeListener.class));

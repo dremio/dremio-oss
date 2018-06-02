@@ -26,12 +26,12 @@ import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordDataType;
@@ -189,7 +189,7 @@ public class PojoRecordReader<T> extends AbstractRecordReader implements Iterabl
 
   public static BatchSchema getSchema(Class<?> pojoClass){
     RecordDataType dataType = new PojoDataType(pojoClass);
-    RelDataType type = dataType.getRowType(new JavaTypeFactoryImpl());
+    RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
     return BatchSchema.fromCalciteRowType(type);
 
   }

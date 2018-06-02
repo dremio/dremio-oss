@@ -115,7 +115,7 @@ public class FilterOperator implements SingleInputOperator {
     final ClassGenerator<Filterer> cg = context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
 
     final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(config.getExpr(), input);
-    cg.addExpr(new ReturnValueExpression(expr), ClassGenerator.BlockCreateMode.MERGE);
+    cg.addExpr(new ReturnValueExpression(expr), ClassGenerator.BlockCreateMode.MERGE, true);
 
     for (final VectorWrapper<?> v : input) {
       final TransferPair pair = v.getValueVector().makeTransferPair(output.addOrGet(v.getField()));

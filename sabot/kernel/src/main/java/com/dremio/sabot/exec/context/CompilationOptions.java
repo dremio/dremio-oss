@@ -38,4 +38,7 @@ public class CompilationOptions {
     return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD);
   }
 
+  public int getNewMethodThreshold() {
+    return (int) optionManager.getOption(ExecConstants.CODE_GEN_NESTED_METHOD_THRESHOLD);
+  }
 }

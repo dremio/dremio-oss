@@ -129,12 +129,17 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
       final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
       final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
         ((ParquetFormatPlugin)formatPlugin).getConfig().autoCorrectCorruptDates);
-      final boolean readInt96AsTimeStamp = operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).bool_val;
+
+      final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+          .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).bool_val)
+          .dateCorruptionStatus(dateStatus)
+          .build();
+
       final ImplicitFilesystemColumnFinder finder = new  ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS);
 
       try(RecordReader reader =
             new AdditionalColumnsRecordReader(
-              new ParquetRowiseReader(operatorContext, footer, 0, firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, dateStatus, readInt96AsTimeStamp, true),
+              new ParquetRowiseReader(operatorContext, footer, 0, firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, schemaHelper, true),
               finder.getImplicitFieldsForSample(selection)
             )) {
 
@@ -239,21 +244,23 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
         }
       }
 
-      // add implicit fields
-      for(NameValuePair<?> p : pairs.get(i)) {
-        if (!partitionValues.containsKey(p.getName())) {
-          final Object obj = p.getValue();
-          PartitionValue value;
-          if(obj == null || obj instanceof String){
-            value = new PartitionValue().setColumn(p.getName()).setStringValue( (String) p.getValue()).setType(PartitionValueType.IMPLICIT);
-          }else if(obj instanceof Long){
-            value = new PartitionValue().setColumn(p.getName()).setLongValue((Long) p.getValue()).setType(PartitionValueType.IMPLICIT);
-          }else{
-            throw new UnsupportedOperationException(String.format("Unable to handle value %s of type %s.", obj, obj.getClass().getName()));
+      if (!"__accelerator".equals(fsPlugin.getName())) {
+        // add implicit fields
+        for (NameValuePair<?> p : pairs.get(i)) {
+          if (!partitionValues.containsKey(p.getName())) {
+            final Object obj = p.getValue();
+            PartitionValue value;
+            if (obj == null || obj instanceof String) {
+              value = new PartitionValue().setColumn(p.getName()).setStringValue((String) p.getValue()).setType(PartitionValueType.IMPLICIT);
+            } else if (obj instanceof Long) {
+              value = new PartitionValue().setColumn(p.getName()).setLongValue((Long) p.getValue()).setType(PartitionValueType.IMPLICIT);
+            } else {
+              throw new UnsupportedOperationException(String.format("Unable to handle value %s of type %s.", obj, obj.getClass().getName()));
 
+            }
+            partitionValues.put(p.getName(), value);
+            allImplicitColumns.add(p.getName());
           }
-          partitionValues.put(p.getName(), value);
-          allImplicitColumns.add(p.getName());
         }
       }
       split.setPartitionValuesList(new ArrayList<>(partitionValues.values()));

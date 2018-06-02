@@ -165,6 +165,30 @@ public class ClassGenerator<T>{
     return getBlock(getCurrentMapping().getMethodName(BlockType.CLEANUP));
   }
 
+  private int innerMethodCount = 0;
+
+  public JMethod innerMethod(CompleteType type) {
+    JMethod method = clazz.method(JMod.PRIVATE, type.getHolderClass(), "inner_method_" + innerMethodCount++);
+    String methodName = getCurrentMapping().getMethodName(BlockType.EVAL);
+    CodeGeneratorMethod cgm = sig.get(sig.get(methodName));
+    for (CodeGeneratorArgument arg : cgm) {
+      method.param(arg.getType(), arg.getName());
+    }
+    nestEvalBlock(method.body());
+    evaluationVisitor.previousExpressions.clear();
+    return method;
+  }
+
+  public JInvocation invokeInnerMethod(JMethod method) {
+    JInvocation invocation = JExpr.invoke(method);
+    String methodName = getCurrentMapping().getMethodName(BlockType.EVAL);
+    CodeGeneratorMethod cgm = sig.get(sig.get(methodName));
+    for (CodeGeneratorArgument arg : cgm) {
+      invocation.arg(JExpr.ref(arg.getName()));
+    }
+    return invocation;
+  }
+
   public void nestEvalBlock(JBlock block) {
     String methodName = getCurrentMapping().getMethodName(BlockType.EVAL);
     evaluationVisitor.newScope();
@@ -238,11 +262,19 @@ public class ClassGenerator<T>{
   }
 
   public HoldingContainer addExpr(LogicalExpression ex) {
+    return addExpr(ex, false);
+  }
+
+  public HoldingContainer addExpr(LogicalExpression ex, boolean allowInnerMethods) {
     // default behavior is always to put expression into new block.
-    return addExpr(ex, BlockCreateMode.NEW_BLOCK);
+    return addExpr(ex, BlockCreateMode.NEW_BLOCK, allowInnerMethods);
   }
 
   public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode) {
+    return addExpr(ex, mode, false);
+  }
+
+  public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
     if (mode == BlockCreateMode.NEW_BLOCK || mode == BlockCreateMode.NEW_IF_TOO_LARGE) {
       rotateBlock(mode);
     }
@@ -251,7 +283,7 @@ public class ClassGenerator<T>{
       b.getLast().incCounter();
     }
 
-    return evaluationVisitor.addExpr(ex, this);
+    return evaluationVisitor.addExpr(ex, this, allowInnerMethods);
   }
 
   public void rotateBlock() {

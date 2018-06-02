@@ -61,8 +61,11 @@ export class NewQueryButton extends Component {
     return '/new_query?context=' + encodeURIComponent(resourceId);
   }
 
-  handleClick = () => {
+  handleClick = (e) => {
     const { location, currentSql, intl } = this.props;
+    if (e.metaKey) { // DX-10607 pass to default link behaviour, when cmd is pressed on click
+      return;
+    }
     if (location.pathname === '/new_query') {
       if (currentSql !== undefined && currentSql.trim()) {
         this.props.showConfirmationDialog({
@@ -83,12 +86,13 @@ export class NewQueryButton extends Component {
     } else {
       this.context.router.push(this.getNewQueryHref());
     }
+    e.preventDefault();
   }
 
   render() {
     return (
       <div className='new-query-button' style={styles.base}>
-        <a data-qa='new-query-button' onClick={this.handleClick} style={styles.link}>
+        <a href={this.getNewQueryHref()} data-qa='new-query-button' onClick={this.handleClick} style={styles.link}>
           <FontIcon theme={styles.icon} type='QueryPlain' />
           <FormattedMessage id='NewQuery.NewQuery'/>
         </a>

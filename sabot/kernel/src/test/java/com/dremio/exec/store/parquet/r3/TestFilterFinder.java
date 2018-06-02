@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -33,11 +32,12 @@ import org.junit.Test;
 
 import com.dremio.exec.planner.logical.partition.FindSimpleFilters;
 import com.dremio.exec.planner.logical.partition.FindSimpleFilters.StateHolder;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.google.common.collect.ImmutableList;
 
 public class TestFilterFinder {
 
-  private RelDataTypeFactory factory = new JavaTypeFactoryImpl();
+  private RelDataTypeFactory factory = JavaTypeFactoryImpl.INSTANCE;
   private RexBuilder builder = new RexBuilder(factory);
 
   @Test

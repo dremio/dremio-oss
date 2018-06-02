@@ -50,6 +50,7 @@ import com.dremio.exec.store.easy.json.JsonProcessor;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.dremio.plugins.elastic.ElasticActions.DeleteScroll;
 import com.dremio.plugins.elastic.ElasticActions.Search;
+import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticActions.SearchScroll;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
@@ -71,6 +72,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteStreams;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -258,7 +260,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       searchSize = fetch;
     }
 
-    final Search search = new Search()
+    final Search<byte[]> search = new SearchBytes()
         .setQuery(query)
         .setResource(resource)
         .setParameter("scroll", config.getScrollTimeoutFormatted())

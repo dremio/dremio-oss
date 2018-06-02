@@ -48,11 +48,9 @@ import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FolderNotFoundException;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 
 /**
@@ -86,11 +84,7 @@ public class FolderResource {
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     try {
       final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
-      final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(folderPath.toNamespaceKey());
-      final ExtendedConfig extendedConfig = new ExtendedConfig().setDatasetCount((long)datasetPaths.size())
-        .setJobCount(datasetService.getJobsCount(datasetPaths));
-      folderConfig.setExtendedConfig(extendedConfig);
-      NamespaceTree contents = includeContents
+      final NamespaceTree contents = includeContents
           ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()))
           : null;
       return newFolder(folderPath, folderConfig, contents);
@@ -139,7 +133,7 @@ public class FolderResource {
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, namespaceService, children, SPACE);
+    return NamespaceTree.newInstance(datasetService, children, SPACE);
   }
 
   @POST

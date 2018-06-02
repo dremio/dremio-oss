@@ -81,6 +81,7 @@ public class TestJoinNullable extends PlanTestBase {
     nullEqualJoinHelper(query);
   }
 
+  @Ignore("DX-11205")
   @Test
   public void withNullEqualHashJoin() throws Exception {
     final String query = "SELECT * FROM " +
@@ -91,6 +92,7 @@ public class TestJoinNullable extends PlanTestBase {
     nullEqualJoinHelper(query);
   }
 
+  @Ignore("DX-11205")
   @Test
   public void withNullEqualInWhereConditionHashJoin() throws Exception {
     final String query = "SELECT * FROM " +
@@ -112,6 +114,7 @@ public class TestJoinNullable extends PlanTestBase {
         "This query cannot be planned possibly due to either a cartesian join or an inequality join");
   }
 
+  @Ignore("DX-11205")
   @Test
   public void withNullEqualInWhereConditionThreeTableHashJoin() throws Exception {
     final String query = "SELECT * FROM " +
@@ -156,7 +159,7 @@ public class TestJoinNullable extends PlanTestBase {
         .baselineValues(null, "L_null_2", "R_null_3", null, "RR_null_1", null)
         .go();
   }
-
+  @Ignore("DX-11205")
   @Test
   public void withNullEqualAdditionFilter() throws Exception {
     final String query = "SELECT * FROM " +

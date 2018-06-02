@@ -32,6 +32,7 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.plan.hep.HepPlanner;
+import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -49,6 +50,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelConversionException;
@@ -62,6 +64,8 @@ import com.dremio.common.logical.PlanProperties;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.logical.PlanProperties.PlanPropertiesBuilder;
 import com.dremio.common.logical.PlanProperties.PlanType;
+import com.dremio.exec.catalog.CachingCatalog;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
@@ -73,6 +77,7 @@ import com.dremio.exec.planner.PlannerType;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
+import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.ChainedRelMetadataProvider;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
@@ -119,6 +124,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -189,6 +195,16 @@ public class PrelTransformer {
     return typedSqlNode;
   }
 
+  public static RelNode trimFields(final RelNode relNode, boolean shouldLog) {
+    final Stopwatch w = Stopwatch.createStarted();
+    final RelFieldTrimmer trimmer = DremioFieldTrimmer.of(relNode.getCluster());
+    final RelNode trimmed = trimmer.trim(relNode);
+    if(shouldLog) {
+      log(PlannerType.HEP, PlannerPhase.FIELD_TRIMMING, trimmed, logger, w);
+    }
+    return trimmed;
+  }
+
   /**
    *  Given a relNode tree for SELECT statement, convert to Dremio Logical RelNode tree.
    * @param relNode
@@ -199,14 +215,19 @@ public class PrelTransformer {
   public static Rel convertToDrel(SqlHandlerConfig config, final RelNode relNode) throws SqlUnsupportedException, RelConversionException {
 
     try {
-      final RelNode convertedRelNode;
+      final RelNode trimmed = trimFields(relNode, true);
+      final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, trimmed, trimmed.getTraitSet(), true);
 
-      final RelTraitSet logicalTraits = relNode.getTraitSet().plus(Rel.LOGICAL);
+      final RelTraitSet logicalTraits = preLog.getTraitSet().plus(Rel.LOGICAL);
+      final RelNode intermediateNode = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLog, logicalTraits, true);
 
-      final RelNode intermediateNode = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, relNode, logicalTraits, true);
+      final Catalog catalog = config.getContext().getCatalog();
+      if (catalog instanceof CachingCatalog) {
+        config.getObserver().tablesCollected(catalog.getAllRequestedTables());
+      }
 
       // Do Join Planning.
-      convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING, intermediateNode, intermediateNode.getTraitSet(), true);
+      final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING, intermediateNode, intermediateNode.getTraitSet(), true);
 
       FlattenRelFinder flattenFinder = new FlattenRelFinder();
       final RelNode flattendPushed;
@@ -288,6 +309,15 @@ public class PrelTransformer {
         }
         return super.visit(scan);
       }
+
+      @Override
+      public RelNode visit(final RelNode other) {
+        if (other instanceof ContainerRel) {
+          ContainerRel containerRel = (ContainerRel) other;
+          return containerRel.getSubTree().accept(this);
+        }
+        return super.visit(other);
+      }
     });
 
     final SubstitutionInfo info = builder.build();
@@ -334,18 +364,21 @@ public class PrelTransformer {
 
     CALCITE_LOGGER.trace("Starting Planning for phase {} with target traits {}.", phase, targetTraits);
     final RelNode output;
-    switch (plannerType) {
-    case HEP_BOTTOM_UP:
-    case HEP: {
+
+    if(plannerType.isHep()) {
+
       final HepProgramBuilder hepPgmBldr = new HepProgramBuilder();
-      if (plannerType == PlannerType.HEP_BOTTOM_UP) {
-        hepPgmBldr.addMatchOrder(HepMatchOrder.BOTTOM_UP);
+
+      hepPgmBldr.addMatchOrder(plannerType.getMatchOrder());
+      if(plannerType.isCombineRules()) {
+        hepPgmBldr.addRuleCollection(Lists.newArrayList(rules));
+      } else {
+        for(RelOptRule rule : rules) {
+          hepPgmBldr.addRuleInstance(rule);
+        }
       }
-      for (RelOptRule rule : rules) {
-        hepPgmBldr.addRuleInstance(rule);
-      }
-      final HepPlanner planner = new DremioHepPlanner(
-          hepPgmBldr.build(), config.getContext().getPlannerSettings(), config.getConverter().getCostFactory());
+
+      final HepPlanner planner = new DremioHepPlanner(hepPgmBldr.build(), config.getContext().getPlannerSettings(), config.getConverter().getCostFactory());
       logPlanner = planner;
 
       final List<RelMetadataProvider> list = Lists.newArrayList();
@@ -361,10 +394,8 @@ public class PrelTransformer {
         planner.changeTraits(input, toTraits);
       }
       output = planner.findBestExp();
-      break;
-    }
-    case VOLCANO:
-    default: {
+
+    } else {
       // as weird as it seems, the cluster's only planner is the volcano planner.
       Preconditions.checkArgument(input.getCluster().getPlanner() instanceof VolcanoPlanner,
           "Cluster is expected to be constructed using VolcanoPlanner. Was actually of type %s.",
@@ -372,7 +403,7 @@ public class PrelTransformer {
       final DremioVolcanoPlanner planner = (DremioVolcanoPlanner) input.getCluster().getPlanner();
       logPlanner = planner;
       planner.setNoneConventionHaveInfiniteCost(phase != PlannerPhase.JDBC_PUSHDOWN);
-      planner.setCancelFlag(new CancelFlag(60, TimeUnit.SECONDS, phase));
+      planner.setCancelFlag(new CancelFlag(config.getContext().getPlannerSettings().getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS, phase));
       final Program program = Programs.of(rules);
 
       final List<RelMetadataProvider> list = Lists.newArrayList();
@@ -388,13 +419,37 @@ public class PrelTransformer {
       final AccelerationAwareSubstitutionProvider substitutions = config.getConverter().getSubstitutionProvider();
       substitutions.setObserver(config.getObserver());
       substitutions.setEnabled(phase.useMaterializations);
+      substitutions.setPostSubstitutionTransformer(
+        relNode -> {
+          final HepProgramBuilder builder = HepProgram.builder();
+          builder.addMatchOrder(HepMatchOrder.ARBITRARY);
+          builder.addRuleCollection(Lists.newArrayList(config.getRules(PlannerPhase.POST_SUBSTITUTION)));
+
+          final HepProgram p = builder.build();
+
+          final HepPlanner pl = new HepPlanner(p);
+          pl.setRoot(relNode);
+          return pl.findBestExp().accept(new ConvertJdbcLogicalToJdbcRel());
+        }
+      );
+      boolean completed = false;
       try {
         output = program.run(planner, input, toTraits);
+        completed = true;
       } finally {
         substitutions.setEnabled(false);
+
+        if(completed == false) {
+          try {
+            // log our input state as oput anyway so we can ensure that we have details.
+            log(plannerType, phase, input, logger, watch);
+            config.getObserver().planRelTransform(phase, logPlanner, input, input, watch.elapsed(TimeUnit.MILLISECONDS));
+          } catch(Throwable t) {
+            logger.error("Failure while trying to record failed transform.", t);
+          }
+        }
+
       }
-      break;
-    }
     }
 
     if (log) {
@@ -681,14 +736,14 @@ public class PrelTransformer {
     // Set original root in volcano planner for acceleration (in this case, do not inject JdbcCrel or JdbcRel)
     final boolean leafLimitEnabled = config.getContext().getPlannerSettings().isLeafLimitsEnabled();
     final VolcanoPlanner volcanoPlanner = (VolcanoPlanner) convertedNodeNotExpanded.getCluster().getPlanner();
-    final RelNode originalRoot = convertedNodeWithoutRexSubquery.accept(new InjectSampleAndJdbcLogical(leafLimitEnabled, false));
+    final RelNode originalRoot = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
     volcanoPlanner.setOriginalRoot(originalRoot);
 
     // Now, transform jdbc nodes to Convention.NONE.  To do so, we need to inject a jdbc logical on top
     // of JDBC table scans with high cost and then plan to reduce the cost.
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    final RelNode injectJdbcLogical = convertedNode.accept(new InjectSampleAndJdbcLogical(leafLimitEnabled, true));
-    final RelNode jdbcPushedPartial = transform(config, PlannerType.VOLCANO, PlannerPhase.JDBC_PUSHDOWN, injectJdbcLogical, injectJdbcLogical.getTraitSet(), false);
+    final RelNode injectJdbcLogical = convertedNode.accept(new InjectSample(leafLimitEnabled));
+    final RelNode jdbcPushedPartial = transform(config, PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, injectJdbcLogical, injectJdbcLogical.getTraitSet(), false);
 
     // Transform all the subquery reltree into jdbc as well! If any of them fail, we abort and just use the expanded reltree.
     final RelsWithRexSubQueryTransformer transformer = new RelsWithRexSubQueryTransformer(config);
@@ -701,11 +756,11 @@ public class PrelTransformer {
     final RelNode finalConvertedNode;
     if (transformer.failed() || found) {
       log("Failed to pushdown RexSubquery", jdbcPushed, logger, null);
-      finalConvertedNode = convertedNodeWithoutRexSubquery.accept(new InjectSampleAndJdbcLogical(leafLimitEnabled, true)).accept(new ConvertJdbcLogicalToJdbcRel());
+      finalConvertedNode = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled)).accept(new ConvertJdbcLogicalToJdbcRel());
     } else {
       finalConvertedNode = jdbcPushed.accept(new ConvertJdbcLogicalToJdbcRel());
     }
-    config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, volcanoPlanner, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, null, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
     return finalConvertedNode;
   }

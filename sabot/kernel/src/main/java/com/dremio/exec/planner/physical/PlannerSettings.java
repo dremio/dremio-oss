@@ -86,6 +86,10 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator HASH_JOIN_SWAP = new BooleanValidator("planner.enable_hashjoin_swap", true);
   public static final OptionValidator HASH_JOIN_SWAP_MARGIN_FACTOR = new RangeDoubleValidator("planner.join.hash_join_swap_margin_factor", 0, 100, 10d);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
+  public static final BooleanValidator TRANSITIVE_JOIN = new BooleanValidator("planner.experimental.transitivejoin", false);
+  public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", true);
+  public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", true);
+  public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.experimental.cross_join", false);
   public static final BooleanValidator ENABLE_DECIMAL_DATA_TYPE = new BooleanValidator(ENABLE_DECIMAL_DATA_TYPE_KEY, false);
   public static final BooleanValidator HEP_OPT = new BooleanValidator("planner.enable_hep_opt", true);
   public static final BooleanValidator ENABLE_PARTITION_PRUNING = new BooleanValidator("planner.enable_partition_pruning", true);
@@ -93,6 +97,7 @@ public class PlannerSettings implements Context{
       INITIAL_OFF_HEAP_ALLOCATION_IN_BYTES, MAX_OFF_HEAP_ALLOCATION_IN_BYTES, DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES);
   public static final String UNIONALL_DISTRIBUTE_KEY = "planner.enable_unionall_distribute";
   public static final BooleanValidator UNIONALL_DISTRIBUTE = new BooleanValidator(UNIONALL_DISTRIBUTE_KEY, true);
+  public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
 
   public static final BooleanValidator ENABLE_LEAF_LIMITS = new BooleanValidator("planner.leaf_limit_enable", false);
   public static final RangeLongValidator LEAF_LIMIT_SIZE  = new RangeLongValidator("planner.leaf_limit_size", 1, Long.MAX_VALUE, 10000);
@@ -133,6 +138,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator REUSE_PREPARE_HANDLES = new BooleanValidator("planner.reuse_prepare_statement_handles", false);
 
   public static final BooleanValidator VERBOSE_PROFILE = new BooleanValidator("planner.verbose_profile", false);
+
+  public static final BooleanValidator INCLUDE_DATASET_PROFILE = new BooleanValidator("planner.include_dataset_profile", true);
 
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor", 0.0, 1.0, 0.0d);
@@ -180,6 +187,10 @@ public class PlannerSettings implements Context{
     return forceSingleMode || options.getOption(EXCHANGE.getOptionName()).bool_val;
   }
 
+  public long getMaxPlanningPerPhaseMS() {
+    return options.getOption(PLANNING_MAX_MILLIS);
+  }
+
   public void forceSingleMode() {
     forceSingleMode = true;
   }
@@ -194,6 +205,14 @@ public class PlannerSettings implements Context{
 
   public double getBroadcastFactor(){
     return options.getOption(BROADCAST_FACTOR);
+  }
+
+  public boolean isTransitiveJoinEnabled() {
+    return options.getOption(TRANSITIVE_JOIN);
+  }
+
+  public boolean isTransposeProjectFilterLogicalEnabled() {
+    return options.getOption(ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL);
   }
 
   public double getNestedLoopJoinFactor(){
@@ -238,6 +257,14 @@ public class PlannerSettings implements Context{
 
   public boolean isReduceProjectExpressionsEnabled() {
     return options.getOption(ENABLE_REDUCE_PROJECT.getOptionName()).bool_val;
+  }
+
+  public boolean isProjectLogicalCleanupEnabled() {
+    return options.getOption(ENABLE_PROJECT_CLEANUP_LOGICAL);
+  }
+
+  public boolean isCrossJoinEnabled() {
+    return options.getOption(ENABLE_CROSS_JOIN);
   }
 
   public boolean isReduceFilterExpressionsEnabled() {

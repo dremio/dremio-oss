@@ -15,18 +15,25 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
 import static java.lang.String.format;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
+import com.dremio.datastore.MetricUtils.CloseableTimer;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.metrics.Metrics;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
@@ -36,12 +43,29 @@ import com.google.protobuf.ByteString;
  */
 public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
+  private static final String METRIC_PREFIX = "kvstore.remote";
+
+  private enum Stats {
+    GET,
+    GET_LIST,
+    PUT,
+    CHECK_AND_PUT,
+    CONTAINS,
+    DELETE,
+    CHECK_AND_DELETE,
+    DELETE_VERSION,
+    FIND_BY_RANGE,
+    FIND_ALL
+  }
+
   private final String storeId;
   private StoreBuilderConfig config;
   private final DatastoreRpcClient client;
   private final Serializer<K> keySerializer;
   private final Serializer<V> valueSerializer;
   private final VersionExtractor<V> versionExtractor;
+
+  private final Map<Stats, Timer> metrics;
 
   @SuppressWarnings("unchecked")
   public RemoteKVStore(DatastoreRpcClient client, String storeId, StoreBuilderConfig config) {
@@ -76,11 +100,34 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     } else {
       versionExtractor = null;
     }
+
+    metrics = registerMetrics();
+  }
+
+  private Map<Stats, Timer> registerMetrics() {
+    if (!COLLECT_METRICS) {
+      return ImmutableMap.of();
+    }
+
+    final MetricRegistry registry = Metrics.getInstance();
+    final ImmutableMap.Builder<Stats, Timer> builder = ImmutableMap.builder();
+    for (Stats stat : Stats.values()) {
+      final Timer timer = registry.timer(MetricRegistry.name(METRIC_PREFIX, stat.name()));
+      builder.put(stat, timer);
+    }
+    return builder.build();
+  }
+
+  private CloseableTimer time(Stats stat) {
+    if (COLLECT_METRICS) {
+      return new MetricUtils.MetricTimer(metrics.get(stat));
+    }
+    return MetricUtils.NO_OP;
   }
 
   @Override
   public V get(K key) {
-    try {
+    try (CloseableTimer t = time(Stats.GET)) {
       ByteString value = client.get(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
       if (value != null && !value.isEmpty()) {
         return valueSerializer.deserialize(value.toByteArray());
@@ -120,7 +167,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public List<V> get(List<K> keys) {
-    try {
+    try (CloseableTimer timer = time(Stats.GET_LIST)) {
       List<ByteString> keyLists = Lists.newArrayList();
       for (K key : keys) {
         keyLists.add(ByteString.copyFrom(keySerializer.serialize(key)));
@@ -142,7 +189,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public void put(K key, V value) {
-    try {
+    try (CloseableTimer timer = time(Stats.PUT)) {
       Long version = client.put(storeId, ByteString.copyFrom(keySerializer.serialize(key)), ByteString.copyFrom(valueSerializer.serialize(value)));
       if (versionExtractor != null) {
         versionExtractor.setVersion(value, version);
@@ -154,7 +201,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public boolean checkAndPut(K key, V oldValue, V newValue) {
-    try {
+    try (CloseableTimer timer = time(Stats.CHECK_AND_PUT)) {
       Pair<Boolean, Long> response = client.checkAndPut(storeId,
         ByteString.copyFrom(keySerializer.serialize(key)),
         oldValue == null? null : ByteString.copyFrom(valueSerializer.serialize(oldValue)),
@@ -171,7 +218,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public boolean contains(K key) {
-    try {
+    try (CloseableTimer timer = time(Stats.CONTAINS)) {
       return client.contains(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to check contains for store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
@@ -180,7 +227,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public void delete(K key) {
-    try {
+    try (CloseableTimer timer = time(Stats.DELETE)) {
       client.delete(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to delete from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
@@ -189,7 +236,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public boolean checkAndDelete(K key, V value) {
-    try {
+    try (CloseableTimer timer = time(Stats.CHECK_AND_DELETE)) {
       return client.checkAndDelete(storeId,
         ByteString.copyFrom(keySerializer.serialize(key)),
         ByteString.copyFrom(valueSerializer.serialize(value)));
@@ -203,7 +250,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     FindByRange<ByteString> findByRange = new FindByRange<ByteString>()
       .setStart(ByteString.copyFrom(keySerializer.serialize(find.getStart())), find.isStartInclusive())
       .setEnd(ByteString.copyFrom(keySerializer.serialize(find.getEnd())), find.isEndInclusive());
-    try {
+    try (CloseableTimer timer = time(Stats.FIND_BY_RANGE)) {
       return Iterables.transform(client.find(storeId, findByRange), new Function<Entry<ByteString, ByteString>, Entry<K, V>>() {
         @Override
         public Entry<K, V> apply(Entry<ByteString, ByteString> input) {
@@ -218,7 +265,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Entry<K, V>> find() {
-    try {
+    try (CloseableTimer timer = time(Stats.FIND_ALL)) {
       return Iterables.transform(client.find(storeId), new Function<Entry<ByteString, ByteString>, Entry<K, V>>() {
         @Override
         public Entry<K, V> apply(Entry<ByteString, ByteString> input) {
@@ -233,10 +280,11 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public void delete(K key, long previousVersion) {
-    try {
+    try (CloseableTimer timer = time(Stats.DELETE_VERSION)) {
       client.delete(storeId, ByteString.copyFrom(keySerializer.serialize(key)), previousVersion);
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to delete previous version from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
     }
   }
+
 }

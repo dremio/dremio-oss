@@ -236,8 +236,14 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return sabotContext.getConfig();
   }
 
-  public OptionList getNonDefaultSystemOptions() {
-    return sabotContext.getOptionManager().getNonDefaultOptions();
+  /**
+   * Return the list of all non-default options including QUERY, SESSION and SYSTEM level
+   * @return
+   */
+  public OptionList getNonDefaultOptions() {
+    final OptionList nonDefaultOptions = queryOptions.getOptionList();
+    nonDefaultOptions.mergeIfNotPresent(sabotContext.getOptionManager().getNonDefaultOptions());
+    return nonDefaultOptions;
   }
 
   @Override

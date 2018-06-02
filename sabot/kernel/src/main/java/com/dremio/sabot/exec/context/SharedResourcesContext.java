@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.exec.context;
 
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
+
 /**
  * Exposes the state (runnable vs blocked) of shared resources
  */
@@ -24,4 +26,12 @@ public interface SharedResourcesContext {
    * @return true if no shared resource is blocked
    */
   boolean isRunnable();
+
+  /**
+   * @return the first shared resource that is blocked, if any, in the specified group, null if the specified
+   * group is available.
+   *
+   * There can be a race between the call to isRunnable() and the call to this function. Used only for stats reporting
+   */
+  SharedResourceType getFirstBlockedResource(String groupName);
 }

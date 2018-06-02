@@ -63,6 +63,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private UIMetadataPolicy metadataPolicy = UIMetadataPolicy.DEFAULT_UIMETADATA_POLICY;
 
   private long numberOfDatasets;
+  private boolean datasetCountBounded = false;
   private SourceState state;
 
   private Long version;
@@ -201,6 +202,14 @@ public class SourceUI implements AddressableResource, DatasetContainer {
 
   public void setContents(NamespaceTree contents) {
     this.contents = contents;
+  }
+
+  public boolean isDatasetCountBounded() {
+    return datasetCountBounded;
+  }
+
+  public void setDatasetCountBounded(boolean datasetCountBounded) {
+    this.datasetCountBounded = datasetCountBounded;
   }
 
   public List<String> getFullPathList() {

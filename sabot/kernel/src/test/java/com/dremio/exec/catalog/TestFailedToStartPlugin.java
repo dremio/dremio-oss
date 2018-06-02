@@ -118,6 +118,8 @@ public class TestFailedToStartPlugin {
       .thenReturn(Arrays.asList(mockUpConfig));
     when(mockNamespaceService.getSource(any(NamespaceKey.class)))
       .thenReturn(mockUpConfig);
+    when(mockNamespaceService.getAllDatasets(any(NamespaceKey.class)))
+      .thenReturn(Collections.emptyList());
 
     sabotContext = mock(SabotContext.class);
     // used in c'tor

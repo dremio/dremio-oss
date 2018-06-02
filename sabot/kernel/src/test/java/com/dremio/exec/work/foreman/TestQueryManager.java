@@ -19,7 +19,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
+import java.util.Collections;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -89,7 +89,7 @@ public class TestQueryManager extends DremioTest {
   public void testNodeDead() {
     InOrder inOrder = Mockito.inOrder(completionListener);
     AttemptObservers observers = AttemptObservers.of(observer);
-    QueryManager queryManager = new QueryManager(queryId, context, completionListener, new Pointer<QueryId>(), observers, true, catalog);
+    QueryManager queryManager = new QueryManager(queryId, context, completionListener, new Pointer<>(), observers, true, true, catalog);
 
     final NodeEndpoint endpoint = NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
     PlanFragment fragment = PlanFragment.newBuilder()
@@ -97,7 +97,7 @@ public class TestQueryManager extends DremioTest {
         .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
         .build();
 
-    ExecutionPlan executionPlan = new ExecutionPlan(new Screen(null), 0, Arrays.asList(fragment));
+    ExecutionPlan executionPlan = new ExecutionPlan(new Screen(null), 0, Collections.singletonList(fragment));
     observers.planCompleted(executionPlan);
 
     // Notify node is dead

@@ -151,5 +151,8 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
     return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, isDirectNamespaceDescendent);
   }
 
+  public boolean isDirectNamespaceDescendent() {
+    return isDirectNamespaceDescendent;
+  }
 
 }

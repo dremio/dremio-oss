@@ -51,6 +51,7 @@ import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FileNotFoundException;
 import com.dremio.dac.service.errors.SpaceNotFoundException;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
@@ -94,7 +95,7 @@ public class SpaceResource {
       throws Exception {
     try {
       final SpaceConfig config = namespaceService.getSpace(spacePath.toNamespaceKey());
-      final int datasetCount = namespaceService.getAllDatasetsCount(spacePath.toNamespaceKey());
+      final int datasetCount = namespaceService.getDatasetCount(spacePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
       NamespaceTree contents = includeContents ? newNamespaceTree(namespaceService.list(spacePath.toNamespaceKey())) : null;
       final Space space = newSpace(config, contents, datasetCount);
 
@@ -141,12 +142,11 @@ public class SpaceResource {
       datasetPath.getDataset(),
       vds.getSql(),
       vds,
-      datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-      datasetService.getDescendantsCount(datasetPath.toNamespaceKey())
+      datasetService.getJobsCount(datasetPath.toNamespaceKey())
     );
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, namespaceService, children, SPACE);
+    return NamespaceTree.newInstance(datasetService, children, SPACE);
   }
 }

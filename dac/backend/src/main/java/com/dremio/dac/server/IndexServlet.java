@@ -110,7 +110,8 @@ class IndexServlet implements Servlet {
         options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED),
         options.getOption(ReflectionOptions.ENABLE_SUBHOUR_POLICIES),
         options.getOption(UIOptions.ALLOW_LOWER_PROVISIONING_SETTINGS),
-        options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE));
+        options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE),
+        options.getOption(UIOptions.WHITE_LABEL_URL));
 
     String environment = config.allowTestApis ? "DEVELOPMENT" : "PRODUCTION";
     final ServerData indexConfig = new ServerData(environment, serverHealthMonitor, config.getConfig(), settings, getVersionInfo(), supportService.getClusterId().getIdentity());

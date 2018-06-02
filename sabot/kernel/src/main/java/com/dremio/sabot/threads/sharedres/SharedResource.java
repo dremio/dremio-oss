@@ -33,10 +33,12 @@ public class SharedResource {
   private final AtomicBoolean disabled = new AtomicBoolean(false);
   private final AtomicBoolean available = new AtomicBoolean(true);
   private final String name;
+  private final SharedResourceType resourceType;
 
-  SharedResource(SharedResourceGroup resourceGroup, String name){
+  SharedResource(SharedResourceGroup resourceGroup, String name, SharedResourceType resourceType){
     this.resourceGroup = resourceGroup;
     this.name = name;
+    this.resourceType = resourceType;
   }
 
   void disableBlocking() {
@@ -68,5 +70,9 @@ public class SharedResource {
 
   public String getName(){
     return name;
+  }
+
+  public SharedResourceType getType() {
+    return resourceType;
   }
 }

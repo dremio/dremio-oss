@@ -28,6 +28,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.model.spaces.Spaces;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
@@ -58,7 +59,7 @@ public class SpacesResource {
       int datasetCount = 0;
 
       try {
-        datasetCount = namespaceService.getAllDatasetsCount(new SpacePath(spaceConfig.getName()).toNamespaceKey());
+        datasetCount = namespaceService.getDatasetCount(new SpacePath(spaceConfig.getName()).toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
       } catch (IllegalArgumentException e) {
         logger.warn("Could not load dataset count for {} because it has a invalid name: {}", spaceConfig.getName(), e.getMessage());
       } catch (NamespaceException e) {

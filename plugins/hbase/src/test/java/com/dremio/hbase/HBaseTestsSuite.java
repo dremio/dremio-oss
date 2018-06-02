@@ -25,6 +25,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
@@ -72,6 +73,8 @@ public class HBaseTestsSuite {
   protected static final TableName TEST_TABLE_BIGINT_OB_DESC = TableName.valueOf("TestTableBigIntOBDesc");
   protected static final TableName TEST_TABLE_INT_OB_DESC = TableName.valueOf("TestTableIntOBDesc");
   protected static final TableName TEST_TABLE_NULL_STR = TableName.valueOf("TestTableNullStr");
+  protected static final String TEST_NAMESPACE = "TestNS1";
+  protected static final TableName TEST_TABLE_NON_DEFAULT_NAMESPACE = TableName.valueOf(TEST_NAMESPACE, "TestTable1");
 
   private static Configuration conf;
 
@@ -172,7 +175,9 @@ public class HBaseTestsSuite {
            && admin.tableExists(TEST_TABLE_FLOAT_OB_DESC)
            && admin.tableExists(TEST_TABLE_BIGINT_OB_DESC)
            && admin.tableExists(TEST_TABLE_INT_OB_DESC)
-           && admin.tableExists(TEST_TABLE_NULL_STR);
+           && admin.tableExists(TEST_TABLE_NULL_STR)
+           && admin.tableExists(TEST_TABLE_NON_DEFAULT_NAMESPACE)
+        ;
   }
 
   private static void createTestTables() throws Exception {
@@ -197,6 +202,8 @@ public class HBaseTestsSuite {
     TestTableGenerator.generateHBaseDatasetBigIntOBDesc(conn, admin, TEST_TABLE_BIGINT_OB_DESC, 1);
     TestTableGenerator.generateHBaseDatasetIntOBDesc(conn, admin, TEST_TABLE_INT_OB_DESC, 1);
     TestTableGenerator.generateHBaseDatasetNullStr(conn, admin, TEST_TABLE_NULL_STR, 1);
+    admin.createNamespace(NamespaceDescriptor.create(TEST_NAMESPACE).build());
+    TestTableGenerator.generateHBaseDataset1(conn, admin, TEST_TABLE_NON_DEFAULT_NAMESPACE, 2);
   }
 
   private static void cleanupTestTables() throws IOException {
@@ -228,6 +235,8 @@ public class HBaseTestsSuite {
     admin.deleteTable(TEST_TABLE_INT_OB_DESC);
     admin.disableTable(TEST_TABLE_NULL_STR);
     admin.deleteTable(TEST_TABLE_NULL_STR);
+    admin.disableTable(TEST_TABLE_NON_DEFAULT_NAMESPACE);
+    admin.deleteTable(TEST_TABLE_NON_DEFAULT_NAMESPACE);
   }
 
   public static int getZookeeperPort() {

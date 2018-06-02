@@ -541,7 +541,7 @@ public class TestWindowFunctions extends BaseTestQuery {
         " from cp.`tpch/lineitem.parquet` group by l_partkey, l_suppkey order by 1 desc limit 1";
 
     // Validate the plan
-    final String[] expectedPlan = {"Window.*partition \\{\\} order by \\[1\\].*DENSE_RANK\\(\\)",
+    final String[] expectedPlan = {"Window.*partition \\{\\} order by \\[0\\].*DENSE_RANK\\(\\)",
         "Scan.*columns=\\[`l_partkey`, `l_suppkey`\\]"};
     final String[] excludedPatterns = {"Scan.*columns=\\[`\\*`\\]"};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPatterns);

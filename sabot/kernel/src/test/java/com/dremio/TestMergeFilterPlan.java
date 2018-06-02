@@ -75,7 +75,7 @@ public class TestMergeFilterPlan extends PlanTestBase {
       "WHERE `integer` > 1) WHERE `integer` IS NULL";
 
     testPlanSubstrPatterns(query,
-      new String[]{"Empty(schema=[schema(integer::int64)])"},
+      new String[]{"Empty"},
       new String[]{"Values"});
 
     testBuilder()

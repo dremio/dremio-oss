@@ -77,6 +77,21 @@
             </ul>
           </#list>
         </ul>
+        <#if model.accelerationDetails.hasErrors()>
+          <h4>Substitution Errors</h4>
+          <ul>
+            <#assign errorList = model.accelerationDetails.errors>
+            <#list errorList as error>
+              <li>
+                <p>
+                <pre>
+                  ${error?trim}
+                </pre>
+                </p>
+              </li>
+            </#list>
+          </ul>
+        </#if> <#-- if model.accelerationDetails.hasErrors() -->
         <#else>
         <ul>
           <#list model.profile.getAccelerationProfile().getLayoutProfilesList() as layout>
@@ -246,6 +261,10 @@
       <#if model.querySchema?has_content>
         <h3>Query Output Schema</h3>
         <p><pre>${model.querySchema}</pre></p>
+      </#if>
+      <#if model.nonDefaultOptions?has_content>
+        <h3>Non Default Options</h3>
+        <p><pre>${model.nonDefaultOptions}</pre></p>
       </#if>
     </div>
 

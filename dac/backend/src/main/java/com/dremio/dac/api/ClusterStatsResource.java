@@ -46,7 +46,6 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.service.jobs.JobTypeStats;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -99,11 +98,11 @@ public class ClusterStatsResource {
 
     for (SourceConfig sourceConfig : sourceService.getSources()) {
       int pdsCount = -1;
-      try {
+      /*try {
         pdsCount = namespaceService.getAllDatasetsCount(new NamespaceKey(sourceConfig.getName()));
       } catch (NamespaceException e) {
         logger.warn("Failed to get dataset count", e);
-      }
+      }*/
 
       String type = sourceConfig.getType();
       if(type == null && sourceConfig.getLegacySourceTypeEnum() != null) {

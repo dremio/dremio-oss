@@ -39,9 +39,9 @@ import com.google.common.collect.ImmutableMap;
  * </ul>
  */
 public class DataJsonOutput {
-  public static final DateTimeFormatter FORMAT_DATE = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD").withZoneUTC();
-  public static final DateTimeFormatter FORMAT_TIMESTAMP = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").withZoneUTC();
-  public static final DateTimeFormatter FORMAT_TIME = DateFunctionsUtils.getFormatterForFormatString("HH24:MI:SS").withZoneUTC();
+  public static final DateTimeFormatter FORMAT_DATE = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD").withZoneUTC();
+  public static final DateTimeFormatter FORMAT_TIMESTAMP = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").withZoneUTC();
+  public static final DateTimeFormatter FORMAT_TIME = DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS").withZoneUTC();
 
   /**
    * Lets go with a constant length value for primitive types. Finding the exact length for primitive types

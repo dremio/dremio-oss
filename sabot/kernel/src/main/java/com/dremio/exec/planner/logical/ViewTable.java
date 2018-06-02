@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
@@ -28,6 +27,7 @@ import org.apache.calcite.schema.Statistics;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.sql.ExtendedToRelContext;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -92,7 +92,7 @@ public class ViewTable implements DremioTable {
   @Override
   public BatchSchema getSchema() {
     if (schema == null) {
-      schema = BatchSchema.fromCalciteRowType(getRowType(new JavaTypeFactoryImpl()));
+      schema = BatchSchema.fromCalciteRowType(getRowType(JavaTypeFactoryImpl.INSTANCE));
     }
     return schema;
   }

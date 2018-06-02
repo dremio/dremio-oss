@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql;
 
 import java.util.List;
 
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,6 +26,7 @@ import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndGranularity;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -63,7 +63,7 @@ public class SchemaUtilities {
     }
 
     public List<String> qualifyColumns(List<String> strings){
-      final RelDataType type = table.getRowType(new JavaTypeFactoryImpl());
+      final RelDataType type = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
       return FluentIterable.from(strings).transform(new Function<String, String>(){
 
         @Override
@@ -86,7 +86,7 @@ public class SchemaUtilities {
     }
 
     public List<NameAndGranularity> qualifyColumnsWithGranularity(List<NameAndGranularity> strings){
-      final RelDataType type = table.getRowType(new JavaTypeFactoryImpl());
+      final RelDataType type = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
       return FluentIterable.from(strings).transform(new Function<NameAndGranularity, NameAndGranularity>(){
 
         @Override

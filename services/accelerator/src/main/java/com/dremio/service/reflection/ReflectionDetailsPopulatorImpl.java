@@ -17,6 +17,7 @@ package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.ReflectionUtils.isPhysicalDataset;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -75,6 +76,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
 
   private Prel prel;
   private QueryProfile profile;
+  private List<String> substitutionErrors = Collections.emptyList();
 
   ReflectionDetailsPopulatorImpl(NamespaceService namespace, ReflectionService reflections) {
     this.reflections = reflections;
@@ -96,6 +98,13 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
       }
     } catch (Exception e) {
       logger.error("AccelerationDetails populator failed to handle planSubstituted()", e);
+    }
+  }
+
+  @Override
+  public void substitutionFailures(Iterable<String> errors) {
+    if (errors != null) {
+      substitutionErrors = Lists.newArrayList(errors);
     }
   }
 
@@ -219,6 +228,8 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
       }
     } catch (Exception e) {
       logger.error("AccelerationDetails populator failed to compute the acceleration", e);
+    } finally {
+      details.setErrorList(substitutionErrors);
     }
 
     return AccelerationDetailsUtils.serialize(details);

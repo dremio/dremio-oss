@@ -16,6 +16,7 @@
 package com.dremio.exec.hive;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -746,7 +747,9 @@ public class TestHiveStorage extends HiveTestBase {
 
   @Test
   public void testAddRemoveHiveTable() throws Exception {
-    List<NamespaceKey> tables0 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    List<NamespaceKey> tables0 = Lists.newArrayList(getSabotContext()
+        .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+        .getAllDatasets(new NamespaceKey("hive")));
 
     getSabotContext().getCatalogService().refreshSource(
       new NamespaceKey("hive"),
@@ -756,7 +759,9 @@ public class TestHiveStorage extends HiveTestBase {
         .setDatasetDefinitionTtlMs(0l)
         .setNamesRefreshMs(0l), UpdateType.FULL);
 
-    List<NamespaceKey> tables1 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    List<NamespaceKey> tables1 = Lists.newArrayList(getSabotContext()
+        .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+        .getAllDatasets(new NamespaceKey("hive")));
     assertEquals(tables0.size(), tables1.size());
 
     // create an empty table
@@ -771,7 +776,9 @@ public class TestHiveStorage extends HiveTestBase {
         .setNamesRefreshMs(0l), UpdateType.FULL);
 
     // make sure new table is visible
-    List<NamespaceKey> tables2 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    List<NamespaceKey> tables2 = Lists.newArrayList(getSabotContext()
+        .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+        .getAllDatasets(new NamespaceKey("hive")));
     assertEquals(tables1.size() + 1, tables2.size());
 
     assertTrue(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
@@ -789,7 +796,9 @@ public class TestHiveStorage extends HiveTestBase {
       new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
 
     // no new table is added
-    List<NamespaceKey> tables3 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    List<NamespaceKey> tables3 = Lists.newArrayList(getSabotContext()
+        .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+        .getAllDatasets(new NamespaceKey("hive")));
     assertEquals(tables2.size(), tables3.size());
 
     // drop table
@@ -804,7 +813,9 @@ public class TestHiveStorage extends HiveTestBase {
       .setNamesRefreshMs(0l), UpdateType.FULL);
 
     // make sure table is deleted from namespace
-    List<NamespaceKey> tables4 = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getAllDatasets(new NamespaceKey("hive"));
+    List<NamespaceKey> tables4 = Lists.newArrayList(getSabotContext()
+        .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+        .getAllDatasets(new NamespaceKey("hive")));
     assertEquals(tables3.size() - 1, tables4.size());
 
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
@@ -820,6 +831,18 @@ public class TestHiveStorage extends HiveTestBase {
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(128L)
+        .go();
+  }
+
+  @Test
+  public void readImpalaParquetFile() throws Exception {
+    testBuilder()
+        .unOrdered()
+        .sqlQuery("SELECT * FROM hive.db1.impala_parquet")
+        .baselineColumns("id", "bool_col", "tinyint_col", "smallint_col", "int_col", "bigint_col", "float_col",
+            "double_col", "date_string_col", "string_col", "timestamp_col")
+        .baselineValues(0, true, 0, 0, 0, 0L, 0.0F, 0.0D, "01/01/09", "0", new LocalDateTime(1230768000000L, UTC))
+        .baselineValues(1, false, 1, 1, 1, 10L, 1.1F, 10.1D, "01/01/09", "1", new LocalDateTime(1230768060000L, UTC))
         .go();
   }
 }

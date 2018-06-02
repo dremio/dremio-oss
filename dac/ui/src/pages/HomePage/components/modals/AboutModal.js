@@ -70,7 +70,7 @@ export default class AboutModal extends Component {
         hide={hide}>
         <div style={styles.container}>
           <div style={styles.logoPane}>
-            <Art src='NarwhalLogo.svg' style={{width: 150}} alt={la('Dremio Narwhal')} />
+            <Art className='dremioLogo' src='NarwhalLogo.svg' style={{width: 150}} alt={la('Dremio Narwhal')} />
           </div>
           <div style={styles.pane}>
             <div style={{flex: 1}}>

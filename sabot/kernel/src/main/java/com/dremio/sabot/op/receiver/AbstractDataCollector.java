@@ -33,6 +33,7 @@ import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Preconditions;
 
 public abstract class AbstractDataCollector implements DataCollector {
@@ -92,7 +93,7 @@ public abstract class AbstractDataCollector implements DataCollector {
       List<IncomingMinorFragment> fragments = collector.getIncomingMinorFragmentList();
       for (IncomingMinorFragment fragment : fragments) {
         final String name = String.format("nway-recv-%s-%s:%d:%d", spooling ? "spool" : "mem", fragment.getEndpoint().getAddress(), collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
-        final SharedResource resource = resourceGroup.createResource(name);
+        final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER : SharedResourceType.NWAY_RECV_MEM_BUFFER);
         if (spooling) {
           buffers[fragment.getMinorFragment()] = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
         } else {
@@ -102,7 +103,7 @@ public abstract class AbstractDataCollector implements DataCollector {
     } else {
       buffers = new RawBatchBuffer[1];
       final String name = String.format("unordered-spooling-recv-%s-%d:*", spooling ? "spool" : "mem", collector.getOppositeMajorFragmentId());
-      final SharedResource resource = resourceGroup.createResource(name);
+      final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.UNORDERED_RECV_SPOOL_BUFFER : SharedResourceType.UNORDERED_RECV_MEM_BUFFER);
       if (spooling) {
         buffers[0] = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
       } else {

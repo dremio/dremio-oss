@@ -39,6 +39,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 
 /**
  * For each source and pds migrate the deprecated 'accelerationTTL' field
@@ -115,7 +116,8 @@ public class SetAccelerationRefreshGrace extends UpgradeTask {
 
     try {
       // find all physical datasets and update them
-      List<NamespaceKey> allDatasets = namespace.getAllDatasets(key);
+      final List<NamespaceKey> allDatasets = Lists.newArrayList(namespace.getAllDatasets(key));
+
       for (NamespaceKey datasetKey : allDatasets) {
         DatasetConfig datasetConfig = namespace.getDataset(datasetKey);
         PhysicalDataset physicalDataset = datasetConfig.getPhysicalDataset();

@@ -57,10 +57,13 @@ export class MainHeader extends Component {
           className='dremio'
           to='/'
           style={styles.logo}>
-          <Art
-            src={'NarwhalLogoWithNameLight.svg'}
-            alt={this.props.intl.formatMessage({id: 'App.NarwhalLogo'})}
-            style={{...styles.logoIcon, filter: `saturate(${socketIsOpen ? 1 : 0})`}} />
+          <span className={'dremioLogoWithTextContainer'}>
+            <Art
+              className={'dremioLogoWithText'}
+              src={'NarwhalLogoWithNameLight.svg'}
+              alt={this.props.intl.formatMessage({id: 'App.NarwhalLogo'})}
+              style={{...styles.logoIcon, filter: `saturate(${socketIsOpen ? 1 : 0})`}}/>
+          </span>
         </Link>
         <div className='header-wrap'>
           <div className='left-part'>

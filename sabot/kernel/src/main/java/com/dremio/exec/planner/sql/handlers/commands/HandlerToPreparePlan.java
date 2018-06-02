@@ -36,7 +36,6 @@ import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
 import com.dremio.exec.work.foreman.ExecutionPlan;
@@ -97,7 +96,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
       planCache.put(handle, prepared);
 
       // record a partial plan so that we can grab metadata and use it (for example during view creation of via sql).
-      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.<PlanFragment>of()));
+      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.of()));
       return 1;
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -106,7 +105,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
 
 
   @Override
-  public CreatePreparedStatementResp execute() throws Exception {
+  public CreatePreparedStatementResp execute() {
     return PreparedStatementProvider.build(plan.getRoot().getSchema(context.getFunctionRegistry()), state,
       context.getQueryId(), context.getSession().getCatalogName());
   }
@@ -134,122 +133,75 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
 
     @Override
     public void planStart(final String rawPlan) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planStart(rawPlan);
-        }});
+      calls.add(observer -> observer.planStart(rawPlan));
     }
 
     @Override
     public void planValidated(final RelDataType rowType, final SqlNode node, final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planValidated(rowType, node, millisTaken);
-        }});
+      calls.add(observer -> observer.planValidated(rowType, node, millisTaken));
     }
 
     @Override
     public void planSerializable(final RelNode plan) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planSerializable(plan);
-        }});
+      calls.add(observer -> observer.planSerializable(plan));
     }
 
     @Override
     public void planConvertedToRel(final RelNode converted, final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planConvertedToRel(converted, millisTaken);
-        }});
+      calls.add(observer -> observer.planConvertedToRel(converted, millisTaken));
     }
 
     @Override
     public void planConvertedScan(final RelNode converted, final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planConvertedScan(converted, millisTaken);
-        }});
+      calls.add(observer -> observer.planConvertedScan(converted, millisTaken));
     }
 
     @Override
     public void planExpandView(final RelRoot expanded, final List<String> schemaPath, final int nestingLevel, final String sql) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planExpandView(expanded, schemaPath, nestingLevel, sql);
-        }});
+      calls.add(observer -> observer.planExpandView(expanded, schemaPath, nestingLevel, sql));
     }
 
     @Override
     public void planSubstituted(final DremioRelOptMaterialization materialization,
                                 final List<RelNode> substitutions,
                                 final RelNode target, final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planSubstituted(materialization, substitutions, target, millisTaken);
-        }});
+      calls.add(observer -> observer.planSubstituted(materialization, substitutions, target, millisTaken));
+    }
+
+    @Override
+    public void substitutionFailures(Iterable<String> errors) {
+      calls.add(observer -> observer.substitutionFailures(errors));
     }
 
     @Override
     public void planText(final String text, final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planText(text, millisTaken);
-        }});
+      calls.add(observer -> observer.planText(text, millisTaken));
     }
 
     @Override
     public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planRelTransform(phase, planner, before, after, millisTaken);
-        }});
+      calls.add(observer -> observer.planRelTransform(phase, planner, before, after, millisTaken));
     }
 
     @Override
     public void planFindMaterializations(final long millisTaken) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planFindMaterializations(millisTaken);
-        }});
+      calls.add(observer -> observer.planFindMaterializations(millisTaken));
     }
 
 
     @Override
     public void planNormalized(final long millisTaken, final List<RelNode> normalizedQueryPlans) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planNormalized(millisTaken, normalizedQueryPlans);
-        }});
+      calls.add(observer -> observer.planNormalized(millisTaken, normalizedQueryPlans));
     }
 
     @Override
     public void planAccelerated(final SubstitutionInfo info) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planAccelerated(info);
-        }});
+      calls.add(observer -> observer.planAccelerated(info));
     }
 
     @Override
     public void planJsonPlan(final String text) {
-      calls.add(new ObserverCall(){
-        @Override
-        public void doCall(AttemptObserver observer) {
-          observer.planJsonPlan(text);
-        }});
+      calls.add(observer -> observer.planJsonPlan(text));
     }
 
     public void replay(AttemptObserver observer) {

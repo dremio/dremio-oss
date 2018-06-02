@@ -62,7 +62,7 @@ public class TestHistogramGenerator {
     HistogramGenerator hg = new HistogramGenerator(null);
 
     String myTimeStr = "2016-02-29 13:59:01";
-    DateTimeFormatter dtf = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
+    DateTimeFormatter dtf = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
     LocalDateTime myTime = dtf.parseLocalDateTime(myTimeStr);
     System.out.println("Exact time: " + myTime + ", Month: " + myTime.getMonthOfYear());
     for (HistogramGenerator.TruncEvalEnum value : HistogramGenerator.TruncEvalEnum.getSortedAscValues()) {

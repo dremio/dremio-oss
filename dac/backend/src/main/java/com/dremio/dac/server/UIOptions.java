@@ -28,4 +28,5 @@ public final class UIOptions {
 
   public static final StringValidator TABLEAU_TDS_MIMETYPE  = new StringValidator("ui.tableau.tds-mime-type", "application/tds");
 
+  public static final StringValidator WHITE_LABEL_URL  = new StringValidator("ui.whitelabel.url", "dremio");
 }

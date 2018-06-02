@@ -16,13 +16,17 @@
 package com.dremio.sabot.task;
 
 import com.dremio.sabot.threads.AvailabilityCallback;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 public interface AsyncTask extends Runnable {
 
   void refreshState();
   Task.State getState();
+  SharedResourceType getFirstBlockedResource();
   void updateSleepDuration(long duration);
-  void updateBlockedDuration(long duration);
+  void updateBlockedOnDownstreamDuration(long duration);
+  void updateBlockedOnUpstreamDuration(long duration);
+  void addBlockedOnSharedResourceDuration(SharedResourceType resource, long duration);
   void setWakeupCallback(AvailabilityCallback callback);
   void setTaskDescriptor(TaskDescriptor descriptor);
 }

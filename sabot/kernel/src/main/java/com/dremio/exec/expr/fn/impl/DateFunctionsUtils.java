@@ -17,7 +17,10 @@ package com.dremio.exec.expr.fn.impl;
 
 import java.text.ParseException;
 
+import org.joda.time.Chronology;
 import org.joda.time.DateTime;
+import org.joda.time.chrono.DayOfWeekFromSundayChronology;
+import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -33,31 +36,40 @@ import com.google.common.annotations.VisibleForTesting;
 public class DateFunctionsUtils {
   public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DateFunctionsUtils.class);
 
-  public static DateTimeFormatter getFormatterForFormatString(final String formatString) {
-    String jodaString = null;
+  public static DateTimeFormatter getISOFormatterForFormatString(final String formatString) {
+    return getFormatterInternal(formatString, ISOChronology.getInstanceUTC());
+  }
+
+  public static DateTimeFormatter getSQLFormatterForFormatString(final String formatString) {
+    return getFormatterInternal(formatString, DayOfWeekFromSundayChronology.getISOInstanceInUTC());
+  }
+
+  private static DateTimeFormatter getFormatterInternal(final String formatString, final Chronology chronology) {
+    final String jodaString;
     try {
       jodaString = JodaDateValidator.toJodaFormat(formatString);
     } catch (ParseException e) {
       throw UserException.functionError(e)
-        .message("Failure parsing the formatting string at column %d of: %s", e.getErrorOffset(), formatString)
-        .addContext("Details", e.getMessage())
-        .addContext("Format String", formatString)
-        .addContext("Error Offset", e.getErrorOffset())
-        .build(logger);
+          .message("Failure parsing the formatting string at column %d of: %s", e.getErrorOffset(), formatString)
+          .addContext("Details", e.getMessage())
+          .addContext("Format String", formatString)
+          .addContext("Error Offset", e.getErrorOffset())
+          .build(logger);
     }
 
     try {
-      return DateTimeFormat.forPattern(jodaString).withZoneUTC();
+      return DateTimeFormat.forPattern(jodaString)
+          .withChronology(chronology);
     } catch (IllegalArgumentException ex) {
       throw UserException.functionError(ex)
-        .message("Invalid formatting string")
-        .addContext("Details", ex.getMessage())
-        .addContext("Format String", formatString)
-        .build(logger);
+          .message("Invalid formatting string")
+          .addContext("Details", ex.getMessage())
+          .addContext("Format String", formatString)
+          .build(logger);
     }
   }
 
-  public static DateTimeFormatter getFormatterForFormatString(final String formatString, FunctionErrorContext errCtx) {
+  public static DateTimeFormatter getSQLFormatterForFormatString(final String formatString, FunctionErrorContext errCtx) {
     String jodaString;
     try {
       jodaString = JodaDateValidator.toJodaFormat(formatString);
@@ -71,7 +83,8 @@ public class DateFunctionsUtils {
     }
 
     try {
-      return DateTimeFormat.forPattern(jodaString).withZoneUTC();
+      return DateTimeFormat.forPattern(jodaString)
+          .withChronology(DayOfWeekFromSundayChronology.getISOInstanceInUTC());
     } catch (IllegalArgumentException ex) {
       throw errCtx.error()
         .message("Invalid formatting string")

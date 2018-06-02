@@ -18,13 +18,11 @@ package com.dremio.exec.store.parquet2;
 import static com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.getDateTimeValueFromBinary;
 import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
@@ -68,6 +66,7 @@ import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
@@ -84,8 +83,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
   private final OutputMutator mutator;
   protected final OptionManager options;
   //See DRILL-4203
-  protected final ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates;
-  protected final boolean readInt96AsTimeStamp;
+  protected final SchemaDerivationHelper schemaHelper;
 
   private final GroupType schema;
   private final Collection<SchemaPath> columns;
@@ -101,17 +99,15 @@ abstract class ParquetGroupConverter extends GroupConverter {
       OptionManager options,
       List<Field> arrowSchema,
       Function<String, String> childNameResolver,
-      ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates,
-      boolean readInt96AsTimeStamp) {
+      SchemaDerivationHelper schemaHelper) {
     this.converters = Lists.newArrayList();
     this.mutator = mutator;
     this.schema = schema;
     this.columns = columns;
     this.options = options;
-    this.containsCorruptedDates = containsCorruptedDates;
     this.arrowSchema = arrowSchema;
     this.childNameResolver = childNameResolver;
-    this.readInt96AsTimeStamp = readInt96AsTimeStamp;
+    this.schemaHelper = schemaHelper;
   }
 
   abstract WriterProvider getWriterProvider();
@@ -186,7 +182,8 @@ abstract class ParquetGroupConverter extends GroupConverter {
     final List<Field> arrowChildren = arrowField.getChildren();
     if (arrowTypeType == ArrowTypeID.Union) {
       // if it's a union we will add the children directly to the parent
-      return new UnionGroupConverter(mutator, getWriterProvider(), groupType, c, options, arrowChildren, nameForChild, containsCorruptedDates, readInt96AsTimeStamp);
+      return new UnionGroupConverter(mutator, getWriterProvider(), groupType, c, options, arrowChildren, nameForChild,
+          schemaHelper);
     } else if (arrowTypeType == ArrowTypeID.List) {
       // make sure the parquet schema matches the arrow schema and delegate handling the logical list to defaultGroupConverter()
       Preconditions.checkState(groupType.getOriginalType() == OriginalType.LIST, "parquet schema doesn't match the arrow schema for LIST " + nameForChild);
@@ -207,8 +204,8 @@ abstract class ParquetGroupConverter extends GroupConverter {
         c,
         options,
         arrowSchema,
-        containsCorruptedDates,
-        readInt96AsTimeStamp);
+        schemaHelper
+      );
     }
 
     final MapWriter map;
@@ -224,7 +221,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
     } else {
       map = getWriterProvider().map(nameForChild);
     }
-    return new StructGroupConverter(mutator, map, groupType, c, options, arrowSchema, containsCorruptedDates, readInt96AsTimeStamp);
+    return new StructGroupConverter(mutator, map, groupType, c, options, arrowSchema, schemaHelper);
   }
 
   /**
@@ -258,7 +255,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
           }
           case DATE: {
             DateMilliWriter writer = isRepeated ? list(name).dateMilli() : getWriterProvider().date(name);
-            switch (containsCorruptedDates) {
+            switch (schemaHelper.getDateCorruptionStatus()) {
             case META_SHOWS_CORRUPTION:
               return new CorruptedDateConverter(writer);
             case META_SHOWS_NO_CORRUPTION:
@@ -270,7 +267,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
               throw new RuntimeException(
                 String.format("Issue setting up parquet reader for date type, " +
                     "unrecognized date corruption status %s.",
-                  containsCorruptedDates));
+                  schemaHelper.getDateCorruptionStatus()));
             }
           }
           case TIME_MILLIS: {
@@ -308,7 +305,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
       }
       case INT96: {
         // TODO: replace null with TIMESTAMP_NANOS once parquet support such type annotation.
-        if (readInt96AsTimeStamp) {
+        if (schemaHelper.readInt96AsTimeStamp()) {
           TimeStampMilliWriter writer = type.getRepetition() == Repetition.REPEATED ? getWriterProvider().list(name).timeStampMilli() : getWriterProvider().timeStamp(name);
           return new FixedBinaryToTimeStampConverter(writer);
         } else {
@@ -347,6 +344,12 @@ abstract class ParquetGroupConverter extends GroupConverter {
             // fall back to primitive type
           }
         }
+
+        if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
+          VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
+          return new VarCharConverter(writer, mutator.getManagedBuffer());
+        }
+
         VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
         return new VarBinaryConverter(writer, mutator.getManagedBuffer());
       }
@@ -356,10 +359,14 @@ abstract class ParquetGroupConverter extends GroupConverter {
           DecimalMetadata metadata = type.getDecimalMetadata();
           DecimalWriter writer = isRepeated ? list(name).decimal() : getWriterProvider().decimal(name, metadata.getScale(), metadata.getPrecision());
             return new BinaryToDecimal28Converter(writer, metadata.getPrecision(), metadata.getScale(), mutator.getManagedBuffer());
-        } else {
-          VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
-          return new FixedBinaryToVarbinaryConverter(writer, type.getTypeLength(), mutator.getManagedBuffer());
         }
+        if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
+          VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
+          return new VarCharConverter(writer, mutator.getManagedBuffer());
+        }
+
+        VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
+        return new FixedBinaryToVarbinaryConverter(writer, type.getTypeLength(), mutator.getManagedBuffer());
       default:
         throw new UnsupportedOperationException("Unsupported type: " + type.getPrimitiveTypeName());
     }

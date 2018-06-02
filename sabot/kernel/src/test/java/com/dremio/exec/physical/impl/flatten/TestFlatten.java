@@ -593,7 +593,7 @@ public class TestFlatten extends PlanTestBase {
     String query = "select flatten(sub1.events) flat_events  from "+
       "(select t1.events events from cp.`complex/json/flatten_join.json` t1 "+
       "inner join cp.`complex/json/flatten_join.json` t2 on t1.id=t2.id) sub1";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `events`]", "columns=[`id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`events`, `id`]", "columns=[`id`]"}, null);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -605,7 +605,7 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenAfterJoin2() throws Exception {
     String query = "select flatten(t1.events) flat_events from cp.`complex/json/flatten_join.json` t1 " +
       "inner join cp.`complex/json/flatten_join.json` t2 on t1.id=t2.id";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `events`]", "columns=[`id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`events`, `id`]", "columns=[`id`]"}, null);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -619,7 +619,7 @@ public class TestFlatten extends PlanTestBase {
       "(select t1.lst_lst lst_lst from cp.`complex/json/flatten_join.json` t1 "+
       "inner join cp.`complex/json/flatten_join.json` t2 on t1.id=t2.id) sub1";
 
-    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `lst_lst`]", "columns=[`id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`lst_lst`, `id`]", "columns=[`id`]"}, null);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()

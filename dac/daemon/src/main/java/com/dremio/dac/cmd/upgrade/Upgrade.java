@@ -63,7 +63,8 @@ public class Upgrade {
       new ReIndexDatasets(),
       new DeleteInternalSources(),
       new MoveFromAccelerationSettingsToReflectionSettings(),
-      new ConvertJoinInfo()
+      new ConvertJoinInfo(),
+      new CompressHiveTableAttrs()
   );
 
   /**

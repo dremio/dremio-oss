@@ -113,7 +113,9 @@ export class HelpSection extends PureComponent {
     return <div className='help-section'>
       <h4>{la('Help')}</h4>
       <div className='quote-wrapper'>
-        <FontIcon type='NarwhalLogo' theme={styles.NarwhalLogo}/>
+        <div className={'dremioLogo'}>
+          <FontIcon type='NarwhalLogo' theme={styles.NarwhalLogo} />
+        </div>
         <div className='quote-block'>
           <div>{message}</div>
           <div children={buttons.toArray()}/>

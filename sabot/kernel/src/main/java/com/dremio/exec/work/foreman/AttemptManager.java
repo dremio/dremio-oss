@@ -141,13 +141,16 @@ public class AttemptManager implements Runnable {
 
     this.queryContext = queryContext;
     this.observers = AttemptObservers.of(observer);
-    this.queryManager = new QueryManager(queryId, this.queryContext, new CompletionListenerImpl(), prepareId,
-      observers, context.getOptionManager().getOption(PlannerSettings.VERBOSE_PROFILE), this.queryContext.getCatalog());
 
     final OptionManager optionManager = this.queryContext.getOptions();
     if(options != null){
       options.applyOptions(optionManager);
     }
+
+    this.queryManager = new QueryManager(queryId, this.queryContext, new CompletionListenerImpl(), prepareId,
+      observers, optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
+      optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE), this.queryContext.getCatalog());
+
     this.queuingEnabled = optionManager.getOption(ExecConstants.ENABLE_QUEUE);
     this.reflectionQueuingEnabled = optionManager.getOption(ExecConstants.REFLECTION_ENABLE_QUEUE);
 

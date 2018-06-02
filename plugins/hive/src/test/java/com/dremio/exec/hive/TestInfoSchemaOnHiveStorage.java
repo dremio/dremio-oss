@@ -75,6 +75,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineColumns("TABLE_SCHEMA", "TABLE_NAME")
         .baselineValues("hive.db1", "kv_db1")
         .baselineValues("hive.db1", "avro")
+        .baselineValues("hive.db1", "impala_parquet")
         .go();
 
     testBuilder()
@@ -98,6 +99,12 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .sqlQuery("SHOW DATABASES")
         .unOrdered()
         .baselineColumns("SCHEMA_NAME")
+        .baselineValues("cp")
+        .baselineValues("dfs")
+        .baselineValues("dfs_test")
+        .baselineValues("dfs_root")
+        .baselineValues("dacfs")
+        .baselineValues("hive")
         .baselineValues("hive.default")
         .baselineValues("hive.db1")
         .baselineValues("hive.skipper")

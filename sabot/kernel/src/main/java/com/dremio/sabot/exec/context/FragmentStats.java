@@ -15,12 +15,17 @@
  */
 package com.dremio.sabot.exec.context;
 
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Stopwatch;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.google.common.collect.Lists;
 
@@ -39,13 +44,16 @@ public class FragmentStats {
   private final BufferAllocator allocator;
 
   private long sleepingDuration;
-  private long blockedDuration;
+  private long blockedOnUpstreamDuration;
+  private long blockedOnDownstreamDuration;
+  private long blockedOnSharedResourceDuration;
 
   private long numRuns;
 
   private final Stopwatch runWatch = Stopwatch.createUnstarted();
   private final Stopwatch setupWatch = Stopwatch.createUnstarted();
   private final Stopwatch finishWatch = Stopwatch.createUnstarted();
+  private Map<SharedResourceType, Long> perResourceBlockedDurations;
 
   private boolean notStartedYet = true;
 
@@ -53,6 +61,7 @@ public class FragmentStats {
     this.startTime = System.currentTimeMillis();
     this.endpoint = endpoint;
     this.allocator = allocator;
+    this.perResourceBlockedDurations = Collections.synchronizedMap(new EnumMap<SharedResourceType, Long>(SharedResourceType.class));
   }
 
   public void addMetricsToStatus(MinorFragmentProfile.Builder prfB) {
@@ -65,7 +74,27 @@ public class FragmentStats {
       prfB.addOperatorProfile(o.getProfile());
     }
     prfB.setSleepingDuration(sleepingDuration);
-    prfB.setBlockedDuration(blockedDuration);
+    prfB.setBlockedDuration(blockedOnUpstreamDuration + blockedOnDownstreamDuration + blockedOnSharedResourceDuration);
+    prfB.setBlockedOnUpstreamDuration(blockedOnUpstreamDuration);
+    prfB.setBlockedOnDownstreamDuration(blockedOnDownstreamDuration);
+    prfB.setBlockedOnSharedResourceDuration(blockedOnSharedResourceDuration);
+    for (Map.Entry<SharedResourceType, Long> entry : perResourceBlockedDurations.entrySet()) {
+      BlockedResourceDuration duration = BlockedResourceDuration.newBuilder()
+        .setResource(entry.getKey().name())
+        .setCategory(entry.getKey().getCategory())
+        .setDuration(entry.getValue())
+        .build();
+      prfB.addPerResourceBlockedDuration(duration);
+    }
+    if (prfB.getPerResourceBlockedDurationList().size() == 0) {
+      // add a dummy entry just to distinguish from older profiles that didn't have per-resource splits.
+      BlockedResourceDuration duration = BlockedResourceDuration.newBuilder()
+        .setResource(SharedResourceType.UNKNOWN.name())
+        .setCategory(SharedResourceType.UNKNOWN.getCategory())
+        .setDuration(0)
+        .build();
+      prfB.addPerResourceBlockedDuration(duration);
+    }
     prfB.setRunDuration(runWatch.elapsed(MILLISECONDS));
     prfB.setSetupDuration(setupWatch.elapsed(MILLISECONDS));
     prfB.setFinishDuration(finishWatch.elapsed(MILLISECONDS));
@@ -120,7 +149,22 @@ public class FragmentStats {
     this.sleepingDuration = sleepingDuration;
   }
 
-  public void setBlockedDuration(long blockedDuration) {
-    this.blockedDuration = blockedDuration;
+  public void setBlockedOnUpstreamDuration(long blockedDuration) {
+    this.blockedOnUpstreamDuration = blockedDuration;
   }
+
+  public void setBlockedOnDownstreamDuration(long blockedDuration) {
+    this.blockedOnDownstreamDuration = blockedDuration;
+  }
+
+  public void addBlockedOnSharedResourceDuration(SharedResourceType resource, long blockedDuration) {
+    this.blockedOnSharedResourceDuration += blockedDuration;
+
+    Long oldDuration = perResourceBlockedDurations.get(resource);
+    if (oldDuration != null) {
+      blockedDuration += oldDuration;
+    }
+    perResourceBlockedDurations.put(resource, blockedDuration);
+  }
+
 }

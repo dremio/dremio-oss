@@ -38,20 +38,17 @@ public class PhysicalDataset implements AddressableResource {
   private final PhysicalDatasetResourcePath resourcePath;
   private final PhysicalDatasetName datasetName;
   private final Integer jobCount;
-  private final Integer descendants;
 
   @JsonCreator
   public PhysicalDataset(
     @JsonProperty("resourcePath") PhysicalDatasetResourcePath resourcePath,
     @JsonProperty("datasetName") PhysicalDatasetName datasetName,
     @JsonProperty("datasetConfig") PhysicalDatasetConfig datasetConfig,
-    @JsonProperty("jobCount") Integer jobCount,
-    @JsonProperty("descendants") Integer descendants) {
+    @JsonProperty("jobCount") Integer jobCount) {
     this.resourcePath = resourcePath;
     this.datasetName = datasetName;
     this.datasetConfig = datasetConfig;
     this.jobCount = jobCount;
-    this.descendants = descendants;
   }
 
   @Override
@@ -69,10 +66,6 @@ public class PhysicalDataset implements AddressableResource {
 
   public Integer getJobCount() {
     return jobCount;
-  }
-
-  public Integer getDescendants() {
-    return descendants;
   }
 
   public Map<String, String> getLinks() {

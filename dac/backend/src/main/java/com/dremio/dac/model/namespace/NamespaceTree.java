@@ -42,9 +42,7 @@ import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
@@ -52,7 +50,6 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
-import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.base.Preconditions;
 
@@ -75,29 +72,28 @@ public class NamespaceTree {
   }
 
   // Spaces, home and sources are top level folders hence can never show in children.
-  public static NamespaceTree newInstance(final DatasetVersionMutator datasetService, final NamespaceService namespaceService,
+  public static NamespaceTree newInstance(final DatasetVersionMutator datasetService,
       List<NameSpaceContainer> children, Type rootEntityType) throws NamespaceException, DatasetNotFoundException {
     NamespaceTree result = new NamespaceTree();
 
-    populateInstance(result, datasetService, namespaceService, children, rootEntityType);
+    populateInstance(result, datasetService, children, rootEntityType);
 
     return result;
   }
 
-  protected static void populateInstance(NamespaceTree tree, final DatasetVersionMutator datasetService,
-      final NamespaceService namespaceService, List<NameSpaceContainer> children, Type rootEntityType)
-          throws NamespaceException, NamespaceNotFoundException, DatasetNotFoundException {
+  protected static void populateInstance(
+      NamespaceTree tree,
+      DatasetVersionMutator datasetService,
+      List<NameSpaceContainer> children,
+      Type rootEntityType)
+      throws NamespaceException, DatasetNotFoundException {
     for (final NameSpaceContainer container: children) {
       switch (container.getType()) {
         case FOLDER: {
-          final List<NamespaceKey> datasetPaths = namespaceService.getAllDatasets(new FolderPath(container.getFullPathList()).toNamespaceKey());
-          final ExtendedConfig extendedConfig = new ExtendedConfig()
-            .setDatasetCount((long) datasetPaths.size())
-            .setJobCount(datasetService.getJobsCount(datasetPaths));
           if (rootEntityType == SOURCE) {
-            tree.addFolder(new SourceFolderPath(container.getFullPathList()), container.getFolder().setExtendedConfig(extendedConfig), null, rootEntityType);
+            tree.addFolder(new SourceFolderPath(container.getFullPathList()), container.getFolder(), null, rootEntityType);
           } else {
-            tree.addFolder(new FolderPath(container.getFullPathList()), container.getFolder().setExtendedConfig(extendedConfig), rootEntityType);
+            tree.addFolder(new FolderPath(container.getFullPathList()), container.getFolder(), rootEntityType);
           }
         }
         break;
@@ -116,7 +112,6 @@ public class NamespaceTree {
                 vds.getSql(),
                 vds,
                 datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-                datasetService.getDescendantsCount(datasetPath.toNamespaceKey()),
                 rootEntityType
               );
               break;
@@ -128,8 +123,7 @@ public class NamespaceTree {
                 fileDSId,
                 new FilePath(container.getFullPathList()),
                 fileFormat,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-                datasetService.getDescendantsCount(datasetPath.toNamespaceKey()), false, true,
+                datasetService.getJobsCount(datasetPath.toNamespaceKey()), false, true,
                 fileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType()
               );
               break;
@@ -142,8 +136,7 @@ public class NamespaceTree {
                       PhysicalDatasetResourcePath(new SourceName(container.getFullPathList().get(0)), path),
                       new PhysicalDatasetName(path.getFileName().getName()),
                       DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
-                      datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-                      datasetService.getDescendantsCount(datasetPath.toNamespaceKey())
+                      datasetService.getJobsCount(datasetPath.toNamespaceKey())
                   );
               break;
 
@@ -178,14 +171,14 @@ public class NamespaceTree {
     files.add(f);
   }
 
-  protected void addFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount, Integer descendants,
+  protected void addFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
       boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType) {
     final File file = File.newInstance(
         id,
         filePath,
         fileFormat,
         jobCount,
-        descendants, isStaged, isHomeFile, isQueryable
+        isStaged, isHomeFile, isQueryable
       );
       addFile(file);
   }
@@ -199,8 +192,8 @@ public class NamespaceTree {
       DatasetName datasetName,
       String sql,
       VirtualDatasetUI datasetConfig,
-      int jobCount, int descendants, NameSpaceContainer.Type rootEntityType) throws NamespaceNotFoundException {
-    Dataset dataset = Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount, descendants);
+      int jobCount, NameSpaceContainer.Type rootEntityType) throws NamespaceNotFoundException {
+    Dataset dataset = Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount);
 
     addDataset(dataset);
   }
@@ -213,10 +206,9 @@ public class NamespaceTree {
       PhysicalDatasetResourcePath resourcePath,
       PhysicalDatasetName datasetName,
       PhysicalDatasetConfig datasetConfig,
-      Integer jobCount,
-      Integer descendants) throws NamespaceNotFoundException {
+      Integer jobCount) throws NamespaceNotFoundException {
 
-    PhysicalDataset physicalDataset = new PhysicalDataset(resourcePath, datasetName, datasetConfig, jobCount, descendants);
+    PhysicalDataset physicalDataset = new PhysicalDataset(resourcePath, datasetName, datasetConfig, jobCount);
 
     addPhysicalDataset(physicalDataset);
   }

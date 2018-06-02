@@ -24,6 +24,7 @@ import org.apache.parquet.schema.GroupType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
 
@@ -39,8 +40,7 @@ public class UnionGroupConverter extends ParquetGroupConverter {
       OptionManager options,
       List<Field> children,
       final String name,
-      ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates,
-      boolean readInt96AsTimeStamp) {
+      SchemaDerivationHelper schemaHelper) {
     super(
         mutator,
         schema,
@@ -54,8 +54,8 @@ public class UnionGroupConverter extends ParquetGroupConverter {
             return name;
           }
         },
-        containsCorruptedDates,
-        readInt96AsTimeStamp);
+        schemaHelper
+    );
 
     this.writerProvider = writerProvider;
 

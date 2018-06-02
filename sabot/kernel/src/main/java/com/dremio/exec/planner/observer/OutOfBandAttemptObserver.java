@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.SerializedExecutor;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
@@ -155,6 +156,16 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
       @Override
       public void doRun() {
         innerObserver.planSubstituted(materialization, substitutions, target, millisTaken);
+      }
+    });
+  }
+
+  @Override
+  public void substitutionFailures(Iterable<String> errors) {
+    serializedExec.execute(new DeferredRunnable() {
+      @Override
+      void doRun() {
+        innerObserver.substitutionFailures(errors);
       }
     });
   }
@@ -344,5 +355,15 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
       public void doRun() {
         innerObserver.leafFragmentScheduling(millisTaken);
       }});
+  }
+
+  @Override
+  public void tablesCollected(Iterable<DremioTable> tables) {
+    serializedExec.execute(new DeferredRunnable() {
+      @Override
+      void doRun() {
+        innerObserver.tablesCollected(tables);
+      }
+    });
   }
 }

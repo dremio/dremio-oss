@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -25,7 +26,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.calcite.logical.ScanCrel;
@@ -35,9 +40,9 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.SubstitutionS
 import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.acceleration.LogicalPlanDeserializer;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -73,7 +78,7 @@ public class MaterializationExpander {
     RelNode tableRel = expandSchemaPath(descriptor.getPath());
 
     if (tableRel == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
@@ -84,6 +89,12 @@ public class MaterializationExpander {
     // to the table scan
     if (descriptor.getIncrementalUpdateSettings().isIncremental()) {
       tableRel = tableRel.accept(IncrementalUpdateUtils.ADD_MOD_TIME_SHUTTLE);
+    }
+
+    // if the row types don't match, ignoring the nullability, fail immediately
+    if (!areRowTypesEqual(tableRel.getRowType(), queryRel.getRowType())) {
+      throw new ExpansionException(String.format("Materialization %s have different row types for its table and query rels.%n" +
+        "table row type %s%nquery row type %s", descriptor.getMaterializationId(), tableRel.getRowType(), queryRel.getRowType()));
     }
 
     try {
@@ -109,6 +120,47 @@ public class MaterializationExpander {
       schema,
       descriptor.getExpirationTimestamp()
     ));
+  }
+
+  /**
+   * Compare row types ignoring field names, nullability, ANY and CHAR/VARCHAR types
+   */
+  private boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
+      if (rowType1 == rowType2) {
+        return true;
+      }
+
+      if (rowType2.getFieldCount() != rowType1.getFieldCount()) {
+        return false;
+      }
+
+      final List<RelDataTypeField> f1 = rowType1.getFieldList();
+      final List<RelDataTypeField> f2 = rowType2.getFieldList();
+      for (Pair<RelDataTypeField, RelDataTypeField> pair : Pair.zip(f1, f2)) {
+        // remove nullability
+        final RelDataType type1 = JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(pair.left.getType(), false);
+        final RelDataType type2 = JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(pair.right.getType(), false);
+
+        // are types equal ?
+        if (type1.equals(type2)) {
+          continue;
+        }
+
+        // ignore ANY types
+        if (type1.getSqlTypeName() == SqlTypeName.ANY || type2.getSqlTypeName() == SqlTypeName.ANY) {
+          continue;
+        }
+
+        // are both types from the CHARACTER family ?
+        if (type1.getSqlTypeName().getFamily() == SqlTypeFamily.CHARACTER &&
+            type2.getSqlTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
+          continue;
+        }
+
+        return false;
+      }
+
+      return true;
   }
 
   private RelNode expandSchemaPath(final List<String> path) {
@@ -146,7 +198,7 @@ public class MaterializationExpander {
   }
 
   public static RelNode deserializePlan(final byte[] planBytes, SqlConverter parent) {
-    final SqlConverter parser = new SqlConverter(parent, parent.getCatalogReader().withSchemaPath(ImmutableList.<String>of()));
+    final SqlConverter parser = new SqlConverter(parent, parent.getCatalogReader().withSchemaPath(ImmutableList.of()));
 
     final LogicalPlanDeserializer deserializer = KryoLogicalPlanSerializers.forDeserialization(parser.getCluster(), parser.getCatalogReader());
     return deserializer.deserialize(planBytes);
@@ -154,6 +206,12 @@ public class MaterializationExpander {
 
   public static MaterializationExpander of(final SqlConverter parent) {
     return new MaterializationExpander(parent);
+  }
+
+  public static class ExpansionException extends RuntimeException {
+    ExpansionException(String message) {
+      super(message);
+    }
   }
 
 }

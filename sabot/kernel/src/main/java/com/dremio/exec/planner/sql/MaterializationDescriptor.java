@@ -20,12 +20,9 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import org.apache.calcite.util.Pair;
-
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -86,7 +83,7 @@ public class MaterializationDescriptor {
     return reflection.getReflectionId();
   }
 
-  public ReflectionInfo getLayoutInfo(){
+  ReflectionInfo getLayoutInfo(){
     return reflection;
   }
 
@@ -98,11 +95,11 @@ public class MaterializationDescriptor {
     return path;
   }
 
-  public IncrementalUpdateSettings getIncrementalUpdateSettings() {
+  IncrementalUpdateSettings getIncrementalUpdateSettings() {
     return incrementalUpdateSettings;
   }
 
-  public JoinDependencyProperties getJoinDependencyProperties() {
+  JoinDependencyProperties getJoinDependencyProperties() {
     return joinDependencyProperties;
   }
 
@@ -135,7 +132,7 @@ public class MaterializationDescriptor {
 
   public DremioRelOptMaterialization getMaterializationFor(SqlConverter converter) {
     final MaterializationExpander expander = MaterializationExpander.of(converter);
-    return expander.expand(this).orNull();
+    return expander.expand(this).orElse(null);
   }
 
   public long getJobStart() {
@@ -171,12 +168,12 @@ public class MaterializationDescriptor {
       this.name = name;
       this.type = type;
       this.reflectionId = reflectionId;
-      this.sortColumns = sortColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(sortColumns);
-      this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(partitionColumns);
-      this.distributionColumns = distributionColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(distributionColumns);
-      this.dimensions = dimensions == null ? ImmutableList.<String>of() : ImmutableList.copyOf(dimensions);
-      this.measures = measures == null ? ImmutableList.<String>of() : ImmutableList.copyOf(measures);
-      this.displayColumns = displayColumns == null ? ImmutableList.<String>of() : ImmutableList.copyOf(displayColumns);
+      this.sortColumns = sortColumns == null ? ImmutableList.of() : ImmutableList.copyOf(sortColumns);
+      this.partitionColumns = partitionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(partitionColumns);
+      this.distributionColumns = distributionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(distributionColumns);
+      this.dimensions = dimensions == null ? ImmutableList.of() : ImmutableList.copyOf(dimensions);
+      this.measures = measures == null ? ImmutableList.of() : ImmutableList.copyOf(measures);
+      this.displayColumns = displayColumns == null ? ImmutableList.of() : ImmutableList.copyOf(displayColumns);
     }
 
     public String getReflectionId() {

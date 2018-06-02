@@ -78,6 +78,7 @@ import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -148,8 +149,13 @@ public class DatasetsResource {
       @QueryParam("limit") @DefaultValue("500") Long limit,
       /* body */ CreateFromSQL sql)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    Preconditions.checkNotNull(newVersion, "newVersion should not be null");
-    return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext());
+    try {
+      Preconditions.checkNotNull(newVersion, "newVersion should not be null");
+      return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext());
+    }catch (Exception e) {
+      e.printStackTrace();
+      throw e;
+    }
   }
 
   @POST @Path("new_untitled_sql_and_run")
@@ -281,8 +287,9 @@ public class DatasetsResource {
     } else if ("source".equals(type)) {
       final NamespaceKey sourceKey = new SourcePath(containerName).toNamespaceKey();
       SourceConfig source = namespaceService.getSource(sourceKey);
+      BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(sourceKey, BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
       spaceInfo = SourceUI.get(source, connectionReader)
-          .setNumberOfDatasets(namespaceService.getAllDatasetsCount(sourceKey));
+          .setNumberOfDatasets(datasetCount.getCount());
     } else {
       throw new DACRuntimeException("Incorrect dataset container type provided:" + type);
     }

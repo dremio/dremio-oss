@@ -139,7 +139,7 @@ public class LogInLogOutResource {
               userConfig.getLastName(),
               tokenDetails.expiresAt,
               userConfig.getEmail(),
-              null,
+              userConfig.getUID().getId(),
               true,
               userConfig.getCreatedAt(),
               support.getClusterId().getIdentity(),

@@ -65,6 +65,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
+import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
@@ -283,6 +284,7 @@ class DatasetBuilder implements SourceTableDefinition {
       );
 
     buildSplits(tableExtended, dbName, tableName);
+    HiveReaderProtoUtil.encodePropertiesAsDictionary(tableExtended);
     // reset the extended properties since buildSplits() may change them.
     datasetConfig.getReadDefinition().setExtendedProperty(ByteString.copyFrom(tableExtended.build().toByteArray()));
 

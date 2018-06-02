@@ -56,7 +56,8 @@ export class SqlEditorController extends Component {
     // actions
     setCurrentSql: PropTypes.func,
     setQueryContext: PropTypes.func,
-    reapplyDataset: PropTypes.func
+    reapplyDataset: PropTypes.func,
+    focusKey: PropTypes.number
   };
 
   constructor(props) {
@@ -77,9 +78,10 @@ export class SqlEditorController extends Component {
   componentDidUpdate(prevProps) {
     // refocus the SQL editor if you click New Query again
     // but otherwise do not yank focus due to other changes
-    if (this.props.dataset.get('isNewQuery') &&
+    if ((this.props.dataset.get('isNewQuery') &&
       this.props.currentSql === undefined &&
       (!prevProps.dataset.get('isNewQuery') || this.props.exploreViewState !== prevProps.exploreViewState)
+      || (this.props.focusKey && prevProps.focusKey !== this.props.focusKey)) //focus input is focus key is changed
     ) {
       this.refs.editor.focus();
     }
@@ -241,7 +243,8 @@ export class SqlEditorController extends Component {
 function mapStateToProps(state) {
   return {
     currentSql: state.explore.view.get('currentSql'),
-    queryContext: state.explore.view.get('queryContext')
+    queryContext: state.explore.view.get('queryContext'),
+    focusKey: state.explore.view.get('sqlEditorFocusKey')
   };
 }
 

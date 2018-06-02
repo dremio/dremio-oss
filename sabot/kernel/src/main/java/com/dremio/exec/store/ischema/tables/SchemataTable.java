@@ -20,20 +20,21 @@ import java.util.Map.Entry;
 import java.util.Objects;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.google.common.collect.FluentIterable;
 
 /**
  * INFORMATION_SCHEMA.SCHEMATA
  */
 public class SchemataTable extends BaseInfoSchemaTable<Schema> {
 
-  public static final SchemataTable DEFINITION = new SchemataTable();
+  static final SchemataTable DEFINITION = new SchemataTable();
 
   private SchemataTable() {
     super("SCHEMATA", SchemataTable.Schema.class);
@@ -48,22 +49,32 @@ public class SchemataTable extends BaseInfoSchemaTable<Schema> {
      */
     final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
     try {
-      searchResults = service.find(username, query == null ? null : new FindByCondition().setCondition(query));
+      // make sure we filter out DATASET containers
+      //TODO simplify this once DX-9909 is fixed
+      final SearchQuery filterDatasets = SearchQueryUtils.or(
+        SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.FOLDER.getNumber()),
+        SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.HOME.getNumber()),
+        SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SOURCE.getNumber()),
+        SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SPACE.getNumber())
+      );
+      if (query == null) {
+        query = filterDatasets;
+      } else {
+        query = SearchQueryUtils.and(query, filterDatasets);
+      }
+
+      searchResults = service.find(username, new FindByCondition().setCondition(query));
     } catch (NamespaceException e) {
       throw new RuntimeException(e);
     }
     for (Entry<NamespaceKey, NameSpaceContainer> input : searchResults) {
       final NameSpaceContainer c = input.getValue();
 
-      if (c.getType() != NameSpaceContainer.Type.DATASET) {
-        continue;
-      }
-
       if (input.getKey().getRoot().startsWith("__")) {
         continue;
       }
 
-      set.add(new Schema(catalogName, input.getKey().getParent().toUnescapedString(), "<owner>", "simple", false));
+      set.add(new Schema(catalogName, input.getKey().toUnescapedString(), "<owner>", "simple", false));
 
     }
 

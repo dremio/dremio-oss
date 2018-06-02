@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Set;
 
+import javax.net.ssl.HttpsURLConnection;
+
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.AutoCloseables;
@@ -101,6 +103,8 @@ public final class DACDaemon implements AutoCloseable {
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
 
+    // setup default SSL socket factory
+    setupDefaultHttpsSSLSocketFactory();
 
     this.dacConfig = new DACConfig(config);
     this.isMaster = dacConfig.isMaster;
@@ -205,6 +209,16 @@ public final class DACDaemon implements AutoCloseable {
 
     logger.info("Setup Hadoop user info using kerberos principal {} and keytab file {} successful.",
         kerberosPrincipal, kerberosKeytab);
+  }
+
+  /**
+   * Trigger method to create the default HTTPS SSL socket factory. Currently we have an issue due to
+   * {@link HttpsURLConnection#defaultSSLSocketFactory} being static but not volatile which means we could end up
+   * initializing the static variable multiple times in multi-threaded scenario and it could cause issues such as
+   * <a href="DX-11543">https://dremio.atlassian.net/browse/DX-11543</a>
+   */
+  private void setupDefaultHttpsSSLSocketFactory() {
+    HttpsURLConnection.getDefaultSSLSocketFactory();
   }
 
   /**

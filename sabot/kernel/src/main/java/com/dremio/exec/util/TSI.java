@@ -32,15 +32,22 @@ import com.dremio.common.exceptions.UserException;
 import com.google.common.collect.ImmutableList;
 
 public enum TSI {
-  MICROSECOND(ImmutableList.<String>builder().add("FRAC_SECOND").add("MICROSECOND").add("SQL_TSI_FRAC_SECOND").add("SQL_TSI_MICROSECOND").build()) {
+  MICROSECOND(ImmutableList.<String>builder()
+      .add("FRAC_SECOND")
+      .add("MICROSECOND")
+      .add("SQL_TSI_FRAC_SECOND")
+      .add("SQL_TSI_MICROSECOND")
+      .build()) {
     @Override
     public void addCount(MutableDateTime dateTime, int count) {
-      dateTime.addMillis(count);
+      // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+      throw new UnsupportedOperationException("Fractional second is not supported");
     }
 
     @Override
     public long getDiff(Interval interval) {
-      return interval.getEndMillis() - interval.getStartMillis();
+      // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
+      throw new UnsupportedOperationException("Fractional second is not supported");
     }
   },
   SECOND(ImmutableList.<String>builder().add("SECOND").add("SQL_TSI_SECOND").build()) {

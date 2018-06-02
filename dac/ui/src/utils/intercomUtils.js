@@ -61,7 +61,7 @@ class IntercomUtils {
       Intercom('boot', {
         'app_id': config.intercomAppId,
         'email': userData.email,
-        'user_id': userData.clusterId + userData.email,
+        'user_id': userData.clusterId + (userData.email || userData.userId),
         'created_at': userData.userCreatedAt / 1000,
         'name': `${userData.firstName} ${userData.lastName}`.trim(),
         'company': {

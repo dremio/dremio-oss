@@ -449,7 +449,7 @@ public class DateTypeFunctions {
 
       @Override
       public void setup() {
-         formatter = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
+         formatter = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS");
       }
 
       @Override
@@ -471,7 +471,7 @@ public class DateTypeFunctions {
       @Override
       public void setup() {
          String pattern = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(inputPattern.start, inputPattern.end, inputPattern.buffer);
-         formatter = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(pattern);
+         formatter = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(pattern);
       }
 
       @Override

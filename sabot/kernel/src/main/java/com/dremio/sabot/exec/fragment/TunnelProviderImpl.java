@@ -27,7 +27,9 @@ import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.SendingAccountor;
 import com.dremio.sabot.threads.SendingMonitor;
+import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.collect.Maps;
 
 /**
@@ -52,7 +54,8 @@ class TunnelProviderImpl implements TunnelProvider {
     super();
     this.accountor = accountor;
     this.statusHandler = statusHandler;
-    final SendingMonitor monitor = new SendingMonitor(resourceGroup.createResource("user"), accountor);
+    final SharedResource resource = resourceGroup.createResource("user", SharedResourceType.SEND_MSG_COORDINATOR);
+    final SendingMonitor monitor = new SendingMonitor(resource, accountor);
     this.coordTunnel = new AccountingExecToCoordTunnel(tunnel, monitor, monitor.wrap(statusHandler));
 
     this.connectionCreator = connectionCreator;
@@ -67,7 +70,8 @@ class TunnelProviderImpl implements TunnelProvider {
   public AccountingExecTunnel getExecTunnel(final NodeEndpoint endpoint) {
     AccountingExecTunnel tunnel = tunnels.get(endpoint);
     if (tunnel == null) {
-      SendingMonitor monitor = new SendingMonitor(resourceGroup.createResource("send-data-" + endpoint.getAddress()), accountor);
+      final SharedResource resource = resourceGroup.createResource("send-data-" + endpoint.getAddress(), SharedResourceType.SEND_MSG_DATA);
+      SendingMonitor monitor = new SendingMonitor(resource, accountor);
       tunnel = new AccountingExecTunnel(connectionCreator.getTunnel(endpoint), monitor, monitor.wrap(statusHandler));
       tunnels.put(endpoint, tunnel);
     }

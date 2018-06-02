@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import org.apache.calcite.plan.RelTraitSet;
@@ -94,16 +96,19 @@ public final class RexSubQueryUtils {
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       RelNode transformed;
       try {
-        final RelNode convertedSubquery = subQuery.rel.accept(new InjectSampleAndJdbcLogical(false, true));
-        transformed = PrelTransformer.transform(config, PlannerType.VOLCANO, PlannerPhase.JDBC_PUSHDOWN, convertedSubquery, traitSet, false);
+        transformed = PrelTransformer.transform(config, PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, subQuery.rel, traitSet, false);
 
         // We may need to run the planner again on the sub-queries in the sub-tree this produced.
         transformed = transformed.accept(new RelsWithRexSubQueryTransformer(config));
+        if (!(transformed instanceof JdbcCrel)) {
+          failed = true;
+          return subQuery;
+        }
       } catch (Throwable t) {
         failed = true;
         return subQuery;
       }
-      return subQuery.clone(transformed);
+      return subQuery.clone(((JdbcCrel) transformed).getInput());
     }
   }
 
@@ -125,7 +130,7 @@ public final class RexSubQueryUtils {
     @Override
     protected RelNode visitChild(RelNode parent, int i, RelNode child) {
       RelNode newParent = parent;
-      if (parent.getConvention() instanceof JdbcConventionIndicator) {
+      if (parent instanceof JdbcRelImpl) {
         transformer.setTraitSet(parent.getTraitSet().plus(DistributionTrait.ANY).plus(RelCollations.EMPTY));
         newParent = parent.accept(transformer);
       }
@@ -177,14 +182,14 @@ public final class RexSubQueryUtils {
   public static class FindNonJdbcConventionRexSubQuery {
 
     public boolean visit(final RelNode node) {
+      if (node instanceof JdbcCrel) {
+        return false;
+      }
+
       for (RelNode input : node.getInputs()) {
         if (visit(input)) {
           return true;
         }
-      }
-
-      if (node.getConvention() instanceof JdbcConventionIndicator) {
-        return false;
       }
 
       final RexSubQueryFinder subQueryFinder = new RexSubQueryFinder();

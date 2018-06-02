@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.Path;
 import org.hibernate.validator.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
@@ -32,12 +33,19 @@ import io.protostuff.Tag;
 
 @SourceType("HDFS")
 public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
+  public enum ShortCircuitFlag {
+    @Tag(1) SYSTEM,
+    @Tag(2) ENABLED,
+    @Tag(3) DISABLED;
+  }
 
   //  optional string hostname = 1;
   //  optional int32 port = 2;
-  //  optional bool enableImpersonation = 3 [default = false];
+  //  optional bool enable_impersonation = 3 [default = false];
   //  repeated Property property = 4;
   //  optional string root_path = 5 [default = "/"];
+  //  optional ShortCircuitFlag short_circuit_enabled = 6
+  //  optional string short_circuit_socket_path = 7
 
   @NotBlank
   @Tag(1)
@@ -55,6 +63,14 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
 
   @Tag(5)
   public String rootPath = "/";
+
+  @Tag(6)
+  @NotMetadataImpacting
+  public ShortCircuitFlag shortCircuitFlag = ShortCircuitFlag.SYSTEM;
+
+  @Tag(7)
+  @NotMetadataImpacting
+  public String shortCircuitSocketPath;
 
   @Override
   public Path getPath() {
@@ -79,6 +95,14 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.NONE;
+  }
+
+  public ShortCircuitFlag getShortCircuitFlag() {
+    return shortCircuitFlag;
+  }
+
+  public String getShortCircuitSocketPath() {
+    return shortCircuitSocketPath;
   }
 
   @Override

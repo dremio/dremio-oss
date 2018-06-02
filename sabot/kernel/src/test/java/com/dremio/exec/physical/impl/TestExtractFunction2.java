@@ -20,6 +20,7 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 
 public class TestExtractFunction2 extends BaseTestQuery {
+
   @Test
   public void extractOnTime() throws Exception {
     final String query = "SELECT " +
@@ -38,6 +39,74 @@ public class TestExtractFunction2 extends BaseTestQuery {
             30L, // minute
             2L, // hour
             9021L) // epoch
+        .go();
+  }
+
+  @Test
+  public void toCharD() throws Exception {
+    final String query = "SELECT " +
+        "TO_CHAR(dates, \'d\') AS `dow1` " +
+        // sunday, monday, saturday
+        " FROM (VALUES (date '2018-04-22'), (date '2018-04-23'), (date '2018-04-28')) AS tbl(dates)";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("dow1")
+        .baselineValues("1")
+        .baselineValues("2")
+        .baselineValues("7")
+        .go();
+  }
+
+  @Test
+  public void dayofweek() throws Exception {
+    final String query = "SELECT " +
+        "DAYOFWEEK(dates) AS `dow2` " +
+        // sunday, monday, saturday
+        " FROM (VALUES (date '2018-04-22'), (date '2018-04-23'), (date '2018-04-28')) AS tbl(dates)";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("dow2")
+        .baselineValues(1L)
+        .baselineValues(2L)
+        .baselineValues(7L)
+        .go();
+  }
+
+  @Test
+  public void extractDow() throws Exception {
+    final String query = "SELECT " +
+        "EXTRACT(DOW FROM dates) AS `dow3` " +
+        // sunday, monday, saturday
+        " FROM (VALUES (date '2018-04-22'), (date '2018-04-23'), (date '2018-04-28')) AS tbl(dates)";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("dow3")
+        .baselineValues(1L)
+        .baselineValues(2L)
+        .baselineValues(7L)
+        .go();
+  }
+
+  @Test
+  public void datePartDow() throws Exception {
+    final String query = "SELECT " +
+        "DATE_PART(\'DOW\', dates) AS `dow4`" +
+        // sunday, monday, saturday
+        " FROM (VALUES (date '2018-04-22'), (date '2018-04-23'), (date '2018-04-28')) AS tbl(dates)";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("dow4")
+        .baselineValues(1L)
+        .baselineValues(2L)
+        .baselineValues(7L)
         .go();
   }
 
@@ -82,7 +151,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
             0L, // minute
             0L, // hour
             3L, // day
-            4L, // dow
+            5L, // dow
             34L, // doy
             5L, // week
             2L, // month
@@ -139,8 +208,6 @@ public class TestExtractFunction2 extends BaseTestQuery {
         " extract(MILLENNIUM  FROM timestamp '0001-11-3 10:11:12.100') as `m5` " +
         "FROM sys.version";
 
-    System.out.println(query);
-
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -151,7 +218,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
             11L, // minute
             10L, // hour
             3L, // day
-            4L, // dow
+            5L, // dow
             34L, // doy
             5L, // week
             2L, // month

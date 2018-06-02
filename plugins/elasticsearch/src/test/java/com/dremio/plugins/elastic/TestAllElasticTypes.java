@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableMap;
 
 public class TestAllElasticTypes extends ElasticBaseTestQuery {
 
-  DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH:MI:SS");
+  DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH:MI:SS");
   // set in @Before method
   private String PARQUET_TABLE = null;
   private String ELASTIC_TABLE = null;

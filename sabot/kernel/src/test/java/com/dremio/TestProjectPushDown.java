@@ -112,6 +112,7 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPushDown() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.`%s` t where %s";
@@ -124,6 +125,7 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testProjectPastJoinPushDown() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1 where %s";
@@ -138,6 +140,7 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPastJoinPushDown() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1 where %s";
@@ -152,6 +155,7 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPastJoinPushDownWhenItemsAreWithinNestedOperators() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1 where %s";
@@ -166,6 +170,7 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPastJoinPastJoinPushDown() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1, cp.`%s` t2 where %s";
@@ -181,6 +186,7 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testProjectPastJoinPastFilterPastJoinPushDown() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1, cp.`%s` t2 where %s";
@@ -252,6 +258,7 @@ public class TestProjectPushDown extends PlanTestBase {
         .run();
   }
 
+  @Ignore("DX-11163")
   @Test
   public void testSimpleProjectPastJoinPastFilterPastJoinPushDown() throws Exception {
 //    String sql = "select * " +

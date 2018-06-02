@@ -24,11 +24,11 @@ import com.google.common.base.Stopwatch;
 public class CancelFlag extends org.apache.calcite.util.CancelFlag {
 
   private final Stopwatch watch = Stopwatch.createStarted();
-  private final int timeout;
+  private final long timeout;
   private final TimeUnit timeUnit;
   private final PlannerPhase plannerPhase;
 
-  public CancelFlag(int timeout, TimeUnit timeUnit, final PlannerPhase plannerPhase) {
+  public CancelFlag(long timeout, TimeUnit timeUnit, final PlannerPhase plannerPhase) {
     super(new AtomicBoolean());
     this.timeout = timeout;
     this.timeUnit = timeUnit;

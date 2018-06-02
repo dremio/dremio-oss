@@ -88,7 +88,7 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
   }
 
   public Double getRowCount(JdbcRelBase jdbc, RelMetadataQuery mq) {
-    return jdbc.getJdbcSubTree().estimateRowCount(mq);
+    return jdbc.getSubTree().estimateRowCount(mq);
   }
 
   @Override

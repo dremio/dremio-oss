@@ -25,11 +25,11 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 public class ReIndexDatasets extends UpgradeTask {
 
   public ReIndexDatasets() {
-    super("ReIndex stores", VERSION_120, VERSION_150);
+    super("ReIndex stores", VERSION_120, VERSION_205);
     }
 
   @Override
-  public void upgrade(UpgradeContext context) throws Exception {
+  public void upgrade(UpgradeContext context) {
     LocalKVStoreProvider localKVStoreProvider = (LocalKVStoreProvider)(context.getKVStoreProvider().get());
     reIndex(localKVStoreProvider, NamespaceServiceImpl.DAC_NAMESPACE);
   }

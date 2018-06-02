@@ -24,6 +24,7 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -38,12 +39,11 @@ public interface ParquetReaderFactory {
       String path,
       CodecFactory codecFactory,
       List<FilterCondition> conditions,
-      DateCorruptionStatus corruptionStatus,
-      boolean readInt96AsTimeStamp,
       boolean enableDetailedTracing,
       ParquetMetadata footer,
       int rowGroupIndex,
       SimpleIntVector deltas,
+      SchemaDerivationHelper schemaHelper,
       boolean useSingleStream);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
@@ -55,9 +55,9 @@ public interface ParquetReaderFactory {
 
     @Override
     public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, FileSystem fs, String path,
-        CodecFactory codecFactory, List<FilterCondition> conditions, DateCorruptionStatus corruptionStatus,
-        boolean readInt96AsTimeStamp, boolean enableDetailedTracing, ParquetMetadata footer, int rowGroupIndex,
-        SimpleIntVector deltas, boolean useSingleStream) {
+        CodecFactory codecFactory, List<FilterCondition> conditions, boolean enableDetailedTracing,
+        ParquetMetadata footer, int rowGroupIndex, SimpleIntVector deltas, SchemaDerivationHelper schemaHelper,
+        boolean useSingleStream) {
       throw new UnsupportedOperationException();
     }};
 

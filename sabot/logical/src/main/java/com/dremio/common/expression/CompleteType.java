@@ -189,7 +189,7 @@ public class CompleteType {
     if (type instanceof ObjectType) {
       return MinorType.GENERIC_OBJECT;
     }
-    return com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType(Types.getMinorTypeForArrowType(type));
+    return MajorTypeHelper.getMinorTypeFromArrowMinorType(Types.getMinorTypeForArrowType(type));
   }
 
   public ArrowType getType() {
@@ -197,7 +197,8 @@ public class CompleteType {
   }
 
   public <T extends ArrowType> T getType(Class<T> clazz){
-    Preconditions.checkArgument(clazz.isAssignableFrom(type.getClass()), "Trying to unwrap type of %s when current type is %s.", clazz.getName(), Describer.describe(type));
+    Preconditions.checkArgument(clazz.isAssignableFrom(type.getClass()),
+        "Trying to unwrap type of %s when current type is %s.", clazz.getName(), Describer.describe(type));
     return clazz.cast(type);
   }
 
@@ -700,6 +701,21 @@ public class CompleteType {
     return typeIds;
   }
 
+  // for now, this returns 3 always
+  private static Integer getPrecision(TimeUnit unit) {
+    switch (unit) {
+    case SECOND:
+      return 0;
+    case MILLISECOND:
+      return 3;
+    case MICROSECOND:
+      return 6;
+    case NANOSECOND:
+      return 9;
+    }
+    throw new IllegalArgumentException("unknown unit: " + unit);
+  }
+
   public Integer getPrecision(){
     return type.accept(new AbstractArrowTypeVisitor<Integer>(){
 
@@ -716,6 +732,16 @@ public class CompleteType {
       @Override
       public Integer visit(Decimal type) {
         return type.getPrecision();
+      }
+
+      @Override
+      public Integer visit(Time type) {
+        return getPrecision(type.getUnit());
+      }
+
+      @Override
+      public Integer visit(Timestamp type) {
+        return getPrecision(type.getUnit());
       }
 
       @Override
@@ -917,6 +943,11 @@ public class CompleteType {
 
     if(isDecimal()){
       return typeFactory.createTypeWithNullability(typeFactory.createSqlType(sqlTypeName, getPrecision(), getScale()), true);
+    }
+
+    if (this.type.getTypeID() == ArrowTypeID.Timestamp ||
+        this.type.getTypeID() == ArrowTypeID.Time) {
+      return typeFactory.createTypeWithNullability(typeFactory.createSqlType(sqlTypeName, getPrecision()), true);
     }
 
     return typeFactory.createTypeWithNullability(typeFactory.createSqlType(sqlTypeName), true);

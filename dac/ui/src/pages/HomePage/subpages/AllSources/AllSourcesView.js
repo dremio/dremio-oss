@@ -29,7 +29,7 @@ import AllSourcesMenu from 'components/Menus/HomePage/AllSourcesMenu';
 import FontIcon from 'components/Icon/FontIcon';
 
 import SettingsBtn from 'components/Buttons/SettingsBtn';
-import {SortDirection} from 'components/VirtualizedTableViewer';
+import { SortDirection } from 'components/VirtualizedTableViewer';
 import { getIconStatusDatabase } from 'utils/iconUtils';
 
 import * as allSpacesAndAllSources from 'uiTheme/radium/allSpacesAndAllSources';
@@ -52,7 +52,7 @@ export default class AllSourcesView extends Component {
   }
 
   getTableData() {
-    const [ name, datasets, created, action ] = this.getTableColumns();
+    const [ name, created, action ] = this.getTableColumns();
     return this.props.sources.toList().sort((a, b) => b.get('isActivePin') - a.get('isActivePin')).map((item) => {
       const icon = <FontIcon type={getIconStatusDatabase(item.getIn(['state', 'status']))}/>;
       return { // todo: loc
@@ -79,10 +79,6 @@ export default class AllSourcesView extends Component {
               return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
             }
           },
-          [datasets.key]: {
-            node: () => item.get('numberOfDatasets'),
-            value: item.get('numberOfDatasets')
-          },
           [created.key]: {
             node: () => moment(item.get('created')).format('MM/DD/YYYY'),
             value: new Date(item.get('created'))
@@ -107,7 +103,6 @@ export default class AllSourcesView extends Component {
     const { intl } = this.props;
     return [
       { key: 'name', title: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1 },
-      { key: 'datasets', title: intl.formatMessage({ id: 'Dataset.Datasets' }), style: tableStyles.datasetsColumn },
       { key: 'created', title: intl.formatMessage({ id: 'Common.Created' }) },
       {
         key: 'action',

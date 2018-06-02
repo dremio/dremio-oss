@@ -1142,6 +1142,11 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
+    public void substitutionFailures(Iterable<String> errors) {
+      detailsPopulator.substitutionFailures(errors);
+    }
+
+    @Override
     public void planAccelerated(final SubstitutionInfo info) {
       final JobInfo jobInfo = job.getJobAttempt().getInfo();
       final Acceleration acceleration = new Acceleration(info.getAcceleratedCost());

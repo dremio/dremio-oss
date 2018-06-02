@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.CodecFactory;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ExecConstants;
@@ -94,20 +95,26 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     FluentIterable < RecordReader > readers = FluentIterable.from(sortedSplits).transform(new Function<ParquetDatasetSplit, RecordReader>() {
       @Override
       public RecordReader apply(ParquetDatasetSplit split) {
+
+        final ParquetMetadata footer = footerCache.getFooter(fs, new Path(split.getSplitXAttr().getPath()));
+
+        final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+            .readInt96AsTimeStamp(readInt96AsTimeStamp)
+            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, config.getColumns(), autoCorrectCorruptDates))
+            .build();
+
         final UnifiedParquetReader inner = new UnifiedParquetReader(
           context,
           readerFactory,
           finder.getRealFields(),
-          config.getColumns(),
           globalDictionaryEncodedColumns,
           config.getConditions(),
           split.getSplitXAttr(),
           fs,
-          footerCache.getFooter(fs, new Path(split.getSplitXAttr().getPath())),
+          footer,
           globalDictionaries,
           codec,
-          autoCorrectCorruptDates,
-          readInt96AsTimeStamp,
+          schemaHelper,
           vectorize,
           enableDetailedTracing
         );

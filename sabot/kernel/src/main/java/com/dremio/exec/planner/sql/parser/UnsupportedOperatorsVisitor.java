@@ -250,7 +250,7 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
       }
 
       // DRILL-1921: Block Cross Join
-      if(join.getJoinType() == JoinType.CROSS) {
+      if(join.getJoinType() == JoinType.CROSS && !context.getPlannerSettings().isCrossJoinEnabled()) {
         unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
             "Dremio doesn't currently support CROSS JOIN.");
         throw new UnsupportedOperationException();

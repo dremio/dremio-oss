@@ -27,6 +27,7 @@ import performTransform from './performTransform';
 import performLoadDataset from './performLoadDataset';
 import transformHistoryCheck from './transformHistoryCheck';
 import transformCardPreview from './transformCardPreview';
+import focusSagas from './editorFocus';
 
 export default function* rootSaga() {
   yield [
@@ -41,6 +42,7 @@ export default function* rootSaga() {
     fork(performTransform),
     fork(performLoadDataset),
     fork(transformHistoryCheck),
-    fork(transformCardPreview)
+    fork(transformCardPreview),
+    fork(focusSagas)
   ];
 }

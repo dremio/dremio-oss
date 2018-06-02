@@ -56,7 +56,7 @@ import com.google.common.collect.ImmutableMap;
 
 public class TestAllDataTypes extends ElasticBaseTestQuery {
   private static final Logger logger = LoggerFactory.getLogger(TestAllDataTypes.class);
-  DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD").withZone(DateTimeZone.UTC);
+  DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").withZone(DateTimeZone.UTC);
 
   private static final String SPECIAL_COLUMN_NAME_1 = "@column_name_with_symbols";
   private static final String SPECIAL_COLUMN_NAME_2 = "column name with spaces";

@@ -71,6 +71,8 @@ public interface ExecConstants {
   // Number above which we stop replacing a group of ORs with a set operation.
   PositiveLongValidator FAST_OR_MAX_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.max", Integer.MAX_VALUE, 1500);
 
+  PositiveLongValidator CODE_GEN_NESTED_METHOD_THRESHOLD = new PositiveLongValidator("exec.operator.codegen.nested_method.threshold", Integer.MAX_VALUE, 100);
+
   /** Size of JDBC batch queue (in batches) above which throttling begins. */
   String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
 

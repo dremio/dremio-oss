@@ -602,6 +602,22 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver,
         "LOAD DATA LOCAL INPATH '" + multiRGParquet + "' into table default.parquet_mult_rowgroups");
 
+    final URL impalaParquetFile = Resources.getResource("impala_alltypes.parquet");
+    executeQuery(hiveDriver, "CREATE TABLE db1.impala_parquet(" +
+        "id int, " +
+        "bool_col boolean, " +
+        "tinyint_col int, " +
+        "smallint_col int, " +
+        "int_col int, " +
+        "bigint_col bigint, " +
+        "float_col float, " +
+        "double_col double, " +
+        "date_string_col string, " +
+        "string_col string, " +
+        "timestamp_col timestamp) stored as parquet");
+    executeQuery(hiveDriver,
+        "LOAD DATA LOCAL INPATH '" + impalaParquetFile + "' into table db1.impala_parquet");
+
     ss.close();
   }
 

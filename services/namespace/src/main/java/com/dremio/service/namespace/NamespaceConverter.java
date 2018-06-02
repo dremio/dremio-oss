@@ -68,19 +68,23 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
     NamespaceKey lkey = nkey.asLowerCase();
     writer.write(NamespaceIndexKeys.UNQUOTED_LC_PATH, lkey.toUnescapedString());
 
+    // add standard  and lower case searches.
+    writer.write(UNQUOTED_NAME, nkey.getName());
+    writer.write(UNQUOTED_LC_NAME, lkey.getName());
+
+    if (container.getType() == NameSpaceContainer.Type.DATASET) {
+      writer.write(UNQUOTED_SCHEMA, nkey.getParent().toUnescapedString());
+      writer.write(UNQUOTED_LC_SCHEMA, lkey.getParent().toUnescapedString());
+    } else {
+      writer.write(UNQUOTED_SCHEMA, nkey.toUnescapedString());
+      writer.write(UNQUOTED_LC_SCHEMA, lkey.toUnescapedString());
+    }
+
     switch (container.getType()) {
       case DATASET: {
         final DatasetConfig datasetConfig = container.getDataset();
 
         writer.write(DatasetIndexKeys.DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
-
-        // add standard case searches.
-        writer.write(UNQUOTED_SCHEMA, nkey.getParent().toUnescapedString());
-        writer.write(UNQUOTED_NAME, nkey.getName());
-
-        // add a lowercase search indices
-        writer.write(UNQUOTED_LC_SCHEMA, lkey.getParent().toUnescapedString());
-        writer.write(UNQUOTED_LC_NAME, lkey.getName());
 
         writer.write(DATASET_UUID, datasetConfig.getId().getId());
         if (datasetConfig.getOwner() != null) {

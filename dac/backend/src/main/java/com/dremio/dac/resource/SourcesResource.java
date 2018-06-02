@@ -34,6 +34,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.Sources;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
@@ -65,7 +66,9 @@ public class SourcesResource {
     for (SourceConfig sourceConfig : sourceService.getSources()) {
       SourceUI source = newSource(sourceConfig);
 
-      source.setNumberOfDatasets(namespaceService.getAllDatasetsCount(new NamespaceKey(source.getName())));
+      BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(source.getName()), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+      source.setNumberOfDatasets(datasetCount.getCount());
+      source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
 
       SourceState state = sourceService.getStateForSource(sourceConfig);
       source.setState(state);

@@ -55,7 +55,7 @@ public class GTo${type} {
     byte[]buf=new byte[right.end-right.start];
     right.buffer.getBytes(right.start,buf,0,right.end-right.start);
     String formatString=new String(buf,java.nio.charset.StandardCharsets.UTF_8);
-    format=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString, errCtx);
+    format=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(formatString, errCtx);
   }
 
   public void eval(){
@@ -145,7 +145,7 @@ public class GTo${type} {
 
       // if the format string is invalid we want to fail, so don't handle the exception
       String formatString = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
-      format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getFormatterForFormatString(formatString, errCtx);
+      format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(formatString, errCtx);
     }
 
     public void eval() {

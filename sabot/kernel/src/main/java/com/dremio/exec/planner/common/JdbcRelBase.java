@@ -30,7 +30,7 @@ import com.google.common.base.Preconditions;
 /**
  * For no-op relnodes for jdbc (e.g. jdbc drel, prel, and intermediate nodes).  Just points to the subtree.
  */
-public abstract class JdbcRelBase extends AbstractRelNode {
+public abstract class JdbcRelBase extends AbstractRelNode implements ContainerRel {
   protected final RelNode jdbcSubTree;
 
   public JdbcRelBase(RelOptCluster cluster, RelTraitSet traitSet, RelNode jdbcSubTree) {
@@ -39,7 +39,8 @@ public abstract class JdbcRelBase extends AbstractRelNode {
     this.rowType = jdbcSubTree.getRowType();
   }
 
-  public RelNode getJdbcSubTree() {
+  @Override
+  public RelNode getSubTree() {
     return jdbcSubTree;
   }
 

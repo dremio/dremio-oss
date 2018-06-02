@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 /**
  * Provides the pipeline the ability to submit work that will be executed when fragment is scheduled again for execution.
@@ -31,7 +32,7 @@ public class FragmentWorkQueue {
   private final SharedResource resource;
 
   FragmentWorkQueue(SharedResourceGroup resourceGroup) {
-    resource = resourceGroup.createResource("fragment-work-queue");
+    resource = resourceGroup.createResource("fragment-work-queue", SharedResourceType.FRAGMENT_WORK_QUEUE);
     resource.markBlocked();
   }
 

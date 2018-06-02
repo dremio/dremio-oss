@@ -77,7 +77,7 @@ public interface WorkStats {
       this.thread = taskDescriptor.getThread();
       this.schedulerInfo = taskDescriptor.toString();
       this.sleeping = taskDescriptor.getSleepDuration();
-      this.blocked = taskDescriptor.getBlockedDuration();
+      this.blocked = taskDescriptor.getTotalBlockedDuration();
     }
   }
 

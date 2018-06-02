@@ -50,6 +50,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.google.common.collect.Lists;
 
 /**
  * Tests the dataset service
@@ -138,9 +139,12 @@ public class TestDatasetService extends BaseTestServer {
     createDS(service, "a.ds4", "ds4", "sky4", "11", null);
     createDS(service, "c.ds5", "ds5", "sky5", "11", null);
 
-    List<NamespaceKey> spaceA = service.getNamespaceService().getAllDatasets(new SpacePath(new SpaceName("a")).toNamespaceKey());
-    List<NamespaceKey>  spaceB = service.getNamespaceService().getAllDatasets(new SpacePath(new SpaceName("b")).toNamespaceKey());
-    List<NamespaceKey>  spaceC = service.getNamespaceService().getAllDatasets(new SpacePath(new SpaceName("c")).toNamespaceKey());
+    List<NamespaceKey> spaceA = Lists.newArrayList(service.getNamespaceService()
+        .getAllDatasets(new SpacePath(new SpaceName("a")).toNamespaceKey()));
+    List<NamespaceKey> spaceB = Lists.newArrayList(service.getNamespaceService()
+        .getAllDatasets(new SpacePath(new SpaceName("b")).toNamespaceKey()));
+    List<NamespaceKey> spaceC = Lists.newArrayList(service.getNamespaceService()
+        .getAllDatasets(new SpacePath(new SpaceName("c")).toNamespaceKey()));
 
     Assert.assertEquals(2, spaceA.size());
     Assert.assertEquals(2, spaceB.size());

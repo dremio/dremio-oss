@@ -66,8 +66,7 @@ class ExecutionPlanCreator {
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
     final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer);
     // pass all query, session and non-default system options to the fragments
-    final OptionList fragmentOptions = queryContext.getOptions().getOptionList();
-    fragmentOptions.mergeIfNotPresent(queryContext.getNonDefaultSystemOptions());
+    final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
 
     CoordExecRPC.QueryContextInformation queryContextInformation = queryContext.getQueryContextInfo();
 

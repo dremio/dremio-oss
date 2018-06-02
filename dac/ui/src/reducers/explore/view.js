@@ -28,7 +28,9 @@ const initialState = Immutable.fromJS({
   sqlBoxSize: 0,
   isResizeInProgress: false,
   isTransformWarningModalVisible: false,
-  tables: {}
+  tables: {},
+  isPreviewMode: true,
+  sqlEditorFocusKey: 0 // number
 });
 
 export default function view(state = initialState, action) {
@@ -59,6 +61,10 @@ export default function view(state = initialState, action) {
       return nextState;
     }
     return nextState.setIn(['tables', version, 'columns'], tables.getIn([version, 'columns']));
+  }
+
+  case ActionTypes.FOCUS_EDITOR: {
+    return state.set('sqlEditorFocusKey', (new Date()).getTime()); // todo replace with a key provider as reducer should be a pure function
   }
 
   default:

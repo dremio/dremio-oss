@@ -28,6 +28,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.EntityId;
@@ -65,6 +66,6 @@ public class PutSpaceResource {
     namespaceService.addOrUpdateSpace(spacePath.toNamespaceKey(), spaceConfig);
     spaceConfig = namespaceService.getSpace(spacePath.toNamespaceKey());
 
-    return Space.newInstance(spaceConfig, null, namespaceService.getAllDatasetsCount(spacePath.toNamespaceKey()));
+    return Space.newInstance(spaceConfig, null, namespaceService.getDatasetCount(spacePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount());
   }
 }

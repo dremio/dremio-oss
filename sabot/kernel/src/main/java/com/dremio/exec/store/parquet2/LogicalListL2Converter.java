@@ -31,6 +31,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
@@ -50,8 +51,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
       Collection<SchemaPath> columns,
       OptionManager options,
       List<Field> arrowSchema,
-      ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates,
-      boolean readInt96AsTimeStamp) {
+      SchemaDerivationHelper schemaHelper) {
     super(
         mutator,
         schema,
@@ -64,8 +64,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
             return input; // should never be called
           }
         },
-        containsCorruptedDates,
-        readInt96AsTimeStamp);
+        schemaHelper);
 
     this.writerProvider = writerProvider;
 

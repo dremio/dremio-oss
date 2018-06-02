@@ -11140,7 +11140,7 @@
       }
     },
     "react-json-tree": {
-      "version": "git+https://github.com/dremio/react-json-tree.git#616c395a5e12f421d88365177cd8d6b61ebb36f9",
+      "version": "git+https://github.com/dremio/react-json-tree.git#b1b65751427a123aaaa978b7e0e0fe9ad79ef862",
       "requires": {
         "babel-plugin-transform-runtime": "6.23.0",
         "babel-runtime": "6.25.0",

@@ -24,6 +24,7 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
@@ -163,6 +164,13 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
+  public void substitutionFailures(Iterable<String> errors) {
+    for (final AttemptObserver observer : observers) {
+      observer.substitutionFailures(errors);
+    }
+  }
+
+  @Override
   public void planAccelerated(SubstitutionInfo info) {
     for (final AttemptObserver observer : observers) {
       observer.planAccelerated(info);
@@ -237,6 +245,11 @@ public class AttemptObservers implements AttemptObserver {
     for (final AttemptObserver observer : observers) {
       observer.recordExtraInfo(name, bytes);
     }
+  }
+
+  @Override
+  public void tablesCollected(Iterable<DremioTable> tables) {
+    observers.forEach(o -> o.tablesCollected(tables));
   }
 
   /**

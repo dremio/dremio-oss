@@ -103,7 +103,7 @@ public class VectorUtil {
         } else if (o instanceof LocalDateTime) {
           // TODO(DRILL-3882) - remove this once the datetime is not returned in an
           // object needlessly holding a timezone
-          rowValues.add(DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD\"T\"HH:MI:SS.FFF").print((LocalDateTime) o));
+          rowValues.add(DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD\"T\"HH:MI:SS.FFF").print((LocalDateTime) o));
         } else {
           rowValues.add(o.toString());
         }

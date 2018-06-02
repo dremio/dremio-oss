@@ -174,18 +174,6 @@ public class TestServerJobsCount extends BaseTestServer {
     for (File file: fs1.getContents().getFiles()) {
       Integer cnt = jobsCount.get(new DatasetPath(file.getFilePath().toPathList()));
       assertEquals(cnt == null ? 0 : cnt, (int) file.getJobCount());
-      if ("dac-sample1.json".equals(file.getName())) {
-        assertEquals(10, (int)file.getDescendants());
-      }
-      if ("dac-sample2.json".equals(file.getName())) {
-        assertEquals(0, (int) file.getDescendants());
-      }
-      if ("dac-sample3.json".equals(file.getName())) {
-        assertEquals(0, (int) file.getDescendants());
-      }
-      if ("all_types_dremio.json".equals(file.getName())) {
-        assertEquals(0, (int) file.getDescendants());
-      }
     }
   }
 
@@ -202,18 +190,6 @@ public class TestServerJobsCount extends BaseTestServer {
     for (File file: fs2.getContents().getFiles()) {
       Integer cnt = jobsCount.get(new DatasetPath(file.getFilePath().toPathList()));
       assertEquals(cnt == null ? 0 : cnt, (int) file.getJobCount());
-      if ("dac-sample1.json".equals(file.getName())) {
-        assertEquals(0, (int) file.getDescendants());
-      }
-      if ("dac-sample2.json".equals(file.getName())) {
-        assertEquals(7, (int)file.getDescendants());
-      }
-      if ("dac-sample3.json".equals(file.getName())) {
-        assertEquals(0, (int) file.getDescendants());
-      }
-      if ("all_types_dremio.json".equals(file.getName())) {
-        assertEquals(0, (int) file.getDescendants());
-      }
     }
   }
 

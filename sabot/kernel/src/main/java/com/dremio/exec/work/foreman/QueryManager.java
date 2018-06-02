@@ -45,12 +45,15 @@ import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.server.options.OptionList;
 import com.dremio.exec.work.EndpointListener;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.NodeStatusListener;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -66,6 +69,8 @@ import io.netty.buffer.ByteBuf;
  */
 class QueryManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryManager.class);
+
+  private static final ObjectWriter JSON_PRETTY_SERIALIZER = new ObjectMapper().writerWithDefaultPrettyPrinter();
 
   private final QueryId queryId;
   private final Pointer<QueryId> prepareId;
@@ -97,6 +102,7 @@ class QueryManager {
     final Pointer<QueryId> prepareId,
     final AttemptObservers observers,
     final boolean verboseProfiles,
+    final boolean includeDatasetProfiles,
     final Catalog catalog) {
     this.queryId =  queryId;
     this.completionListener = completionListener;
@@ -104,7 +110,7 @@ class QueryManager {
     this.prepareId = prepareId;
     this.catalog = catalog;
 
-    capturer = new PlanCaptureAttemptObserver(verboseProfiles, context.getFunctionRegistry(),
+    capturer = new PlanCaptureAttemptObserver(verboseProfiles, includeDatasetProfiles, context.getFunctionRegistry(),
       context.getAccelerationManager().newPopulator());
     observers.add(capturer);
     observers.add(new TimeMarker());
@@ -304,6 +310,8 @@ class QueryManager {
     if (capturer != null) {
       profileBuilder.setAccelerationProfile(capturer.getAccelerationProfile());
 
+      profileBuilder.addAllDatasetProfile(capturer.getDatasets());
+
       final String planText = capturer.getText();
       if (planText != null) {
         profileBuilder.setPlan(planText);
@@ -323,6 +331,14 @@ class QueryManager {
       if (planPhases != null) {
         profileBuilder.addAllPlanPhases(planPhases);
       }
+    }
+
+    final OptionList nonDefaultOptions = context.getNonDefaultOptions();
+    try {
+      profileBuilder.setNonDefaultOptionsJSON(JSON_PRETTY_SERIALIZER.writeValueAsString(nonDefaultOptions));
+    } catch (Exception e) {
+      logger.warn("Failed to serialize the non-default option list to JSON", e);
+      profileBuilder.setNonDefaultOptionsJSON("Failed to serialize the non-default option list to JSON: " + e.getMessage());
     }
 
     // get stats from schema tree provider

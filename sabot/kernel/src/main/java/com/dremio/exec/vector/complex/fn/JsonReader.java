@@ -406,65 +406,69 @@ public class JsonReader extends BaseJsonProcessor {
   private void writeDataAllText(MapWriter map, FieldSelection selection, boolean moveForward) throws IOException {
     //
     map.start();
-    outside: while (true) {
+    try {
+      outside:
+      while (true) {
 
 
-      JsonToken t;
+        JsonToken t;
 
-      if(moveForward){
-        t = parser.nextToken();
-      }else{
-        t = parser.getCurrentToken();
-        moveForward = true;
-      }
-
-      if (t == JsonToken.NOT_AVAILABLE || t == JsonToken.END_OBJECT) {
-        return;
-      }
-
-      assert t == JsonToken.FIELD_NAME : String.format("Expected FIELD_NAME but got %s.", t.name());
-
-      final String fieldName = parser.getText();
-      this.currentFieldName = fieldName;
-      FieldSelection childSelection = selection.getChild(fieldName);
-      if (childSelection.isNeverValid()) {
-        consumeEntireNextValue();
-        continue outside;
-      }
-
-      switch (parser.nextToken()) {
-      case START_ARRAY:
-        writeDataAllText(map.list(fieldName));
-        break;
-      case START_OBJECT:
-        if (!writeMapDataIfTyped(map, fieldName)) {
-          writeDataAllText(map.map(fieldName), childSelection, false);
+        if (moveForward) {
+          t = parser.nextToken();
+        } else {
+          t = parser.getCurrentToken();
+          moveForward = true;
         }
-        break;
-      case END_OBJECT:
-        break outside;
 
-      case VALUE_EMBEDDED_OBJECT:
-      case VALUE_FALSE:
-      case VALUE_TRUE:
-      case VALUE_NUMBER_FLOAT:
-      case VALUE_NUMBER_INT:
-      case VALUE_STRING:
-        handleString(parser, map, fieldName);
-        break;
-      case VALUE_NULL:
-        // do nothing as we don't have a type.
-        break;
+        if (t == JsonToken.NOT_AVAILABLE || t == JsonToken.END_OBJECT) {
+          return;
+        }
 
-      default:
-        throw
-          getExceptionWithContext(
-            UserException.dataReadError(), currentFieldName, null)
-          .message("Unexpected token %s", parser.getCurrentToken())
-          .build(logger);
+        assert t == JsonToken.FIELD_NAME : String.format("Expected FIELD_NAME but got %s.", t.name());
+
+        final String fieldName = parser.getText();
+        this.currentFieldName = fieldName;
+        FieldSelection childSelection = selection.getChild(fieldName);
+        if (childSelection.isNeverValid()) {
+          consumeEntireNextValue();
+          continue outside;
+        }
+
+        switch (parser.nextToken()) {
+        case START_ARRAY:
+          writeDataAllText(map.list(fieldName));
+          break;
+        case START_OBJECT:
+          if (!writeMapDataIfTyped(map, fieldName)) {
+            writeDataAllText(map.map(fieldName), childSelection, false);
+          }
+          break;
+        case END_OBJECT:
+          break outside;
+
+        case VALUE_EMBEDDED_OBJECT:
+        case VALUE_FALSE:
+        case VALUE_TRUE:
+        case VALUE_NUMBER_FLOAT:
+        case VALUE_NUMBER_INT:
+        case VALUE_STRING:
+          handleString(parser, map, fieldName);
+          break;
+        case VALUE_NULL:
+          // do nothing as we don't have a type.
+          break;
+
+        default:
+          throw
+            getExceptionWithContext(
+              UserException.dataReadError(), currentFieldName, null)
+              .message("Unexpected token %s", parser.getCurrentToken())
+              .build(logger);
+        }
       }
+    } finally{
+      map.end();
     }
-    map.end();
 
   }
 

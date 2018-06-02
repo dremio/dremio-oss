@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
@@ -158,18 +159,32 @@ public class FragmentWrapper {
     tb.appendMillis(maxValue); // Max
   }
 
+  /* Pre 2.0.2 : no splits in "Blocked"  */
+  public static final String[] FRAGMENT_COLUMNS_NO_BLOCKED_SPLITS = {"Thread ID", "Host Name", "Start", "End",
+    "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
+    "Blocked", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+
+  // same as above but with extra debug columns: "Diff w OPs"
+  public static final String[] FRAGMENT_COLUMNS_DEBUG_NO_BLOCKED_SPLITS = {"Thread ID", "Host Name", "Start", "End",
+    "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
+    "Blocked", "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+
   public static final String[] FRAGMENT_COLUMNS = {"Thread ID", "Host Name", "Start", "End",
-    "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting", "Blocked", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+    "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
+    "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
+    "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
 
   // same as above but with extra debug columns: "Diff w OPs"
   public static final String[] FRAGMENT_COLUMNS_DEBUG = {"Thread ID", "Host Name", "Start", "End",
-    "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting", "Blocked", "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+    "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
+    "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
+    "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
 
   // Not including minor fragment ID
   private static final int NUM_NULLABLE_FRAGMENTS_COLUMNS = FRAGMENT_COLUMNS.length - 1;
 
   public String getContent() {
-    final TableBuilder builder = new TableBuilder(includeDebugColumns ? FRAGMENT_COLUMNS_DEBUG : FRAGMENT_COLUMNS);
+    boolean withBlockedSplits = false;
 
     // Use only minor fragments that have complete profiles
     // Complete iff the fragment profile has at least one operator profile, and start and end times.
@@ -179,6 +194,17 @@ public class FragmentWrapper {
       Collections2.filter(major.getMinorFragmentProfileList(), Filters.missingOperatorsOrTimes));
 
     Collections.sort(complete, Comparators.minorId);
+    if (complete.size() > 0) {
+      withBlockedSplits = complete.get(0).getPerResourceBlockedDurationCount() > 0;
+    }
+    String[] columnHeaders;
+    if (includeDebugColumns) {
+      columnHeaders = withBlockedSplits ? FRAGMENT_COLUMNS_DEBUG : FRAGMENT_COLUMNS_DEBUG_NO_BLOCKED_SPLITS;
+    } else {
+      columnHeaders = withBlockedSplits ? FRAGMENT_COLUMNS : FRAGMENT_COLUMNS_NO_BLOCKED_SPLITS;
+    }
+
+    final TableBuilder builder = new TableBuilder(columnHeaders);
     for (final MinorFragmentProfile minor : complete) {
       final ArrayList<OperatorProfile> ops = new ArrayList<>(minor.getOperatorProfileList());
 
@@ -217,7 +243,31 @@ public class FragmentWrapper {
         builder.appendMillis(0); // Finish
       }
       builder.appendMillis(waitDuration); // Waiting
-      builder.appendMillis(blockedDuration); // Blocked
+
+      if (withBlockedSplits) {
+        // Categorize each of the blocked durations as upstream/downstream/other.
+        long blockedOnDownstreamDuration = minor.getBlockedOnDownstreamDuration();
+        long blockedOnUpstreamDuration = minor.getBlockedOnUpstreamDuration();
+        long blockedOnOtherDuration = 0;
+        for (BlockedResourceDuration resourceDuration : minor.getPerResourceBlockedDurationList()) {
+          switch (resourceDuration.getCategory()) {
+            case UPSTREAM:
+              blockedOnUpstreamDuration += resourceDuration.getDuration();
+              break;
+            case DOWNSTREAM:
+              blockedOnDownstreamDuration += resourceDuration.getDuration();
+              break;
+            default:
+              blockedOnOtherDuration += resourceDuration.getDuration();
+              break;
+          }
+        }
+        builder.appendMillis(blockedOnDownstreamDuration); // Blocked On Downstream
+        builder.appendMillis(blockedOnUpstreamDuration); // Blocked On Upstream
+        builder.appendMillis(blockedOnOtherDuration); // Blocked On other
+      } else {
+        builder.appendMillis(blockedDuration); // useful for older profiles.
+      }
 
       // compute total setup, process, wait for all operators in minor fragment
       if (includeDebugColumns) {

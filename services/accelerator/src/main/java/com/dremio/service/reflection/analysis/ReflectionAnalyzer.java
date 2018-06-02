@@ -23,7 +23,6 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -33,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.job.proto.QueryType;
@@ -182,7 +182,7 @@ public class ReflectionAnalyzer {
   public RelDataType getRowType(final NamespaceKey path) {
     DremioTable table = catalogService.getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()).getTable(path);
     Preconditions.checkNotNull(table, "Unknown dataset %s", path);
-    return table.getRowType(new JavaTypeFactoryImpl());
+    return table.getRowType(JavaTypeFactoryImpl.INSTANCE);
   }
 
   protected Iterable<StatColumn> getStatColumnsPerField(final RelDataTypeField field) {

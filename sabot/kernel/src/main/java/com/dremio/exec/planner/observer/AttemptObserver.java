@@ -23,6 +23,7 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
@@ -107,6 +108,12 @@ public interface AttemptObserver {
   void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken);
 
   /**
+   * Called when all tables have been collected from the plan
+   * @param tables all dremio tables requested from the Catalog during planning
+   */
+  void tablesCollected(Iterable<DremioTable> tables);
+
+  /**
    * The text of the final query plan was produced.
    * @param text Text based explain plan.
    * @param millisTaken
@@ -152,6 +159,13 @@ public interface AttemptObserver {
   void planSubstituted(DremioRelOptMaterialization materialization,
                        List<RelNode> substitutions,
                        RelNode target, long millisTaken);
+
+  /**
+   * Report errors occurred during substitution.
+   *
+   * @param errors all errors occurred during substitution
+   */
+  void substitutionFailures(Iterable<String> errors);
 
   /**
    * Report materializations used to accelerate incoming query only if query is accelerated.

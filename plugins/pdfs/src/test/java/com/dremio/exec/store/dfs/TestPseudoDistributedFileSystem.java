@@ -30,6 +30,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import javax.inject.Provider;
 
@@ -40,6 +42,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 import org.junit.Before;
@@ -78,6 +81,24 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
   private PseudoDistributedFileSystem fs;
 
+  private static class MockRemoteStatusIterator implements RemoteIterator<FileStatus> {
+    MockRemoteStatusIterator(FileStatus[] statuses) {
+      this.statuses = Arrays.asList(statuses).iterator();
+    }
+
+    private final Iterator<FileStatus> statuses;
+
+    @Override
+    public boolean hasNext() throws IOException {
+      return statuses.hasNext();
+    }
+
+    @Override
+    public FileStatus next() throws IOException {
+      return statuses.next();
+    }
+  }
+
   @Before
   public void setUp() throws IOException {
     PDFSConfig config = new PDFSConfig(
@@ -109,10 +130,21 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     doReturn(fooStatus).when(mockLocalFS).getFileStatus(new Path("/foo"));
     doReturn(rootStatus).when(mockLocalFS).getFileStatus(new Path("/"));
 
+    final FileStatus[] fooBarStatusList = new FileStatus[] { fooBarDirStatus, fooBarFile1Status, fooBarFile2Status };
+    final FileStatus[] fooStatusList = new FileStatus[] { fooBarStatus };
+    final FileStatus[] rootStatusList = new FileStatus[] { fooStatus };
+
+    // listStatusIterator mocks.
+    doThrow(new FileNotFoundException()).when(mockLocalFS).listStatusIterator(any(Path.class));
+    doReturn(new MockRemoteStatusIterator(fooBarStatusList)).when(mockLocalFS).listStatusIterator(new Path("/foo/bar"));
+    doReturn(new MockRemoteStatusIterator(fooStatusList)).when(mockLocalFS).listStatusIterator(new Path("/foo"));
+    doReturn(new MockRemoteStatusIterator(rootStatusList)).when(mockLocalFS).listStatusIterator(new Path("/"));
+
+    // listStatus mocks.
     doThrow(new FileNotFoundException()).when(mockLocalFS).listStatus(any(Path.class));
-    doReturn(new FileStatus[] { fooBarDirStatus, fooBarFile1Status, fooBarFile2Status }).when(mockLocalFS).listStatus(new Path("/foo/bar"));
-    doReturn(new FileStatus[] { fooBarStatus }).when(mockLocalFS).listStatus(new Path("/foo"));
-    doReturn(new FileStatus[] { fooStatus }).when(mockLocalFS).listStatus(new Path("/"));
+    doReturn(fooBarStatusList).when(mockLocalFS).listStatus(new Path("/foo/bar"));
+    doReturn(fooStatusList).when(mockLocalFS).listStatus(new Path("/foo"));
+    doReturn(rootStatusList).when(mockLocalFS).listStatus(new Path("/"));
   }
 
   @Before
@@ -132,10 +164,21 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     doReturn(fooStatus).when(mockRemoteFS).getFileStatus(new Path("/foo"));
     doReturn(rootStatus).when(mockRemoteFS).getFileStatus(new Path("/"));
 
+    final FileStatus[] fooBarStatusList = new FileStatus[] { fooBarDirStatus, fooBarFile1Status, fooBarFile2Status };
+    final FileStatus[] fooStatusList = new FileStatus[] { fooBarStatus };
+    final FileStatus[] rootStatusList = new FileStatus[] { fooStatus };
+
+    // listStatusIterator mocks.
+    doThrow(new FileNotFoundException()).when(mockRemoteFS).listStatusIterator(any(Path.class));
+    doReturn(new MockRemoteStatusIterator(fooBarStatusList)).when(mockRemoteFS).listStatusIterator(new Path("/foo/bar"));
+    doReturn(new MockRemoteStatusIterator(fooStatusList)).when(mockRemoteFS).listStatusIterator(new Path("/foo"));
+    doReturn(new MockRemoteStatusIterator(rootStatusList)).when(mockRemoteFS).listStatusIterator(new Path("/"));
+
+    // listStatus mocks.
     doThrow(new FileNotFoundException()).when(mockRemoteFS).listStatus(any(Path.class));
-    doReturn(new FileStatus[] { fooBarDirStatus, fooBarFile1Status, fooBarFile2Status }).when(mockRemoteFS).listStatus(new Path("/foo/bar"));
-    doReturn(new FileStatus[] { fooBarStatus }).when(mockRemoteFS).listStatus(new Path("/foo"));
-    doReturn(new FileStatus[] { fooStatus }).when(mockRemoteFS).listStatus(new Path("/"));
+    doReturn(fooBarStatusList).when(mockRemoteFS).listStatus(new Path("/foo/bar"));
+    doReturn(fooStatusList).when(mockRemoteFS).listStatus(new Path("/foo"));
+    doReturn(rootStatusList).when(mockRemoteFS).listStatus(new Path("/"));
   }
 
   /**
@@ -295,61 +338,84 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
 
     assertEquals(5, statuses.length);
 
-    assertEquals(new Path("pdfs:/foo/bar/10.0.0.1@file1"), statuses[0].getPath());
-    assertFalse(statuses[0].isDirectory());
-    assertEquals(1024, statuses[0].getLen());
-    assertEquals(1, statuses[0].getReplication());
-    assertEquals(4096, statuses[0].getBlockSize());
-    assertEquals(42, statuses[0].getAccessTime());
-    assertEquals(37, statuses[0].getModificationTime());
-    assertEquals("root", statuses[0].getOwner());
-    assertEquals("wheel", statuses[0].getGroup());
-    assertEquals(0644, statuses[0].getPermission().toExtendedShort());
+    // Note -- listStatus does not guarantee ordering. Sorting/then searching for paths
+    // rather than relying on fixed indices.
+    Arrays.sort(statuses);
 
-    assertEquals(new Path("pdfs:/foo/bar/10.0.0.1@file2"), statuses[1].getPath());
+    final FileStatus searchKeyStatus = new FileStatus();
+    searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.1@file1"));
+    int testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
+    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertEquals(new Path("pdfs:/foo/bar/10.0.0.1@file1"), statuses[testIndex].getPath());
+    assertFalse(statuses[testIndex].isDirectory());
+    assertEquals(1024, statuses[testIndex].getLen());
+    assertEquals(1, statuses[testIndex].getReplication());
+    assertEquals(4096, statuses[testIndex].getBlockSize());
+    assertEquals(42, statuses[testIndex].getAccessTime());
+    assertEquals(37, statuses[testIndex].getModificationTime());
+    assertEquals("root", statuses[testIndex].getOwner());
+    assertEquals("wheel", statuses[testIndex].getGroup());
+    assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
+
+
+    searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.1@file2"));
+    testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
+    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertEquals(new Path("pdfs:/foo/bar/10.0.0.1@file2"), statuses[testIndex].getPath());
     assertFalse(statuses[1].isDirectory());
-    assertEquals(2048, statuses[1].getLen());
-    assertEquals(1, statuses[1].getReplication());
-    assertEquals(4096, statuses[1].getBlockSize());
-    assertEquals(42, statuses[1].getAccessTime());
-    assertEquals(37, statuses[1].getModificationTime());
-    assertEquals("root", statuses[1].getOwner());
-    assertEquals("wheel", statuses[1].getGroup());
-    assertEquals(0644, statuses[1].getPermission().toExtendedShort());
+    assertEquals(2048, statuses[testIndex].getLen());
+    assertEquals(1, statuses[testIndex].getReplication());
+    assertEquals(4096, statuses[testIndex].getBlockSize());
+    assertEquals(42, statuses[testIndex].getAccessTime());
+    assertEquals(37, statuses[testIndex].getModificationTime());
+    assertEquals("root", statuses[testIndex].getOwner());
+    assertEquals("wheel", statuses[testIndex].getGroup());
+    assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
 
-    assertEquals(new Path("pdfs:/foo/bar/10.0.0.2@file1"), statuses[2].getPath());
-    assertFalse(statuses[2].isDirectory());
-    assertEquals(1027, statuses[2].getLen());
-    assertEquals(1, statuses[2].getReplication());
-    assertEquals(4096, statuses[2].getBlockSize());
-    assertEquals(42, statuses[2].getAccessTime());
-    assertEquals(37, statuses[2].getModificationTime());
-    assertEquals("root", statuses[2].getOwner());
-    assertEquals("wheel", statuses[2].getGroup());
-    assertEquals(0644, statuses[2].getPermission().toExtendedShort());
 
-    assertEquals(new Path("pdfs:/foo/bar/10.0.0.2@file3"), statuses[3].getPath());
-    assertFalse(statuses[3].isDirectory());
-    assertEquals(2049, statuses[3].getLen());
-    assertEquals(1, statuses[3].getReplication());
-    assertEquals(4096, statuses[3].getBlockSize());
-    assertEquals(42, statuses[3].getAccessTime());
-    assertEquals(37, statuses[3].getModificationTime());
-    assertEquals("root", statuses[3].getOwner());
-    assertEquals("wheel", statuses[3].getGroup());
-    assertEquals(0644, statuses[3].getPermission().toExtendedShort());
+    searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.2@file1"));
+    testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
+    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertEquals(new Path("pdfs:/foo/bar/10.0.0.2@file1"), statuses[testIndex].getPath());
+    assertFalse(statuses[testIndex].isDirectory());
+    assertEquals(1027, statuses[testIndex].getLen());
+    assertEquals(1, statuses[testIndex].getReplication());
+    assertEquals(4096, statuses[testIndex].getBlockSize());
+    assertEquals(42, statuses[testIndex].getAccessTime());
+    assertEquals(37, statuses[testIndex].getModificationTime());
+    assertEquals("root", statuses[testIndex].getOwner());
+    assertEquals("wheel", statuses[testIndex].getGroup());
+    assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
 
-    assertEquals(new Path("pdfs:/foo/bar/dir"), statuses[4].getPath());
-    assertTrue(statuses[4].isDirectory());
-    assertEquals(47, statuses[4].getLen());
-    assertEquals(0, statuses[4].getReplication());
-    assertEquals(0, statuses[4].getBlockSize());
-    assertEquals(3645, statuses[4].getAccessTime());
-    assertEquals(1234, statuses[4].getModificationTime());
-    assertEquals("admin", statuses[4].getOwner());
-    assertEquals("admin", statuses[4].getGroup());
-    assertEquals(0755, statuses[4].getPermission().toExtendedShort());
 
+    searchKeyStatus.setPath(new Path("pdfs:/foo/bar/10.0.0.2@file3"));
+    testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
+    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertEquals(new Path("pdfs:/foo/bar/10.0.0.2@file3"), statuses[testIndex].getPath());
+    assertFalse(statuses[testIndex].isDirectory());
+    assertEquals(2049, statuses[testIndex].getLen());
+    assertEquals(1, statuses[testIndex].getReplication());
+    assertEquals(4096, statuses[testIndex].getBlockSize());
+    assertEquals(42, statuses[testIndex].getAccessTime());
+    assertEquals(37, statuses[testIndex].getModificationTime());
+    assertEquals("root", statuses[testIndex].getOwner());
+    assertEquals("wheel", statuses[testIndex].getGroup());
+    assertEquals(0644, statuses[testIndex].getPermission().toExtendedShort());
+
+
+    searchKeyStatus.setPath(new Path("pdfs:/foo/bar/dir"));
+    testIndex = Arrays.binarySearch(statuses, searchKeyStatus);
+    assertTrue("Status for path " + searchKeyStatus.getPath().toString() + " not found", testIndex >= 0);
+    assertEquals(new Path("pdfs:/foo/bar/dir"), statuses[testIndex].getPath());
+    assertTrue(statuses[testIndex].isDirectory());
+    assertEquals(47, statuses[testIndex].getLen());
+    assertEquals(0, statuses[testIndex].getReplication());
+    assertEquals(0, statuses[testIndex].getBlockSize());
+    assertEquals(3645, statuses[testIndex].getAccessTime());
+    assertEquals(1234, statuses[testIndex].getModificationTime());
+    assertEquals("admin", statuses[testIndex].getOwner());
+    assertEquals("admin", statuses[testIndex].getGroup());
+    assertEquals(0755, statuses[testIndex].getPermission().toExtendedShort());
   }
 
   @Test
@@ -361,6 +427,38 @@ public class TestPseudoDistributedFileSystem extends ExecTest {
     } catch (FileNotFoundException e) {
       // ok
     }
+  }
+
+  @Test
+  public void testListStatusIteratorPastLastElement() throws IOException {
+    final Path root = new Path("/");
+    final RemoteIterator<FileStatus> statusIter = fs.listStatusIterator(root);
+
+    while (statusIter.hasNext()) {
+      statusIter.next();
+    }
+
+    try {
+      statusIter.next();
+      fail("NoSuchElementException should be throw when next() is called when there are no elements remaining.");
+    } catch (NoSuchElementException ex) {
+      // OK.
+    }
+  }
+
+  @Test
+  public void testListStatusIteratorRoot() throws IOException {
+    final Path root = new Path("/");
+    final RemoteIterator<FileStatus> statusIterator = fs.listStatusIterator(root);
+
+    assertTrue(statusIterator.hasNext());
+
+    final FileStatus onlyStatus = statusIterator.next();
+    assertEquals(new Path("pdfs:/foo"), onlyStatus.getPath());
+    assertTrue(onlyStatus.isDirectory());
+    assertEquals(0755, onlyStatus.getPermission().toExtendedShort());
+
+    assertTrue(!statusIterator.hasNext());
   }
 
   @Test

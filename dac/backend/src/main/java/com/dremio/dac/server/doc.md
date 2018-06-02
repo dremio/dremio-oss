@@ -809,7 +809,6 @@
     version: "abc",
   },
   datasetName: "abc",
-  descendants: 1,
   id: "abc",
   jobCount: 1,
   lastHistoryItem: {
@@ -1643,7 +1642,6 @@
           version: "abc",
         },
         datasetName: "abc",
-        descendants: 1,
         id: "abc",
         jobCount: 1,
         lastHistoryItem: {
@@ -1669,7 +1667,6 @@
     ],
     files: [
       {
-        descendants: 1,
         fileFormat: {
           fileFormat: {
             ctime: 1,
@@ -1733,7 +1730,6 @@
           version: 1,
         },
         datasetName: "abc",
-        descendants: 1,
         jobCount: 1,
         links: {
           abc: "abc", ...
@@ -2437,7 +2433,6 @@
     version: 1,
   },
   datasetName: "abc",
-  descendants: 1,
   jobCount: 1,
   links: {
     abc: "abc", ...
@@ -2606,7 +2601,6 @@
           version: "abc",
         },
         datasetName: "abc",
-        descendants: 1,
         id: "abc",
         jobCount: 1,
         lastHistoryItem: {
@@ -2632,7 +2626,6 @@
     ],
     files: [
       {
-        descendants: 1,
         fileFormat: {
           fileFormat: {
             ctime: 1,
@@ -2717,7 +2710,6 @@
           version: 1,
         },
         datasetName: "abc",
-        descendants: 1,
         jobCount: 1,
         links: {
           abc: "abc", ...
@@ -2728,6 +2720,7 @@
     ],
   },
   ctime: 1,
+  datasetCountBounded: true | false,
   description: "abc",
   fullPathList: [
     "abc",
@@ -2924,7 +2917,6 @@
               version: "abc",
             },
             datasetName: "abc",
-            descendants: 1,
             id: "abc",
             jobCount: 1,
             lastHistoryItem: {
@@ -2950,7 +2942,6 @@
         ],
         files: [
           {
-            descendants: 1,
             fileFormat: {
               fileFormat: {
                 ctime: 1,
@@ -3035,7 +3026,6 @@
               version: 1,
             },
             datasetName: "abc",
-            descendants: 1,
             jobCount: 1,
             links: {
               abc: "abc", ...
@@ -3046,6 +3036,7 @@
         ],
       },
       ctime: 1,
+      datasetCountBounded: true | false,
       description: "abc",
       fullPathList: [
         "abc",
@@ -3239,7 +3230,6 @@
           version: "abc",
         },
         datasetName: "abc",
-        descendants: 1,
         id: "abc",
         jobCount: 1,
         lastHistoryItem: {
@@ -3265,7 +3255,6 @@
     ],
     files: [
       {
-        descendants: 1,
         fileFormat: {
           fileFormat: {
             ctime: 1,
@@ -3350,7 +3339,6 @@
           version: 1,
         },
         datasetName: "abc",
-        descendants: 1,
         jobCount: 1,
         links: {
           abc: "abc", ...
@@ -3544,7 +3532,6 @@
           version: "abc",
         },
         datasetName: "abc",
-        descendants: 1,
         id: "abc",
         jobCount: 1,
         lastHistoryItem: {
@@ -3570,7 +3557,6 @@
     ],
     files: [
       {
-        descendants: 1,
         fileFormat: {
           fileFormat: {
             ctime: 1,
@@ -3655,7 +3641,6 @@
           version: 1,
         },
         datasetName: "abc",
-        descendants: 1,
         jobCount: 1,
         links: {
           abc: "abc", ...
@@ -3839,7 +3824,6 @@
               version: "abc",
             },
             datasetName: "abc",
-            descendants: 1,
             id: "abc",
             jobCount: 1,
             lastHistoryItem: {
@@ -3865,7 +3849,6 @@
         ],
         files: [
           {
-            descendants: 1,
             fileFormat: {
               fileFormat: {
                 ctime: 1,
@@ -3950,7 +3933,6 @@
               version: 1,
             },
             datasetName: "abc",
-            descendants: 1,
             jobCount: 1,
             links: {
               abc: "abc", ...
@@ -4212,7 +4194,6 @@ any
 - Example:
 ```
 {
-  descendants: 1,
   fileFormat: {
     fileFormat: {
       ctime: 1,

@@ -46,16 +46,32 @@ export default class FinderNavItem extends Component {
       isActivePin,
       active,
       disabled,
-      state
+      state,
+      datasetCountBounded
     } = this.props.item;
     const itemClass = classNames('finder-nav-item',
       { readonly },
       { active }
     );
-    let count;
+    let count = null;
+    let hoverText = null;
+
     if (numberOfDatasets !== undefined) {
-      count = numberOfDatasets;
+      hoverText = la('Physical Dataset Count');
+
+      if (datasetCountBounded) {
+        if (numberOfDatasets === 0) {
+          // we found nothing and were count/time bound, so display '-'
+          count = la('-');
+        } else {
+          // we found some datasets and were count/time bound, so add '+' to the dataset number
+          count = numberOfDatasets + la('+');
+        }
+      } else {
+        count = numberOfDatasets;
+      }
     } else if (datasetCount !== undefined) {
+      // TODO: seems like dead code?
       count = datasetCount;
     }
     const typeIcon = iconClass && !state ? iconClass : getIconStatusDatabase(state.status);
@@ -67,7 +83,7 @@ export default class FinderNavItem extends Component {
             type={typeIcon}
             theme={styles.iconStyle}/>
           <EllipsedText text={name} style={{marginRight: 5}} />
-          {typeof count === 'number' && <span className='count'>{count}</span>}
+          {count !== null && <span title={hoverText} className='count'>{count}</span>}
           {toggleActivePin && (
             <ResourcePin
               name={name}

@@ -38,7 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.plugins.elastic.ElasticActions.Search;
+import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.google.common.io.ByteStreams;
 
 /**
  * Tests for the shard-aware search client.
@@ -86,7 +88,7 @@ public class TestClient extends ElasticBaseTestQuery {
     DiscoveryNode dn = nodes.get(routing.currentNodeId());
     logger.info("--> executing search on: [{}] batch size: [{}]", routing, batchSize);
 
-    Search search = new Search()
+    Search<byte[]> search = new SearchBytes()
         .setQuery(String.format("{ \"query\": %s } ", QueryBuilders.matchAllQuery().toString()))
         .setResource(schema + "/" + table)
         .setParameter("scroll", "10s")
@@ -122,7 +124,7 @@ public class TestClient extends ElasticBaseTestQuery {
       DiscoveryNode dn = nodes.get(routing.currentNodeId());
       logger.info("--> executing search on: [{}] batch size: [{}]", routing, batchSize);
 
-      Search search = new Search()
+      Search<byte[]> search = new SearchBytes()
           .setQuery(String.format("{ \"query\": %s } ", QueryBuilders.matchAllQuery().toString()))
           .setResource(schema + "/" + table)
           .setParameter("scroll", "10s")

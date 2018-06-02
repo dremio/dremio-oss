@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { connect }   from 'react-redux';
+import { connect } from 'react-redux';
 import moment from 'moment';
 import { Link } from 'react-router';
 import pureRender from 'pure-render-decorator';
@@ -34,7 +34,7 @@ import ResourcePin from 'components/ResourcePin';
 import { AllSpacesMenu } from 'components/Menus/HomePage/AllSpacesMenu';
 import FontIcon from 'components/Icon/FontIcon';
 import SettingsBtn from 'components/Buttons/SettingsBtn';
-import {SortDirection} from 'components/VirtualizedTableViewer';
+import { SortDirection } from 'components/VirtualizedTableViewer';
 
 import BrowseTable from '../../components/BrowseTable';
 import { tableStyles } from '../../tableStyles';
@@ -56,7 +56,7 @@ export class AllSpacesView extends Component {
   };
 
   getTableData = () => {
-    const [ name, datasets, created, action ] = this.getTableColumns();
+    const [ name, created, action ] = this.getTableColumns();
     return this.props.spaces.toList().sort((a, b) => b.get('isActivePin') - a.get('isActivePin')).map((item) => {
       const icon = <FontIcon type={item.get('iconClass')}/>;
       return {
@@ -83,10 +83,6 @@ export class AllSpacesView extends Component {
               return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
             }
           },
-          [datasets.key]: {
-            node: () => item.get('datasetCount'),
-            value: item.get('datasetCount')
-          },
           [created.key]: {
             node: () => moment(item.get('ctime')).format('MM/DD/YYYY'),
             value: new Date(item.get('ctime'))
@@ -111,7 +107,6 @@ export class AllSpacesView extends Component {
     const { intl } = this.props;
     return [
       { key: 'name', title: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1},
-      { key: 'datasets', title: intl.formatMessage({ id: 'Dataset.Datasets' }), style: tableStyles.datasetsColumn },
       { key: 'created', title: intl.formatMessage({ id: 'Common.Created' }) },
       {
         key: 'action',

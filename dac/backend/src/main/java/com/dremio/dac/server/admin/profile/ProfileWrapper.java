@@ -147,6 +147,16 @@ public class ProfileWrapper {
     return schema;
   }
 
+  @SuppressWarnings("unused")
+  public String getNonDefaultOptions() {
+    final String options = profile.getNonDefaultOptionsJSON();
+    if (Strings.isNullOrEmpty(options)) {
+      return null;
+    }
+
+    return options;
+  }
+
   public QueryProfile getProfile() {
     return profile;
   }

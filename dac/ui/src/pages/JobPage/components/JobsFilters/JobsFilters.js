@@ -221,7 +221,12 @@ export default class JobsFilters extends Component {
     const fromDateTimestamp = fromDate && fromDate.toDate().getTime();
     const toDateTimestamp = toDate && toDate.toDate().getTime();
 
-    this.props.onUpdateQueryState(queryState.setIn(['filters', 'st'], [fromDateTimestamp, toDateTimestamp]));
+    if (type === IntervalTypes.ALL_TIME_INTERVAL) {
+      // if we are showing all time, clear out the time filter
+      this.props.onUpdateQueryState(queryState.deleteIn(['filters', 'st']));
+    } else {
+      this.props.onUpdateQueryState(queryState.setIn(['filters', 'st'], [fromDateTimestamp, toDateTimestamp]));
+    }
   }
 
   handleEnterText(text) {

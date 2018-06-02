@@ -15,13 +15,19 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.tools.RuleSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -63,6 +69,11 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
       logger.debug("Acceleration is disabled. No substitutions...");
       return ImmutableList.of();
     }
+  }
+
+  @Override
+  public void setPostSubstitutionTransformer(RelTransformer transformer) {
+    delegate.setPostSubstitutionTransformer(transformer);
   }
 
   public static AccelerationAwareSubstitutionProvider of(final SubstitutionProvider delegate) {

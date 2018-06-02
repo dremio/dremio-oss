@@ -20,7 +20,6 @@ import static org.slf4j.LoggerFactory.getLogger;
 import java.util.Map.Entry;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -29,6 +28,7 @@ import org.slf4j.Logger;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.listing.DatasetListingService;
@@ -84,7 +84,7 @@ public class ColumnsTable extends BaseInfoSchemaTable<ColumnsTable.Column> {
           public Iterable<Column> apply(Entry<NamespaceKey, NameSpaceContainer> input) {
 
             final RelDataType rowType = BatchSchema.fromDataset(input.getValue().getDataset())
-                .toCalciteRecordType(new JavaTypeFactoryImpl());
+                .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
             final String schemaName = input.getKey().getParent().toUnescapedString();
             final String tableName = input.getKey().getName();
 
@@ -410,7 +410,7 @@ public class ColumnsTable extends BaseInfoSchemaTable<ColumnsTable.Column> {
                   relDataType
                   .getIntervalQualifier()
                   .getFractionalSecondPrecision(
-                      RelDataTypeSystemImpl.REL_DATATYPE_SYSTEM );
+                      RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM);
               break;
             default:
               throw new AssertionError(
@@ -420,7 +420,7 @@ public class ColumnsTable extends BaseInfoSchemaTable<ColumnsTable.Column> {
           this.INTERVAL_PRECISION =
               relDataType
               .getIntervalQualifier()
-              .getStartPrecision(RelDataTypeSystemImpl.REL_DATATYPE_SYSTEM);
+              .getStartPrecision(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM);
           {
             final TimeUnit start = relDataType.getIntervalQualifier().getStartUnit();
             // NOTE: getEndUnit() returns null instead of YEAR for "INTERVAL YEAR".

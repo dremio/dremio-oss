@@ -52,6 +52,7 @@ import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.sql.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.planner.sql.MaterializationExpander;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
@@ -859,6 +860,12 @@ public class ReflectionServiceImpl extends BaseReflectionService {
           return null;
         }
 
+        logger.debug("failed to expand materialization descriptor {}/{}. Associated reflection will be scheduled for update",
+          descriptor.getLayoutId(), descriptor.getMaterializationId(), e);
+        reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));
+        wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
+        return null;
+      } catch (MaterializationExpander.ExpansionException e) {
         logger.debug("failed to expand materialization descriptor {}/{}. Associated reflection will be scheduled for update",
           descriptor.getLayoutId(), descriptor.getMaterializationId(), e);
         reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));

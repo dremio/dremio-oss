@@ -46,13 +46,13 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.hive.proto.HiveReaderProto.PartitionProp;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
@@ -159,7 +159,7 @@ public class HiveStoragePlugin implements StoragePlugin {
           if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
             // get list of partition properties from read definition
             HiveTableXattr tableXattr = HiveTableXattr.parseFrom(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray());
-            return hasFSPermission(user, key, readSignature.getFsPartitionUpdateKeysList(), tableXattr.getPartitionPropertiesList());
+            return hasFSPermission(user, key, readSignature.getFsPartitionUpdateKeysList(), tableXattr);
           }
         }
       }
@@ -180,10 +180,11 @@ public class HiveStoragePlugin implements StoragePlugin {
     return sabotConfig.getClass("dremio.plugins.hive.rulesfactory", StoragePluginRulesFactory.class, HiveRulesFactory.class);
   }
 
-  private boolean hasFSPermission(String user, NamespaceKey key, List<FileSystemPartitionUpdateKey> updateKeys, List<PartitionProp> partitionProps){
+  private boolean hasFSPermission(String user, NamespaceKey key, List<FileSystemPartitionUpdateKey> updateKeys,
+                                  HiveTableXattr tableXattr) {
     List<TimedRunnable<Boolean>> permissionCheckers = Lists.newArrayList();
     for (FileSystemPartitionUpdateKey updateKey : updateKeys) {
-      permissionCheckers.add(new FsTask(user, updateKey, partitionProps, TaskType.FS_PERMISSION));
+      permissionCheckers.add(new FsTask(user, updateKey, tableXattr, TaskType.FS_PERMISSION));
     }
     try {
       Stopwatch stopwatch = Stopwatch.createStarted();
@@ -209,13 +210,13 @@ public class HiveStoragePlugin implements StoragePlugin {
   private class FsTask extends TimedRunnable<Boolean> {
     private final String user;
     private final FileSystemPartitionUpdateKey updateKey;
-    List<PartitionProp> partitionProps;
+    private final HiveTableXattr tableXattr;
     private final TaskType taskType;
 
-    FsTask(String user, FileSystemPartitionUpdateKey updateKey, List<PartitionProp> partitionProps, TaskType taskType) {
+    FsTask(String user, FileSystemPartitionUpdateKey updateKey, HiveTableXattr tableXattr, TaskType taskType) {
       this.user = user;
       this.updateKey = updateKey;
-      this.partitionProps = partitionProps;
+      this.tableXattr = tableXattr;
       this.taskType = taskType;
     }
 
@@ -244,7 +245,7 @@ public class HiveStoragePlugin implements StoragePlugin {
 
     private boolean checkAccessPermission() throws IOException {
       final JobConf jobConf = new JobConf(hiveConf);
-      for (Prop prop : partitionProps.get(updateKey.getPartitionId()).getPartitionPropertyList()) {
+      for (Prop prop : HiveReaderProtoUtil.getPartitionProperties(tableXattr, updateKey.getPartitionId())) {
         jobConf.set(prop.getKey(), prop.getValue());
       }
       Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
@@ -278,7 +279,7 @@ public class HiveStoragePlugin implements StoragePlugin {
 
     private boolean hasChanged() throws IOException {
       final JobConf jobConf = new JobConf(hiveConf);
-      for (Prop prop : partitionProps.get(updateKey.getPartitionId()).getPartitionPropertyList()) {
+      for (Prop prop : HiveReaderProtoUtil.getPartitionProperties(tableXattr, updateKey.getPartitionId())) {
         jobConf.set(prop.getKey(), prop.getValue());
       }
       Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
@@ -375,7 +376,7 @@ public class HiveStoragePlugin implements StoragePlugin {
             // get list of partition properties from read definition
             List<TimedRunnable<Boolean>> signatureValidators = Lists.newArrayList();
             for (FileSystemPartitionUpdateKey updateKey : readSignature.getFsPartitionUpdateKeysList()) {
-              signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, tableXattr.getPartitionPropertiesList(), TaskType.FS_VALIDATION));
+              signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, tableXattr, TaskType.FS_VALIDATION));
             }
             try {
               Stopwatch stopwatch = Stopwatch.createStarted();

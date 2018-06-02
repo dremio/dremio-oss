@@ -62,6 +62,7 @@ import com.dremio.sabot.task.Task.State;
 import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
@@ -273,7 +274,9 @@ public class FragmentExecutor {
    * previously blocked state is now moving to an unblocked state.
    */
   private void refreshState() {
-    Preconditions.checkArgument(taskState == State.BLOCKED, "Should only called when we were previously blocked.");
+    Preconditions.checkArgument(taskState == State.BLOCKED_ON_DOWNSTREAM ||
+      taskState == State.BLOCKED_ON_UPSTREAM ||
+      taskState == State.BLOCKED_ON_SHARED_RESOURCE, "Should only called when we were previously blocked.");
     Preconditions.checkArgument(sharedResources.isAvailable(), "Should only be called once at least one shared group is available: " + sharedResources.toString());
     taskState = State.RUNNABLE;
   }
@@ -375,7 +378,7 @@ public class FragmentExecutor {
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
-      taskState = State.BLOCKED;
+      taskState = State.BLOCKED_ON_DOWNSTREAM;
       return;
     }
 
@@ -386,7 +389,7 @@ public class FragmentExecutor {
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
-      taskState = State.BLOCKED;
+      taskState = State.BLOCKED_ON_DOWNSTREAM;
       return;
     } else {
       taskState = State.DONE;
@@ -593,8 +596,23 @@ public class FragmentExecutor {
     }
 
     @Override
-    public void updateBlockedDuration(long duration) {
-      stats.setBlockedDuration(duration);
+    public void updateBlockedOnDownstreamDuration(long duration) {
+      stats.setBlockedOnDownstreamDuration(duration);
+    }
+
+    @Override
+    public void updateBlockedOnUpstreamDuration(long duration) {
+      stats.setBlockedOnUpstreamDuration(duration);
+    }
+
+    @Override
+    public void addBlockedOnSharedResourceDuration(SharedResourceType resource, long duration) {
+      stats.addBlockedOnSharedResourceDuration(resource, duration);
+    }
+
+    @Override
+    public SharedResourceType getFirstBlockedResource() {
+      return FragmentExecutor.this.sharedResources.getFirstBlockedResource("pipeline");
     }
 
     @Override

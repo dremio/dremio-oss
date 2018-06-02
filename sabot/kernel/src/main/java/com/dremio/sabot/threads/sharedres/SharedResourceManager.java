@@ -49,6 +49,14 @@ public class SharedResourceManager {
     return Preconditions.checkNotNull(groups.get(name), "group not found: " + name);
   }
 
+  public SharedResourceType getFirstBlockedResource(String groupName) {
+    SharedResourceGroup group = groups.get(groupName);
+    if (group == null || group.isAvailable()) {
+      return null;
+    }
+    return group.getFirstBlockedResource();
+  }
+
   /**
    * Set the callback the next time this shared resource manager becomes
    * available. Note that this will be called immediately (in thread) if the

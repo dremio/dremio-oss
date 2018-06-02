@@ -265,7 +265,8 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
       return TypeInferenceUtils.createCalciteTypeWithNullability(
           opBinding.getTypeFactory(),
           TypeInferenceUtils.getCalciteTypeFromMinorType(hiveFuncHolder.getReturnType().toMinorType()),
-          true);
+          true,
+          null);
     }
   }
 }

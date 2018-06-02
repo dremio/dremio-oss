@@ -47,7 +47,9 @@ public class DedicatedFragmentRunnable implements Runnable {
         task.run();
 
         switch(task.getState()){
-        case BLOCKED:
+        case BLOCKED_ON_DOWNSTREAM:
+        case BLOCKED_ON_UPSTREAM:
+        case BLOCKED_ON_SHARED_RESOURCE:
           task.setAvailabilityCallback(new BlockRun(toTaskHandle()));
           barrier.await();
           break;

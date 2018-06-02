@@ -36,11 +36,14 @@ class LoginTitle extends Component {
     return (
       <div id='login-title' style={[styles.base, this.props.style]}>
         <div style={[styles.mainTitle]}>
-          <Art
-            src={'NarwhalLogoWithNameLight.svg'}
-            alt={this.props.intl.formatMessage({ id: 'App.NarwhalLogo' })}
-            style={styles.icon}
-          />
+          <span className={'dremioLogoWithTextContainer'}>
+            <Art
+              src={'NarwhalLogoWithNameLight.svg'}
+              alt={this.props.intl.formatMessage({ id: 'App.NarwhalLogo' })}
+              style={styles.icon}
+              className={'dremioLogoWithText'}
+            />
+          </span>
         </div>
         <h1 style={styles.subtitle}>
           {this.props.subTitle}

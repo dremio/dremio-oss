@@ -57,7 +57,7 @@ public class PushProjectPastJoinRule extends RelOptRule {
     super(
         operand(projectClass,
             operand(joinClass, any())),
-        relFactory, null);
+        relFactory, "PushProjectPastJoinRule" + projectClass.getSimpleName() + joinClass.getSimpleName());
     this.preserveExprCondition = preserveExprCondition;
   }
 
@@ -102,7 +102,7 @@ public class PushProjectPastJoinRule extends RelOptRule {
     int[] adjustments = pushProject.getAdjustments();
     if (join.getCondition() != null) {
       List<RelDataTypeField> projJoinFieldList =
-          new ArrayList<RelDataTypeField>();
+          new ArrayList<>();
       projJoinFieldList.addAll(
           join.getSystemFieldList());
       projJoinFieldList.addAll(

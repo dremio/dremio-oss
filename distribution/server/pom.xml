@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>2.0.1-201804132205050000-10b1de0</version>
+    <version>2.0.5-201806021755080191-767cfb5</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -199,6 +199,13 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common-native</artifactId>
+      <classifier>linux</classifier>
+      <version>${hadoop.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.dremio.distribution</groupId>
       <artifactId>dremio-daemon-bundle</artifactId>
       <version>${project.version}</version>
@@ -228,7 +235,6 @@
                   <outputDirectory>${project.build.directory}/distribution-resources</outputDirectory>
                 </artifactItem>
               </artifactItems>
-
             </configuration>
           </execution>
         </executions>
@@ -293,7 +299,7 @@
                   <description>
                       Dremio is a platform for providing self-service analytics on modern data.
                   </description>
-                  <license>2016 Dremio Corporation</license>
+                  <license>2018 Dremio Corporation</license>
                   <version>${project.version}</version>
                   <vendor>Dremio Corporation</vendor>
                   <url>http://www.dremio.com</url>
@@ -336,6 +342,15 @@
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/jars</location>
+                        </source>
+                      </sources>
+                    </mapping>
+                    <mapping>
+                      <directory>/opt/dremio/lib</directory>
+                      <directoryIncluded>false</directoryIncluded>
+                      <sources>
+                        <source>
+                          <location>${dremio.distribution.directory}/lib</location>
                         </source>
                       </sources>
                     </mapping>

@@ -629,7 +629,7 @@ public class TestHBaseFilterPushDown extends BaseHBaseTest {
         + "WHERE\n"
         + "  (convert_from(row_key, 'UTF8') >= 'b5' OR convert_from(row_key, 'UTF8') <= 'a2') AND (t.f.c1 >= '1' OR t.f.c1 is null)";
 
-    final String[] expectedPlan = {e("filter=[FilterList OR (2/2): [RowFilter (GREATER_OR_EQUAL, b5), RowFilter (LESS_OR_EQUAL, a2)]])")};
+    final String[] expectedPlan = {e("filter=[FilterList AND (2/2): [FilterList OR (2/2): [RowFilter (GREATER_OR_EQUAL, b5), RowFilter (LESS_OR_EQUAL, a2)], FilterList OR (2/2): [SingleColumnValueFilter (f, c1, GREATER_OR_EQUAL, 1), SingleColumnValueFilter (f, c1, EQUAL, )]]])")};
     final String[] excludedPlan ={};
     final String sqlHBase = canonizeHBaseSQL(sql);
     PlanTestBase.testPlanMatchingPatterns(sqlHBase, expectedPlan, excludedPlan);

@@ -71,7 +71,7 @@ public class Pipeline implements AutoCloseable {
   public State pumpOnce() throws Exception {
     final State state = doPump();
     if (state == State.RUNNABLE && !sharedResourcesContext.isRunnable()) {
-      return State.BLOCKED;
+      return State.BLOCKED_ON_SHARED_RESOURCE;
     }
     return state;
   }
@@ -99,7 +99,7 @@ public class Pipeline implements AutoCloseable {
 
         if (upstream == null) {
           // we can't move upstream (no upstream pipes). As such, we're blocked on this pipe.
-          return State.BLOCKED;
+          return State.BLOCKED_ON_UPSTREAM;
 
         } else {
           // move upstream and get them to pump data downstream.
@@ -116,7 +116,7 @@ public class Pipeline implements AutoCloseable {
         final Pipe downstream = currentPipe.getDownstream();
         if( downstream == null) {
 
-          return State.BLOCKED;
+          return State.BLOCKED_ON_DOWNSTREAM;
 
         } else {
           currentPipe = downstream;

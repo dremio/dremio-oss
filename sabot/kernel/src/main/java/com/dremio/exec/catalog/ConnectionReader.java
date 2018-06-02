@@ -143,7 +143,7 @@ public class ConnectionReader implements AbstractConnectionReader {
   }
 
   @SuppressWarnings("deprecation")
-  private static String toType(SourceConfig config) {
+  public static String toType(SourceConfig config) {
     if(config.getType() != null) {
       return config.getType();
     }

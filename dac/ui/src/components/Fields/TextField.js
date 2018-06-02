@@ -31,7 +31,8 @@ export default class TextField extends Component {
     disabled: PropTypes.bool, // todo: add a #readonly/readOnly(?) and switch existing uses of #disabled as appropriate)
     default: PropTypes.string,
     type: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
+    placeholder: PropTypes.string // only shown if the field is not disabled
   };
 
   static defaultProps = {
@@ -57,6 +58,7 @@ export default class TextField extends Component {
       <input
         ref='input'
         {...this.props}
+        placeholder={this.props.disabled ? '' : this.props.placeholder}
         defaultValue={this.props.default}
         className='field'
         style={[

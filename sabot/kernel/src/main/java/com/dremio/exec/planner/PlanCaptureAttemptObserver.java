@@ -33,12 +33,15 @@ import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substitution;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
@@ -48,6 +51,7 @@ import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 
@@ -55,11 +59,13 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanCaptureAttemptObserver.class);
 
   private final boolean verbose;
+  private final boolean includeDatasetProfiles;
   private final FunctionImplementationRegistry funcRegistry;
   private final List<PlanPhaseProfile> planPhases = Lists.newArrayList();
   private final Map<String, LayoutMaterializedViewProfile>
     mapIdToAccelerationProfile = new LinkedHashMap<>();
   private final AccelerationDetailsPopulator detailsPopulator;
+  private final ImmutableList.Builder<UserBitShared.DatasetProfile> datasetProfileBuilder = ImmutableList.builder();
 
   private String text;
   private String json;
@@ -75,9 +81,11 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   private volatile ByteString accelerationDetails;
 
-  public PlanCaptureAttemptObserver(final boolean verbose, final FunctionImplementationRegistry funcRegistry,
+  public PlanCaptureAttemptObserver(final boolean verbose, final boolean includeDatasetProfiles,
+                                    final FunctionImplementationRegistry funcRegistry,
                                     AccelerationDetailsPopulator detailsPopulator) {
     this.verbose = verbose;
+    this.includeDatasetProfiles = includeDatasetProfiles;
     this.funcRegistry = funcRegistry;
     this.detailsPopulator = detailsPopulator;
   }
@@ -99,6 +107,10 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       builder.setAccelerationDetails(accelerationDetails);
     }
     return builder.build();
+  }
+
+  public Iterable<UserBitShared.DatasetProfile> getDatasets() {
+    return datasetProfileBuilder.build();
   }
 
   public List<PlanPhaseProfile> getPlanPhases() {
@@ -158,7 +170,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         @Nullable
         @Override
         public String apply(@Nullable RelNode plan) {
-          return asString(plan);
+          return toStringOrEmpty(plan, false);
         }
       });
     }
@@ -187,8 +199,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .addAllDisplayColumns(materialization.getLayoutInfo().getDisplayColumns())
         .setNumSubstitutions(substitutions.size())
         .setMillisTakenSubstituting(millisTaken)
-        .setPlan(asString(materialization.queryRel))
-        .addNormalizedPlans(asString(target))
+        .setPlan(toStringOrEmpty(materialization.queryRel, false))
+        .addNormalizedPlans(toStringOrEmpty(target, false))
         .setSnowflake(materialization.isSnowflake());
     } else {
       layoutBuilder = LayoutMaterializedViewProfile.newBuilder(oldProfile)
@@ -201,7 +213,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
           @Nullable
           @Override
           public SubstitutionProfile apply(@Nullable RelNode input) {
-            return SubstitutionProfile.newBuilder().setPlan(asString(input)).build();
+            return SubstitutionProfile.newBuilder().setPlan(toStringOrEmpty(input, false)).build();
           }
         }));
     }
@@ -210,6 +222,11 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     numSubstitutions += substitutions.size();
 
     detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken);
+  }
+
+  @Override
+  public void substitutionFailures(Iterable<String> errors) {
+    detailsPopulator.substitutionFailures(errors);
   }
 
   @Override
@@ -236,7 +253,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   @Override
   public void planConvertedToRel(RelNode converted, long millisTaken) {
-    final String convertedRelTree = asString(converted, true);
+    final String convertedRelTree = toStringOrEmpty(converted, true);
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Convert To Rel")
       .setDurationMillis(millisTaken)
@@ -246,7 +263,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   @Override
   public void planConvertedScan(RelNode converted, long millisTaken) {
-    final String convertedRelTree = asString(converted);
+    final String convertedRelTree = toStringOrEmpty(converted, false);
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Convert Scan")
       .setDurationMillis(millisTaken)
@@ -256,7 +273,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   @Override
   public void planRelTransform(final PlannerPhase phase, RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
-    final String planAsString = asString(after, phase.forceVerbose());
+    final boolean noTransform = before == after;
+    final String planAsString = toStringOrEmpty(after, noTransform || phase.forceVerbose());
     final long millisTakenFinalize = (phase.useMaterializations) ? millisTaken - (findMaterializationMillis + normalizationMillis + substitutionMillis) : millisTaken;
     if (phase.useMaterializations) {
       planPhases.add(PlanPhaseProfile.newBuilder()
@@ -271,8 +289,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setDurationMillis(millisTakenFinalize)
         .setPlan(planAsString);
 
-    // dump state of volcano planner to troubleshoot costing issues.
-    if(verbose && planner != null && planner instanceof VolcanoPlanner) {
+    // dump state of volcano planner to troubleshoot costing issues (or long planning issues).
+    if((verbose || noTransform) && planner instanceof VolcanoPlanner) {
       StringWriter sw = new StringWriter();
       PrintWriter pw = new PrintWriter(sw);
       ((VolcanoPlanner) planner).dump(pw);
@@ -303,6 +321,41 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         logger.debug("Failed to find best plans with reflections", e);
       }
     }
+  }
+
+  @Override
+  public void tablesCollected(Iterable<DremioTable> tables) {
+    if (includeDatasetProfiles) {
+      tables.forEach(t -> {
+        final UserBitShared.DatasetProfile datasetProfile = buildDatasetProfile(t);
+        if (datasetProfile != null) {
+          datasetProfileBuilder.add(datasetProfile);
+        }
+      });
+    }
+  }
+
+  private UserBitShared.DatasetProfile buildDatasetProfile(final DremioTable t) {
+    try {
+      if (t instanceof ViewTable) {
+        final ViewTable view = (ViewTable) t;
+        return UserBitShared.DatasetProfile.newBuilder()
+          .setDatasetPath(t.getPath().getSchemaPath())
+          .setType(UserBitShared.DatasetType.VDS)
+          .setSql(view.getView().getSql())
+          .build();
+      } else {
+        return UserBitShared.DatasetProfile.newBuilder()
+          .setDatasetPath(t.getPath().getSchemaPath())
+          .setType(UserBitShared.DatasetType.PDS)
+          .setBatchSchema(ByteString.copyFrom(t.getSchema().serialize()))
+          .build();
+      }
+    } catch (Exception e) {
+      logger.warn("Couldn't build dataset profile for table {}", t.getPath().getSchemaPath(), e);
+    }
+
+    return null;
   }
 
   @Override
@@ -371,12 +424,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     }
   }
 
-  public String asString(final RelNode plan) {
-    return asString(plan, false);
-  }
-
-  public String asString(final RelNode plan, boolean forceVerbose) {
-    if (!(verbose || forceVerbose)) { // neither verbose nor forced verbose
+  public String toStringOrEmpty(final RelNode plan, boolean ensureDump) {
+    if (!verbose && !ensureDump) {
       return "";
     }
 

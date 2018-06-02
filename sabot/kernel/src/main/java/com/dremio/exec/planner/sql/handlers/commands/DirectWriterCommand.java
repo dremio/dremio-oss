@@ -23,7 +23,6 @@ import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.lang3.text.StrTokenizer;
 
@@ -34,6 +33,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.record.BatchSchema;
@@ -83,7 +83,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
   @Override
   public double plan() throws Exception {
     observer.planStart(sql);
-    observer.planValidated(new PojoDataType(handler.getResultType()).getRowType(new JavaTypeFactoryImpl()), null, 0);
+    observer.planValidated(new PojoDataType(handler.getResultType()).getRowType(JavaTypeFactoryImpl.INSTANCE), null, 0);
     result = handler.toResult(sql, sqlNode);
     observer.planCompleted(null);
     return 1;

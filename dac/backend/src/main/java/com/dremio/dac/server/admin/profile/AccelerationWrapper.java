@@ -15,12 +15,12 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import java.util.List;
 import java.util.Map;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 
@@ -43,12 +43,7 @@ public class AccelerationWrapper {
       return ImmutableMap.of();
     }
     return FluentIterable.from(details.getReflectionRelationshipsList())
-      .uniqueIndex(new Function<ReflectionRelationship, String>() {
-        @Override
-        public String apply(ReflectionRelationship input) {
-          return input.getReflection().getId().getId();
-        }
-      });
+      .uniqueIndex(input -> input.getReflection().getId().getId());
   }
 
   public String getReflectionDatasetPath(String layoutId) {
@@ -66,5 +61,14 @@ public class AccelerationWrapper {
 
   public boolean hasRelationship(String layoutId) {
     return relationshipMap.containsKey(layoutId);
+  }
+
+  public List<String> getErrors() {
+    return accelerationDetails.getErrorList();
+  }
+
+  public boolean hasErrors() {
+    final List<String> errors = accelerationDetails.getErrorList();
+    return errors != null && !errors.isEmpty();
   }
 }

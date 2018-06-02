@@ -99,7 +99,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     for (com.dremio.file.File file : parent.getContents().getFiles()) {
       if (name.equals(file.getName())) {
         assertEquals("jobCount for file " + parentPath + "/" + name, jobCount, (int)file.getJobCount());
-        assertEquals("descendants for file " + parentPath + "/" + name, descendants, (int)file.getDescendants());
         assertEquals("isQueryable for file " + parentPath + "/" + name, isQueryable, file.isQueryable());
         return;
       }
@@ -107,15 +106,11 @@ public class TestPhysicalDatasets extends BaseTestServer {
     for (PhysicalDataset physicalDataset : parent.getContents().getPhysicalDatasets()) {
       if (name.equals(physicalDataset.getDatasetName())) {
         assertEquals("jobCount for physical dataset " + parentPath + "/" + name, jobCount, (int)physicalDataset.getJobCount());
-        assertEquals("descendants for  physical dataset " + parentPath + "/" + name, descendants, (int)physicalDataset.getDescendants());
         return;
       }
     }
     for (Folder folder : parent.getContents().getFolders()) {
       if (name.equals(folder.getName())) {
-        assertEquals("jobCount for folder " + parentPath + "/" + name, jobCount, (long)folder.getExtendedConfig().getJobCount());
-        assertEquals("descendants for folder " + parentPath + "/" + name, descendants, (long)folder.getExtendedConfig().getDescendants());
-        assertEquals("datasetCount for folder " + parentPath + "/" + name, datasetCount, (long)folder.getExtendedConfig().getDatasetCount());
         assertEquals("isQueryable for folder " + parentPath + "/" + name, isQueryable, folder.isQueryable());
         return;
       }
@@ -414,9 +409,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertTrue(ns.getFiles().get(2).isQueryable());
     assertNotNull(ns.getFiles().get(2).getId());
     assertEquals(0, (long) ns.getFiles().get(2).getJobCount());
-    assertEquals(3, (long)folder.getExtendedConfig().getDatasetCount());
-    assertEquals(0, (long)folder.getExtendedConfig().getJobCount());
-    assertEquals(null, folder.getExtendedConfig().getDescendants());
   }
 
   @Test
@@ -486,9 +478,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
-    assertEquals(2, (long)folder.getExtendedConfig().getDatasetCount());
-    assertEquals(0, (long)folder.getExtendedConfig().getJobCount());
-    assertEquals(null, folder.getExtendedConfig().getDescendants());
 
     for (Folder f : ns.getFolders()) {
       if ("folder1".equals(f.getName())) {
@@ -513,9 +502,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
-    assertEquals(1, (long)folder.getExtendedConfig().getDatasetCount());
-    assertEquals(0, (long)folder.getExtendedConfig().getJobCount());
-    assertEquals(null, folder.getExtendedConfig().getDescendants());
 
     for (Folder f : ns.getFolders()) {
       if ("folder1".equals(f.getName())) {

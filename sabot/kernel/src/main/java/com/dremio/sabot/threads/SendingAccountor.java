@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 /**
  * Account for whether all messages sent have been completed. Necessary before finishing a task so we don't think
@@ -70,7 +71,7 @@ public class SendingAccountor {
         // do nothing with manager.
         return true;
       } else {
-        SharedResource resource = manager.createResource("outgoing-messages-ack");
+        SharedResource resource = manager.createResource("outgoing-messages-ack", SharedResourceType.OUTGOING_MSG_ACK);
         resource.markBlocked();
         sendComplete = resource;
         return false;

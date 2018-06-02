@@ -38,9 +38,9 @@ public class SharedResourceGroup {
     this.name = name;
   }
 
-  public SharedResource createResource(String name) {
+  public SharedResource createResource(String name, SharedResourceType resourceType) {
     synchronized(disableLock) {
-      SharedResource resource = new SharedResource(this, name);
+      SharedResource resource = new SharedResource(this, name, resourceType);
       if (resources.isEmpty()) {
         sharedResourceManager.addAvailable();
       }
@@ -74,6 +74,17 @@ public class SharedResourceGroup {
         r.disableBlocking();
       }
     }
+  }
+
+  public SharedResourceType getFirstBlockedResource() {
+    if (!isAvailable()) {
+      for (SharedResource r : resources) {
+        if (!r.isAvailable()) {
+          return r.getType();
+        }
+      }
+    }
+    return null;
   }
 
   public String toString(){

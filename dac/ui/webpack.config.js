@@ -82,6 +82,7 @@ class BuildInfo {
           subhourAccelerationPoliciesEnabled: ${isProductionBuild ? '${dremio.settings.subhourAccelerationPoliciesEnabled?c}' : false},
           lowerProvisioningSettingsEnabled: ${isProductionBuild ? '${dremio.settings.lowerProvisioningSettingsEnabled?c}' : false},
           tdsMimeType: ${JSON.stringify('${dremio.settings.tdsMimeType}')},
+          whiteLabelUrl: ${JSON.stringify(isProductionBuild ? '${dremio.settings.whiteLabelUrl}' : 'dremio')},
           clusterId: ${JSON.stringify('${dremio.clusterId}')},
           versionInfo: {
             version: ${JSON.stringify('${dremio.versionInfo.version}')},
@@ -293,6 +294,7 @@ const config = {
     ],
     alias: {
       'dyn-load': dynLoader.path, // ref for std code to ref dynamic componentsd
+      '@app': path.resolve(__dirname, 'src'),
       'Narwhal-Logo-With-Name-Light': path.resolve(
         isBeta
           ? './src/components/Icon/icons/Narwhal-Logo-With-Name-Light-Beta.svg'

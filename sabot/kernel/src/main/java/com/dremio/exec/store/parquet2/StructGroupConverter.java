@@ -25,6 +25,7 @@ import org.apache.parquet.schema.GroupType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet2.WriterProvider.MapWriterProvider;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
@@ -41,8 +42,7 @@ public class StructGroupConverter extends ParquetGroupConverter {
       Collection<SchemaPath> columns,
       OptionManager options,
       List<Field> arrowSchema,
-      ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates,
-      boolean readInt96AsTimeStamp) {
+      SchemaDerivationHelper schemaHelper) {
     super(
         mutator,
         schema,
@@ -56,8 +56,7 @@ public class StructGroupConverter extends ParquetGroupConverter {
             return input;
           }
         },
-        containsCorruptedDates,
-        readInt96AsTimeStamp);
+        schemaHelper);
     this.mapWriter = mapWriter;
     this.writerProvider = new MapWriterProvider(mapWriter);
 

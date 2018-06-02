@@ -62,6 +62,7 @@ import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.ParquetReaderStats;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.Lists;
@@ -71,14 +72,6 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
 
   // this value has been inflated to read in multiple value vectors at once, and then break them up into smaller vectors
   private static final char DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH = 32*1024;
-
-  // TODO - should probably find a smarter way to set this, currently 1 megabyte
-  public static final int PARQUET_PAGE_MAX_SIZE = 1024 * 1024 * 1;
-
-  // used for clearing the last n nodes of a byte
-  public static final byte[] endBitMasks = {-2, -4, -8, -16, -32, -64, -128};
-  // used for clearing the first n nodes of a byte
-  public static final byte[] startBitMasks = {127, 63, 31, 15, 7, 3, 1};
 
   private int bitWidthAllFixedFields;
   private boolean allFieldsFixedLength;
@@ -104,9 +97,8 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   long totalRecordsRead;
   FSDataInputStream singleInputStream;
 
+  private final SchemaDerivationHelper schemaHelper;
   private final GlobalDictionaries globalDictionaries;
-  private final ParquetReaderUtility.DateCorruptionStatus dateCorruptionStatus;
-  private final boolean readInt96AsTimeStamp;
   public ParquetReaderStats parquetReaderStats = new ParquetReaderStats();
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns;
 
@@ -118,8 +110,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     CodecFactory codecFactory,
     ParquetMetadata footer,
     List<SchemaPath> columns,
-    ParquetReaderUtility.DateCorruptionStatus dateCorruptionStatus,
-    boolean readInt96AsTimeStamp,
+    SchemaDerivationHelper schemHelper,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
     GlobalDictionaries globalDictionaries) throws ExecutionSetupException {
     super(operatorContext, columns);
@@ -128,8 +119,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     this.codecFactory = codecFactory;
     this.rowGroupIndex = rowGroupIndex;
     this.footer = footer;
-    this.dateCorruptionStatus = dateCorruptionStatus;
-    this.readInt96AsTimeStamp = readInt96AsTimeStamp;
+    this.schemaHelper = schemHelper;
     this.globalDictionaryColumns = globalDictionaryColumns == null? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
     this.globalDictionaries = globalDictionaries;
     this.singleInputStream = null;
@@ -142,11 +132,11 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
    * @return true if the dates are corrupted and need to be corrected
    */
   public ParquetReaderUtility.DateCorruptionStatus getDateCorruptionStatus() {
-    return dateCorruptionStatus;
+    return schemaHelper.getDateCorruptionStatus();
   }
 
   public boolean readInt96AsTimeStamp() {
-    return readInt96AsTimeStamp;
+    return schemaHelper.readInt96AsTimeStamp();
   }
 
   public CodecFactory getCodecFactory() {
@@ -302,7 +292,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
           se,
           context.getOptions(),
           arrowSchema == null ? null : arrowSchema.findField(fieldName),
-          readInt96AsTimeStamp
+          schemaHelper.readInt96AsTimeStamp()
         );
         dataTypeLength = getDataTypeLength(column, se);
       }
@@ -359,7 +349,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
             schemaElement,
             context.getOptions(),
             childArrowField,
-            readInt96AsTimeStamp
+            schemaHelper.readInt96AsTimeStamp()
           );
           field = getFieldForNameAndMajorType(toFieldName(column.getPath()), type);
         }

@@ -298,6 +298,8 @@ message QueryProfile {
   repeated PlanPhaseProfile plan_phases = 26;
   optional AccelerationProfile acceleration_profile = 27;
   optional string full_schema = 28;
+  optional string non_default_options_JSON = 29; // non-default (option, value) tuplets in json format
+  repeated DatasetProfile dataset_profile = 30;
 }
 
 message AccelerationProfile {
@@ -309,6 +311,18 @@ message AccelerationProfile {
   repeated LayoutMaterializedViewProfile layout_profiles = 7;
   repeated string normalized_query_plans = 8;
   optional bytes acceleration_details = 9;
+}
+
+enum DatasetType {
+  PDS = 1;
+  VDS = 2;
+}
+
+message DatasetProfile {
+  optional string dataset_path = 1;
+  optional DatasetType type = 2 [default = PDS];
+  optional bytes batch_schema = 3;
+  optional string sql = 4;
 }
 
 enum ReflectionType {
@@ -358,6 +372,18 @@ message MajorFragmentProfile {
   repeated NodePhaseProfile node_phase_profile = 3;
 }
 
+enum SharedResourceCategory {
+  UPSTREAM = 0;
+  DOWNSTREAM = 1;
+  OTHER = 2;
+}
+
+message BlockedResourceDuration {
+  optional string resource = 1;
+  optional SharedResourceCategory category = 2;
+  optional int64 duration = 3;
+}
+
 message MinorFragmentProfile {
   optional FragmentState state = 1;
   optional DremioPBError error = 2;
@@ -379,6 +405,10 @@ message MinorFragmentProfile {
   optional int64 num_runs = 1005;
   optional int64 setup_duration = 1006;
   optional int64 finish_duration = 1007;
+  optional int64 blocked_on_upstream_duration = 1008;
+  optional int64 blocked_on_downstream_duration = 1009;
+  optional int64 blocked_on_shared_resource_duration = 1010;
+  repeated BlockedResourceDuration per_resource_blocked_duration = 1011;
 }
 
 message OperatorProfile {

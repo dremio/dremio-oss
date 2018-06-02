@@ -18,6 +18,7 @@ package com.dremio.exec.calcite.logical;
 import java.util.List;
 
 import com.dremio.common.logical.data.LogicalOperator;
+import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.logical.LogicalPlanImplementor;
 import com.dremio.exec.planner.logical.Rel;
 

@@ -16,14 +16,29 @@
 package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.Util;
+
+import com.google.common.collect.ImmutableList;
 
 public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
 
@@ -66,5 +81,118 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
       frame.rel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)));
     push(sort);
     return this;
+  }
+
+
+
+  //TODO: Incorporate CALCITE-1610.
+  /** Creates a {@link Sort} by a list of expressions, with limit and offset.
+  *
+  * @param offset Number of rows to skip; non-positive means don't skip any
+  * @param fetch Maximum number of rows to fetch; negative means no limit
+  * @param nodes Sort expressions
+  */
+ public RelBuilder sortLimit(int offset, int fetch,
+     Iterable<? extends RexNode> nodes) {
+   final List<RelFieldCollation> fieldCollations = new ArrayList<>();
+   final RelDataType inputRowType = peek().getRowType();
+   final List<RexNode> extraNodes = projects(inputRowType);
+   final List<RexNode> originalExtraNodes = ImmutableList.copyOf(extraNodes);
+   for (RexNode node : nodes) {
+     fieldCollations.add(
+         collation(node, RelFieldCollation.Direction.ASCENDING, null,
+             extraNodes));
+   }
+   final RexNode offsetNode = offset <= 0 ? null : literal(offset);
+   final RexNode fetchNode = fetch < 0 ? null : literal(fetch);
+   if (offsetNode == null && fetch == 0) {
+     return empty();
+   }
+   if (offsetNode == null && fetchNode == null && fieldCollations.isEmpty()) {
+     return this; // sort is trivial
+   }
+
+   final boolean addedFields = extraNodes.size() > originalExtraNodes.size();
+   if (fieldCollations.isEmpty()) {
+     assert !addedFields;
+     RelNode top = peek();
+     if (top instanceof Sort) {
+       final Sort sort2 = (Sort) top;
+       if (sort2.offset == null && sort2.fetch == null) {
+         replaceTop(sort2.getInput());
+         final RelNode sort =
+             sortFactory.createSort(peek(), sort2.collation,
+                 offsetNode, fetchNode);
+         replaceTop(sort);
+         return this;
+       }
+     }
+     if (top instanceof Project) {
+       final Project project = (Project) top;
+       if (project.getInput() instanceof Sort) {
+         final Sort sort2 = (Sort) project.getInput();
+         if (sort2.offset == null && sort2.fetch == null) {
+           final RelNode sort =
+               sortFactory.createSort(sort2.getInput(), sort2.collation,
+                   offsetNode, fetchNode);
+           replaceTop(
+               projectFactory.createProject(sort,
+                   project.getProjects(),
+                   Pair.right(project.getNamedProjects())));
+           return this;
+         }
+       }
+     }
+   }
+   if (addedFields) {
+     project(extraNodes);
+   }
+   final RelNode sort =
+       sortFactory.createSort(peek(), RelCollations.of(fieldCollations),
+           offsetNode, fetchNode);
+   replaceTop(sort);
+   if (addedFields) {
+     project(originalExtraNodes);
+   }
+   return this;
+ }
+
+  private List<RexNode> projects(RelDataType inputRowType) {
+    final List<RexNode> exprList = new ArrayList<>();
+    for (RelDataTypeField field : inputRowType.getFieldList()) {
+      final RexBuilder rexBuilder = cluster.getRexBuilder();
+      exprList.add(rexBuilder.makeInputRef(field.getType(), field.getIndex()));
+    }
+    return exprList;
+  }
+
+  private void replaceTop(RelNode node) {
+    stack.pop();
+    push(node);
+  }
+
+  private static RelFieldCollation collation(RexNode node,
+      RelFieldCollation.Direction direction,
+      RelFieldCollation.NullDirection nullDirection, List<RexNode> extraNodes) {
+    switch (node.getKind()) {
+    case INPUT_REF:
+      return new RelFieldCollation(((RexInputRef) node).getIndex(), direction,
+          Util.first(nullDirection, direction.defaultNullDirection()));
+    case DESCENDING:
+      return collation(((RexCall) node).getOperands().get(0),
+          RelFieldCollation.Direction.DESCENDING,
+          nullDirection, extraNodes);
+    case NULLS_FIRST:
+      return collation(((RexCall) node).getOperands().get(0), direction,
+          RelFieldCollation.NullDirection.FIRST, extraNodes);
+    case NULLS_LAST:
+      return collation(((RexCall) node).getOperands().get(0), direction,
+          RelFieldCollation.NullDirection.LAST, extraNodes);
+    default:
+      final int fieldIndex = extraNodes.size();
+      extraNodes.add(node);
+      return new RelFieldCollation(fieldIndex, direction,
+          Util.first(nullDirection, direction.defaultNullDirection()));
+    }
   }
 }

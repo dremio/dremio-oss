@@ -135,7 +135,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
 
       // If we fail to reduce anything, catch the exception and return the same expression.
       try {
-        LogicalExpression logEx = RexToExpr.toExpr(new ParseContext(plannerSettings), null /* input rowtype */, rexBuilder, newCall);
+        LogicalExpression logEx = RexToExpr.toExpr(new ParseContext(plannerSettings), null /* input rowtype */, rexBuilder, newCall, false);
         LogicalExpression materializedExpr = ExpressionTreeMaterializer.materializeAndCheckErrors(logEx, null, funcImplReg);
 
         if (NON_REDUCIBLE_TYPES.contains(materializedExpr.getCompleteType().toMinorType())) {
@@ -199,7 +199,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               new BigDecimal(outputInt),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTEGER, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTEGER, false, null),
               false));
             break;
           case BIGINT:
@@ -211,7 +211,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               new BigDecimal(outputBigint),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BIGINT, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BIGINT, false, null),
               false));
             break;
           case FLOAT4:
@@ -223,7 +223,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               new BigDecimal(outputFloat),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.FLOAT, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.FLOAT, false, null),
               false));
             break;
           case FLOAT8:
@@ -235,7 +235,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               new BigDecimal(outputFloat8),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DOUBLE, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DOUBLE, false, null),
               false));
             break;
           case VARCHAR:
@@ -258,7 +258,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               bitValue == 1,
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BOOLEAN, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BOOLEAN, false, null),
               false));
             break;
           case DATE:
@@ -270,7 +270,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
                 com.dremio.common.util.DateTimes.toDateTime(new LocalDateTime(dateValue, DateTimeZone.UTC)).toCalendar(null),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DATE, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DATE, false, null),
               false));
             break;
           case TIME:
@@ -282,7 +282,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
                 com.dremio.common.util.DateTimes.toDateTime(new LocalDateTime(timeValue, DateTimeZone.UTC)).toCalendar(null),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.TIME, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.TIME, false, null),
               false));
             break;
           case TIMESTAMP:
@@ -305,7 +305,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               new BigDecimal(yearValue),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_YEAR_MONTH, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_YEAR_MONTH, false, null),
               false));
             break;
           case INTERVALDAY:
@@ -319,7 +319,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             }
             reducedValues.add(rexBuilder.makeLiteral(
               new BigDecimal(dayValue),
-              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_DAY_MINUTE, false),
+              TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_DAY_MINUTE, false, null),
               false));
             break;
           // The list of known unsupported types is used to trigger this behavior of re-using the input expression

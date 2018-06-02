@@ -47,7 +47,6 @@ public class File {
   private final boolean queryable;
   private final String id;
   private final Integer jobCount;
-  private final Integer descendants;
   private final boolean isStaged;
   private final boolean isHomeFile;
 
@@ -57,7 +56,6 @@ public class File {
     @JsonProperty("urlPath") String urlPath,
     @JsonProperty("fileFormat") FileFormatUI fileFormat,
     @JsonProperty("jobCount") Integer jobCount,
-    @JsonProperty("descendants") Integer descendants,
     @JsonProperty("isStaged") boolean isStaged,
     @JsonProperty("isHomeFile") boolean isHomeFile,
     @JsonProperty("queryable") boolean queryable) {
@@ -65,15 +63,14 @@ public class File {
     this.fileFormat = fileFormat;
     this.filePath = File.parseUrlPath(urlPath);
     this.jobCount = jobCount;
-    this.descendants = descendants;
     this.isStaged = isStaged;
     this.isHomeFile = isHomeFile;
     this.queryable = queryable;
   }
 
-  public static File newInstance(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount, Integer descendants,
+  public static File newInstance(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
       boolean isStaged, boolean isHomeFile, boolean isQueryable) {
-    return new File(id, filePath.toUrlPath(), new FileFormatUI(fileFormat, filePath), jobCount, descendants, isStaged, isHomeFile, isQueryable);
+    return new File(id, filePath.toUrlPath(), new FileFormatUI(fileFormat, filePath), jobCount, isStaged, isHomeFile, isQueryable);
   }
 
   public boolean isQueryable() {
@@ -102,10 +99,6 @@ public class File {
 
   public Integer getJobCount() {
     return jobCount;
-  }
-
-  public Integer getDescendants() {
-    return descendants;
   }
 
   public boolean getIsHomeFile() {

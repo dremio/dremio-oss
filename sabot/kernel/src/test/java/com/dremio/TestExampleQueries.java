@@ -306,6 +306,23 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void currentTimestampTypes() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT typeof(CURRENT_TIMESTAMP) c1, typeof(CURRENT_TIMESTAMP(3)) c2 FROM (VALUES(1))")
+        .unOrdered()
+        .baselineColumns("c1", "c2")
+        .baselineValues("TIMESTAMPMILLI", "TIMESTAMPMILLI")
+        .go();
+  }
+
+  @Test
+  public void dateTimeTypes() throws Exception {
+    testPlanMatchingPatterns("SELECT CURRENT_TIME ct, CURRENT_TIME(0) ct0," +
+            " CURRENT_TIMESTAMP cts, CURRENT_TIMESTAMP(1) cts1 FROM (VALUES(1))",
+        new String[] {"TIME\\(3\\) ct, TIME\\(3\\) ct0, TIMESTAMP\\(3\\) cts, TIMESTAMP\\(3\\) cts1"});
+  }
+
+  @Test
   public void testMixedTypeGroupBy() throws Exception {
     test("alter session set `planner.enable_streamagg` = false");
     test("alter session set `planner.enable_hashagg` = true");
@@ -333,7 +350,7 @@ public class TestExampleQueries extends PlanTestBase {
     String query = "select x, y, z from ( select customer_region_id, fname, avg(total_children) "
         + "from cp.`customer.json` group by customer_region_id, fname) as sq(x, y, z) where coalesce(x, 100) = 10";
     testPlanMatchingPatterns(query, new String[] {
-        "Filter\\(condition=\\[CASE\\(IS NOT NULL\\(\\$0\\), =\\(\\$0, 10\\), CAST\\(false\\):BOOLEAN\\)\\]\\)",
+        "Filter\\(condition=\\[CASE\\(IS NOT NULL\\(\\$1\\), =\\(\\$1, 10\\), CAST\\(false\\):BOOLEAN\\)\\]\\)",
         "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[\\$SUM0\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
         "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=\\[\\/\\(CAST\\(CASE\\(=\\(\\$3, 0\\), null, \\$2\\)\\):DOUBLE, \\$3\\)\\]\\)" },
         null);

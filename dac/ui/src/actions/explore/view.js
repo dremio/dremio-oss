@@ -16,6 +16,7 @@
 export const SET_CURRENT_SQL = 'SET_CURRENT_SQL';
 export const SET_QUERY_CONTEXT = 'SET_QUERY_CONTEXT';
 export const RESET_NEW_QUERY = 'RESET_NEW_QUERY';
+export const FOCUS_EDITOR = 'FOCUS_SQL_EDITOR';
 
 export function setCurrentSql({ sql }) {
   return { type: SET_CURRENT_SQL, sql };
@@ -34,3 +35,5 @@ export const updateHistoryState = (history, version) => ({ type: UPDATE_HISTORY_
 
 export const UPDATE_COLUMNS = 'UPDATE_COLUMNS';
 export const updateTableColumns = ({ version, columns }) => ({ type: UPDATE_COLUMNS, version, columns });
+
+export const focusSqlEditor = () => ({ type: FOCUS_EDITOR });

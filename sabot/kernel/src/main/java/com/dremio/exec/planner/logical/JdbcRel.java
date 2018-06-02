@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.logical.data.LogicalOperator;
+import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.JdbcRelBase;
 
 public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
@@ -44,7 +45,7 @@ public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
-    final RelNode copiedSubTree = getJdbcSubTree().accept(copier);
+    final RelNode copiedSubTree = getSubTree().accept(copier);
     return new JdbcRel(
       copier.getCluster(),
       getTraitSet(),

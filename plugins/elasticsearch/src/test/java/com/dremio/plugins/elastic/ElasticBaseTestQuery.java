@@ -195,7 +195,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   public static ColumnData[] getNullBusinessData() {
-    final DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
+    final DateTimeFormatter formatter = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
     final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("business_id", STRING, new Object[][]{
         {null},
@@ -291,7 +291,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   public static ColumnData[] getBusinessData() {
-    DateTimeFormatter formatter = DateFunctionsUtils.getFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
+    DateTimeFormatter formatter = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
     ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
         new ElasticsearchCluster.ColumnData("business_id", STRING, new Object[][]{
             {"12345"},

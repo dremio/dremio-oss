@@ -35,7 +35,7 @@ export default class SignupTitle extends Component {
           {la('Welcome to Dremio')}
         </h1>
         <div style={[styles.subtitleWrap]}>
-          <FontIcon type='NarwhalLogo' theme={styles.theme}/>
+          <FontIcon type='NarwhalLogo' theme={styles.theme} iconClass={'dremioLogo'} />
           <h3 style={[styles.subtitle]}>
             {la('We are excited to have you on board!')}<br />
             {la('The first thing you need to do is set up an administrator account.')}

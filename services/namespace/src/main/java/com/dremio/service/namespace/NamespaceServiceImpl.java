@@ -33,13 +33,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
@@ -67,9 +70,8 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -602,33 +604,21 @@ public class NamespaceServiceImpl implements NamespaceService {
     );
   }
 
+  // returns the child containers of the given rootKey as a list
   private List<NameSpaceContainer> listEntity(final NamespaceKey rootKey) throws NamespaceException {
-    final NamespaceInternalKey rootInternalKey = new NamespaceInternalKey(rootKey, keyNormalization);
-    final ImmutableList.Builder<NameSpaceContainer> builder = ImmutableList.builder();
-    final Iterable<Map.Entry<byte[], NameSpaceContainer>> entries = namespace.find(
-      new FindByRange<>(rootInternalKey.getRangeStartKey(), false, rootInternalKey.getRangeEndKey(), false));
-    for (Map.Entry<byte[], NameSpaceContainer> entry : entries) {
-      builder.add(entry.getValue());
-    }
-    return builder.build();
+    return FluentIterable.from(iterateEntity(rootKey)).toList();
   }
 
-  // BFS traversal of a folder/space/home.
-  private Collection<NameSpaceContainer> traverseEntity(final NamespaceKey root) throws NamespaceException {
-    final LinkedList<NameSpaceContainer> toBeTraversed = new LinkedList<>(listEntity(root));
-    final LinkedList<NameSpaceContainer> visited = new LinkedList<>();
-    while (!toBeTraversed.isEmpty()) {
-      final NameSpaceContainer container = toBeTraversed.removeFirst();
-      if (NamespaceUtils.isListable(container.getType())) {
-        toBeTraversed.addAll(listEntity(new NamespaceKey(container.getFullPathList())));
-      }
-      visited.add(container);
-    }
-    return visited;
+  // returns the child containers of the given rootKey as an iterable
+  private Iterable<NameSpaceContainer> iterateEntity(final NamespaceKey rootKey) throws NamespaceException {
+    final NamespaceInternalKey rootInternalKey = new NamespaceInternalKey(rootKey, keyNormalization);
+    final Iterable<Map.Entry<byte[], NameSpaceContainer>> entries = namespace.find(
+      new FindByRange<>(rootInternalKey.getRangeStartKey(), false, rootInternalKey.getRangeEndKey(), false));
+    return FluentIterable.from(entries).transform(input -> input.getValue());
   }
 
   @Override
-  public List<NamespaceKey> getAllDatasets(final NamespaceKey root) throws NamespaceException {
+  public Iterable<NamespaceKey> getAllDatasets(final NamespaceKey root) throws NamespaceException {
     final NameSpaceContainer rootContainer = namespace.get(new NamespaceInternalKey(root, keyNormalization).getKey());
     if (rootContainer == null) {
       return Collections.emptyList();
@@ -638,35 +628,73 @@ public class NamespaceServiceImpl implements NamespaceService {
       return Collections.emptyList();
     }
 
-    final List<NamespaceKey> datasetPaths = Lists.newArrayList();
-    for (NameSpaceContainer container : traverseEntity(root)) {
-      if (container.getType() == DATASET) {
-        datasetPaths.add(new NamespaceKey(container.getFullPathList()));
-      }
-    }
-    return datasetPaths;
+    return () -> new LazyIteratorOverDatasets(root);
   }
 
-  @Override
-  public List<FolderConfig> getAllFolders(NamespaceKey root) throws NamespaceException {
-    final NameSpaceContainer rootContainer = namespace.get(new NamespaceInternalKey(root, keyNormalization).getKey());
-    if (rootContainer == null || !isListable(rootContainer.getType())) {
-      return Collections.emptyList();
+  /**
+   * Iterator that lazily loads dataset entries in the sub-tree under the given {@link NamespaceUtils#isListable
+   * listable} root. This implementation uses depth-first-search algorithm, unlike {@link #traverseEntity} which uses
+   * breadth-first-search algorithm. So this avoids queueing up "dataset" containers. Note that "stack" contains only
+   * listable containers which have a small memory footprint.
+   */
+  private final class LazyIteratorOverDatasets implements Iterator<NamespaceKey> {
+
+    private final NamespaceKey root;
+    private final Deque<NamespaceKey> stack = Lists.newLinkedList();
+    private final LinkedList<NamespaceKey> nextFewKeys = Lists.newLinkedList();
+
+    private LazyIteratorOverDatasets(NamespaceKey root) {
+      this.root = root;
+      stack.push(root);
     }
 
-    return FluentIterable
-      .from(traverseEntity(root))
-      .filter(new Predicate<NameSpaceContainer>() {
-        @Override
-        public boolean apply(NameSpaceContainer input) {
-          return input.getType() == FOLDER;
+    @Override
+    public boolean hasNext() {
+      if (!nextFewKeys.isEmpty()) {
+        return true;
+      }
+
+      populateNextFewKeys();
+      return !nextFewKeys.isEmpty();
+    }
+
+    private void populateNextFewKeys() {
+      while (!stack.isEmpty()) {
+        final NamespaceKey top = stack.pop();
+
+        final Iterable<NameSpaceContainer> children;
+        try {
+          children = iterateEntity(top);
+        } catch (NamespaceException e) {
+          throw new RuntimeException("failed during dataset listing of sub-tree under: " + root);
         }
-      }).transform(new Function<NameSpaceContainer, FolderConfig>() {
-        @Override
-        public FolderConfig apply(NameSpaceContainer input) {
-          return input.getFolder();
+
+        for (final NameSpaceContainer child : children) {
+          final NamespaceKey childKey = new NamespaceKey(child.getFullPathList());
+          if (child.getType() == DATASET) {
+            nextFewKeys.add(childKey);
+            continue;
+          }
+
+          assert isListable(child.getType()) : "child container is not listable type";
+          stack.push(childKey);
         }
-      }).toList();
+
+        if (!nextFewKeys.isEmpty()) {
+          // suspend if few keys are loaded
+          break;
+        }
+      }
+    }
+
+    @Override
+    public NamespaceKey next() {
+      final NamespaceKey nextKey = nextFewKeys.pollFirst();
+      if (nextKey == null) {
+        throw new NoSuchElementException();
+      }
+      return nextKey;
+    }
   }
 
   @Override
@@ -678,6 +706,49 @@ public class NamespaceServiceImpl implements NamespaceService {
       }
     }
     return count;
+  }
+
+  @Override
+  public BoundedDatasetCount getDatasetCount(NamespaceKey root, long searchTimeLimitMillis, int countLimitToStopSearch)
+      throws NamespaceException {
+    return getDatasetCountHelper(root, searchTimeLimitMillis, countLimitToStopSearch);
+  }
+
+  private BoundedDatasetCount getDatasetCountHelper(final NamespaceKey root, long searchTimeLimitMillis, int remainingCount) throws NamespaceException {
+    int count = 0;
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    final Deque<NamespaceKey> stack = Lists.newLinkedList();
+    stack.push(root);
+    while (!stack.isEmpty()) {
+      final NamespaceKey top = stack.pop();
+
+      int childrenVisited = 0;
+      for (final NameSpaceContainer child : iterateEntity(top)) {
+        childrenVisited++;
+        if (remainingCount <= 0) {
+          return new BoundedDatasetCount(count, false, true);
+        }
+
+        // Check the remaining time every few entries avoid the frequent System calls which may slow down
+        if (childrenVisited % 50 == 0 && stopwatch.elapsed(TimeUnit.MILLISECONDS) >= searchTimeLimitMillis) {
+          return new BoundedDatasetCount(count, true, false);
+        }
+
+        final NamespaceKey childKey = new NamespaceKey(child.getFullPathList());
+        if (child.getType() == DATASET) {
+          count++;
+          remainingCount--;
+          continue;
+        }
+        stack.push(childKey);
+      }
+
+      if (stopwatch.elapsed(TimeUnit.MILLISECONDS) >= searchTimeLimitMillis) {
+        return new BoundedDatasetCount(count, true, false);
+      }
+    }
+
+    return new BoundedDatasetCount(count, false, false);
   }
 
   @Override
@@ -984,6 +1055,21 @@ public class NamespaceServiceImpl implements NamespaceService {
     } catch (Exception e) {
       return "Error: " + e;
     }
+  }
+
+  // BFS traversal of a folder/space/home.
+  // For debugging purposes only
+  private Collection<NameSpaceContainer> traverseEntity(final NamespaceKey root) throws NamespaceException {
+    final LinkedList<NameSpaceContainer> toBeTraversed = new LinkedList<>(listEntity(root));
+    final LinkedList<NameSpaceContainer> visited = new LinkedList<>();
+    while (!toBeTraversed.isEmpty()) {
+      final NameSpaceContainer container = toBeTraversed.removeFirst();
+      if (NamespaceUtils.isListable(container.getType())) {
+        toBeTraversed.addAll(listEntity(new NamespaceKey(container.getFullPathList())));
+      }
+      visited.add(container);
+    }
+    return visited;
   }
 
   // For debugging purposes only

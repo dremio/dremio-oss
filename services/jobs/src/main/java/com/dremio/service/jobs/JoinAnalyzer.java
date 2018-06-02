@@ -36,7 +36,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.RoutingShuttle;
-import com.dremio.exec.planner.common.JdbcRelBase;
+import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
@@ -120,8 +120,8 @@ public final class JoinAnalyzer extends BasePrelVisitor<Void,Void,RuntimeExcepti
 
     @Override
     public RelNode visit(RelNode other) {
-      if ((other instanceof JdbcRelBase)) {
-        ((JdbcRelBase) other).getJdbcSubTree().accept(this);
+      if ((other instanceof ContainerRel)) {
+        ((ContainerRel) other).getSubTree().accept(this);
       }
       return super.visit(other);
     }

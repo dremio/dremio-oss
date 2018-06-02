@@ -39,6 +39,12 @@ public interface AccelerationDetailsPopulator {
   void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken);
 
   /**
+   * report failures during substitution
+   * @param errors list of all errors
+   */
+  void substitutionFailures(Iterable<String> errors);
+
+  /**
    * Report materializations used to accelerate incoming query only if query is accelerated.
    *
    * @param info acceleration info.
@@ -56,6 +62,10 @@ public interface AccelerationDetailsPopulator {
   AccelerationDetailsPopulator NO_OP = new AccelerationDetailsPopulator() {
     @Override
     public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
+    }
+
+    @Override
+    public void substitutionFailures(Iterable<String> errors) {
     }
 
     @Override

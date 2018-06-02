@@ -23,27 +23,21 @@ import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 
-class InjectSampleAndJdbcLogical extends StatelessRelShuttleImpl {
+class InjectSample extends StatelessRelShuttleImpl {
 
   private final boolean addSample;
-  private final boolean addJdbcLogical;
-
 
   // If leaf limits are enabled, add it now during calcite logical planning (previously we were adding this at the
   // end of the convertToDrel, which would be too late for jdbc plugin/conventions.  The storage plugin rules would
   // have fired by the end of convertToDrel.  One thing to note, currently, we do not push down limit to jdbc (see
   // calcite JdbcRules.JdbcSortRule (offsets/fetchs are not pushed down).
-  public InjectSampleAndJdbcLogical(boolean addSample, boolean addJdbcLogical) {
+  public InjectSample(boolean addSample) {
     this.addSample = addSample;
-    this.addJdbcLogical = addJdbcLogical;
   }
 
   @Override
   public RelNode visit(TableScan scan) {
     RelNode toReturn = scan;
-    if (addJdbcLogical && scan.getConvention() instanceof JdbcConventionIndicator) {
-      toReturn = new JdbcCrel(scan.getCluster(), scan.getTraitSet().plus(Convention.NONE), scan);
-    }
     if (addSample) {
       return SampleCrel.create(toReturn);
     }

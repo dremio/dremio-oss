@@ -17,6 +17,8 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
 import JobsFilters from './JobsFilters';
+import * as IntervalTypes from './StartTimeSelect/IntervalTypes';
+
 
 describe('JobsFilters', () => {
 
@@ -112,6 +114,14 @@ describe('JobsFilters', () => {
         instance.handleEnterText('');
         const result2 = commonProps.queryState.deleteIn(['filters', 'contains']);
         expect(commonProps.onUpdateQueryState.getCall(1).args[0].toJS()).to.eql(result2.toJS());
+      });
+    });
+
+    describe('handleStartTimeChange', () => {
+      it('should delete st if ALL_TIME_INTERVAL is used', () => {
+        commonProps.queryState.setIn(['filters', 'st'], Immutable.List(['text']));
+        instance.handleStartTimeChange(IntervalTypes.ALL_TIME_INTERVAL, []);
+        expect(commonProps.queryState.get('filters').has('st')).to.eql(false);
       });
     });
   });

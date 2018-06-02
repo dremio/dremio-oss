@@ -134,6 +134,9 @@ fi
 #
 DREMIO_JAVA_OPTS="-Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler"
 
+# Set the default path for native hadoop lib
+DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Djava.library.path=${DREMIO_HOME}/lib"
+
 # Test for cygwin
 is_cygwin=false
 case "`uname`" in

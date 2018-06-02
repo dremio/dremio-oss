@@ -29,6 +29,7 @@ import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
+import com.google.common.collect.Lists;
 
 /**
  * Migrates pre-1.5 acceleration settings on sources and datasets to the new ReflectionSettings store.
@@ -66,7 +67,8 @@ public class MoveFromAccelerationSettingsToReflectionSettings extends UpgradeTas
 
       // migrate all datasets under source
       try {
-        List<NamespaceKey> allDatasets = namespaceService.getAllDatasets(sourceConfig.getKey());
+        final List<NamespaceKey> allDatasets =
+            Lists.newArrayList(namespaceService.getAllDatasets(sourceConfig.getKey()));
 
         for (NamespaceKey key : allDatasets) {
           try {

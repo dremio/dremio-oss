@@ -29,7 +29,12 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
   public static final int MAX_NUMERIC_SCALE = 38;
   public static final int MAX_NUMERIC_PRECISION = 38;
 
-  public static final RelDataTypeSystem REL_DATATYPE_SYSTEM = new RelDataTypeSystemImpl();
+  public static final int SUPPORTED_DATETIME_PRECISION = 3;
+
+  public static final RelDataTypeSystem REL_DATA_TYPE_SYSTEM = new RelDataTypeSystemImpl();
+
+  private RelDataTypeSystemImpl() {
+  }
 
   @Override
   public int getDefaultPrecision(SqlTypeName typeName) {
@@ -39,8 +44,22 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
       case VARCHAR:
       case VARBINARY:
         return DEFAULT_PRECISION;
+      case TIME:
+      case TIMESTAMP:
+        return SUPPORTED_DATETIME_PRECISION;
       default:
         return super.getDefaultPrecision(typeName);
+    }
+  }
+
+  @Override
+  public int getMaxPrecision(SqlTypeName typeName) {
+    switch(typeName) {
+    case TIME:
+    case TIMESTAMP:
+      return SUPPORTED_DATETIME_PRECISION;
+    default:
+      return super.getMaxPrecision(typeName);
     }
   }
 

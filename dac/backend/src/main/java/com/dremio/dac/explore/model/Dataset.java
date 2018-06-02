@@ -51,8 +51,6 @@ public class Dataset implements AddressableResource {
 
   private final HistoryItem lastHistoryItem;
 
-  private final int descendants;
-
   @JsonCreator
   public Dataset(
       @JsonProperty("id") String id,
@@ -62,8 +60,7 @@ public class Dataset implements AddressableResource {
       @JsonProperty("sql") String sql,
       @JsonProperty("datasetConfig") VirtualDatasetUI datasetConfig,
       @JsonProperty("lastHistoryItem") HistoryItem lastHistoryItem,
-      @JsonProperty(value = "jobCount", defaultValue = "0") int jobCount,
-      @JsonProperty(value = "descendants", defaultValue = "0") int descendants) {
+      @JsonProperty(value = "jobCount", defaultValue = "0") int jobCount) {
     this.id = id;
     this.resourcePath = resourcePath;
     this.versionedResourcePath = versionedResourcePath;
@@ -72,7 +69,6 @@ public class Dataset implements AddressableResource {
     this.datasetConfig = datasetConfig;
     this.lastHistoryItem = lastHistoryItem;
     this.jobCount = jobCount;
-    this.descendants = descendants;
   }
 
   public static Dataset newInstance(
@@ -81,17 +77,13 @@ public class Dataset implements AddressableResource {
       DatasetName datasetName,
       String sql,
       VirtualDatasetUI datasetConfig,
-      int jobCount, int descendants) {
+      int jobCount) {
     // The history item is populated only after transform
-    return new Dataset(datasetConfig.getId(), resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, null, jobCount, descendants);
+    return new Dataset(datasetConfig.getId(), resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, null, jobCount);
   }
 
   public int getJobCount() {
     return jobCount;
-  }
-
-  public int getDescendants() {
-    return descendants;
   }
 
   @Override

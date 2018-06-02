@@ -18,7 +18,9 @@ package com.dremio.exec.expr;
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -75,6 +77,7 @@ import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JLabel;
+import com.sun.codemodel.JMethod;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
 
@@ -84,13 +87,15 @@ import com.sun.codemodel.JVar;
 public class EvaluationVisitor {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EvaluationVisitor.class);
   private final FunctionContext functionContext;
+  private final int newMethodThreshold;
 
   public EvaluationVisitor(FunctionContext functionContext) {
     super();
     this.functionContext = functionContext;
+    this.newMethodThreshold = functionContext.getCompilationOptions().getNewMethodThreshold();
   }
 
-  public HoldingContainer addExpr(LogicalExpression e, ClassGenerator<?> generator) {
+  public HoldingContainer addExpr(LogicalExpression e, ClassGenerator<?> generator, boolean allowInnerMethods) {
 
     Set<LogicalExpression> constantBoundaries;
     if (generator.getMappingSet().hasEmbeddedConstant()) {
@@ -98,7 +103,7 @@ public class EvaluationVisitor {
     } else {
       constantBoundaries = ConstantExpressionIdentifier.getConstantExpressionSet(e);
     }
-    return e.accept(new CSEFilter(constantBoundaries, functionContext), generator);
+    return e.accept(new CSEFilter(constantBoundaries, functionContext, allowInnerMethods), generator);
   }
 
   private class ExpressionHolder {
@@ -784,8 +789,8 @@ public class EvaluationVisitor {
 
   private class CSEFilter extends ConstantFilter {
 
-    public CSEFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext) {
-      super(constantBoundaries, functionContext);
+    public CSEFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext, boolean allowInnerMethods) {
+      super(constantBoundaries, functionContext, allowInnerMethods);
     }
 
     @Override
@@ -1007,12 +1012,118 @@ public class EvaluationVisitor {
     }
   }
 
-  private class ConstantFilter extends EvalVisitor {
+  /**
+   * Keeps track of how many expression have been visited in the current eval block. A new method is rolled out whenever
+   * the threshold is reached
+   */
+  private class InnerMethodNester extends EvalVisitor {
+    private final boolean allowNewMethods;
+
+    private Deque<Integer> exprCount = new LinkedList<>();
+
+    InnerMethodNester(FunctionContext functionContext, boolean allowNewMethods) {
+      super(functionContext);
+      this.allowNewMethods = allowNewMethods;
+      exprCount.push(0);
+    }
+
+    private void inc() {
+      exprCount.push(exprCount.pop() + 1);
+    }
+
+    private boolean shouldNestMethod() {
+      return exprCount.peekLast() > newMethodThreshold;
+    }
+
+    @Override
+    public HoldingContainer visitFunctionHolderExpression(FunctionHolderExpression holder, ClassGenerator<?> generator) throws RuntimeException {
+      inc();
+      if (shouldNestMethod()) {
+        exprCount.push(0);
+        HoldingContainer out = generator.declare(holder.getCompleteType(), false);
+        JMethod method = generator.innerMethod(holder.getCompleteType());
+        HoldingContainer returnContainer = super.visitFunctionHolderExpression(holder, generator);
+        method.body()._return(returnContainer.getHolder());
+        generator.unNestEvalBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.getEvalBlock().assign(out.getHolder(), methodCall);
+
+        exprCount.pop();
+        return out;
+      }
+      return super.visitFunctionHolderExpression(holder, generator);
+    }
+
+    @Override
+    public HoldingContainer visitIfExpression(IfExpression ifExpr, ClassGenerator<?> generator) throws RuntimeException {
+      inc();
+      if (shouldNestMethod()) {
+        exprCount.push(0);
+        HoldingContainer out = generator.declare(ifExpr.getCompleteType(), false);
+        JMethod method = generator.innerMethod(ifExpr.getCompleteType());
+        HoldingContainer returnContainer = super.visitIfExpression(ifExpr, generator);
+        method.body()._return(returnContainer.getHolder());
+        generator.unNestEvalBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.getEvalBlock().assign(out.getHolder(), methodCall);
+
+        exprCount.pop();
+        return out;
+      }
+      return super.visitIfExpression(ifExpr, generator);
+    }
+
+    @Override
+    public HoldingContainer visitBooleanOperator(BooleanOperator call, ClassGenerator<?> generator) throws RuntimeException {
+      inc();
+      if (shouldNestMethod()) {
+        exprCount.push(0);
+        HoldingContainer out = generator.declare(call.getCompleteType(), false);
+        JMethod method = generator.innerMethod(call.getCompleteType());
+        HoldingContainer returnContainer = super.visitBooleanOperator(call, generator);
+        method.body()._return(returnContainer.getHolder());
+        generator.unNestEvalBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.getEvalBlock().assign(out.getHolder(), methodCall);
+
+        exprCount.pop();
+        return out;
+      }
+      return super.visitBooleanOperator(call, generator);
+    }
+
+    @Override
+    public HoldingContainer visitUnknown(LogicalExpression e, ClassGenerator<?> generator) throws RuntimeException {
+      inc();
+      return super.visitUnknown(e, generator);
+    }
+
+    @Override
+    public HoldingContainer visitConvertExpression(ConvertExpression e, ClassGenerator<?> generator) throws RuntimeException {
+      inc();
+      if (shouldNestMethod()) {
+        exprCount.push(0);
+        HoldingContainer out = generator.declare(e.getCompleteType(), false);
+        JMethod method = generator.innerMethod(e.getCompleteType());
+        HoldingContainer returnContainer = super.visitConvertExpression(e, generator);
+        method.body()._return(returnContainer.getHolder());
+        generator.unNestEvalBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.getEvalBlock().assign(out.getHolder(), methodCall);
+
+        exprCount.pop();
+        return out;
+      }
+      return super.visitConvertExpression(e, generator);
+    }
+  }
+
+  private class ConstantFilter extends InnerMethodNester {
 
     private Set<LogicalExpression> constantBoundaries;
 
-    public ConstantFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext) {
-      super(functionContext);
+    public ConstantFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext, boolean allowNewMethods) {
+      super(functionContext, allowNewMethods);
       this.constantBoundaries = constantBoundaries;
     }
 

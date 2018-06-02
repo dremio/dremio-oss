@@ -26,6 +26,7 @@ import org.apache.parquet.schema.MessageType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 import java.util.Collection;
@@ -38,8 +39,7 @@ public class ParquetRecordMaterializer extends RecordMaterializer<Void> {
 
   public ParquetRecordMaterializer(OutputMutator mutator, ComplexWriter complexWriter, MessageType schema,
                                         Collection<SchemaPath> columns, OptionManager options, Schema arrowSchema,
-                                        ParquetReaderUtility.DateCorruptionStatus containsCorruptedDates,
-                                        boolean readInt96AsTimeStamp) {
+                                        SchemaDerivationHelper schemaHelper) {
     this.complexWriter = complexWriter;
     root = new StructGroupConverter(
         mutator,
@@ -48,8 +48,8 @@ public class ParquetRecordMaterializer extends RecordMaterializer<Void> {
         columns,
         options,
         arrowSchema == null ? null : arrowSchema.getFields(),
-        containsCorruptedDates,
-        readInt96AsTimeStamp);
+        schemaHelper
+    );
   }
 
   public void setPosition(int position) {

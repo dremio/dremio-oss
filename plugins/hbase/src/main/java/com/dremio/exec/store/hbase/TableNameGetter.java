@@ -38,7 +38,7 @@ public final class TableNameGetter {
       return TableName.valueOf(paths.get(1), paths.get(2));
 
     default:
-      throw new IllegalStateException("Unexpected key lenth: " + key);
+      throw new IllegalStateException("Unexpected key length: " + key);
     }
   }
 }

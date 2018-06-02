@@ -56,6 +56,7 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
@@ -117,7 +118,7 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
           return currentUGI.doAs(new PrivilegedAction<RecordReader>() {
             @Override
             public RecordReader run() {
-              for (Prop prop : tableAttr.getPartitionPropertiesList().get(split.getPartitionId()).getPartitionPropertyList()) {
+              for (Prop prop : HiveReaderProtoUtil.getPartitionProperties(tableAttr, split.getPartitionId())) {
                 jobConf.set(prop.getKey(), prop.getValue());
               }
               // per partition fs is different
@@ -132,6 +133,7 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
                 footerCache.getFooter(fs, split.getFileSplit().getPath()),
                 jobConf,
                 vectorize,
+                config.getSchema(),
                 enableDetailedTracing
               );
 
@@ -184,9 +186,10 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
     @Override
     public int compareTo(Object o) {
       final HiveParquetSplit other = (HiveParquetSplit) o;
+
       final int ret = fileSplit.getPath().compareTo(other.fileSplit.getPath());
       if (ret == 0) {
-        return (int) (fileSplit.getStart() - other.getFileSplit().getStart());
+        return Long.compare(fileSplit.getStart(), other.getFileSplit().getStart());
       }
       return ret;
     }
@@ -200,11 +203,11 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
       final HiveTableXattr tableAttr,
       final CompositeReaderConfig compositeReader){
 
-    final String formatName = tableAttr.getInputFormat();
+    final Optional<String> formatName = HiveReaderProtoUtil.getTableInputFormat(tableAttr);
 
     Class<? extends HiveAbstractReader> readerClass = HiveDefaultReader.class;
-    if (readerMap.containsKey(formatName)) {
-      readerClass = readerMap.get(formatName);
+    if (formatName.isPresent() && readerMap.containsKey(formatName.get())) {
+      readerClass = readerMap.get(formatName.get());
     }
 
     final Class<? extends HiveAbstractReader> readerClassF = readerClass;
